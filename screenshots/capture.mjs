@@ -61,6 +61,51 @@ await page.click('button:has-text("⇄ Both")');
 await page.waitForTimeout(300);
 await shot(page, "08-split");
 
+// 9) Copilot tab — generate AI proposals
+await page.click('button:has-text("● Actual")');
+await page.click('button:has-text("Copilot")');
+await page.waitForSelector("text=/Propose layout improvements/");
+await page.click("text=/Propose layout improvements/");
+await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
+await shot(page, "10-copilot-proposals");
+
+// 10) Copilot narration + NL edit
+await page.click("text=/Explain this grade/");
+await page.waitForTimeout(400);
+await shot(page, "11-copilot-narrate");
+
+// 11) Customizable KPI weights (Rating tab)
+await page.click('button:has-text("Rating")');
+await page.click("text=/Adjust KPI weights/");
+await page.waitForTimeout(300);
+await shot(page, "12-weights");
+
+// 12) Scenario comparison — save a named variant via the Flow panel, then compare
+await page.click('button:has-text("Flow")');
+const nameInput = page.locator('.side input[placeholder="name this variant…"]');
+await nameInput.fill("Baseline");
+await page.locator('.side').getByRole("button", { name: "Save", exact: true }).click();
+await page.waitForTimeout(200);
+// also save the optimizer floor as a second variant for a meaningful comparison
+await page.click('button:has-text("Copilot")');
+await page.click("text=/Propose layout improvements/");
+await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
+await page.locator('button:has-text("Save as scenario")').first().click();
+await page.waitForTimeout(200);
+await page.locator("header").getByRole("button", { name: "Compare" }).click();
+await page.waitForSelector("text=/Compare scenarios/");
+await page.waitForTimeout(300);
+await shot(page, "13-compare");
+await page.locator(".modal").getByRole("button", { name: "✕" }).click();
+await page.waitForTimeout(200);
+
+// 13) Settings modal
+await page.locator("header").getByRole("button", { name: "⚙" }).click();
+await page.waitForSelector("text=/Configure the Copilot/");
+await page.waitForTimeout(200);
+await shot(page, "14-settings");
+await page.locator(".modal").getByRole("button", { name: "Cancel" }).click();
+
 await ctx.close();
 
 // ---------- Mobile flow ----------

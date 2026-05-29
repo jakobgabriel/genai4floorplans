@@ -1,4 +1,4 @@
-import type { Flow, Model, NoGoZone, Station } from "../model/types";
+import type { Flow, Model, NoGoZone, RatingWeights, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
@@ -9,6 +9,7 @@ export type ModelAction =
   | { type: "SET_NAME"; name: string }
   | { type: "SET_GRID"; gridW: number; gridH: number }
   | { type: "SET_SHIFT_HOURS"; shiftHours: number }
+  | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
   | { type: "MOVE_STATION"; id: string; x: number; y: number }
@@ -48,6 +49,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_SHIFT_HOURS":
       return { ...model, shiftHours: Math.max(0.5, action.shiftHours || DEFAULT_SHIFT_HOURS) };
+
+    case "SET_WEIGHTS":
+      return { ...model, weights: action.weights };
 
     case "ADD_STATION":
       return { ...model, stations: model.stations.concat([action.station]) };
@@ -152,13 +156,28 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 }
 
 let counter = 0;
+
+/** A fresh station id that is unique within the model. */
+export function newStationId(model: Model, base = "step"): string {
+  let id: string;
+  do {
+    counter++;
+    id = base + (model.stations.length + 1) + "_" + counter.toString(36);
+  } while (model.stations.some((s) => s.id === id));
+  return id;
+}
+
 export function makeStation(model: Model): Station {
-  counter++;
-  const id = "step" + (model.stations.length + 1) + "_" + counter.toString(36);
   return {
     ...STATION_DEFAULTS,
-    id,
+    id: newStationId(model),
     x: Math.floor(model.gridW / 2 - 1),
     y: Math.floor(model.gridH / 2 - 1),
   };
+}
+
+/** Clone a station with a new id, nudged one cell down-right (clamped). */
+export function cloneStation(model: Model, src: Station): Station {
+  const { x, y } = clampToGrid(src, src.x + 1, src.y + 1, model.gridW, model.gridH);
+  return { ...src, id: newStationId(model, "copy"), name: src.name + " (copy)", x, y };
 }

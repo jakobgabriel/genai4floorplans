@@ -1,11 +1,11 @@
-import type { Model, Station } from "../model/types";
+import type { Model, RatingWeights, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { computeKPIs, type FlowDetail, type KPIResult } from "./kpis";
 import { optimize, type OptimizeOptions } from "./optimize";
 import { balanceAnalysis, type BalanceResult } from "./balance";
 import { autoCoherenceScore, chainRating, ergoScore } from "./automation";
 
-export const WEIGHTS = {
+export const WEIGHTS: RatingWeights = {
   flowCost: 0.25,
   travel: 0.15,
   congestion: 0.1,
@@ -13,7 +13,22 @@ export const WEIGHTS = {
   balance: 0.2,
   ergo: 0.1,
   auto: 0.1,
-} as const;
+};
+
+/** Normalize weights so they sum to 1 (UI lets users drag them arbitrarily). */
+export function normalizeWeights(w: RatingWeights): RatingWeights {
+  const sum = w.flowCost + w.travel + w.congestion + w.placement + w.balance + w.ergo + w.auto;
+  if (sum <= 0) return { ...WEIGHTS };
+  return {
+    flowCost: w.flowCost / sum,
+    travel: w.travel / sum,
+    congestion: w.congestion / sum,
+    placement: w.placement / sum,
+    balance: w.balance / sum,
+    ergo: w.ergo / sum,
+    auto: w.auto / sum,
+  };
+}
 
 export type Letter = "A" | "B" | "C" | "D" | "E";
 
@@ -79,14 +94,15 @@ export function buildRating(model: Model, opts: OptimizeOptions = {}): Rating {
   const chain = chainRating(stations, flows);
   const sAuto = autoCoherenceScore(chain);
 
+  const w = model.weights ? normalizeWeights(model.weights) : WEIGHTS;
   const composite =
-    sFlow * WEIGHTS.flowCost +
-    sTravel * WEIGHTS.travel +
-    sCong * WEIGHTS.congestion +
-    sPlace * WEIGHTS.placement +
-    sBal * WEIGHTS.balance +
-    sErgo * WEIGHTS.ergo +
-    sAuto * WEIGHTS.auto;
+    sFlow * w.flowCost +
+    sTravel * w.travel +
+    sCong * w.congestion +
+    sPlace * w.placement +
+    sBal * w.balance +
+    sErgo * w.ergo +
+    sAuto * w.auto;
 
   const flowReductionPct =
     actual.flowCost > 0 ? ((actual.flowCost - opt.flowCost) / actual.flowCost) * 100 : 0;

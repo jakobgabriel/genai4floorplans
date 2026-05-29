@@ -15,8 +15,13 @@ const toV1: Migration = (m) => ({
   shiftHours: typeof m.shiftHours === "number" ? m.shiftHours : 8,
 });
 
+// version 1 -> 2: introduce optional per-model rating weights (absent => engine
+// defaults, so existing models keep their exact grade).
+const toV2: Migration = (m) => ({ ...m, schemaVersion: 2 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
+  1: toV2,
 };
 
 export function migrate(raw: unknown): Model {

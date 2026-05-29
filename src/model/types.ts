@@ -50,6 +50,18 @@ export interface NoGoZone {
   label?: string;
 }
 
+/** Composite-rating weights (spec §4). Defined here so the model can carry an
+ *  override without importing from the engine. Defaults live in engine/rating.ts. */
+export interface RatingWeights {
+  flowCost: number;
+  travel: number;
+  congestion: number;
+  placement: number;
+  balance: number;
+  ergo: number;
+  auto: number;
+}
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -58,6 +70,8 @@ export interface Model {
   gridH: number;
   /** Default shift length applied when a station omits shiftHours. */
   shiftHours?: number;
+  /** Composite-rating weight override. Falls back to engine WEIGHTS when absent. */
+  weights?: RatingWeights;
   stations: Station[];
   flows: Flow[];
   noGoZones: NoGoZone[];
@@ -70,7 +84,7 @@ export const ERGO: ErgoRisk[] = ["low", "med", "high"];
 export const TRANSPORT: Transport[] = ["manual", "forklift", "conveyor", "agv"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;

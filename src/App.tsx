@@ -3,8 +3,18 @@ import { useFlowPlan } from "./store/useFlowPlan";
 import { SAMPLE, blankModel } from "./model/sample";
 import { parseModelText, downloadJSON } from "./io/json";
 import { downloadKpiCsv } from "./io/csv";
+import { downloadLayoutPNG } from "./io/image";
+import { openReport } from "./io/report";
+import { cloneStation } from "./store/reducer";
+import type { Station } from "./model/types";
+import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 import { EmptyState } from "./components/EmptyState";
+import { SettingsModal } from "./components/SettingsModal";
+import { ScenarioCompare } from "./components/ScenarioCompare";
+import { FlowEditorPopover } from "./components/FlowEditorPopover";
+import { StationTooltip } from "./components/StationTooltip";
+import { CopilotPanel } from "./components/CopilotPanel";
 import { useToast } from "./components/ui";
 import {
   AutomationPanel,
@@ -29,8 +39,14 @@ export function App() {
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
+  const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
+  const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
   const [showOnboard, setShowOnboard] = useState(() => !localStorage.getItem("flowplan_model"));
+  const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const clipboard = useRef<Station | null>(null);
 
   const { model, rating } = api;
 
@@ -98,11 +114,39 @@ export function App() {
         api.redo();
         return;
       }
+      if (mod && e.key.toLowerCase() === "d" && selId) {
+        e.preventDefault();
+        const src = model.stations.find((x) => x.id === selId);
+        if (src) {
+          const clone = cloneStation(model, src);
+          api.commit({ type: "ADD_STATION", station: clone });
+          setSel(clone.id);
+        }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "c" && selId) {
+        const src = model.stations.find((x) => x.id === selId);
+        if (src) clipboard.current = src;
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "v" && clipboard.current) {
+        e.preventDefault();
+        const clone = cloneStation(model, clipboard.current);
+        api.commit({ type: "ADD_STATION", station: clone });
+        setSel(clone.id);
+        return;
+      }
       if (typing) return;
       if (e.key === "Escape") {
+        if (showSettings || showCompare) {
+          setShowSettings(false);
+          setShowCompare(false);
+          return;
+        }
         setMode("select");
         setFlowFirst(null);
         setSel(null);
+        setSelFlow(null);
         return;
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selId) {
@@ -124,7 +168,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [api, selId, model.stations]);
+  }, [api, selId, model.stations, showSettings, showCompare]);
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
 
@@ -162,12 +206,16 @@ export function App() {
           interactive
           mode={mode}
           flowFirst={flowFirst}
+          selFlow={selFlow}
           onSelect={selectAndInspect}
+          onSelectFlow={setSelFlow}
+          onHoverStation={(s, x, y) => setHover(s ? { station: s, x, y } : null)}
           onMoveStart={api.checkpoint}
           onMove={(id, x, y) => api.live({ type: "MOVE_STATION", id, x, y })}
           onPickStation={pickStation}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
         />
+        {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
         <div className="hint">
           {mode === "flow"
             ? "Flow mode: tap a source step then a target. Esc to exit."
@@ -237,13 +285,32 @@ export function App() {
         <button className="btn" onClick={() => downloadKpiCsv(model)} title="Export KPI + automation tables as CSV">
           CSV
         </button>
+        <button
+          className="btn"
+          onClick={async () => {
+            const ok = await downloadLayoutPNG("ACTUAL", (model.name || "layout").replace(/\s+/g, "_"));
+            if (!ok) toast("Switch to the Actual view to export the layout", "warn");
+          }}
+          title="Export the layout as a PNG image"
+        >
+          PNG
+        </button>
+        <button className="btn" onClick={() => openReport(model)} title="Open a printable one-page report">
+          Report
+        </button>
+        <button className="btn" onClick={() => setShowCompare(true)} title="Compare saved scenarios">
+          Compare
+        </button>
+        <button className="btn" onClick={() => setShowSettings(true)} title="Settings">
+          ⚙
+        </button>
         <button className="btn" onClick={() => { if (confirm("Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario).")) { api.reset(SAMPLE); setSel(null); setView("actual"); } }}>
           Reset
         </button>
       </header>
 
       <main>
-        <div className="canvas">
+        <div className="canvas" style={{ position: "relative" }}>
           {canvasInner}
           <div className="legend">
             <span>
@@ -262,6 +329,7 @@ export function App() {
             {tBtn("flow", "Flow")}
             {tBtn("auto", "Automation")}
             {tBtn("inspect", "Configure")}
+            {tBtn("copilot", "✨ Copilot")}
             {tBtn("schema", "Schema")}
           </div>
           {tab === "rating" && <RatingPanel {...panelProps} />}
@@ -269,9 +337,17 @@ export function App() {
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "auto" && <AutomationPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
+          {tab === "copilot" && <CopilotPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
         </div>
       </main>
+
+      {hover ? <StationTooltip station={hover.station} x={hover.x} y={hover.y} shiftHours={model.shiftHours ?? 8} /> : null}
+
+      {showSettings ? (
+        <SettingsModal initial={settings} onClose={() => setShowSettings(false)} onSaved={setSettings} />
+      ) : null}
+      {showCompare ? <ScenarioCompare api={api} onClose={() => setShowCompare(false)} /> : null}
 
       {showOnboard ? (
         <EmptyState

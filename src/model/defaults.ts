@@ -51,6 +51,7 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     gridW: o.gridW ?? 22,
     gridH: o.gridH ?? 14,
     shiftHours: o.shiftHours ?? DEFAULT_SHIFT_HOURS,
+    weights: o.weights,
     noGoZones: Array.isArray(o.noGoZones) ? o.noGoZones : [],
     stations: stations.map(normalizeStation),
     flows: flows.map(normalizeFlow),

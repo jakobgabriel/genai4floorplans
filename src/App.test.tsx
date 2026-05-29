@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
 import { App } from "./App";
 import { ToastProvider } from "./components/ui";
 
@@ -40,5 +40,14 @@ describe("App", () => {
     expect(screen.getByText(/Automation chaining/)).toBeTruthy();
     fireEvent.click(screen.getByText("Schema"));
     expect(screen.getByText(/Data model/)).toBeTruthy();
+  });
+
+  it("generates AI proposals from the Copilot tab", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("✨ Copilot"));
+    fireEvent.click(screen.getByText(/Propose layout improvements/));
+    // a strategist proposal card appears (engine-scored, offline)
+    await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
   });
 });

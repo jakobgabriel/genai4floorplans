@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "../store/reducer";
-import { AUTO, ERGO, ROLES, STATION_TYPES, TRANSPORT, type Flow } from "../model/types";
+import { AUTO, ERGO, ROLES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights } from "../model/types";
 import type { CellForm } from "../engine/templates";
+import { WEIGHTS, normalizeWeights } from "../engine/rating";
 import { bottleneckAdvice } from "../engine/balance";
 import { autoPotential } from "../engine/automation";
 import { AMBER, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
@@ -15,7 +16,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "schema";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "copilot" | "schema";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -111,6 +112,59 @@ export function RatingPanel({ api, setView }: PanelProps) {
           </div>
         </div>
       ))}
+      <WeightsEditor api={api} />
+    </div>
+  );
+}
+
+const WEIGHT_LABELS: Array<[keyof RatingWeights, string]> = [
+  ["flowCost", "Material flow cost"],
+  ["travel", "Travel effort"],
+  ["congestion", "Aisle congestion"],
+  ["placement", "Placement efficiency"],
+  ["balance", "Line balance"],
+  ["ergo", "Ergonomics"],
+  ["auto", "Automation coherence"],
+];
+
+function WeightsEditor({ api }: { api: FlowPlanApi }) {
+  const [open, setOpen] = useState(false);
+  const custom = !!api.model.weights;
+  const w = normalizeWeights(api.model.weights ?? WEIGHTS);
+  return (
+    <div style={{ marginTop: 14 }}>
+      <button className="btn sm" style={{ width: "100%" }} onClick={() => setOpen((o) => !o)}>
+        {open ? "▾" : "▸"} Adjust KPI weights{custom ? " (custom)" : ""}
+      </button>
+      {open ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 8 }}>
+            Re-weight the composite to match your priorities. Values are normalized to 100%; the grade updates live.
+          </div>
+          {WEIGHT_LABELS.map(([key, label]) => (
+            <div key={key} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                <span>{label}</span>
+                <span style={{ color: TEAL }}>{(w[key] * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={0.5}
+                step={0.01}
+                value={w[key]}
+                onPointerDown={api.checkpoint}
+                onChange={(e) => api.live({ type: "SET_WEIGHTS", weights: { ...w, [key]: +e.target.value } })}
+              />
+            </div>
+          ))}
+          {custom ? (
+            <button className="btn sm" style={{ width: "100%" }} onClick={() => api.commit({ type: "SET_WEIGHTS", weights: undefined })}>
+              Reset to defaults
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -597,6 +651,7 @@ export function SchemaPanel() {
         ["name", "string", "layout label"],
         ["gridW, gridH", "int", "grid size (units)"],
         ["shiftHours", "number", "default shift length"],
+        ["weights", "object?", "KPI weight override (else defaults)"],
         ["stations", "array", "steps / areas"],
         ["flows", "array", "material movements"],
         ["noGoZones", "array", "blocked rects {x,y,w,h}"],

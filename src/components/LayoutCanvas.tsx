@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Flow, Model, NoGoZone, Station } from "../model/types";
 import type { ChainResult } from "../engine/automation";
 import type { Slot } from "../engine/templates";
-import { center } from "../engine/geometry";
+import { center, clampToGrid, hasCollision } from "../engine/geometry";
 import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
 
 export type CanvasMode = "select" | "flow" | "nogo";
@@ -21,7 +21,10 @@ interface Props {
   interactive?: boolean;
   mode?: CanvasMode;
   flowFirst?: string | null;
+  selFlow?: { from: string; to: string } | null;
   onSelect?: (id: string | null) => void;
+  onSelectFlow?: (f: { from: string; to: string } | null) => void;
+  onHoverStation?: (s: Station | null, clientX: number, clientY: number) => void;
   onMoveStart?: () => void;
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
@@ -45,6 +48,8 @@ export function LayoutCanvas(props: Props) {
     nogo: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragCollide, setDragCollide] = useState(false);
   const panStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
   const vbW = baseW / zoom;
@@ -75,7 +80,13 @@ export function LayoutCanvas(props: Props) {
       if (d.id && props.onMove) {
         const g = toGrid(e.clientX, e.clientY);
         const s = stations.find((x) => x.id === d.id);
-        if (s) props.onMove(d.id, Math.round(g.x - s.w / 2), Math.round(g.y - s.h / 2));
+        if (s) {
+          const nx = Math.round(g.x - s.w / 2);
+          const ny = Math.round(g.y - s.h / 2);
+          props.onMove(d.id, nx, ny);
+          const p = clampToGrid(s, nx, ny, model.gridW, model.gridH);
+          setDragCollide(hasCollision(s, p.x, p.y, stations, model.noGoZones));
+        }
       } else if (d.pan && panStart.current) {
         const ps = panStart.current;
         const k = vbW / (svgRef.current?.getBoundingClientRect().width || baseW);
@@ -98,6 +109,8 @@ export function LayoutCanvas(props: Props) {
       dragRef.current = { id: null, pan: false, nogo: null };
       panStart.current = null;
       setNogoRect(null);
+      setDraggingId(null);
+      setDragCollide(false);
     }
     window.addEventListener("pointermove", moveHandler);
     window.addEventListener("pointerup", upHandler);
@@ -129,6 +142,8 @@ export function LayoutCanvas(props: Props) {
     if (interactive && !s.fixed && props.onMove) {
       props.onMoveStart?.();
       dragRef.current = { id: s.id, pan: false, nogo: null };
+      setDraggingId(s.id);
+      setDragCollide(false);
     }
   }
 
@@ -202,7 +217,31 @@ export function LayoutCanvas(props: Props) {
           const k = linkKind[f.from + ">" + f.to];
           const col = k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
           const dash = k === "manual" || k === "mixed" ? "5 4" : undefined;
-          return <line key={"f" + i} x1={PAD + ca.x * cell} y1={PAD + ca.y * cell} x2={PAD + cb.x * cell} y2={PAD + cb.y * cell} stroke={col} strokeWidth={w} opacity={k ? 0.7 : 0.4} strokeDasharray={dash} />;
+          const sel = props.selFlow && props.selFlow.from === f.from && props.selFlow.to === f.to;
+          const x1 = PAD + ca.x * cell;
+          const y1 = PAD + ca.y * cell;
+          const x2 = PAD + cb.x * cell;
+          const y2 = PAD + cb.y * cell;
+          return (
+            <g key={"f" + i}>
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={sel ? TEXT : col} strokeWidth={sel ? w + 1.5 : w} opacity={k ? 0.75 : 0.45} strokeDasharray={dash} />
+              {interactive && props.onSelectFlow ? (
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  style={{ cursor: "pointer" }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    props.onSelectFlow?.({ from: f.from, to: f.to });
+                  }}
+                />
+              ) : null}
+            </g>
+          );
         })}
 
         {(ghost ?? []).map((s) => {
@@ -219,14 +258,17 @@ export function LayoutCanvas(props: Props) {
         {stations.map((s) => {
           const seld = selId === s.id;
           const picked = props.flowFirst === s.id;
+          const colliding = draggingId === s.id && dragCollide;
           const roleStroke = s.role === "input" ? TEAL : s.role === "output" ? AMBER : null;
           return (
             <g
               key={s.id}
               style={{ cursor: mode === "flow" ? "crosshair" : interactive ? (s.fixed ? "not-allowed" : "grab") : "pointer" }}
               onPointerDown={(e) => onStationDown(e, s)}
+              onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
+              onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
             >
-              <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={TYPE_COL[s.type] || PANEL2} stroke={picked ? TEAL : seld ? TEAL : s.fixed ? AMBER : TEALD} strokeWidth={picked || seld ? 2 : 1.2} />
+              <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2} stroke={colliding ? RED : picked ? TEAL : seld ? TEAL : s.fixed ? AMBER : TEALD} strokeWidth={picked || seld || colliding ? 2 : 1.2} />
               {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
               <circle cx={PAD + s.x * cell + 7} cy={PAD + s.y * cell + 7} r={3} fill={ERGO_COL[s.ergoRisk] || TEXTD} />
               <circle cx={PAD + (s.x + s.w) * cell - 7} cy={PAD + s.y * cell + 7} r={3} fill={AUTO_COL[s.auto] || TEXTD} />
