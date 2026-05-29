@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0e1416" />
+<title>FlowPlan — Layout Rating</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e1416;--panel:#141d20;--panel2:#19262a;--line:#24383d;--teal:#2bb6a8;--tealDim:#1c6f68;--amber:#e0a458;--red:#d96b5b;--text:#dde8e8;--textDim:#7e9698;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:13px;overflow-x:hidden;}
+  button{font-family:inherit;cursor:pointer;}
+  .wrap{display:flex;flex-direction:column;min-height:100vh;}
+  header{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:5;}
+  .logo{font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:15px;letter-spacing:.5px;}
+  .logo span{color:var(--teal);}
+  .btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:8px 12px;border-radius:5px;font-size:12px;letter-spacing:.3px;}
+  .btn.on{background:var(--teal);color:var(--bg);border-color:var(--teal);}
+  .btn.sm{padding:5px 9px;font-size:11px;}
+  .views{display:flex;gap:6px;}
+  .spacer{flex:1;}
+  main{display:flex;flex:1;min-width:0;}
+  .canvas{flex:1 1 auto;padding:14px;overflow:auto;min-width:0;}
+  .side{width:360px;flex:0 0 360px;border-left:1px solid var(--line);background:var(--panel);overflow:auto;}
+  .layoutTitle{font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:12px;letter-spacing:.5px;margin-bottom:6px;}
+  svg{background:var(--panel);border-radius:8px;border:1px solid var(--line);touch-action:none;max-width:100%;height:auto;display:block;}
+  .legend{display:flex;gap:14px;margin-top:12px;font-size:10.5px;color:var(--textDim);flex-wrap:wrap;}
+  .hint{font-size:11px;color:var(--textDim);margin-top:8px;}
+  .tabs{display:flex;gap:6px;padding:12px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .tabs .btn{flex:1;min-width:64px;}
+  .pad{padding:16px;}
+  .grade{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+  .gradeBox{width:56px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;}
+  .lab{font-size:10px;color:var(--textDim);text-transform:uppercase;letter-spacing:.5px;}
+  .kpi{margin-bottom:9px;}
+  .kpiTop{display:flex;justify-content:space-between;font-size:11px;color:var(--textDim);margin-bottom:3px;}
+  .bar{height:5px;background:var(--panel2);border-radius:2px;overflow:hidden;}
+  .bar>div{height:100%;}
+  .imp{background:var(--panel2);border:1px solid var(--tealDim);border-radius:8px;padding:12px;margin:14px 0;}
+  .impVal{font-size:22px;font-weight:600;color:var(--teal);}
+  .field{display:block;margin-bottom:8px;}
+  .field>span{font-size:10px;color:var(--textDim);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;}
+  input,select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:7px;font-size:12px;font-family:inherit;width:100%;}
+  .row2{display:flex;gap:8px;}
+  .splitWrap{display:flex;gap:18px;flex-wrap:wrap;}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:10px;margin-bottom:8px;}
+  .pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;letter-spacing:.3px;}
+  .issue{border-left:3px solid var(--red);padding:7px 10px;background:rgba(217,107,91,.08);border-radius:4px;margin-bottom:6px;font-size:11.5px;cursor:pointer;}
+  .ok{border-left:3px solid var(--teal);padding:7px 10px;background:rgba(43,182,168,.08);border-radius:4px;font-size:11.5px;}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;color:var(--teal);font-size:11px;}
+  .schemaTbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;}
+  .schemaTbl td,.schemaTbl th{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top;}
+  .schemaTbl th{color:var(--textDim);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px;}
+  #err{display:none;padding:16px;margin:16px;border:1px solid var(--red);border-radius:8px;background:rgba(217,107,91,.1);color:var(--red);white-space:pre-wrap;font-size:12px;}
+  @media (max-width:820px){
+    main{flex-direction:column;}
+    .side{width:100%;flex:0 0 auto;border-left:none;border-top:1px solid var(--line);}
+    header{gap:8px;}
+    .views .btn{padding:8px 10px;font-size:11px;}
+    .modelName{display:none;}
+    .splitWrap{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<pre id="err"></pre>
+<script>
+  // Visible error catcher so failures never show as a black screen.
+  window.onerror=function(msg,src,line,col,e){
+    var d=document.getElementById('err');
+    d.style.display='block';
+    d.textContent='Error: '+msg+'\n(line '+line+':'+col+')\n'+(e&&e.stack?e.stack:'');
+    return false;
+  };
+</script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+(function(){
+  if(!window.React||!window.ReactDOM){
+    var d=document.getElementById('err');d.style.display='block';
+    d.textContent='Could not load React from the network. This file needs internet access the first time you open it. Reconnect and reload.';
+    return;
+  }
+  var React=window.React, ReactDOM=window.ReactDOM;
+  var useState=React.useState,useMemo=React.useMemo,useRef=React.useRef,useCallback=React.useCallback,useEffect=React.useEffect;
+  var h=React.createElement;
+
+  // ============================ DATA MODEL ====================================
+  var SAMPLE = {
+    name:"Cell A — Hydrobuchse line (demo)", gridW:22, gridH:14,
+    stations:[
+      {id:"raw",name:"Raw Material",role:"input",type:"store",x:1,y:6,w:3,h:2,fixed:true,auto:"manual",autoOverride:null,capacityPerShift:2000,operators:0,cycleTimeSec:0,utilities:[],ergoRisk:"low",changeoverMin:0,notes:"Inbound staging"},
+      {id:"cnc",name:"CNC Turning",role:"process",type:"machine",x:6,y:2,w:3,h:3,fixed:false,auto:"auto",autoOverride:null,capacityPerShift:1300,operators:1,cycleTimeSec:42,utilities:["power","air","coolant"],ergoRisk:"low",changeoverMin:25,notes:"Siemens S7 controlled"},
+      {id:"press",name:"Press",role:"process",type:"machine",x:11,y:2,w:4,h:3,fixed:true,auto:"semi",autoOverride:null,capacityPerShift:1250,operators:1,cycleTimeSec:38,utilities:["power","hydraulic"],ergoRisk:"med",changeoverMin:40,notes:"Anchored — foundation pit"},
+      {id:"assembly",name:"Assembly",role:"process",type:"manual",x:11,y:9,w:3,h:3,fixed:false,auto:"manual",autoOverride:null,capacityPerShift:1150,operators:3,cycleTimeSec:95,utilities:["power","air"],ergoRisk:"high",changeoverMin:10,notes:"Manual workstation, 3 operators"},
+      {id:"qa",name:"QA / Inspection",role:"process",type:"quality",x:6,y:9,w:3,h:2,fixed:false,auto:"semi",autoOverride:null,capacityPerShift:1200,operators:1,cycleTimeSec:30,utilities:["power"],ergoRisk:"low",changeoverMin:5,notes:"nLine surface inspection"},
+      {id:"ship",name:"Shipping",role:"output",type:"store",x:18,y:6,w:3,h:2,fixed:true,auto:"manual",autoOverride:null,capacityPerShift:2000,operators:1,cycleTimeSec:0,utilities:[],ergoRisk:"low",changeoverMin:0,notes:"Outbound dock"}
+    ],
+    flows:[
+      {from:"raw",to:"cnc",volume:1200,unitCost:0.05,transport:"forklift",partWeightKg:2.4,notes:""},
+      {from:"cnc",to:"press",volume:1200,unitCost:0.05,transport:"forklift",partWeightKg:2.4,notes:""},
+      {from:"press",to:"assembly",volume:1150,unitCost:0.04,transport:"conveyor",partWeightKg:2.1,notes:""},
+      {from:"assembly",to:"qa",volume:1100,unitCost:0.06,transport:"manual",partWeightKg:2.1,notes:""},
+      {from:"qa",to:"ship",volume:1050,unitCost:0.05,transport:"forklift",partWeightKg:2.1,notes:""}
+    ],
+    noGoZones:[]
+  };
+  var STATION_TYPES=["machine","manual","quality","store","buffer"];
+  var ROLES=["input","process","output"];
+  var AUTO=["manual","semi","auto"];
+  var ERGO=["low","med","high"];
+  var TYPE_COL={machine:"#16343a",manual:"#2a2f1e",quality:"#1e2a36",store:"#2a2320",buffer:"#241e2a"};
+  var ERGO_COL={low:"#2bb6a8",med:"#e0a458",high:"#d96b5b"};
+  var AUTO_COL={manual:"#d96b5b",semi:"#e0a458",auto:"#2bb6a8"};
+  var TEAL="#2bb6a8",TEALD="#1c6f68",AMBER="#e0a458",RED="#d96b5b",TEXT="#dde8e8",TEXTD="#7e9698",LINE="#24383d",PANEL2="#19262a";
+
+  function center(s){return {x:s.x+s.w/2,y:s.y+s.h/2};}
+  function rectDist(a,b){var ca=center(a),cb=center(b);return Math.abs(ca.x-cb.x)+Math.abs(ca.y-cb.y);}
+
+  function computeKPIs(stations,flows,grid){
+    var byId={};stations.forEach(function(s){byId[s.id]=s;});
+    var flowCost=0,travel=0,congestion=0,flowDetail=[],corridorY=grid.gridH/2;
+    flows.forEach(function(f){var a=byId[f.from],b=byId[f.to];if(!a||!b)return;
+      var d=rectDist(a,b),cost=f.volume*d*f.unitCost,trav=f.volume*d;
+      flowCost+=cost;travel+=trav;
+      var ya=center(a).y,yb=center(b).y;if((ya-corridorY)*(yb-corridorY)<0)congestion+=f.volume*d;
+      flowDetail.push(Object.assign({},f,{dist:+d.toFixed(2),cost:cost,travel:trav}));});
+    return {flowCost:flowCost,travel:travel,congestion:congestion,flowDetail:flowDetail};
+  }
+  function optimize(stations,flows,grid){
+    var best=stations.map(function(s){return Object.assign({},s);});
+    var bestCost=computeKPIs(best,flows,grid).flowCost;
+    var movable=[];best.forEach(function(s,i){if(!s.fixed)movable.push(i);});
+    var improved=true,guard=0;
+    while(improved&&guard<300){improved=false;guard++;
+      for(var a=0;a<movable.length;a++)for(var b=a+1;b<movable.length;b++){
+        var i=movable[a],j=movable[b];var trial=best.map(function(s){return Object.assign({},s);});
+        var tx=trial[i].x,ty=trial[i].y;trial[i].x=trial[j].x;trial[i].y=trial[j].y;trial[j].x=tx;trial[j].y=ty;
+        var c=computeKPIs(trial,flows,grid).flowCost;
+        if(c<bestCost-1e-9){best=trial;bestCost=c;improved=true;}}}
+    return best;
+  }
+  var WEIGHTS={flowCost:0.25,travel:0.15,congestion:0.10,placement:0.10,balance:0.20,ergo:0.10,auto:0.10};
+  function gradeLetter(s){return s>=90?"A":s>=80?"B":s>=70?"C":s>=60?"D":"E";}
+  function scoreVsFloor(a,f){if(a<=0)return 100;if(f<=0)return 100;return Math.max(0,Math.min(100,(f/a)*100));}
+  function buildRating(stations,flows,grid){
+    var actual=computeKPIs(stations,flows,grid);
+    var optimized=optimize(stations,flows,grid);var opt=computeKPIs(optimized,flows,grid);
+    var sFlow=scoreVsFloor(actual.flowCost,opt.flowCost);
+    var sTravel=scoreVsFloor(actual.travel,opt.travel);
+    var sCong=scoreVsFloor(actual.congestion,opt.congestion||actual.congestion);
+    var sPlace=sFlow;
+    var bal=balanceAnalysis(stations);var sBal=bal.score;
+    var sErgo=ergoScore(stations,flows);
+    var chainR=chainRating(stations,flows);var sAuto=autoCoherenceScore(chainR);
+    var composite=sFlow*WEIGHTS.flowCost+sTravel*WEIGHTS.travel+sCong*WEIGHTS.congestion+sPlace*WEIGHTS.placement+sBal*WEIGHTS.balance+sErgo*WEIGHTS.ergo+sAuto*WEIGHTS.auto;
+    var flowReductionPct=actual.flowCost>0?((actual.flowCost-opt.flowCost)/actual.flowCost)*100:0;
+    var total=actual.flowCost||1,cum=0;
+    var pareto=actual.flowDetail.slice().sort(function(a,b){return b.cost-a.cost;}).map(function(f){cum+=f.cost;return Object.assign({},f,{share:(f.cost/total)*100});});
+    var byIdOpt={};optimized.forEach(function(s){byIdOpt[s.id]=s;});var moves=[];
+    stations.forEach(function(s){var o=byIdOpt[s.id];if(o&&(o.x!==s.x||o.y!==s.y))moves.push({id:s.id,name:s.name});});
+    return {actual:actual,optimized:optimized,opt:opt,scores:{flowCost:sFlow,travel:sTravel,congestion:sCong,placement:sPlace,balance:sBal,ergo:sErgo,auto:sAuto},composite:composite,letter:gradeLetter(composite),flowReductionPct:flowReductionPct,pareto:pareto,moves:moves,balance:bal};
+  }
+
+  function validateFlow(stations,flows){
+    var byId={};stations.forEach(function(s){byId[s.id]=s;});
+    var out={},inn={};stations.forEach(function(s){out[s.id]=0;inn[s.id]=0;});
+    flows.forEach(function(f){if(byId[f.from])out[f.from]++;if(byId[f.to])inn[f.to]++;});
+    var issues=[];
+    stations.forEach(function(s){
+      if(s.role!=="output"&&out[s.id]===0)issues.push({sev:"err",id:s.id,msg:s.name+": dead end — no outgoing flow (and not an output area)."});
+      if(s.role!=="input"&&inn[s.id]===0)issues.push({sev:"err",id:s.id,msg:s.name+": orphan — no incoming flow (and not an input area)."});
+      if(s.role==="input"&&inn[s.id]>0)issues.push({sev:"warn",id:s.id,msg:s.name+": input area has incoming flow — usually a source only."});
+      if(s.role==="output"&&out[s.id]>0)issues.push({sev:"warn",id:s.id,msg:s.name+": output area has outgoing flow — usually a sink only."});
+    });
+    var inputs=stations.filter(function(s){return s.role==="input";}).map(function(s){return s.id;});
+    var adj={};stations.forEach(function(s){adj[s.id]=[];});flows.forEach(function(f){if(adj[f.from])adj[f.from].push(f.to);});
+    var seen={};var stack=inputs.slice();while(stack.length){var n=stack.pop();if(seen[n])continue;seen[n]=1;(adj[n]||[]).forEach(function(m){stack.push(m);});}
+    stations.forEach(function(s){if(s.role!=="input"&&!seen[s.id])issues.push({sev:"warn",id:s.id,msg:s.name+": not reachable from any input area."});});
+    if(inputs.length===0)issues.push({sev:"err",id:null,msg:"No input area defined — set a station's role to 'input'."});
+    if(!stations.some(function(s){return s.role==="output";}))issues.push({sev:"err",id:null,msg:"No output area defined — set a station's role to 'output'."});
+    return {issues:issues,valid:issues.filter(function(i){return i.sev==="err";}).length===0};
+  }
+
+  function autoHeuristic(s){
+    var score=50;
+    if(s.type==="machine")score+=25;if(s.type==="quality")score+=10;if(s.type==="manual")score-=20;
+    if(s.role==="input"||s.role==="output")score-=10;
+    if(s.ergoRisk==="high")score+=20;else if(s.ergoRisk==="med")score+=8;
+    if(s.cycleTimeSec>0&&s.cycleTimeSec<30)score+=10;
+    if(s.changeoverMin>30)score-=10;
+    if(s.capacityPerShift>1500)score+=8;
+    if(s.operators>=3)score+=10;
+    return Math.max(0,Math.min(100,score));
+  }
+  function autoPotential(s){
+    if(s.autoOverride==="yes")return {pct:90,src:"override",verdict:"Automate"};
+    if(s.autoOverride==="no")return {pct:10,src:"override",verdict:"Keep manual"};
+    var pct=autoHeuristic(s);
+    var verdict=pct>=70?"Automate":pct>=45?"Consider":"Keep manual";
+    return {pct:pct,src:"heuristic",verdict:verdict};
+  }
+  function chainRating(stations,flows){
+    var byId={};stations.forEach(function(s){byId[s.id]=s;});
+    var links=flows.map(function(f){var a=byId[f.from],b=byId[f.to];var kind="manual";
+      if(a&&b){var aA=a.auto==="auto",bA=b.auto==="auto";var handoffAuto=f.transport==="conveyor"||f.transport==="agv";
+        if(aA&&bA&&handoffAuto)kind="chained-auto";else if(aA&&bA&&!handoffAuto)kind="auto-island";else if(aA||bA)kind="mixed";else kind="manual";}
+      return Object.assign({},f,{kind:kind});});
+    var islands=links.filter(function(l){return l.kind==="auto-island";}).length;
+    return {links:links,islands:islands};
+  }
+
+  // effective parts/shift a process step can output
+  function stationRate(s){
+    var byCycle = s.cycleTimeSec>0 ? Math.floor((3600/s.cycleTimeSec)*8*Math.max(1,s.operators)) : Infinity; // 8h shift, operators ~ parallelism for manual
+    var cap = s.capacityPerShift>0 ? s.capacityPerShift : Infinity;
+    var r = Math.min(byCycle, cap);
+    return isFinite(r) ? r : (cap===Infinity?byCycle:cap);
+  }
+  function balanceAnalysis(stations){
+    var proc=stations.filter(function(s){return s.role==="process";});
+    if(proc.length===0)return {steps:[],bottleneck:null,lineOut:0,score:100,takt:0};
+    var steps=proc.map(function(s){var rate=stationRate(s);return {id:s.id,name:s.name,rate:isFinite(rate)?rate:0,cycle:s.cycleTimeSec,util:0};});
+    var finite=steps.filter(function(x){return x.rate>0;});
+    var lineOut=finite.length?Math.min.apply(null,finite.map(function(x){return x.rate;})):0;
+    var maxRate=finite.length?Math.max.apply(null,finite.map(function(x){return x.rate;})):0;
+    steps.forEach(function(x){x.util=x.rate>0?Math.round((lineOut/x.rate)*100):0;});
+    var bottleneck=null;steps.forEach(function(x){if(x.rate===lineOut&&x.rate>0&&!bottleneck)bottleneck=x;});
+    // balance score: line output relative to mean step rate (perfectly balanced => 100)
+    var mean=finite.length?finite.reduce(function(a,x){return a+x.rate;},0)/finite.length:0;
+    var score=mean>0?Math.max(0,Math.min(100,(lineOut/mean)*100)):100;
+    var takt=lineOut>0?+(28800/lineOut).toFixed(1):0; // sec/part across 8h
+    return {steps:steps,bottleneck:bottleneck,lineOut:lineOut,maxRate:maxRate,score:Math.round(score),takt:takt};
+  }
+  function ergoScore(stations,flows){
+    var load={};stations.forEach(function(s){load[s.id]=0;});
+    flows.forEach(function(f){load[f.from]=(load[f.from]||0)+f.volume;load[f.to]=(load[f.to]||0)+f.volume;});
+    var totalVol=0,risk=0;
+    stations.forEach(function(s){if(s.role!=="process")return;var w=load[s.id]||0;totalVol+=w;
+      var rf=s.ergoRisk==="high"?1:s.ergoRisk==="med"?0.4:0;risk+=rf*w;});
+    if(totalVol===0)return 100;
+    return Math.round(Math.max(0,Math.min(100,100-(risk/totalVol)*100)));
+  }
+  function autoCoherenceScore(chain){
+    var n=chain.links.length||1;var islands=chain.islands;
+    return Math.round(Math.max(0,Math.min(100,100-(islands/n)*100)));
+  }
+
+  function cellTemplate(form,n,grid){
+    var slots=[],top=2,bottom=grid.gridH-4,left=2,right=grid.gridW-4;
+    if(n<=0)return slots;
+    if(form==="I"){var step=(right-left)/Math.max(1,n-1);for(var i=0;i<n;i++)slots.push({x:Math.round(left+step*i),y:Math.round(grid.gridH/2-1)});}
+    else if(form==="U"){var half=Math.ceil(n/2);var sx=(right-left)/Math.max(1,half-1);
+      for(var a=0;a<half;a++)slots.push({x:Math.round(left+sx*a),y:top});
+      for(var b=half;b<n;b++)slots.push({x:Math.round(right-sx*(b-half)),y:bottom});}
+    else if(form==="L"){var vN=Math.ceil(n/2),hN=n-vN;var sy=(bottom-top)/Math.max(1,vN-1);
+      for(var c=0;c<vN;c++)slots.push({x:left,y:Math.round(top+sy*c)});
+      var sxx=(right-left)/Math.max(1,hN);for(var d=0;d<hN;d++)slots.push({x:Math.round(left+sxx*(d+1)),y:bottom});}
+    else if(form==="S"){var per=Math.ceil(n/2);var sX=(right-left)/Math.max(1,per-1);
+      for(var e=0;e<per;e++)slots.push({x:Math.round(left+sX*e),y:top});
+      for(var g=per;g<n;g++)slots.push({x:Math.round(left+sX*(g-per)),y:bottom});}
+    return slots;
+  }
+
+  // ============================ COMPONENTS (no JSX) ==========================
+  function LayoutSVG(p){
+    var model=p.model,stations=p.stations,flows=p.flows,ghost=p.ghost,chain=p.chain,template=p.template,
+        selId=p.selId,onSelect=p.onSelect,onDragStart=p.onDragStart,cell=p.cell,label=p.label,badge=p.badge;
+    var PAD=12;var byId={};stations.forEach(function(s){byId[s.id]=s;});
+    var W=model.gridW*cell+PAD*2,H=model.gridH*cell+PAD*2;
+    var linkKind={};(chain?chain.links:[]).forEach(function(l){linkKind[l.from+">"+l.to]=l.kind;});
+    var kids=[];
+    for(var i=0;i<=model.gridW;i++)kids.push(h("line",{key:"v"+i,x1:PAD+i*cell,y1:PAD,x2:PAD+i*cell,y2:PAD+model.gridH*cell,stroke:LINE,strokeWidth:0.5,opacity:0.5}));
+    for(var j=0;j<=model.gridH;j++)kids.push(h("line",{key:"hh"+j,x1:PAD,y1:PAD+j*cell,x2:PAD+model.gridW*cell,y2:PAD+j*cell,stroke:LINE,strokeWidth:0.5,opacity:0.5}));
+    (template||[]).forEach(function(t,i){kids.push(h("g",{key:"t"+i},
+      h("rect",{x:PAD+t.x*cell,y:PAD+t.y*cell,width:3*cell,height:2.5*cell,fill:"none",stroke:AMBER,strokeDasharray:"3 3",strokeWidth:1,rx:4,opacity:0.5}),
+      h("text",{x:PAD+(t.x+1.5)*cell,y:PAD+(t.y+1.25)*cell,fill:AMBER,opacity:0.6,fontSize:11,textAnchor:"middle",dominantBaseline:"middle"},String(i+1))));});
+    (model.noGoZones||[]).forEach(function(z,i){kids.push(h("rect",{key:"z"+i,x:PAD+z.x*cell,y:PAD+z.y*cell,width:z.w*cell,height:z.h*cell,fill:RED,opacity:0.08,stroke:RED,strokeWidth:1,strokeDasharray:"4 3"}));});
+    flows.forEach(function(f,i){var a=byId[f.from],b=byId[f.to];if(!a||!b)return;var ca=center(a),cb=center(b);var w=0.5+(f.volume/1200)*3;
+      var k=linkKind[f.from+">"+f.to];var col=k==="auto-island"?RED:k==="chained-auto"?TEAL:k==="mixed"?AMBER:badge;var dash=(k==="manual"||k==="mixed")?"5 4":null;
+      kids.push(h("line",{key:"f"+i,x1:PAD+ca.x*cell,y1:PAD+ca.y*cell,x2:PAD+cb.x*cell,y2:PAD+cb.y*cell,stroke:col,strokeWidth:w,opacity:k?0.7:0.4,strokeDasharray:dash}));});
+    if(ghost)ghost.forEach(function(s){var cur=byId[s.id];if(cur&&(cur.x!==s.x||cur.y!==s.y)){kids.push(h("g",{key:"g"+s.id},
+      h("rect",{x:PAD+s.x*cell,y:PAD+s.y*cell,width:s.w*cell,height:s.h*cell,fill:"none",stroke:AMBER,strokeWidth:1.5,strokeDasharray:"5 4",rx:4,opacity:0.85}),
+      h("line",{x1:PAD+center(cur).x*cell,y1:PAD+center(cur).y*cell,x2:PAD+center(s).x*cell,y2:PAD+center(s).y*cell,stroke:AMBER,strokeWidth:1,strokeDasharray:"2 3",opacity:0.6})));}});
+    stations.forEach(function(s){var seld=selId===s.id;var roleStroke=s.role==="input"?TEAL:s.role==="output"?AMBER:null;
+      var inner=[h("rect",{key:"r",x:PAD+s.x*cell,y:PAD+s.y*cell,width:s.w*cell,height:s.h*cell,rx:5,fill:TYPE_COL[s.type]||PANEL2,stroke:seld?TEAL:s.fixed?AMBER:TEALD,strokeWidth:seld?2:1.2})];
+      if(roleStroke)inner.push(h("rect",{key:"ro",x:PAD+s.x*cell+1,y:PAD+s.y*cell+1,width:s.w*cell-2,height:s.h*cell-2,rx:4,fill:"none",stroke:roleStroke,strokeWidth:1,strokeDasharray:"2 2",opacity:0.7}));
+      inner.push(h("circle",{key:"e",cx:PAD+s.x*cell+7,cy:PAD+s.y*cell+7,r:3,fill:ERGO_COL[s.ergoRisk]||TEXTD}));
+      inner.push(h("circle",{key:"au",cx:PAD+(s.x+s.w)*cell-7,cy:PAD+s.y*cell+7,r:3,fill:AUTO_COL[s.auto]||TEXTD}));
+      inner.push(h("text",{key:"n",x:PAD+(s.x+s.w/2)*cell,y:PAD+(s.y+s.h/2)*cell-5,fill:TEXT,fontSize:10,fontWeight:600,textAnchor:"middle",dominantBaseline:"middle",style:{pointerEvents:"none",fontFamily:"'IBM Plex Sans',sans-serif"}},s.name));
+      inner.push(h("text",{key:"m",x:PAD+(s.x+s.w/2)*cell,y:PAD+(s.y+s.h/2)*cell+7,fill:s.fixed?AMBER:TEXTD,fontSize:7.5,textAnchor:"middle",dominantBaseline:"middle",style:{pointerEvents:"none"}},s.role!=="process"?s.role.toUpperCase():(s.auto+" · "+s.operators+"op")));
+      kids.push(h("g",{key:s.id,style:{cursor:onDragStart?(s.fixed?"not-allowed":"grab"):"pointer"},onPointerDown:function(e){if(onDragStart&&!s.fixed)onDragStart(s.id);if(onSelect)onSelect(s.id);e.preventDefault();}},inner));});
+    return h("div",null,
+      h("div",{className:"layoutTitle",style:{color:badge}},label),
+      h("svg",{viewBox:"0 0 "+W+" "+H,width:W,height:H,"data-layout":label,preserveAspectRatio:"xMidYMid meet"},kids));
+  }
+
+  function Field(props){return h("label",{className:"field"},h("span",null,props.label),props.children);}
+
+  function App(){
+    var s1=useState(function(){try{var saved=localStorage.getItem("flowplan_model");if(saved){var o=JSON.parse(saved);if(o&&o.stations&&o.flows)return o;}}catch(e){}return SAMPLE;}),model=s1[0],setModel=s1[1];
+    var s2=useState("actual"),view=s2[0],setView=s2[1];
+    var s3=useState(null),dragId=s3[0],setDragId=s3[1];
+    var s4=useState(null),sel=s4[0],setSel=s4[1];
+    var s5=useState("rating"),tab=s5[0],setTab=s5[1];
+    var s6=useState(null),template=s6[0],setTemplate=s6[1];
+    var wrapRef=useRef(null),fileRef=useRef(null);
+    var CELL=30,PAD=12;
+
+    var rating=useMemo(function(){return buildRating(model.stations,model.flows,model);},[model]);
+    useEffect(function(){try{localStorage.setItem("flowplan_model",JSON.stringify(model));}catch(e){}},[model]);
+    var improvedModel=useMemo(function(){return Object.assign({},model,{stations:rating.optimized});},[model,rating]);
+    var validation=useMemo(function(){return validateFlow(model.stations,model.flows);},[model]);
+    var chain=useMemo(function(){return chainRating(model.stations,model.flows);},[model]);
+
+    var toGrid=useCallback(function(cx,cy){var svg=wrapRef.current&&wrapRef.current.querySelector('svg[data-layout="ACTUAL"]');
+      if(!svg)return{x:0,y:0};var r=svg.getBoundingClientRect();var scale=(model.gridW*CELL+PAD*2)/r.width;
+      return{x:((cx-r.left)*scale-PAD)/CELL,y:((cy-r.top)*scale-PAD)/CELL};},[model.gridW]);
+    var onMove=useCallback(function(e){if(!dragId)return;var pt=e.touches?e.touches[0]:e;var g=toGrid(pt.clientX,pt.clientY);
+      setModel(function(m){return Object.assign({},m,{stations:m.stations.map(function(s){if(s.id!==dragId)return s;
+        var nx=Math.max(0,Math.min(m.gridW-s.w,Math.round(g.x-s.w/2)));var ny=Math.max(0,Math.min(m.gridH-s.h,Math.round(g.y-s.h/2)));
+        return Object.assign({},s,{x:nx,y:ny});})});});},[dragId,toGrid]);
+    useEffect(function(){if(!dragId)return;var up=function(){setDragId(null);};
+      window.addEventListener("pointerup",up);window.addEventListener("pointermove",onMove);
+      window.addEventListener("touchend",up);window.addEventListener("touchmove",onMove,{passive:false});
+      return function(){window.removeEventListener("pointerup",up);window.removeEventListener("pointermove",onMove);
+        window.removeEventListener("touchend",up);window.removeEventListener("touchmove",onMove);};},[dragId,onMove]);
+
+    function updateStation(id,patch){setModel(function(m){return Object.assign({},m,{stations:m.stations.map(function(s){return s.id===id?Object.assign({},s,patch):s;})});});}
+    var selStation=model.stations.filter(function(s){return s.id===sel;})[0];
+
+    function addStation(){var id="step"+(model.stations.length+1)+"_"+Math.random().toString(36).slice(2,5);
+      var ns={id:id,name:"New Step",role:"process",type:"machine",x:Math.floor(model.gridW/2-1),y:Math.floor(model.gridH/2-1),w:3,h:2,fixed:false,auto:"manual",autoOverride:null,capacityPerShift:1000,operators:1,cycleTimeSec:30,utilities:["power"],ergoRisk:"low",changeoverMin:10,notes:""};
+      setModel(function(m){return Object.assign({},m,{stations:m.stations.concat([ns])});});setSel(id);setTab("inspect");}
+    function deleteStation(id){setModel(function(m){return Object.assign({},m,{stations:m.stations.filter(function(s){return s.id!==id;}),flows:m.flows.filter(function(f){return f.from!==id&&f.to!==id;})});});setSel(null);}
+    function addFlow(from,to){if(from===to)return;setModel(function(m){return Object.assign({},m,{flows:m.flows.filter(function(f){return !(f.from===from&&f.to===to);}).concat([{from:from,to:to,volume:1000,unitCost:0.05,transport:"manual",partWeightKg:1,notes:""}])});});}
+    function removeFlow(from,to){setModel(function(m){return Object.assign({},m,{flows:m.flows.filter(function(f){return !(f.from===from&&f.to===to);})});});}
+
+    function applyTemplate(form){
+      var proc=model.stations.filter(function(s){return s.role==="process"&&!s.fixed;});
+      var slots=cellTemplate(form,proc.length,model);setTemplate(slots);
+      setModel(function(m){var k=0;return Object.assign({},m,{stations:m.stations.map(function(s){
+        if(s.role==="process"&&!s.fixed){var sl=slots[k++];if(sl)return Object.assign({},s,{x:Math.max(0,Math.min(m.gridW-s.w,sl.x)),y:Math.max(0,Math.min(m.gridH-s.h,sl.y))});}
+        return s;})});});
+    }
+
+    function exportJSON(){var blob=new Blob([JSON.stringify(model,null,2)],{type:"application/json"});
+      var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=(model.name||"layout").replace(/\s+/g,"_")+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);}
+    function importJSON(e){var f=e.target.files&&e.target.files[0];if(!f)return;var rd=new FileReader();
+      rd.onload=function(){try{var o=JSON.parse(rd.result);
+        if(!o.stations||!Array.isArray(o.stations))throw new Error("'stations' array missing");
+        if(!o.flows||!Array.isArray(o.flows))throw new Error("'flows' array missing");
+        var norm={gridW:o.gridW||22,gridH:o.gridH||14,noGoZones:o.noGoZones||[],name:o.name||"Imported",
+          stations:o.stations.map(function(s){return Object.assign({role:"process",type:"machine",fixed:false,auto:"manual",autoOverride:null,capacityPerShift:1000,operators:1,cycleTimeSec:0,utilities:[],ergoRisk:"low",changeoverMin:0,notes:"",w:3,h:2,x:0,y:0},s);}),
+          flows:o.flows.map(function(f){return Object.assign({volume:1000,unitCost:0.05,transport:"manual",partWeightKg:1,notes:""},f);})};
+        setModel(norm);setSel(null);setTemplate(null);setView("actual");}
+        catch(err){alert("Could not load JSON: "+err.message);}};
+      rd.onerror=function(){alert("File read failed.");};rd.readAsText(f);e.target.value="";}
+    function applyImproved(){setModel(function(m){return Object.assign({},m,{stations:rating.optimized.map(function(s){return Object.assign({},s);})});});setView("actual");}
+    function resetToSample(){if(confirm("Reset to the sample layout? Your current changes will be lost (unless exported)."))  {setModel(SAMPLE);setSel(null);setTemplate(null);setView("actual");}}
+
+    var letterCol=rating.composite>=80?TEAL:rating.composite>=60?AMBER:RED;
+    function vBtn(k,l){return h("button",{className:"btn"+(view===k?" on":""),onClick:function(){setView(k);}},l);}
+    function tBtn(k,l){return h("button",{className:"btn"+(tab===k?" on":""),onClick:function(){setTab(k);}},l);}
+    var errCount=validation.issues.filter(function(i){return i.sev==="err";}).length;
+
+    // ---- header
+    var header=h("header",null,
+      h("div",{className:"logo"},"FLOW",h("span",null,"PLAN")),
+      h("div",{className:"views"},vBtn("actual","● Actual"),vBtn("improved","◇ Improved"),vBtn("split","⇄ Both")),
+      h("div",{className:"spacer"}),
+      h("span",{className:"modelName",style:{fontSize:11,color:TEXTD}},model.name),
+      h("button",{className:"btn",onClick:function(){fileRef.current.click();}},"Load"),
+      h("input",{ref:fileRef,type:"file",accept:".json,application/json",onChange:importJSON,style:{display:"none"}}),
+      h("button",{className:"btn",onClick:exportJSON},"Export"),
+      h("button",{className:"btn",onClick:resetToSample,title:"Reset to sample"},"Reset"));
+
+    // ---- canvas
+    var canvasInner;
+    if(view==="actual")canvasInner=h("div",null,
+      h(LayoutSVG,{model:model,stations:model.stations,flows:model.flows,ghost:rating.optimized,chain:chain,template:template,selId:sel,onSelect:function(id){setSel(id);setTab("inspect");},onDragStart:setDragId,cell:CELL,label:"ACTUAL",badge:TEAL}),
+      h("div",{className:"hint"},"Drag movable stations · amber dashed = improved position · tap a station to configure"));
+    else if(view==="improved")canvasInner=h("div",null,
+      h(LayoutSVG,{model:improvedModel,stations:rating.optimized,flows:model.flows,chain:chain,selId:sel,onSelect:function(id){setSel(id);setTab("inspect");},cell:CELL,label:"IMPROVED",badge:AMBER}),
+      h("div",{style:{display:"flex",gap:10,marginTop:10,alignItems:"center",flexWrap:"wrap"}},
+        h("span",{style:{fontSize:12,color:TEAL}},"−"+rating.flowReductionPct.toFixed(0)+"% flow cost vs actual"),
+        rating.moves.length>0?h("button",{className:"btn",style:{borderColor:TEALD,color:TEAL},onClick:applyImproved},"Adopt as new actual"):null));
+    else canvasInner=h("div",{className:"splitWrap"},
+      h(LayoutSVG,{model:model,stations:model.stations,flows:model.flows,chain:chain,selId:sel,onSelect:setSel,cell:CELL-4,label:"ACTUAL",badge:TEAL}),
+      h(LayoutSVG,{model:improvedModel,stations:rating.optimized,flows:model.flows,chain:chain,selId:sel,onSelect:setSel,cell:CELL-4,label:"IMPROVED",badge:AMBER}));
+
+    var canvas=h("div",{className:"canvas",ref:wrapRef},canvasInner,
+      h("div",{className:"legend"},
+        h("span",null,"role outline: ",h("span",{style:{color:TEAL}},"▢"),"input ",h("span",{style:{color:AMBER}},"▢"),"output"),
+        h("span",null,"dots: ergo (TL) · automation (TR)"),
+        h("span",null,"links: ",h("span",{style:{color:TEAL}},"━"),"chained ",h("span",{style:{color:RED}},"┅"),"auto-island ",h("span",{style:{color:AMBER}},"┅"),"mixed")));
+
+    // ---- side panels
+    var panel;
+    if(tab==="rating"){
+      var kpis=[["Material flow cost",rating.actual.flowCost,rating.scores.flowCost],["Total travel effort",rating.actual.travel,rating.scores.travel],["Aisle congestion",rating.actual.congestion,rating.scores.congestion],["Placement efficiency",null,rating.scores.placement],["Line balance",null,rating.scores.balance],["Ergonomics",null,rating.scores.ergo],["Automation coherence",null,rating.scores.auto]];
+      panel=h("div",{className:"pad"},
+        h("div",{className:"grade"},
+          h("div",{className:"gradeBox",style:{border:"2px solid "+letterCol,color:letterCol}},rating.letter),
+          h("div",null,h("div",{className:"lab"},"Actual-state rating"),h("div",{style:{fontSize:26,fontWeight:600}},rating.composite.toFixed(0),h("span",{style:{fontSize:13,color:TEXTD}},"/100")))),
+        kpis.map(function(r,i){var lbl=r[0],val=r[1],sc=r[2];var col=sc>=80?TEAL:sc>=60?AMBER:RED;
+          return h("div",{className:"kpi",key:i},
+            h("div",{className:"kpiTop"},h("span",{style:{textTransform:"uppercase",letterSpacing:.4}},lbl),h("span",null,(val!=null?val.toFixed(0)+" · ":""),h("span",{style:{color:col}},sc.toFixed(0)))),
+            h("div",{className:"bar"},h("div",{style:{width:sc+"%",background:col}})));}),
+        h("div",{className:"imp"},h("div",{className:"lab"},"Improvement potential"),
+          h("div",{className:"impVal"},"−"+rating.flowReductionPct.toFixed(0)+"% ",h("span",{style:{fontSize:12,color:TEXTD,fontWeight:400}},"flow cost")),
+          rating.moves.length>0?h("button",{className:"btn",style:{marginTop:10,width:"100%",borderColor:TEALD,color:TEAL},onClick:function(){setView("improved");}},"View improved layout →"):null),
+        h("div",{className:"lab",style:{marginBottom:8}},"Where the cost sits"),
+        rating.pareto.slice(0,5).map(function(p,i){return h("div",{key:i,style:{marginBottom:7}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:2}},h("span",null,p.from+" → "+p.to),h("span",null,p.share.toFixed(0)+"%")),
+          h("div",{className:"bar",style:{height:4}},h("div",{style:{width:p.share+"%",background:i===0?RED:TEALD}})));}));
+    } else if(tab==="balance"){
+      var bal=rating.balance;
+      var bnName=bal.bottleneck?bal.bottleneck.name:"—";
+      var maxRate=bal.maxRate||1;
+      panel=h("div",{className:"pad"},
+        h("div",{className:"lab",style:{marginBottom:8}},"Line balance & bottleneck"),
+        h("div",{className:"imp",style:{marginTop:0}},
+          h("div",{className:"lab"},"Line output (constrained by bottleneck)"),
+          h("div",{className:"impVal"},bal.lineOut.toLocaleString()+" ",h("span",{style:{fontSize:12,color:TEXTD,fontWeight:400}},"parts/shift")),
+          h("div",{style:{fontSize:11,color:TEXTD,marginTop:4}},"Takt ≈ "+bal.takt+" s/part · balance score "+bal.score+"/100")),
+        bal.bottleneck?h("div",{className:"issue",style:{cursor:"pointer",borderLeftColor:RED},onClick:function(){setSel(bal.bottleneck.id);setTab("inspect");}},
+          h("span",{style:{color:RED}},"● "),bnName+" is the constraint at "+bal.bottleneck.cycle+"s/part → caps the line at "+bal.lineOut.toLocaleString()+" parts/shift. Speed up or parallelize this step to lift output."):null,
+        h("div",{className:"lab",style:{margin:"14px 0 8px"}},"Throughput per step (util % vs line)"),
+        bal.steps.map(function(x){var isBn=bal.bottleneck&&x.id===bal.bottleneck.id;var col=isBn?RED:x.util>=85?AMBER:TEAL;
+          return h("div",{key:x.id,style:{marginBottom:8}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:2}},
+              h("span",null,x.name+(isBn?" ◀ bottleneck":"")),
+              h("span",{style:{color:col}},x.rate.toLocaleString()+"/sh · "+x.util+"%")),
+            h("div",{className:"bar"},h("div",{style:{width:Math.round((x.rate/maxRate)*100)+"%",background:col}})));}),
+        h("div",{style:{fontSize:10.5,color:TEXTD,marginTop:8,lineHeight:1.5}},"Rate = min(3600/cycle × 8h × operators, capacity/shift). Low-util steps are starved by the bottleneck — that's spare capacity, not a problem to fix."));
+    } else if(tab==="flow"){
+      panel=h("div",{className:"pad"},
+        h("div",{className:validation.valid?"ok":"issue",style:{marginBottom:12,cursor:"default"}},validation.valid?"Process flow is valid — every step connects input→output.":(errCount+" blocking issue(s) found.")),
+        h("div",{className:"lab",style:{marginBottom:8}},"Validation"),
+        validation.issues.length===0?h("div",{style:{fontSize:11.5,color:TEXTD}},"No dead ends, orphans, or unreachable steps."):null,
+        validation.issues.map(function(it,i){return h("div",{key:i,className:"issue",style:{borderLeftColor:it.sev==="err"?RED:AMBER,background:it.sev==="err"?"rgba(217,107,91,.08)":"rgba(224,164,88,.08)"},onClick:function(){if(it.id){setSel(it.id);setTab("inspect");}}},
+          h("span",{style:{color:it.sev==="err"?RED:AMBER}},it.sev==="err"?"● ":"▲ "),it.msg);}),
+        h("div",{className:"lab",style:{margin:"16px 0 8px"}},"Cell form templates"),
+        h("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}},
+          ["I","U","L","S"].map(function(fm){return h("button",{key:fm,className:"btn sm",onClick:function(){applyTemplate(fm);}},fm+"-shape");}),
+          h("button",{className:"btn sm",onClick:function(){setTemplate(null);}},"Clear overlay")),
+        h("div",{style:{fontSize:10.5,color:TEXTD}},"Arranges movable process steps along the chosen form (numbered slots show the path). Fixed and I/O stations stay put."),
+        h("div",{className:"lab",style:{margin:"16px 0 8px"}},"Add a step"),
+        h("button",{className:"btn",style:{width:"100%"},onClick:addStation},"+ Add process step"));
+    } else if(tab==="auto"){
+      panel=h("div",{className:"pad"},
+        h("div",{className:"lab",style:{marginBottom:8}},"Automation chaining"),
+        h("div",{className:chain.islands>0?"issue":"ok",style:{marginBottom:12,cursor:"default",borderLeftColor:chain.islands>0?AMBER:TEAL,background:chain.islands>0?"rgba(224,164,88,.08)":"rgba(43,182,168,.08)"}},chain.islands>0?(chain.islands+" auto-island(s): two automated steps joined by a manual handoff — prime to chain."):"No broken automation chains detected."),
+        chain.links.map(function(l,i){var col=l.kind==="auto-island"?RED:l.kind==="chained-auto"?TEAL:l.kind==="mixed"?AMBER:TEXTD;
+          return h("div",{key:i,className:"card"},h("div",{style:{display:"flex",justifyContent:"space-between"}},h("span",{style:{fontSize:11.5}},l.from+" → "+l.to),h("span",{className:"pill",style:{background:"rgba(255,255,255,.05)",color:col}},l.kind)),h("div",{style:{fontSize:10.5,color:TEXTD,marginTop:3}},"via "+l.transport));}),
+        h("div",{className:"lab",style:{margin:"16px 0 8px"}},"Automation potential per step"),
+        model.stations.filter(function(s){return s.role==="process";}).map(function(s){var ap=autoPotential(s);var col=ap.pct>=70?TEAL:ap.pct>=45?AMBER:RED;
+          return h("div",{key:s.id,className:"card",style:{cursor:"pointer"},onClick:function(){setSel(s.id);setTab("inspect");}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},h("span",{style:{fontSize:12}},s.name),h("span",{style:{color:col,fontSize:12}},ap.verdict+" · "+ap.pct.toFixed(0))),
+            h("div",{className:"bar"},h("div",{style:{width:ap.pct+"%",background:col}})),
+            h("div",{style:{fontSize:10,color:TEXTD,marginTop:4}},"currently "+s.auto+" · "+(ap.src==="override"?"manual override":"heuristic")));}),
+        h("div",{style:{fontSize:10.5,color:TEXTD,marginTop:6}},"Heuristic weighs type, ergonomics, cycle time, changeover, volume, labor. Override per step in Configure."));
+    } else if(tab==="inspect"){
+      if(!selStation)panel=h("div",{className:"pad"},h("div",{style:{color:TEXTD,fontSize:12}},"Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add a step to create new ones."));
+      else{
+        var outFlows=model.flows.filter(function(f){return f.from===selStation.id;});
+        var addToOpts=[h("option",{key:"_",value:"",disabled:true},"add flow to…")].concat(model.stations.filter(function(s){return s.id!==selStation.id;}).map(function(s){return h("option",{key:s.id,value:s.id},s.name);}));
+        panel=h("div",{className:"pad"},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
+            h("div",{className:"lab"},"Configure · "+selStation.id),
+            h("button",{className:"btn sm",style:{borderColor:RED,color:RED},onClick:function(){deleteStation(selStation.id);}},"Delete")),
+          h(Field,{label:"Name"},h("input",{value:selStation.name,onChange:function(e){updateStation(selStation.id,{name:e.target.value});}})),
+          h("div",{className:"row2"},
+            h(Field,{label:"Role (I/O flexible)"},h("select",{value:selStation.role,onChange:function(e){updateStation(selStation.id,{role:e.target.value});}},ROLES.map(function(t){return h("option",{key:t},t);}))),
+            h(Field,{label:"Type"},h("select",{value:selStation.type,onChange:function(e){updateStation(selStation.id,{type:e.target.value});}},STATION_TYPES.map(function(t){return h("option",{key:t},t);})))),
+          h("div",{className:"row2"},
+            h(Field,{label:"Width"},h("input",{type:"number",value:selStation.w,onChange:function(e){updateStation(selStation.id,{w:Math.max(1,+e.target.value)});}})),
+            h(Field,{label:"Height"},h("input",{type:"number",value:selStation.h,onChange:function(e){updateStation(selStation.id,{h:Math.max(1,+e.target.value)});}}))),
+          h(Field,{label:"Fixed / anchored"},h("button",{className:"btn",style:{width:"100%",background:selStation.fixed?AMBER:PANEL2,color:selStation.fixed?"#0e1416":TEXT},onClick:function(){updateStation(selStation.id,{fixed:!selStation.fixed});}},selStation.fixed?"FIXED — won't be moved":"Movable")),
+          h("div",{className:"row2"},
+            h(Field,{label:"Automation state"},h("select",{value:selStation.auto,onChange:function(e){updateStation(selStation.id,{auto:e.target.value});}},AUTO.map(function(t){return h("option",{key:t},t);}))),
+            h(Field,{label:"Automate? (override)"},h("select",{value:selStation.autoOverride||"auto",onChange:function(e){updateStation(selStation.id,{autoOverride:e.target.value==="auto"?null:e.target.value});}},h("option",{value:"auto"},"heuristic"),h("option",{value:"yes"},"force yes"),h("option",{value:"no"},"force no")))),
+          h("div",{className:"row2"},
+            h(Field,{label:"Capacity/shift"},h("input",{type:"number",value:selStation.capacityPerShift,onChange:function(e){updateStation(selStation.id,{capacityPerShift:+e.target.value});}})),
+            h(Field,{label:"Operators"},h("input",{type:"number",value:selStation.operators,onChange:function(e){updateStation(selStation.id,{operators:+e.target.value});}}))),
+          h("div",{className:"row2"},
+            h(Field,{label:"Cycle time (s)"},h("input",{type:"number",value:selStation.cycleTimeSec,onChange:function(e){updateStation(selStation.id,{cycleTimeSec:+e.target.value});}})),
+            h(Field,{label:"Changeover (min)"},h("input",{type:"number",value:selStation.changeoverMin,onChange:function(e){updateStation(selStation.id,{changeoverMin:+e.target.value});}}))),
+          h(Field,{label:"Ergonomic risk"},h("select",{value:selStation.ergoRisk,onChange:function(e){updateStation(selStation.id,{ergoRisk:e.target.value});}},ERGO.map(function(t){return h("option",{key:t},t);}))),
+          h(Field,{label:"Utilities (comma-sep)"},h("input",{value:(selStation.utilities||[]).join(", "),onChange:function(e){updateStation(selStation.id,{utilities:e.target.value.split(",").map(function(x){return x.trim();}).filter(Boolean)});}})),
+          h(Field,{label:"Notes"},h("textarea",{style:{minHeight:42,resize:"vertical"},value:selStation.notes||"",onChange:function(e){updateStation(selStation.id,{notes:e.target.value});}})),
+          h("div",{className:"lab",style:{margin:"12px 0 6px"}},"Connections"),
+          h("div",{style:{fontSize:10.5,color:TEXTD,marginBottom:6}},"Outgoing flows from this step:"),
+          outFlows.map(function(f,i){return h("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4,fontSize:11.5}},h("span",null,"→ "+f.to+" ("+f.transport+")"),h("button",{className:"btn sm",style:{borderColor:RED,color:RED},onClick:function(){removeFlow(f.from,f.to);}},"×"));}),
+          h("div",{style:{display:"flex",gap:6,marginTop:6}},
+            h("select",{id:"addto",style:{flex:1},defaultValue:""},addToOpts),
+            h("button",{className:"btn sm",onClick:function(){var v=document.getElementById("addto").value;if(v)addFlow(selStation.id,v);}},"Add")));
+      }
+    } else if(tab==="schema"){
+      function tbl(rows){return h("table",{className:"schemaTbl"},h("tbody",null,rows.map(function(r,i){return h("tr",{key:i},r[3]?[h("th",{key:0},r[0]),h("th",{key:1},r[1]),h("th",{key:2},r[2])]:[h("td",{key:0},r[0]),h("td",{key:1},r[1]),h("td",{key:2},r[2])]);})));}
+      panel=h("div",{className:"pad"},
+        h("div",{className:"lab",style:{marginBottom:8}},"Data model"),
+        h("div",{style:{fontSize:11.5,color:TEXTD,marginBottom:12,lineHeight:1.5}},"The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields fill with defaults on import."),
+        h("div",{style:{fontSize:11,marginBottom:6}},h("code",null,"root")),
+        tbl([["field","type","meaning",1],["name","string","layout label"],["gridW, gridH","int","grid size (units)"],["stations","array","steps / areas"],["flows","array","material movements"],["noGoZones","array","blocked rects {x,y,w,h}"]]),
+        h("div",{style:{fontSize:11,marginBottom:6}},h("code",null,"station")),
+        tbl([["field","type","meaning",1],["id","string","unique key (flows reference it)"],["name","string","display name"],["role","enum","input · process · output"],["type","enum","machine·manual·quality·store·buffer"],["x,y,w,h","int","grid position & footprint"],["fixed","bool","anchored — optimizer won't move it"],["auto","enum","manual·semi·auto (current state)"],["autoOverride","enum?","null·yes·no (override potential)"],["capacityPerShift","int","throughput ceiling"],["operators","int","staffing"],["cycleTimeSec","int","per-part cycle"],["changeoverMin","int","setup/changeover time"],["ergoRisk","enum","low·med·high"],["utilities","string[]","power, air, coolant…"],["notes","string","free text"]]),
+        h("div",{style:{fontSize:11,marginBottom:6}},h("code",null,"flow")),
+        tbl([["field","type","meaning",1],["from, to","string","station ids"],["volume","int","parts/shift moved"],["unitCost","float","cost per unit-distance"],["transport","enum","manual·forklift·conveyor·agv"],["partWeightKg","float","per-part weight"],["notes","string","free text"]]),
+        h("div",{style:{fontSize:10.5,color:TEXTD,lineHeight:1.5}},"Flow cost = Σ(volume × rectilinear-distance × unitCost). Chaining reads auto on both ends + transport: two auto steps with conveyor/agv = chained; with a manual handoff = auto-island (waste)."));
+    }
+
+    var side=h("div",{className:"side"},
+      h("div",{className:"tabs"},tBtn("rating","Rating"),tBtn("balance","Balance"),tBtn("flow","Flow"),tBtn("auto","Automation"),tBtn("inspect","Configure"),tBtn("schema","Schema")),
+      panel);
+
+    return h("div",{className:"wrap"},header,h("main",null,canvas,side));
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+})();
+</script>
+</body>
+</html>
