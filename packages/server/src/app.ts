@@ -1,7 +1,8 @@
 import path from "node:path";
-import express, { type Express } from "express";
+import express, { type Express, type Router } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import { ENV } from "./lib/env.ts";
 import { errorHandler } from "./lib/http.ts";
 import { authRouter } from "./routes/auth.ts";
@@ -11,6 +12,19 @@ import { cellsRouter } from "./routes/cells.ts";
 import { scenariosRouter } from "./routes/scenarios.ts";
 import { aiRouter } from "./routes/ai.ts";
 import { aiCredentialsRouter } from "./routes/aiCredentials.ts";
+import { buildOpenApiDocument } from "./openapi/document.ts";
+
+// The mounted routers and their base paths. Exported so the OpenAPI drift test
+// can introspect every live route and assert it's documented.
+export const ROUTE_MOUNTS: { mount: string; router: Router }[] = [
+  { mount: "/api/auth", router: authRouter },
+  { mount: "/api/teams", router: teamsRouter },
+  { mount: "/api", router: workspacesRouter },
+  { mount: "/api", router: cellsRouter },
+  { mount: "/api", router: scenariosRouter },
+  { mount: "/api", router: aiRouter },
+  { mount: "/api", router: aiCredentialsRouter },
+];
 
 // Build the Express app. Exported (separate from index.ts) so tests can mount it
 // with a mocked Prisma client and no listening socket.
@@ -21,6 +35,21 @@ export function createApp(): Express {
   app.use(cookieParser());
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  // Interactive API docs (public). The raw spec is generated from the same zod
+  // schemas the routes validate against, so it can't drift. "Try it out" hits the
+  // same origin, so the session cookie is sent automatically; API clients use the
+  // Bearer token from /auth/login (persisted across reloads in the UI).
+  const openapi = buildOpenApiDocument();
+  app.get("/api/openapi.json", (_req, res) => res.json(openapi));
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(openapi, {
+      customSiteTitle: "FlowPlan API",
+      swaggerOptions: { persistAuthorization: true },
+    }),
+  );
 
   app.use("/api/auth", authRouter);
   app.use("/api/teams", teamsRouter);

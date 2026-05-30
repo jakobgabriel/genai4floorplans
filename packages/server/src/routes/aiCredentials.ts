@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { z } from "zod";
-import { AiProviderId, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { getPrisma } from "../lib/prisma.ts";
 import { asyncHandler, badRequest } from "../lib/http.ts";
 import { encryptSecret } from "../lib/crypto.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
+import { AiCredentialBody } from "../openapi/schemas.ts";
 
 export const aiCredentialsRouter = Router();
 aiCredentialsRouter.use(requireAuth);
@@ -16,9 +16,7 @@ aiCredentialsRouter.put(
   "/teams/:teamId/ai/credentials",
   requireTeamRole(Role.OWNER),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z
-      .object({ provider: z.nativeEnum(AiProviderId), model: z.string().min(1), apiKey: z.string().min(1) })
-      .safeParse(req.body);
+    const body = AiCredentialBody.safeParse(req.body);
     if (!body.success) throw badRequest("provider, model and apiKey required");
     const sealed = encryptSecret(body.data.apiKey);
     await getPrisma().teamAiCredential.upsert({

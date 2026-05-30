@@ -43,6 +43,11 @@ any AI credentials already stored encrypted in the database.
 The web app talks to the API at a relative `/api`, so serving both from one Node
 process (the deploy default, via `WEB_DIST`) means no CORS or proxy config.
 
+Interactive **API docs** are served at [`/api/docs`](http://localhost:4000/api/docs)
+(Swagger UI) with the raw OpenAPI spec at `/api/openapi.json`. Authenticate with
+the session cookie (after logging in) or an `Authorization: Bearer <token>` header
+using the `token` returned by `/api/auth/login`.
+
 ### Local development without Docker
 
 ```bash

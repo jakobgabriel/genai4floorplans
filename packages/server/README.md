@@ -43,10 +43,26 @@ denormalized `schemaVersion` column drives lazy migrate-on-read.
 
 ## Auth & authz
 
-httpOnly cookie carrying a stateless JWT (HS256). `requireAuth` verifies it;
-`requireTeamRole(min)` resolves the team from `:teamId` / `:wsId` / `:cellId`,
-loads the caller's membership, and gates by role (OWNER > EDITOR > VIEWER),
-returning 404 (not 403) to non-members so resource existence isn't leaked.
+httpOnly cookie carrying a stateless JWT (HS256). `requireAuth` verifies the
+token from the `flowplan_session` cookie **or** an `Authorization: Bearer <jwt>`
+header (the SPA uses the cookie; API clients use the token returned by
+`/auth/login` and `/auth/register`). `requireTeamRole(min)` resolves the team
+from `:teamId` / `:wsId` / `:cellId`, loads the caller's membership, and gates by
+role (OWNER > EDITOR > VIEWER), returning 404 (not 403) to non-members so
+resource existence isn't leaked.
+
+## API docs (OpenAPI / Swagger)
+
+Interactive docs are always served at **`/api/docs`** (Swagger UI) and the raw
+spec at **`/api/openapi.json`** (OpenAPI 3.0). The spec is generated from the
+same `zod` request schemas the routes validate against (`src/openapi/schemas.ts`),
+so it can't drift from what the server enforces — a test
+(`src/openapi/openapi.test.ts`) fails if a route is added without documenting it.
+
+To try authenticated endpoints: `POST /api/auth/login`, copy the returned
+`token`, click **Authorize → bearerAuth**, and paste it. (On the same origin the
+session cookie is also sent automatically.) The spec imports cleanly into Postman
+or Insomnia.
 
 ## AI proxy
 

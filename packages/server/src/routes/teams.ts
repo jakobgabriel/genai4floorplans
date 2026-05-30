@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { z } from "zod";
 import { Role } from "@prisma/client";
 import { getPrisma } from "../lib/prisma.ts";
 import { asyncHandler, badRequest, notFound } from "../lib/http.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
+import { CreateTeamBody, UpdateTeamBody, MemberBody, UpdateMemberBody } from "../openapi/schemas.ts";
 
 export const teamsRouter = Router();
 teamsRouter.use(requireAuth);
@@ -26,7 +26,7 @@ teamsRouter.get(
 teamsRouter.post(
   "/",
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1) }).safeParse(req.body);
+    const body = CreateTeamBody.safeParse(req.body);
     if (!body.success) throw badRequest("name required");
     const team = await getPrisma().team.create({
       data: {
@@ -60,7 +60,7 @@ teamsRouter.patch(
   "/:teamId",
   requireTeamRole(Role.OWNER),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1) }).safeParse(req.body);
+    const body = UpdateTeamBody.safeParse(req.body);
     if (!body.success) throw badRequest("name required");
     const team = await getPrisma().team.update({
       where: { id: req.teamId },
@@ -81,13 +81,11 @@ teamsRouter.delete(
 );
 
 // --- membership management (OWNER only) ---
-const memberBody = z.object({ email: z.string().email(), role: z.nativeEnum(Role) });
-
 teamsRouter.post(
   "/:teamId/members",
   requireTeamRole(Role.OWNER),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = memberBody.safeParse(req.body);
+    const body = MemberBody.safeParse(req.body);
     if (!body.success) throw badRequest("email and role required");
     const prisma = getPrisma();
     const user = await prisma.user.findUnique({ where: { email: body.data.email }, select: { id: true } });
@@ -106,7 +104,7 @@ teamsRouter.patch(
   "/:teamId/members/:userId",
   requireTeamRole(Role.OWNER),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ role: z.nativeEnum(Role) }).safeParse(req.body);
+    const body = UpdateMemberBody.safeParse(req.body);
     if (!body.success) throw badRequest("role required");
     const membership = await getPrisma().membership.update({
       where: { userId_teamId: { userId: req.params.userId, teamId: req.teamId! } },

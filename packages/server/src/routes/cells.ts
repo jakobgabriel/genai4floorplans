@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { z } from "zod";
 import { Role } from "@prisma/client";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { migrate } from "@flowplan/core/model/migrate";
@@ -9,21 +8,17 @@ import { asJson, migrateStored, versionOf } from "../lib/model.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
+import { CreateCellBody, PutCellModelBody, PatchCellMetaBody } from "../openapi/schemas.ts";
 
 export const cellsRouter = Router();
 cellsRouter.use(requireAuth);
-
-// A Model is a JSON object with stations[] and flows[]; migrate() fills the rest.
-const modelSchema = z
-  .object({ stations: z.array(z.unknown()), flows: z.array(z.unknown()) })
-  .passthrough();
 
 // Create a cell (covers addCell + duplicateCell — client sends the model to copy).
 cellsRouter.post(
   "/workspaces/:wsId/cells",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1), model: modelSchema }).safeParse(req.body);
+    const body = CreateCellBody.safeParse(req.body);
     if (!body.success) throw badRequest("name and a valid model required");
     const model = migrate(body.data.model);
     const count = await getPrisma().cell.count({ where: { workspaceId: req.params.wsId } });
@@ -54,7 +49,7 @@ cellsRouter.put(
   "/cells/:cellId",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ model: modelSchema }).safeParse(req.body);
+    const body = PutCellModelBody.safeParse(req.body);
     if (!body.success) throw badRequest("a valid model required");
     const model = migrate(body.data.model);
     const cell = await getPrisma().cell.update({
@@ -70,7 +65,7 @@ cellsRouter.patch(
   "/cells/:cellId",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1).optional(), position: z.number().int().optional() }).safeParse(req.body);
+    const body = PatchCellMetaBody.safeParse(req.body);
     if (!body.success) throw badRequest("name or position required");
     const cell = await getPrisma().cell.update({
       where: { id: req.params.cellId },

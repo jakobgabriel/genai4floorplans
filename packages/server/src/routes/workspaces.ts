@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { z } from "zod";
 import { Role } from "@prisma/client";
 import { blankModel } from "@flowplan/core/model/sample";
 import { getPrisma } from "../lib/prisma.ts";
@@ -8,6 +7,7 @@ import { asJson, migrateStored, versionOf } from "../lib/model.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
+import { CreateWorkspaceBody, UpdateWorkspaceBody } from "../openapi/schemas.ts";
 
 export const workspacesRouter = Router();
 workspacesRouter.use(requireAuth);
@@ -30,7 +30,7 @@ workspacesRouter.post(
   "/teams/:teamId/workspaces",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1) }).safeParse(req.body);
+    const body = CreateWorkspaceBody.safeParse(req.body);
     if (!body.success) throw badRequest("name required");
     const model = blankModel();
     const prisma = getPrisma();
@@ -77,7 +77,7 @@ workspacesRouter.patch(
   "/workspaces/:wsId",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ name: z.string().min(1).optional(), activeId: z.string().optional() }).safeParse(req.body);
+    const body = UpdateWorkspaceBody.safeParse(req.body);
     if (!body.success) throw badRequest("name or activeId required");
     const ws = await getPrisma().workspace.update({
       where: { id: req.params.wsId },

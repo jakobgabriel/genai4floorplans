@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { z } from "zod";
 import { Role } from "@prisma/client";
 import { migrate } from "@flowplan/core/model/migrate";
 import { getPrisma } from "../lib/prisma.ts";
@@ -8,11 +7,10 @@ import { asJson, migrateStored, versionOf } from "../lib/model.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
+import { ScenarioModelBody } from "../openapi/schemas.ts";
 
 export const scenariosRouter = Router();
 scenariosRouter.use(requireAuth);
-
-const modelSchema = z.object({ stations: z.array(z.unknown()), flows: z.array(z.unknown()) }).passthrough();
 
 // List scenario metadata (name + savedAt) — mirrors listScenarios().
 scenariosRouter.get(
@@ -33,7 +31,7 @@ scenariosRouter.put(
   "/workspaces/:wsId/scenarios/:name",
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const body = z.object({ model: modelSchema }).safeParse(req.body);
+    const body = ScenarioModelBody.safeParse(req.body);
     if (!body.success) throw badRequest("a valid model required");
     const model = migrate({ ...body.data.model, name: req.params.name });
     const scenario = await getPrisma().scenario.upsert({
