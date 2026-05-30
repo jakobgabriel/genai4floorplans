@@ -255,7 +255,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
         className="btn sm"
         style={{ marginTop: 6 }}
         disabled={busy !== null || !design.trim()}
-        onClick={() => run("design", () => provider.design(design), (model) => { applyModel(model, "Designed a new cell"); setDesign(""); })}
+        onClick={() => run("design", () => provider.design(design), (model) => { api.addCell(model, "AI-designed cell"); setDesign(""); toast("Designed a new cell"); })}
       >
         {busy === "design" ? "Designing…" : "Generate cell"}
       </button>
@@ -277,7 +277,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
               rd.onload = () => {
                 const dataUrl = String(rd.result);
                 const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
-                run("vision", () => provider.ingestImage({ data, mediaType: f.type || "image/png" }), (model) => applyModel(model, "Built model from image"));
+                run("vision", () => provider.ingestImage({ data, mediaType: f.type || "image/png" }), (model) => { api.addCell(model, "From image"); toast("Built a new cell from the image"); });
               };
               rd.readAsDataURL(f);
               e.target.value = "";
@@ -306,7 +306,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
         className="btn sm"
         style={{ marginTop: 6 }}
         disabled={busy !== null || !ingest.trim()}
-        onClick={() => run("ingest", () => provider.ingest(ingest), (model) => { api.reset(model); setIngest(""); toast("Built model from routing sheet"); })}
+        onClick={() => run("ingest", () => provider.ingest(ingest), (model) => { api.addCell(model, "Imported routing"); setIngest(""); toast("Built a new cell from the routing sheet"); })}
       >
         {busy === "ingest" ? "Parsing…" : "Build model from text"}
       </button>

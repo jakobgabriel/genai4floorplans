@@ -12,7 +12,11 @@ function renderApp() {
   );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  cleanup();
+  document.body.innerHTML = "";
+  localStorage.clear();
+});
 afterEach(cleanup);
 
 // Smoke tests: the App must mount and wire its panels/views without crashing —
@@ -58,6 +62,15 @@ describe("App", () => {
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
     fireEvent.click(screen.getByText("Balance"));
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
+  });
+
+  it("adds a cell and opens the site rollup", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Site"));
+    expect(screen.getByText("Site rollup")).toBeTruthy();
+    // one cell so far in the rollup table
+    expect(screen.getAllByText(/parts\/shift|Parts\/shift/i).length).toBeGreaterThan(0);
   });
 
   it("opens the freeform footprint editor without crashing", () => {
