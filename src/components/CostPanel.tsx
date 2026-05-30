@@ -1,9 +1,8 @@
-import type { FlowPlanApi } from "../store/useFlowPlan";
 import { costAnalysis } from "../engine/cost";
 import { DEFAULT_COST_CONFIG } from "../model/types";
 import { Field } from "./ui";
 import type { PanelProps } from "./panels";
-import { AMBER, TEAL, TEALD, TEXTD, scoreColor } from "./colors";
+import { AMBER, TEAL, TEXTD, scoreColor } from "./colors";
 
 // Cost & ROI panel. Informational — reuses costAnalysis (which reuses the flow
 // and balance engines). Not part of the composite grade.

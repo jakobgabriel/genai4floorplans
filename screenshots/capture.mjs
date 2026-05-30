@@ -145,6 +145,30 @@ await page.locator("text=/Critical path/").scrollIntoViewIfNeeded();
 await page.waitForTimeout(200);
 await shot(page, "20-balance-critical");
 
+// 21) Cost & ROI tab
+await page.click('button:has-text("Cost")');
+await page.waitForSelector("text=/Cost & ROI|Cost &amp; ROI|Operating cost per part/");
+await page.waitForTimeout(200);
+await shot(page, "21-cost");
+
+// 22) AI Chat — goal-driven optimization plan
+await page.click('button:has-text("AI Chat")');
+await page.waitForSelector("text=/Goal-driven optimization/");
+await page.locator("text=/Goal-driven optimization/").scrollIntoViewIfNeeded();
+await page.click('button:has-text("Find a plan")');
+await page.waitForSelector("text=/Add a parallel lane|No improving|Target reached|Best achievable/", { timeout: 5000 });
+await page.waitForTimeout(300);
+await shot(page, "22-ai-chat-goal");
+
+// 23) Site rollup (add a second cell first)
+await page.selectOption("select.cellSwitch", "__add").catch(() => {});
+await page.waitForTimeout(300);
+await page.locator("header").getByRole("button", { name: "Site" }).click();
+await page.waitForSelector("text=/Site rollup/");
+await page.waitForTimeout(200);
+await shot(page, "23-site-rollup");
+await page.locator(".modal").getByRole("button", { name: "✕" }).click();
+
 await ctx.close();
 
 // ---------- Mobile flow ----------
