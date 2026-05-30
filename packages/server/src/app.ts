@@ -1,3 +1,4 @@
+import path from "node:path";
 import express, { type Express } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -30,6 +31,18 @@ export function createApp(): Express {
   app.use("/api", scenariosRouter);
   app.use("/api", aiRouter);
   app.use("/api", aiCredentialsRouter);
+
+  // Single-origin deploy: also serve the built SPA so the web app's relative /api
+  // calls resolve same-origin (no CORS/proxy). Gated on WEB_DIST so tests and the
+  // dev API server stay API-only. The fallback returns index.html for non-/api
+  // GETs so client routes and page refreshes work; /api/* 404s still hit
+  // errorHandler as JSON.
+  if (ENV.webDist) {
+    app.use(express.static(ENV.webDist));
+    app.get(/^(?!\/api\/).*/, (_req, res) => {
+      res.sendFile(path.join(ENV.webDist, "index.html"));
+    });
+  }
 
   app.use(errorHandler);
   return app;

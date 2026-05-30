@@ -24,6 +24,39 @@ The SPA build output is fully static and can be served by any web host. The app
 runs entirely offline (localStorage) with no backend; the API server adds
 accounts, teams, and a server-side AI proxy when you want them.
 
+## Deploy the full stack — one command
+
+```bash
+docker compose up --build
+```
+
+This builds and starts **everything**: PostgreSQL + the app (API **and** the SPA
+served from the same origin) on http://localhost:4000. Migrations are applied
+automatically on startup, and it runs with safe **dev defaults** so no setup is
+required. Data persists in a named volume across `down`/`up`.
+
+For any real deployment, copy `.env.example` → `.env` and set real secrets
+(`JWT_SECRET`, a fresh base64 32-byte `MASTER_ENC_KEY`, DB password, optional AI
+keys). Compose auto-loads `.env`. **Note:** changing `MASTER_ENC_KEY` invalidates
+any AI credentials already stored encrypted in the database.
+
+The web app talks to the API at a relative `/api`, so serving both from one Node
+process (the deploy default, via `WEB_DIST`) means no CORS or proxy config.
+
+### Local development without Docker
+
+```bash
+# start a Postgres (the dev-only compose in packages/server), then:
+docker compose -f packages/server/docker-compose.yml up -d
+DATABASE_URL=postgresql://flowplan:flowplan@localhost:5432/flowplan \
+  npm run prisma:deploy -w @flowplan/server   # once, to apply migrations
+DATABASE_URL=postgresql://flowplan:flowplan@localhost:5432/flowplan \
+  npm run dev:all                              # web (5173) + API (4000) together
+```
+
+`npm run dev:all` runs the web and API dev servers concurrently. See
+[`packages/server/README.md`](packages/server/README.md) for API details.
+
 ## Architecture — monorepo
 
 ```

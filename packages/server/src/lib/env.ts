@@ -7,6 +7,9 @@ export const ENV = {
   // base64-encoded 32 bytes; the dev default is all-zero and must be replaced in prod.
   masterEncKey: process.env.MASTER_ENC_KEY ?? Buffer.alloc(32).toString("base64"),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  // Absolute path to the built SPA. When set, the server also serves the web app
+  // from the same origin as /api (single-container deploy). Empty = API only.
+  webDist: process.env.WEB_DIST ?? "",
   // Optional env-level AI fallbacks when a team has no stored credential.
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? "",
   openaiKey: process.env.OPENAI_API_KEY ?? "",

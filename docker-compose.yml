@@ -1,0 +1,45 @@
+# Full FlowPlan stack in one command:
+#
+#   docker compose up --build
+#
+# Brings up Postgres + the app (API + SPA on one origin) at http://localhost:4000,
+# applies migrations automatically, and runs with safe dev defaults so no .env is
+# required. For real/prod use, copy .env.example -> .env and set real secrets
+# (Compose auto-loads .env). NOTE: changing MASTER_ENC_KEY invalidates any AI
+# credentials already stored encrypted in the database.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowplan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowplan}
+      POSTGRES_DB: ${POSTGRES_DB:-flowplan}
+    volumes:
+      - flowplan_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowplan} -d ${POSTGRES_DB:-flowplan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT:-4000}:4000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flowplan}:${POSTGRES_PASSWORD:-flowplan}@db:5432/${POSTGRES_DB:-flowplan}?schema=public
+      # Dev defaults — REPLACE for any real deployment (see .env.example).
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-jwt-secret-change-me}
+      MASTER_ENC_KEY: ${MASTER_ENC_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      # Optional env-level AI fallback keys (empty = offline strategist).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+volumes:
+  flowplan_pgdata:
