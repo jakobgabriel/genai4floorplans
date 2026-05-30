@@ -1,12 +1,14 @@
 import { useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "../store/reducer";
-import { AUTO, ERGO, ROLES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights } from "../model/types";
+import { AUTO, ERGO, ROLES, SIDES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights, type Side, type Station } from "../model/types";
 import type { CellForm } from "../engine/templates";
 import { WEIGHTS, normalizeWeights } from "../engine/rating";
 import { bottleneckAdvice } from "../engine/balance";
+import { yieldAnalysis } from "../engine/yield";
+import { stationCells } from "../engine/geometry";
 import { autoPotential } from "../engine/automation";
-import { AMBER, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
+import { AMBER, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
@@ -218,6 +220,42 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
         Rate = min(3600/cycle × shift-hours × operators, capacity/shift). Low-util steps are starved by
         the bottleneck — that's spare capacity, not a problem to fix.
+      </div>
+      <YieldSection api={api} />
+    </div>
+  );
+}
+
+function YieldSection({ api }: { api: FlowPlanApi }) {
+  const y = yieldAnalysis(api.model.stations, api.model.flows);
+  const withScrap = y.steps.filter((s) => s.scrapRate > 0);
+  return (
+    <div>
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Yield &amp; scrap
+      </div>
+      <div className="imp" style={{ marginTop: 0 }}>
+        <div className="lab">Rolled throughput yield</div>
+        <div className="impVal">
+          {y.rolledYield}% <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>good parts</span>
+        </div>
+        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
+      </div>
+      {withScrap.length === 0 ? (
+        <div style={{ fontSize: 10.5, color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
+      ) : (
+        withScrap.map((s) => (
+          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+            <span>{s.name}</span>
+            <span style={{ color: RED }}>
+              {Math.round(s.scrapRate * 100)}% · {Math.round(s.scrapUnits).toLocaleString()}/sh
+            </span>
+          </div>
+        ))
+      )}
+      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+        Rolled yield = ∏(1 − scrap rate) over process steps. Informational — it doesn't change the
+        composite grade.
       </div>
     </div>
   );
@@ -437,6 +475,50 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
   );
 }
 
+// Freeform footprint editor: paint which cells of the w×h bounding box the
+// station occupies. "Fill" clears the mask back to a plain rectangle.
+function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station }) {
+  const w = Math.max(1, Math.round(station.w));
+  const h = Math.max(1, Math.round(station.h));
+  const occ = new Set(stationCells({ x: 0, y: 0, w, h, cells: station.cells }).map((c) => c.x + "," + c.y));
+  const toggle = (dx: number, dy: number) => {
+    const key = dx + "," + dy;
+    const next = new Set(occ);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    if (next.size === 0) return; // keep at least one cell
+    const cells = Array.from(next).map((k) => k.split(",").map(Number) as [number, number]);
+    api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells } });
+  };
+  const isRect = !(station.cells && station.cells.length);
+  return (
+    <label className="field">
+      <span>Footprint shape {isRect ? "(rectangle)" : "(custom)"}</span>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${w}, 16px)`, gap: 2 }}>
+          {Array.from({ length: h }).map((_, dy) =>
+            Array.from({ length: w }).map((__, dx) => {
+              const on = occ.has(dx + "," + dy);
+              return (
+                <button
+                  key={dx + "," + dy}
+                  type="button"
+                  onClick={() => toggle(dx, dy)}
+                  title={`cell ${dx},${dy}`}
+                  style={{ width: 16, height: 16, padding: 0, borderRadius: 3, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
+                />
+              );
+            }),
+          )}
+        </div>
+        <button className="btn sm" type="button" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
+          Fill (rect)
+        </button>
+      </div>
+    </label>
+  );
+}
+
 export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const { toast } = useToast();
   const m = api.model;
@@ -506,6 +588,42 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
         <Field label="Height">
           <input type="number" value={s.h} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +e.target.value) } })} />
+        </Field>
+      </div>
+      <CellShapeEditor api={api} station={s} />
+      <div className="row2">
+        <Field label="IN port" help="Edge where material enters; flows route to this port.">
+          <select value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>
+            {SIDES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="OUT port" help="Edge where material exits.">
+          <select value={s.outSide ?? "right"} onChange={(e) => up({ outSide: e.target.value as Side })}>
+            {SIDES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="row2">
+        <Field label="Scrap port">
+          <select value={s.scrapSide ?? "bottom"} onChange={(e) => up({ scrapSide: e.target.value as Side })}>
+            {SIDES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Scrap rate (%)" help="Share of incoming parts scrapped here. Shown in Balance ▸ Yield; not part of the grade.">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={Math.round((s.scrapRate ?? 0) * 100)}
+            onFocus={api.checkpoint}
+            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { scrapRate: Math.max(0, Math.min(100, +e.target.value)) / 100 } })}
+          />
         </Field>
       </div>
       <Field label="Fixed / anchored">
@@ -675,6 +793,10 @@ export function SchemaPanel() {
         ["changeoverMin", "int", "setup/changeover time"],
         ["ergoRisk", "enum", "low·med·high"],
         ["shiftHours", "number?", "per-station shift override"],
+        ["cells", "[x,y][]?", "occupied cells (absent ⇒ rectangle)"],
+        ["inSide/outSide", "enum?", "port edge: left·right·top·bottom"],
+        ["scrapSide", "enum?", "scrap-out edge"],
+        ["scrapRate", "number?", "0–1 scrapped (Yield panel)"],
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}

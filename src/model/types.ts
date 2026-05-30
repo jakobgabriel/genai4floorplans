@@ -8,6 +8,8 @@ export type AutoState = "manual" | "semi" | "auto";
 export type AutoOverride = "yes" | "no" | null;
 export type ErgoRisk = "low" | "med" | "high";
 export type Transport = "manual" | "forklift" | "conveyor" | "agv";
+/** Which edge of a station's bounding box a port sits on. */
+export type Side = "left" | "right" | "top" | "bottom";
 
 export interface Station {
   id: string;
@@ -30,6 +32,14 @@ export interface Station {
   notes: string;
   /** Per-station shift length in hours (Phase 2). Defaults to model/global 8h. */
   shiftHours?: number;
+  /** Occupied cell offsets within the w×h bounding box. Absent ⇒ full rectangle. */
+  cells?: Array<[number, number]>;
+  /** Edge where material enters / exits / scrap leaves. Default left / right / bottom. */
+  inSide?: Side;
+  outSide?: Side;
+  scrapSide?: Side;
+  /** Fraction of incoming parts scrapped at this step (0–1). Default 0. */
+  scrapRate?: number;
 }
 
 export interface Flow {
@@ -82,9 +92,10 @@ export const ROLES: Role[] = ["input", "process", "output"];
 export const AUTO: AutoState[] = ["manual", "semi", "auto"];
 export const ERGO: ErgoRisk[] = ["low", "med", "high"];
 export const TRANSPORT: Transport[] = ["manual", "forklift", "conveyor", "agv"];
+export const SIDES: Side[] = ["left", "right", "top", "bottom"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;

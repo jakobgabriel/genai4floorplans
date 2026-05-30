@@ -1,11 +1,11 @@
-import type { NoGoZone, Station } from "../model/types";
+import type { NoGoZone, Side, Station } from "../model/types";
 
 export interface Point {
   x: number;
   y: number;
 }
 
-/** Center point of a station's footprint (grid units). */
+/** Center point of a station's bounding box (grid units). */
 export function center(s: Pick<Station, "x" | "y" | "w" | "h">): Point {
   return { x: s.x + s.w / 2, y: s.y + s.h / 2 };
 }
@@ -15,6 +15,34 @@ export function rectDist(a: Station, b: Station): number {
   const ca = center(a);
   const cb = center(b);
   return Math.abs(ca.x - cb.x) + Math.abs(ca.y - cb.y);
+}
+
+/** Midpoint of a station's port on the given side (grid units). */
+export function portPoint(s: Pick<Station, "x" | "y" | "w" | "h">, side: Side): Point {
+  switch (side) {
+    case "left":
+      return { x: s.x, y: s.y + s.h / 2 };
+    case "right":
+      return { x: s.x + s.w, y: s.y + s.h / 2 };
+    case "top":
+      return { x: s.x + s.w / 2, y: s.y };
+    case "bottom":
+      return { x: s.x + s.w / 2, y: s.y + s.h };
+  }
+}
+
+/** Absolute occupied cells of a station. Absent/empty mask ⇒ full w×h rectangle.
+ *  Offsets outside the bounding box are ignored so resizing w/h stays robust. */
+export function stationCells(s: Pick<Station, "x" | "y" | "w" | "h" | "cells">): Array<{ x: number; y: number }> {
+  const w = Math.max(1, Math.round(s.w));
+  const h = Math.max(1, Math.round(s.h));
+  if (s.cells && s.cells.length) {
+    const inBounds = s.cells.filter(([dx, dy]) => dx >= 0 && dx < w && dy >= 0 && dy < h);
+    if (inBounds.length) return inBounds.map(([dx, dy]) => ({ x: s.x + dx, y: s.y + dy }));
+  }
+  const out: Array<{ x: number; y: number }> = [];
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) out.push({ x: s.x + dx, y: s.y + dy });
+  return out;
 }
 
 interface Rect {
@@ -29,7 +57,18 @@ export function rectsOverlap(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-/** True if placing `s` at (x,y) would collide with any other station or no-go zone. */
+function isShaped(s: Station): boolean {
+  return !!(s.cells && s.cells.length);
+}
+
+/** True if a unit cell at (cx,cy) lies inside a rectangle. */
+function cellInRect(cx: number, cy: number, r: Rect): boolean {
+  return cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h;
+}
+
+/** True if placing `s` at (x,y) would collide with any other station or no-go zone.
+ *  Uses cell-accurate testing when a freeform footprint is involved; otherwise the
+ *  fast rectangle path (so all-rectangle models behave exactly as before). */
 export function hasCollision(
   s: Station,
   x: number,
@@ -37,6 +76,18 @@ export function hasCollision(
   others: Station[],
   zones: NoGoZone[],
 ): boolean {
+  const moved: Station = { ...s, x, y };
+  const shaped = isShaped(moved) || others.some(isShaped);
+  if (shaped) {
+    const mine = stationCells(moved);
+    const occupied = new Set(mine.map((c) => c.x + "," + c.y));
+    for (const o of others) {
+      if (o.id === s.id) continue;
+      for (const c of stationCells(o)) if (occupied.has(c.x + "," + c.y)) return true;
+    }
+    for (const z of zones) for (const c of mine) if (cellInRect(c.x, c.y, z)) return true;
+    return false;
+  }
   const r: Rect = { x, y, w: s.w, h: s.h };
   for (const o of others) {
     if (o.id === s.id) continue;

@@ -19,9 +19,15 @@ const toV1: Migration = (m) => ({
 // defaults, so existing models keep their exact grade).
 const toV2: Migration = (m) => ({ ...m, schemaVersion: 2 });
 
+// version 2 -> 3: introduce station ports (in/out/scrap sides), scrapRate, and
+// freeform cell footprints. All default inertly (rect, scrap 0), so ratings are
+// unchanged; normalizeStation fills the new fields.
+const toV3: Migration = (m) => ({ ...m, schemaVersion: 3 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
+  2: toV3,
 };
 
 export function migrate(raw: unknown): Model {

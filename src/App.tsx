@@ -15,6 +15,7 @@ import { ScenarioCompare } from "./components/ScenarioCompare";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { StationTooltip } from "./components/StationTooltip";
 import { CopilotPanel } from "./components/CopilotPanel";
+import { DagView } from "./components/DagView";
 import { useToast } from "./components/ui";
 import {
   AutomationPanel,
@@ -28,7 +29,7 @@ import {
 } from "./components/panels";
 import { AMBER, TEAL, TEALD, TEXTD } from "./components/colors";
 
-type View = "actual" | "improved" | "split";
+type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
 
 export function App() {
@@ -158,6 +159,7 @@ export function App() {
       if (e.key === "1") setView("actual");
       if (e.key === "2") setView("improved");
       if (e.key === "3") setView("split");
+      if (e.key === "4") setView("dag");
       const s = model.stations.find((x) => x.id === selId);
       if (s && !s.fixed && e.key.startsWith("Arrow")) {
         e.preventDefault();
@@ -245,6 +247,8 @@ export function App() {
         </div>
       </div>
     );
+  } else if (view === "dag") {
+    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} />;
   } else {
     canvasInner = (
       <div className="splitWrap">
@@ -264,6 +268,7 @@ export function App() {
           {vBtn("actual", "● Actual")}
           {vBtn("improved", "◇ Improved")}
           {vBtn("split", "⇄ Both")}
+          {vBtn("dag", "⊟ DAG")}
         </div>
         <div className="spacer" />
         <span className="modelName" style={{ fontSize: 11, color: TEXTD }}>

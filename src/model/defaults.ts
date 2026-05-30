@@ -23,6 +23,10 @@ export const STATION_DEFAULTS: Omit<Station, "id"> = {
   ergoRisk: "low",
   utilities: ["power"],
   notes: "",
+  inSide: "left",
+  outSide: "right",
+  scrapSide: "bottom",
+  scrapRate: 0,
 };
 
 export const FLOW_DEFAULTS: Omit<Flow, "from" | "to"> = {

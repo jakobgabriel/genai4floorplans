@@ -106,6 +106,27 @@ await page.waitForTimeout(200);
 await shot(page, "14-settings");
 await page.locator(".modal").getByRole("button", { name: "Cancel" }).click();
 
+// 14) DAG view
+await page.click('button:has-text("⊟ DAG")');
+await page.waitForSelector("text=PROCESS DAG");
+await page.waitForTimeout(300);
+await shot(page, "15-dag");
+
+// 15) Freeform footprint editor + ports/scrap (select a DAG node -> Configure)
+await page.click("text=CNC Turning");
+await page.waitForSelector("text=/Footprint shape/");
+await page.locator("text=/Footprint shape/").scrollIntoViewIfNeeded();
+await page.waitForTimeout(200);
+await shot(page, "16-cell-editor");
+
+// 16) Yield & scrap (give CNC a scrap rate, then view Balance)
+const scrapInput = page.locator('.side label.field:has-text("Scrap rate (%)") input');
+await scrapInput.fill("8");
+await page.click('button:has-text("Balance")');
+await page.locator("text=/Rolled throughput yield/").scrollIntoViewIfNeeded();
+await page.waitForTimeout(200);
+await shot(page, "17-yield");
+
 await ctx.close();
 
 // ---------- Mobile flow ----------

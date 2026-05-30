@@ -2,8 +2,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Flow, Model, NoGoZone, Station } from "../model/types";
 import type { ChainResult } from "../engine/automation";
 import type { Slot } from "../engine/templates";
-import { center, clampToGrid, hasCollision } from "../engine/geometry";
+import type { Side } from "../model/types";
+import { center, clampToGrid, hasCollision, portPoint, stationCells } from "../engine/geometry";
 import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
+
+const PAD = 12;
+
+// Outline of a freeform footprint: stroke only the cell edges that border empty
+// space, so there are no internal grid lines (no contour tracing needed).
+function footprintBoundary(cells: Array<{ x: number; y: number }>, cell: number): string {
+  const set = new Set(cells.map((c) => c.x + "," + c.y));
+  const X = (gx: number) => PAD + gx * cell;
+  const Y = (gy: number) => PAD + gy * cell;
+  let d = "";
+  for (const c of cells) {
+    if (!set.has(c.x + "," + (c.y - 1))) d += `M${X(c.x)} ${Y(c.y)}L${X(c.x + 1)} ${Y(c.y)}`;
+    if (!set.has(c.x + "," + (c.y + 1))) d += `M${X(c.x)} ${Y(c.y + 1)}L${X(c.x + 1)} ${Y(c.y + 1)}`;
+    if (!set.has(c.x - 1 + "," + c.y)) d += `M${X(c.x)} ${Y(c.y)}L${X(c.x)} ${Y(c.y + 1)}`;
+    if (!set.has(c.x + 1 + "," + c.y)) d += `M${X(c.x + 1)} ${Y(c.y)}L${X(c.x + 1)} ${Y(c.y + 1)}`;
+  }
+  return d;
+}
+
+function stubDir(side: Side): { dx: number; dy: number } {
+  return side === "left" ? { dx: -1, dy: 0 } : side === "right" ? { dx: 1, dy: 0 } : side === "top" ? { dx: 0, dy: -1 } : { dx: 0, dy: 1 };
+}
 
 export type CanvasMode = "select" | "flow" | "nogo";
 
@@ -30,8 +53,6 @@ interface Props {
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
 }
-
-const PAD = 12;
 
 export function LayoutCanvas(props: Props) {
   const { model, stations, flows, chain, ghost, template, selId, label, badge, cell, interactive } = props;
@@ -187,6 +208,11 @@ export function LayoutCanvas(props: Props) {
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
       >
+        <defs>
+          <marker id="fp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+          </marker>
+        </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
         {gridLines}
@@ -211,20 +237,20 @@ export function LayoutCanvas(props: Props) {
           const a = byId[f.from];
           const b = byId[f.to];
           if (!a || !b) return null;
-          const ca = center(a);
-          const cb = center(b);
+          const op = portPoint(a, a.outSide ?? "right");
+          const ip = portPoint(b, b.inSide ?? "left");
           const w = 0.5 + (f.volume / 1200) * 3;
           const k = linkKind[f.from + ">" + f.to];
           const col = k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
           const dash = k === "manual" || k === "mixed" ? "5 4" : undefined;
           const sel = props.selFlow && props.selFlow.from === f.from && props.selFlow.to === f.to;
-          const x1 = PAD + ca.x * cell;
-          const y1 = PAD + ca.y * cell;
-          const x2 = PAD + cb.x * cell;
-          const y2 = PAD + cb.y * cell;
+          const x1 = PAD + op.x * cell;
+          const y1 = PAD + op.y * cell;
+          const x2 = PAD + ip.x * cell;
+          const y2 = PAD + ip.y * cell;
           return (
             <g key={"f" + i}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={sel ? TEXT : col} strokeWidth={sel ? w + 1.5 : w} opacity={k ? 0.75 : 0.45} strokeDasharray={dash} />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={sel ? TEXT : col} strokeWidth={sel ? w + 1.5 : w} opacity={k ? 0.75 : 0.45} strokeDasharray={dash} markerEnd="url(#fp-arrow)" />
               {interactive && props.onSelectFlow ? (
                 <line
                   x1={x1}
@@ -260,6 +286,18 @@ export function LayoutCanvas(props: Props) {
           const picked = props.flowFirst === s.id;
           const colliding = draggingId === s.id && dragCollide;
           const roleStroke = s.role === "input" ? TEAL : s.role === "output" ? AMBER : null;
+          const outline = colliding ? RED : picked || seld ? TEAL : s.fixed ? AMBER : roleStroke ?? TEALD;
+          const fillCol = colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2;
+          const shaped = !!(s.cells && s.cells.length);
+          const occ = shaped ? stationCells(s) : [];
+          const inS = s.inSide ?? "left";
+          const outS = s.outSide ?? "right";
+          const scrapS = s.scrapSide ?? "bottom";
+          const scrap = Math.max(0, Math.min(1, s.scrapRate ?? 0));
+          const ip = portPoint(s, inS);
+          const op = portPoint(s, outS);
+          const spn = portPoint(s, scrapS);
+          const sdir = stubDir(scrapS);
           return (
             <g
               key={s.id}
@@ -268,10 +306,33 @@ export function LayoutCanvas(props: Props) {
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
               onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
             >
-              <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2} stroke={colliding ? RED : picked ? TEAL : seld ? TEAL : s.fixed ? AMBER : TEALD} strokeWidth={picked || seld || colliding ? 2 : 1.2} />
-              {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
+              {shaped ? (
+                <>
+                  {occ.map((c, i) => (
+                    <rect key={"c" + i} x={PAD + c.x * cell} y={PAD + c.y * cell} width={cell} height={cell} fill={fillCol} />
+                  ))}
+                  <path d={footprintBoundary(occ, cell)} fill="none" stroke={outline} strokeWidth={picked || seld || colliding ? 2 : 1.2} strokeLinejoin="round" />
+                </>
+              ) : (
+                <>
+                  <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={fillCol} stroke={outline} strokeWidth={picked || seld || colliding ? 2 : 1.2} />
+                  {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
+                </>
+              )}
               <circle cx={PAD + s.x * cell + 7} cy={PAD + s.y * cell + 7} r={3} fill={ERGO_COL[s.ergoRisk] || TEXTD} />
               <circle cx={PAD + (s.x + s.w) * cell - 7} cy={PAD + s.y * cell + 7} r={3} fill={AUTO_COL[s.auto] || TEXTD} />
+              {/* scrap-out port + dashed stub when this step scraps parts */}
+              {scrap > 0 ? (
+                <g style={{ pointerEvents: "none" }}>
+                  <line x1={PAD + spn.x * cell} y1={PAD + spn.y * cell} x2={PAD + (spn.x + sdir.dx * 0.7) * cell} y2={PAD + (spn.y + sdir.dy * 0.7) * cell} stroke={RED} strokeWidth={1.2} strokeDasharray="3 2" markerEnd="url(#fp-arrow)" />
+                  <text x={PAD + (spn.x + sdir.dx * 0.9) * cell} y={PAD + (spn.y + sdir.dy * 0.9) * cell} fill={RED} fontSize={7} textAnchor="middle" dominantBaseline="middle">
+                    {Math.round(scrap * 100)}%
+                  </text>
+                </g>
+              ) : null}
+              {/* IN (teal) and OUT (amber) ports */}
+              <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
               <text x={PAD + (s.x + s.w / 2) * cell} y={PAD + (s.y + s.h / 2) * cell - 5} fill={TEXT} fontSize={10} fontWeight={600} textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: "none", fontFamily: "'IBM Plex Sans',sans-serif" }}>
                 {s.name}
               </text>

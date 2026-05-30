@@ -50,4 +50,22 @@ describe("App", () => {
     // a strategist proposal card appears (engine-scored, offline)
     await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
   });
+
+  it("renders the DAG view and the Yield panel", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("⊟ DAG"));
+    expect(screen.getByText("PROCESS DAG")).toBeTruthy();
+    fireEvent.click(screen.getByText("Balance"));
+    expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
+  });
+
+  it("opens the freeform footprint editor without crashing", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("⊟ DAG"));
+    // click a DAG node to select + open Configure
+    fireEvent.click(screen.getByText("CNC Turning"));
+    expect(screen.getByText(/Footprint shape/)).toBeTruthy();
+  });
 });
