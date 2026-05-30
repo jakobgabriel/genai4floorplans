@@ -18,7 +18,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "copilot" | "schema";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -708,6 +708,14 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           </select>
         </Field>
       ) : null}
+      <div className="row2">
+        <Field label="Equipment capex" help="One-time cost of this step's equipment (Cost tab).">
+          <input type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
+        </Field>
+        <Field label="Automation capex" help="Cost to automate this step — drives ROI payback.">
+          <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
+        </Field>
+      </div>
       <Field label="Fixed / anchored">
         <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
           {s.fixed ? "FIXED — won't be moved" : "Movable"}
@@ -852,6 +860,7 @@ export function SchemaPanel() {
         ["gridW, gridH", "int", "grid size (units)"],
         ["shiftHours", "number", "default shift length"],
         ["weights", "object?", "KPI weight override (else defaults)"],
+        ["costConfig", "object?", "labor/energy/shifts assumptions"],
         ["stations", "array", "steps / areas"],
         ["flows", "array", "material movements"],
         ["noGoZones", "array", "blocked rects {x,y,w,h}"],
@@ -882,6 +891,8 @@ export function SchemaPanel() {
         ["parallelUnits", "int?", "identical parallel lanes (×N capacity)"],
         ["splitMode", "enum?", "distribute·fork (outgoing)"],
         ["mergeMode", "enum?", "sum·assemble (incoming)"],
+        ["capex / automationCapex", "number?", "cost & ROI (Cost tab)"],
+        ["energyKw", "number?", "power draw → energy opex"],
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}

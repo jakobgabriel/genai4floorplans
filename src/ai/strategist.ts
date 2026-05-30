@@ -4,8 +4,41 @@ import { optimize } from "../engine/optimize";
 import type { CellForm } from "../engine/templates";
 import { clampToGrid, hasCollision } from "../engine/geometry";
 import { normalizeFlow, normalizeModel, normalizeStation } from "../model/defaults";
-import type { AiProvider, EditResult, Proposal, ProposalContext } from "./types";
+import { buildRating } from "../engine/rating";
+import { computeKPIs } from "../engine/kpis";
+import { balanceAnalysis } from "../engine/balance";
+import { costAnalysis } from "../engine/cost";
+import { autoPotential } from "../engine/automation";
+import type { AiProvider, EditResult, GoalObjective, GoalResult, GoalSpec, GoalStep, Proposal, ProposalContext } from "./types";
 import { dedupeProposals, makeProposal } from "./verify";
+
+// ---- goal objective helpers ----------------------------------------------
+
+function objectiveValue(model: Model, obj: GoalObjective): number {
+  switch (obj) {
+    case "throughput":
+      return balanceAnalysis(model.stations, model.flows, model.shiftHours).lineOut;
+    case "flowCost":
+      return computeKPIs(model.stations, model.flows, { gridW: model.gridW, gridH: model.gridH }).flowCost;
+    case "composite":
+      return buildRating(model).composite;
+    case "costPerPart": {
+      const c = costAnalysis(model);
+      return c.lineOut > 0 ? c.costPerPart : Infinity;
+    }
+  }
+}
+
+const isMinimize = (obj: GoalObjective) => obj === "flowCost" || obj === "costPerPart";
+
+function isBetter(a: number, b: number, obj: GoalObjective): boolean {
+  return isMinimize(obj) ? a < b - 1e-9 : a > b + 1e-9;
+}
+
+function reachedTarget(metric: number, goal: GoalSpec): boolean {
+  if (goal.target == null) return false;
+  return isMinimize(goal.objective) ? metric <= goal.target : metric >= goal.target;
+}
 
 function byId(model: Model): Record<string, Station> {
   const m: Record<string, Station> = {};
@@ -234,7 +267,7 @@ export const strategist: AiProvider = {
     if (chain.islands > 0)
       parts.push(`${chain.islands} automation island(s) waste two automated steps on a manual handoff — prime to chain.`);
     if (!validation.valid) parts.push(`Note: the process flow has blocking issues that should be fixed before trusting the rating.`);
-    parts.push(`Open the Copilot proposals for scored layouts that target these weaknesses.`);
+    parts.push(`Open AI Chat proposals for scored layouts that target these weaknesses.`);
     return parts.join(" ");
   },
 
@@ -379,5 +412,134 @@ export const strategist: AiProvider = {
     });
     // Lay out along the centerline.
     return groupByFlow(model);
+  },
+
+  async design(brief: string): Promise<Model> {
+    const text = brief.includes(":") ? brief.slice(brief.indexOf(":") + 1) : brief;
+    const parts = /→|->|\bthen\b/i.test(text) ? text.split(/→|->|\bthen\b/i) : text.split(/[,;\n]/);
+    const steps = parts
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .filter((p) => /[a-z]/i.test(p) && !/^[~\d]+\s*(\/?\s*(shift|min|units|sec|s|pcs|hr))?$/i.test(p) && !/\bline\b|\bcell\b/i.test(p));
+    if (steps.length < 2) throw new Error("Describe at least two steps, e.g. 'Raw → CNC → Press → QA → Ship'.");
+    const seen: Record<string, boolean> = {};
+    const stations = steps.map((raw, i) => {
+      let units = 1;
+      let m: RegExpMatchArray | null;
+      if ((m = raw.match(/(\d+)\s*[x×]/i)) || (m = raw.match(/[x×]\s*(\d+)/i))) units = Math.max(1, +m[1]);
+      let cyc = 30;
+      const cm = raw.match(/(\d+)\s*s(ec)?\b/i);
+      if (cm) cyc = +cm[1];
+      const name = raw.replace(/\(?\s*[x×]\s*\d+\s*\)?/gi, "").replace(/\d+\s*s(ec)?\b/gi, "").replace(/~/g, "").trim() || `Step ${i + 1}`;
+      const t = name.toLowerCase();
+      const type: Station["type"] = /cnc|mill|lathe|press|weld|machin|robot|grind|drill/.test(t)
+        ? "machine"
+        : /assembl|manual|hand|pack/.test(t)
+          ? "manual"
+          : /qa|inspect|test|quality|measure/.test(t)
+            ? "quality"
+            : /ship|store|warehouse|raw|material|dock|buffer/.test(t)
+              ? "store"
+              : "machine";
+      const role: Station["role"] = i === 0 ? "input" : i === steps.length - 1 ? "output" : "process";
+      let id = t.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `step_${i + 1}`;
+      while (seen[id]) id += "_" + i;
+      seen[id] = true;
+      return normalizeStation({ id, name, role, type, cycleTimeSec: role === "process" ? cyc : 0, parallelUnits: units, operators: type === "manual" ? 2 : 1 });
+    });
+    const flows = [];
+    for (let i = 0; i < stations.length - 1; i++) flows.push(normalizeFlow({ from: stations[i].id, to: stations[i + 1].id, volume: 1000 }));
+    return groupByFlow(normalizeModel({ name: "AI-designed cell", stations, flows }));
+  },
+
+  async ingestImage(): Promise<Model> {
+    throw new Error("Image ingestion needs a Claude API key — set one in Settings to use vision.");
+  },
+
+  async optimizeGoal(ctx: ProposalContext, goal: GoalSpec): Promise<GoalResult> {
+    const obj = goal.objective;
+    const c = goal.constraints;
+    const locked = new Set(c.lockedStationIds ?? []);
+    let current = ctx.model;
+    let metric = objectiveValue(current, obj);
+    const steps: GoalStep[] = [];
+    let spentCapex = 0;
+    let parallelAdds = 0;
+
+    for (let iter = 0; iter < 12; iter++) {
+      if (reachedTarget(metric, goal)) break;
+
+      const candidates: Array<{ model: Model; desc: string; capex: number; lane: boolean }> = [];
+
+      if (c.allowMoves !== false) {
+        const grid = { gridW: current.gridW, gridH: current.gridH, noGoZones: current.noGoZones };
+        const temp = current.stations.map((s) => (locked.has(s.id) ? { ...s, fixed: true } : s));
+        const moved = optimize(temp, current.flows, grid, { restarts: 6 });
+        const stations = current.stations.map((s) => {
+          const o = moved.find((x) => x.id === s.id)!;
+          return { ...s, x: o.x, y: o.y };
+        });
+        candidates.push({ model: { ...current, stations }, desc: "Reposition movable stations", capex: 0, lane: false });
+
+        const cf = bestCellForm(current);
+        if (cf) candidates.push({ model: cf.model, desc: `Re-form as a ${cf.form}-cell`, capex: 0, lane: false });
+      }
+
+      if (c.allowParallel !== false && (c.maxParallelAdds == null || parallelAdds < c.maxParallelAdds)) {
+        const bn = balanceAnalysis(current.stations, current.flows, current.shiftHours).bottleneck;
+        const st = bn && current.stations.find((s) => s.id === bn.id);
+        if (st && !locked.has(st.id)) {
+          candidates.push({
+            model: { ...current, stations: current.stations.map((s) => (s.id === st.id ? { ...s, parallelUnits: Math.max(1, s.parallelUnits ?? 1) + 1 } : s)) },
+            desc: `Add a parallel lane at ${st.name}`,
+            capex: st.capex ?? 0,
+            lane: true,
+          });
+        }
+      }
+
+      if (c.allowAutomate) {
+        const cand = current.stations
+          .filter((s) => s.role === "process" && s.auto !== "auto" && !locked.has(s.id))
+          .map((s) => ({ s, pct: autoPotential(s).pct }))
+          .sort((a, b) => b.pct - a.pct)[0];
+        if (cand) {
+          candidates.push({
+            model: { ...current, stations: current.stations.map((s) => (s.id === cand.s.id ? { ...s, auto: "auto" as const, autoOverride: "yes" as const } : s)) },
+            desc: `Automate ${cand.s.name}`,
+            capex: cand.s.automationCapex ?? 0,
+            lane: false,
+          });
+        }
+      }
+
+      // pick the best improving candidate within budget
+      let best: { model: Model; desc: string; capex: number; lane: boolean; value: number } | null = null;
+      for (const cand of candidates) {
+        if (c.capexBudget != null && spentCapex + cand.capex > c.capexBudget) continue;
+        const v = objectiveValue(cand.model, obj);
+        if (isBetter(v, metric, obj) && (!best || isBetter(v, best.value, obj))) best = { ...cand, value: v };
+      }
+      if (!best) break;
+
+      current = best.model;
+      metric = best.value;
+      spentCapex += best.capex;
+      if (best.lane) parallelAdds++;
+      steps.push({ action: best.desc, metric: +metric.toFixed(2) });
+    }
+
+    const proposal =
+      steps.length > 0
+        ? makeProposal(ctx.rating, ctx.model, { strategy: "goal", title: `Plan for ${obj}`, rationale: steps.map((s) => s.action).join("; "), model: current })
+        : null;
+    const reached = reachedTarget(metric, goal);
+    const message =
+      steps.length === 0
+        ? "No improving edit found under these constraints."
+        : reached
+          ? `Target reached: ${obj} = ${(+metric.toFixed(2)).toLocaleString()} in ${steps.length} step(s).`
+          : `Best achievable ${obj} = ${(+metric.toFixed(2)).toLocaleString()} after ${steps.length} step(s)${goal.target != null ? " (target not fully met)" : ""}.`;
+    return { proposal, steps, reached, message };
   },
 };

@@ -45,7 +45,7 @@ describe("App", () => {
   it("generates AI proposals from the Copilot tab", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByText("✨ Copilot"));
+    fireEvent.click(screen.getByRole("button", { name: /AI Chat/ }));
     fireEvent.click(screen.getByText(/Propose layout improvements/));
     // a strategist proposal card appears (engine-scored, offline)
     await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());

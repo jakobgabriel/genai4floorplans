@@ -29,11 +29,16 @@ const toV3: Migration = (m) => ({ ...m, schemaVersion: 3 });
 // serial line's throughput math is unchanged.
 const toV4: Migration = (m) => ({ ...m, schemaVersion: 4 });
 
+// version 4 -> 5: cost/ROI fields (capex, automationCapex, energyKw, costConfig).
+// Default to 0 / standard assumptions, so nothing in the rating changes.
+const toV5: Migration = (m) => ({ ...m, schemaVersion: 5 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
   2: toV3,
   3: toV4,
+  4: toV5,
 };
 
 export function migrate(raw: unknown): Model {

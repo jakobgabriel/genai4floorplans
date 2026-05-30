@@ -1,10 +1,11 @@
+import type { Model } from "../model/types";
 import type { Settings } from "../store/settings";
-import type { AiProvider, EditResult, Proposal, ProposalContext } from "./types";
+import type { AiImage, AiProvider, EditResult, GoalResult, GoalSpec, Proposal, ProposalContext } from "./types";
 import { strategist } from "./strategist";
 import { createClaudeProvider } from "./llm/claude";
 
 // Selects the active provider. Claude is used only when configured with a key;
-// any adapter failure falls back to the deterministic strategist so the Copilot
+// any adapter failure falls back to the deterministic strategist so AI Chat
 // always works offline.
 export function getProvider(settings: Settings): AiProvider {
   if (settings.aiProvider === "claude" && settings.apiKey.trim()) {
@@ -44,6 +45,24 @@ function withFallback(primary: AiProvider, backup: AiProvider): AiProvider {
         return await primary.ingest(text);
       } catch {
         return backup.ingest(text);
+      }
+    },
+    async design(brief: string): Promise<Model> {
+      try {
+        return await primary.design(brief);
+      } catch {
+        return backup.design(brief);
+      }
+    },
+    // Vision is LLM-only: don't silently fall back to a strategist that can't see.
+    ingestImage(image: AiImage): Promise<Model> {
+      return primary.ingestImage(image);
+    },
+    async optimizeGoal(ctx: ProposalContext, goal: GoalSpec): Promise<GoalResult> {
+      try {
+        return await primary.optimizeGoal(ctx, goal);
+      } catch {
+        return backup.optimizeGoal(ctx, goal);
       }
     },
   };

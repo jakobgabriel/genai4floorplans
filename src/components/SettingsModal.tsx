@@ -11,7 +11,7 @@ export function SettingsModal({ initial, onClose, onSaved }: { initial: Settings
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Settings</h2>
-        <p>Configure the Copilot. The offline strategist always works; add a Claude key to use the LLM, scored by the same engine.</p>
+        <p>Configure AI Chat. The offline strategist always works; add a Claude key to use the LLM, scored by the same engine.</p>
         <Field label="AI provider">
           <select value={s.aiProvider} onChange={(e) => setS({ ...s, aiProvider: e.target.value as Settings["aiProvider"] })}>
             <option value="offline">Offline strategist (no key)</option>

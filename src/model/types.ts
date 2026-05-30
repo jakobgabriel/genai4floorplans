@@ -50,6 +50,20 @@ export interface Station {
   splitMode?: SplitMode;
   /** How this step combines incoming flows. Default "sum". */
   mergeMode?: MergeMode;
+  /** One-time capital cost of the step's equipment (cost units). Default 0. */
+  capex?: number;
+  /** Estimated cost to automate this step (drives ROI payback). Default 0. */
+  automationCapex?: number;
+  /** Average power draw in kW (drives energy opex). Default 0. */
+  energyKw?: number;
+}
+
+/** Cost assumptions for the ROI model. Informational — not in the composite. */
+export interface CostConfig {
+  laborCostPerHour?: number;
+  energyCostPerKwh?: number;
+  annualShifts?: number;
+  currency?: string;
 }
 
 export interface Flow {
@@ -96,6 +110,8 @@ export interface Model {
   shiftHours?: number;
   /** Composite-rating weight override. Falls back to engine WEIGHTS when absent. */
   weights?: RatingWeights;
+  /** Cost/ROI assumptions (defaults applied in the cost engine). */
+  costConfig?: CostConfig;
   stations: Station[];
   flows: Flow[];
   noGoZones: NoGoZone[];
@@ -111,7 +127,15 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
+
+/** Default cost assumptions used when costConfig fields are absent. */
+export const DEFAULT_COST_CONFIG = {
+  laborCostPerHour: 45,
+  energyCostPerKwh: 0.15,
+  annualShifts: 460,
+  currency: "$",
+} as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;

@@ -110,6 +110,76 @@ describe("Claude adapter (mocked) — engine re-scores AI output", () => {
   });
 });
 
+describe("strategist.design", () => {
+  it("builds a valid model from a prose brief with parallel lanes", async () => {
+    const model = await strategist.design("Raw -> CNC x2 -> Press -> QA -> Ship");
+    expect(model.stations).toHaveLength(5);
+    expect(model.stations[0].role).toBe("input");
+    expect(model.stations[model.stations.length - 1].role).toBe("output");
+    expect(model.stations.some((s) => (s.parallelUnits ?? 1) === 2)).toBe(true);
+    expect(validateFlow(model.stations, model.flows).valid).toBe(true);
+  });
+});
+
+describe("strategist.optimizeGoal", () => {
+  it("raises throughput with parallel lanes and reports a step plan", async () => {
+    const res = await strategist.optimizeGoal(ctxFor(), {
+      objective: "throughput",
+      constraints: { allowMoves: true, allowParallel: true },
+    });
+    expect(res.steps.length).toBeGreaterThan(0);
+    expect(res.proposal).toBeTruthy();
+    expect(res.proposal!.after.balance.lineOut).toBeGreaterThan(buildRating(SAMPLE).balance.lineOut);
+  });
+
+  it("leaves a locked bottleneck untouched (no improvement found)", async () => {
+    const res = await strategist.optimizeGoal(ctxFor(), {
+      objective: "throughput",
+      constraints: { allowMoves: true, allowParallel: true, lockedStationIds: ["cnc"] },
+    });
+    // CNC is the constraint; locking it means throughput can't be lifted by a lane.
+    const cnc = (res.proposal?.model ?? SAMPLE).stations.find((s) => s.id === "cnc")!;
+    expect(cnc.parallelUnits ?? 1).toBe(1);
+  });
+
+  it("respects a zero capex budget (can't buy a lane)", async () => {
+    const stations = SAMPLE.stations.map((s) => (s.id === "cnc" ? { ...s, capex: 50000 } : s));
+    const res = await strategist.optimizeGoal(
+      { ...ctxFor({ ...SAMPLE, stations }) },
+      { objective: "throughput", constraints: { allowMoves: true, allowParallel: true, capexBudget: 0 } },
+    );
+    const cnc = (res.proposal?.model ?? SAMPLE).stations.find((s) => s.id === "cnc")!;
+    expect(cnc.parallelUnits ?? 1).toBe(1);
+  });
+});
+
+describe("Claude adapter design + vision (mocked)", () => {
+  function fetchReturning(model: unknown): FetchLike {
+    return (async () =>
+      ({
+        ok: true,
+        async json() {
+          return { content: [{ type: "text", text: JSON.stringify(model) }] };
+        },
+        async text() {
+          return "";
+        },
+      }) as unknown as Response) as unknown as FetchLike;
+  }
+
+  it("design parses the model JSON the LLM returns", async () => {
+    const provider = createClaudeProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" }, fetchReturning(SAMPLE));
+    const model = await provider.design("anything");
+    expect(model.stations.length).toBe(SAMPLE.stations.length);
+  });
+
+  it("ingestImage parses a model from a vision response", async () => {
+    const provider = createClaudeProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" }, fetchReturning(SAMPLE));
+    const model = await provider.ingestImage({ data: "abc", mediaType: "image/png" });
+    expect(model.stations.length).toBe(SAMPLE.stations.length);
+  });
+});
+
 describe("getProvider", () => {
   it("uses the offline strategist without a key", () => {
     expect(getProvider(DEFAULT_SETTINGS).name).toBe(strategist.name);

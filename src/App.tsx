@@ -14,7 +14,8 @@ import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioCompare } from "./components/ScenarioCompare";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { StationTooltip } from "./components/StationTooltip";
-import { CopilotPanel } from "./components/CopilotPanel";
+import { AiChatPanel } from "./components/AiChatPanel";
+import { CostPanel } from "./components/CostPanel";
 import { DagView } from "./components/DagView";
 import { useToast } from "./components/ui";
 import {
@@ -335,7 +336,8 @@ export function App() {
             {tBtn("flow", "Flow")}
             {tBtn("auto", "Automation")}
             {tBtn("inspect", "Configure")}
-            {tBtn("copilot", "✨ Copilot")}
+            {tBtn("cost", "Cost")}
+            {tBtn("chat", "💬 AI Chat")}
             {tBtn("schema", "Schema")}
           </div>
           {tab === "rating" && <RatingPanel {...panelProps} />}
@@ -343,7 +345,8 @@ export function App() {
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "auto" && <AutomationPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "copilot" && <CopilotPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
+          {tab === "cost" && <CostPanel {...panelProps} />}
+          {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
         </div>
       </main>

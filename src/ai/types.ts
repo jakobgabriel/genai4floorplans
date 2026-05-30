@@ -47,6 +47,44 @@ export interface EditResult {
   unresolved?: string;
 }
 
+export type GoalObjective = "throughput" | "flowCost" | "composite" | "costPerPart";
+
+export interface GoalConstraints {
+  lockedStationIds?: string[];
+  allowMoves?: boolean;
+  allowParallel?: boolean;
+  allowAutomate?: boolean;
+  maxParallelAdds?: number;
+  capexBudget?: number;
+}
+
+export interface GoalSpec {
+  objective: GoalObjective;
+  /** Optional absolute target for the objective. */
+  target?: number;
+  constraints: GoalConstraints;
+}
+
+export interface GoalStep {
+  action: string;
+  /** Objective value after applying this step (engine-computed). */
+  metric: number;
+}
+
+export interface GoalResult {
+  /** Final engine-scored proposal (null if nothing improved it). */
+  proposal: Proposal | null;
+  steps: GoalStep[];
+  reached: boolean;
+  message: string;
+}
+
+/** Base64 image payload for vision ingestion. */
+export interface AiImage {
+  data: string;
+  mediaType: string;
+}
+
 export interface AiProvider {
   name: string;
   /** Candidate layouts with rationale; each scored by the engine. */
@@ -57,4 +95,10 @@ export interface AiProvider {
   edit(ctx: ProposalContext, instruction: string): Promise<EditResult>;
   /** Build an initial model from a pasted routing sheet / CSV / description. */
   ingest(text: string): Promise<Model>;
+  /** Generate a full starter model from a free-text brief. */
+  design(brief: string): Promise<Model>;
+  /** Extract a model from a photo / image (vision; LLM-only). */
+  ingestImage(image: AiImage): Promise<Model>;
+  /** Search a verified sequence of edits toward a goal under constraints. */
+  optimizeGoal(ctx: ProposalContext, goal: GoalSpec): Promise<GoalResult>;
 }

@@ -3,8 +3,9 @@ import type { Settings } from "../../store/settings";
 import { parseModelText } from "../../io/json";
 import { buildRating } from "../../engine/rating";
 import { modelReducer, type ModelAction } from "../../store/reducer";
-import type { AiProvider, EditResult, Proposal, ProposalContext } from "../types";
+import type { AiImage, AiProvider, EditResult, GoalResult, GoalSpec, Proposal, ProposalContext } from "../types";
 import { dedupeProposals, makeProposal } from "../verify";
+import { strategist } from "../strategist";
 
 // Claude API adapter — dormant until a key is set in Settings. It implements the
 // same AiProvider interface as the strategist. Crucially, anything it returns is
@@ -31,7 +32,7 @@ respond ONLY with JSON — no prose, no code fences. Stations have x,y,w,h on a
 gridW×gridH grid; "fixed" stations must not move; never overlap stations or
 noGoZones. You never invent KPI numbers; the host app scores your output.`;
 
-async function callClaude(settings: Settings, userText: string, fetchImpl: FetchLike): Promise<string> {
+async function callClaudeContent(settings: Settings, content: unknown, fetchImpl: FetchLike): Promise<string> {
   const res = await fetchImpl(API_URL, {
     method: "POST",
     headers: {
@@ -44,13 +45,17 @@ async function callClaude(settings: Settings, userText: string, fetchImpl: Fetch
       model: settings.model,
       max_tokens: 4096,
       system: SYSTEM,
-      messages: [{ role: "user", content: userText }],
+      messages: [{ role: "user", content }],
     }),
   });
   if (!res.ok) throw new Error("Claude API error " + res.status + ": " + (await res.text()).slice(0, 200));
   const data = (await res.json()) as MessageResponse;
   const text = (data.content ?? []).map((b) => b.text ?? "").join("");
   return text.trim();
+}
+
+function callClaude(settings: Settings, userText: string, fetchImpl: FetchLike): Promise<string> {
+  return callClaudeContent(settings, userText, fetchImpl);
 }
 
 function extractJSON(text: string): unknown {
@@ -133,6 +138,30 @@ export function createClaudeProvider(settings: Settings, fetchImpl: FetchLike = 
       const parsed = parseModelText(JSON.stringify(extractJSON(await callClaude(settings, prompt, fetchImpl))));
       if (!parsed.ok || !parsed.model) throw new Error(parsed.error || "Could not parse AI model.");
       return parsed.model;
+    },
+
+    async design(brief: string): Promise<Model> {
+      const prompt = `Design a single manufacturing cell from this brief. Respond with model JSON only (name, gridW, gridH, stations[] with id/name/role(input|process|output)/type/cycleTimeSec/operators/parallelUnits, flows[] with from/to/volume). Brief:\n${brief}`;
+      const parsed = parseModelText(JSON.stringify(extractJSON(await callClaude(settings, prompt, fetchImpl))));
+      if (!parsed.ok || !parsed.model) throw new Error(parsed.error || "Could not parse AI model.");
+      return parsed.model;
+    },
+
+    async ingestImage(image: AiImage): Promise<Model> {
+      const content = [
+        { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } },
+        { type: "text", text: "This is a routing sheet or a hand-drawn cell layout. Extract a FlowPlan model. Respond with model JSON only (name, gridW, gridH, stations[], flows[])." },
+      ];
+      const text = await callClaudeContent(settings, content, fetchImpl);
+      const parsed = parseModelText(JSON.stringify(extractJSON(text)));
+      if (!parsed.ok || !parsed.model) throw new Error(parsed.error || "Could not parse AI model from the image.");
+      return parsed.model;
+    },
+
+    // Goal-seeking is a deterministic search — delegate to the strategist so the
+    // result is reproducible and always engine-verified.
+    optimizeGoal(ctx: ProposalContext, goal: GoalSpec): Promise<GoalResult> {
+      return strategist.optimizeGoal(ctx, goal);
     },
   };
 }

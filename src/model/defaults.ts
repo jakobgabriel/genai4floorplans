@@ -30,6 +30,9 @@ export const STATION_DEFAULTS: Omit<Station, "id"> = {
   parallelUnits: 1,
   splitMode: "distribute",
   mergeMode: "sum",
+  capex: 0,
+  automationCapex: 0,
+  energyKw: 0,
 };
 
 export const FLOW_DEFAULTS: Omit<Flow, "from" | "to"> = {
@@ -59,6 +62,7 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     gridH: o.gridH ?? 14,
     shiftHours: o.shiftHours ?? DEFAULT_SHIFT_HOURS,
     weights: o.weights,
+    costConfig: o.costConfig,
     noGoZones: Array.isArray(o.noGoZones) ? o.noGoZones : [],
     stations: stations.map(normalizeStation),
     flows: flows.map(normalizeFlow),

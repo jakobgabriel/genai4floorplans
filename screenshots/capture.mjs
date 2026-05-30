@@ -61,15 +61,15 @@ await page.click('button:has-text("⇄ Both")');
 await page.waitForTimeout(300);
 await shot(page, "08-split");
 
-// 9) Copilot tab — generate AI proposals
+// 9) AI Chat tab
 await page.click('button:has-text("● Actual")');
-await page.click('button:has-text("Copilot")');
+await page.click('button:has-text("AI Chat")');
 await page.waitForSelector("text=/Propose layout improvements/");
 await page.click("text=/Propose layout improvements/");
 await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
 await shot(page, "10-copilot-proposals");
 
-// 10) Copilot narration + NL edit
+// 10) AI Chat narration + NL edit
 await page.click("text=/Explain this grade/");
 await page.waitForTimeout(400);
 await shot(page, "11-copilot-narrate");
@@ -87,7 +87,7 @@ await nameInput.fill("Baseline");
 await page.locator('.side').getByRole("button", { name: "Save", exact: true }).click();
 await page.waitForTimeout(200);
 // also save the optimizer floor as a second variant for a meaningful comparison
-await page.click('button:has-text("Copilot")');
+await page.click('button:has-text("AI Chat")');
 await page.click("text=/Propose layout improvements/");
 await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
 await page.locator('button:has-text("Save as scenario")').first().click();
@@ -101,7 +101,7 @@ await page.waitForTimeout(200);
 
 // 13) Settings modal
 await page.locator("header").getByRole("button", { name: "⚙" }).click();
-await page.waitForSelector("text=/Configure the Copilot/");
+await page.waitForSelector("text=/Configure AI Chat/");
 await page.waitForTimeout(200);
 await shot(page, "14-settings");
 await page.locator(".modal").getByRole("button", { name: "Cancel" }).click();

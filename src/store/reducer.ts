@@ -1,4 +1,4 @@
-import type { Flow, Model, NoGoZone, RatingWeights, Station } from "../model/types";
+import type { CostConfig, Flow, Model, NoGoZone, RatingWeights, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
@@ -10,6 +10,7 @@ export type ModelAction =
   | { type: "SET_GRID"; gridW: number; gridH: number }
   | { type: "SET_SHIFT_HOURS"; shiftHours: number }
   | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
+  | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
   | { type: "MOVE_STATION"; id: string; x: number; y: number }
@@ -52,6 +53,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_WEIGHTS":
       return { ...model, weights: action.weights };
+
+    case "SET_COST_CONFIG":
+      return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };
 
     case "ADD_STATION":
       return { ...model, stations: model.stations.concat([action.station]) };
