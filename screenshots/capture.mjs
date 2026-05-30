@@ -5,7 +5,7 @@ const EXEC = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const OUT = "screenshots";
 mkdirSync(OUT, { recursive: true });
 
-const BASE = "http://localhost:4173/";
+const BASE = process.env.BASE ?? "http://localhost:4173/";
 
 async function shot(page, name) {
   await page.waitForTimeout(450);
