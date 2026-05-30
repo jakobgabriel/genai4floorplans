@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlowPlan — layout declutter mockup</title>
+<style>
+  :root {
+    --bg: #0e1416; --panel: #141d20; --panel2: #19262a; --line: #24383d;
+    --teal: #2bb6a8; --tealDim: #1c6f68; --amber: #e0a458; --red: #d96b5b;
+    --text: #dde8e8; --textDim: #7e9698;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 13px;
+    padding: 28px 26px 40px;
+  }
+  h1 { font-family: "IBM Plex Sans", sans-serif; font-size: 19px; margin: 0 0 4px; }
+  .sub { color: var(--textDim); font-size: 12px; margin: 0 0 26px; }
+  .cap { font-family: "IBM Plex Sans", sans-serif; font-size: 12px; letter-spacing: .5px;
+         text-transform: uppercase; color: var(--textDim); margin: 26px 0 9px; display: flex; gap: 8px; align-items: center; }
+  .cap b { color: var(--text); }
+  .pill { font-size: 10px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line); }
+  .pill.bad { color: var(--red); border-color: #5a2f2a; }
+  .pill.good { color: var(--teal); border-color: var(--tealDim); }
+
+  /* shared chrome */
+  .app { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
+  .logo { font-family: "IBM Plex Sans", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .5px; }
+  .logo span { color: var(--teal); }
+  .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+         padding: 8px 12px; border-radius: 5px; font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
+  .btn.sm { padding: 5px 9px; font-size: 11px; }
+  .btn.on { background: var(--teal); color: var(--bg); border-color: var(--teal); }
+  select.btn { -webkit-appearance: none; appearance: none; }
+
+  header { padding: 11px 14px; border-bottom: 1px solid var(--line); display: flex;
+           align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg); }
+  .views { display: flex; gap: 6px; }
+  .spacer { flex: 1; }
+
+  main { display: flex; min-height: 360px; }
+  .canvas { flex: 1; position: relative; border-right: 1px solid var(--line);
+            background:
+              linear-gradient(var(--line) 1px, transparent 1px) 0 0/30px 30px,
+              linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0/30px 30px,
+              var(--panel);
+            background-blend-mode: soft-light; }
+  .canvas .grid-fade { position:absolute; inset:0; background: var(--panel); opacity:.86; }
+  .side { width: 320px; background: var(--panel); }
+
+  /* node sketch on canvas */
+  .node { position: absolute; border-radius: 6px; background: var(--panel2);
+          border: 1.5px solid var(--teal); display: flex; align-items: center; justify-content: center;
+          font-size: 10px; color: var(--text); z-index:2; }
+  .node.out { border-color: var(--amber); }
+  .link { position: absolute; height: 2px; background: var(--teal); transform-origin: left center; z-index:1; opacity:.8; }
+
+  .legend { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; gap: 16px;
+            font-size: 10px; color: var(--textDim); z-index:3; flex-wrap: wrap; }
+
+  /* OLD side tabs */
+  .tabs { display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs .btn { flex: 1; min-width: 64px; text-align: center; }
+
+  /* NEW viewbar + grouptabs + subtabs */
+  .viewbar { display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+             border-bottom: 1px solid var(--line); background: var(--bg); }
+  .viewbar .hint { color: var(--textDim); font-size: 10px; margin-left: auto; }
+  .grouptabs { display: flex; align-items: center; gap: 6px; padding: 12px 12px 0; }
+  .grouptabs .btn { flex: 1; text-align: center; }
+  .grouptabs .help { flex: 0 0 auto; width: 30px; padding: 8px 0; }
+  .subtabs { display: flex; gap: 4px; padding: 8px 12px 12px; border-bottom: 1px solid var(--line); }
+  .subtabs .chip { flex: 1; text-align: center; font-size: 11px; padding: 5px 8px; border-radius: 5px;
+                   border: 1px solid var(--line); color: var(--textDim); background: transparent; }
+  .subtabs .chip.on { color: var(--text); background: var(--panel2); border-color: var(--tealDim); }
+
+  .panelbody { padding: 16px; }
+  .grade { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .gradeBox { width: 52px; height: 52px; border-radius: 10px; display:flex; align-items:center; justify-content:center;
+              font-size: 28px; font-weight: 700; font-family: "IBM Plex Sans", sans-serif;
+              background: var(--teal); color: var(--bg); }
+  .lab { font-size: 10px; color: var(--textDim); text-transform: uppercase; letter-spacing: .5px; }
+  .kpi { margin-bottom: 9px; }
+  .kpiTop { display: flex; justify-content: space-between; font-size: 11px; color: var(--textDim); margin-bottom: 3px; }
+  .bar { height: 5px; background: var(--panel2); border-radius: 2px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--teal); }
+
+  /* dropdown menus (open state shown statically) */
+  .menu { position: relative; }
+  .menu-pop { position: absolute; top: calc(100% + 6px); right: 0; min-width: 168px; z-index: 9;
+              background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px;
+              box-shadow: 0 12px 28px rgba(0,0,0,.45); }
+  .menu-pop button { display: block; width: 100%; text-align: left; background: transparent; border: 0;
+                     color: var(--text); font-family: inherit; font-size: 12px; padding: 8px 10px; border-radius: 5px; }
+  .menu-pop button:hover { background: var(--panel2); }
+  .menu-pop .sep { height: 1px; background: var(--line); margin: 4px 6px; }
+
+  .annot { color: var(--textDim); font-size: 11px; margin-top: 7px; }
+  .count { color: var(--amber); }
+</style>
+</head>
+<body>
+  <h1>FlowPlan — layout declutter</h1>
+  <p class="sub">Same features, calmer chrome. Header action buttons collapse into menus; the view toggle moves above the canvas; 8 side tabs become 4 groups + a help icon.</p>
+
+  <!-- ================= BEFORE ================= -->
+  <div class="cap"><b>BEFORE</b> <span class="pill bad">header: ~13 controls in one row</span> <span class="pill bad">side: 8 wrapping tabs</span></div>
+  <div class="app">
+    <header>
+      <div class="logo">FLOW<span>PLAN</span></div>
+      <div class="views">
+        <button class="btn sm on">● Actual</button>
+        <button class="btn sm">◇ Improved</button>
+        <button class="btn sm">⇄ Both</button>
+        <button class="btn sm">⊟ DAG</button>
+      </div>
+      <div class="spacer"></div>
+      <select class="btn sm" style="max-width:160px"><option>Cell A — Hydrobuchse</option></select>
+      <button class="btn sm">Site</button>
+      <button class="btn sm">↺</button>
+      <button class="btn sm">↻</button>
+      <button class="btn">Load</button>
+      <button class="btn">Export</button>
+      <button class="btn">CSV</button>
+      <button class="btn">PNG</button>
+      <button class="btn">Report</button>
+      <button class="btn">Compare</button>
+      <button class="btn">⚙</button>
+      <button class="btn">Reset</button>
+    </header>
+    <main>
+      <div class="canvas">
+        <div class="grid-fade"></div>
+        <div class="link" style="left:90px; top:96px; width:120px"></div>
+        <div class="link" style="left:300px; top:96px; width:120px"></div>
+        <div class="node" style="left:40px; top:70px; width:54px; height:50px">Saw</div>
+        <div class="node" style="left:210px; top:70px; width:54px; height:50px">CNC</div>
+        <div class="node" style="left:420px; top:70px; width:54px; height:50px">Press</div>
+        <div class="node out" style="left:210px; top:180px; width:54px; height:50px">Pack</div>
+        <div class="legend">
+          <span>role outline: <span style="color:var(--teal)">▢</span>input <span style="color:var(--amber)">▢</span>output</span>
+          <span>dots: ergo (TL) · automation (TR)</span>
+          <span>links: <span style="color:var(--teal)">━</span>chained <span style="color:var(--red)">┅</span>auto-island</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="tabs">
+          <button class="btn sm on">Rating</button>
+          <button class="btn sm">Balance</button>
+          <button class="btn sm">Flow</button>
+          <button class="btn sm">Automation</button>
+          <button class="btn sm">Configure</button>
+          <button class="btn sm">Cost</button>
+          <button class="btn sm">💬 AI Chat</button>
+          <button class="btn sm">Schema</button>
+        </div>
+        <div class="panelbody">
+          <div class="grade"><div class="gradeBox">A</div><div><div class="lab">Composite</div><div style="font-size:20px;font-weight:600">92 / 100</div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Flow efficiency</span><span>88</span></div><div class="bar"><div style="width:88%"></div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Line balance</span><span>83</span></div><div class="bar"><div style="width:83%"></div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Automation fit</span><span>76</span></div><div class="bar"><div style="width:76%"></div></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= AFTER ================= -->
+  <div class="cap"><b>AFTER</b> <span class="pill good">title bar: 4 clusters + 2 menus</span> <span class="pill good">view toggle above canvas</span> <span class="pill good">4 groups + ? help</span></div>
+  <div class="app">
+    <header>
+      <div class="logo">FLOW<span>PLAN</span></div>
+      <div class="spacer"></div>
+      <select class="btn" style="max-width:200px"><option>Cell A — Hydrobuchse  ▾</option></select>
+      <button class="btn">Site</button>
+      <span style="color:var(--line)">│</span>
+      <button class="btn sm">↺</button>
+      <button class="btn sm">↻</button>
+      <span style="color:var(--line)">│</span>
+      <div class="menu">
+        <button class="btn">Export ▾</button>
+        <div class="menu-pop">
+          <button>Load JSON…</button>
+          <div class="sep"></div>
+          <button>Export JSON</button>
+          <button>Export CSV</button>
+          <button>Export PNG</button>
+          <button>Open report</button>
+        </div>
+      </div>
+      <button class="btn">⚙</button>
+      <button class="btn">⋯</button>
+    </header>
+    <main>
+      <div class="canvas">
+        <div class="grid-fade"></div>
+        <div class="viewbar" style="position:relative; z-index:4">
+          <div class="views">
+            <button class="btn sm on">● Actual</button>
+            <button class="btn sm">◇ Improved</button>
+            <button class="btn sm">⇄ Both</button>
+            <button class="btn sm">⊟ DAG</button>
+          </div>
+          <span class="hint">view of the cell layout</span>
+        </div>
+        <div class="link" style="left:90px; top:150px; width:120px"></div>
+        <div class="link" style="left:300px; top:150px; width:120px"></div>
+        <div class="node" style="left:40px; top:124px; width:54px; height:50px">Saw</div>
+        <div class="node" style="left:210px; top:124px; width:54px; height:50px">CNC</div>
+        <div class="node" style="left:420px; top:124px; width:54px; height:50px">Press</div>
+        <div class="node out" style="left:210px; top:228px; width:54px; height:50px">Pack</div>
+        <div class="legend">
+          <span>role outline: <span style="color:var(--teal)">▢</span>input <span style="color:var(--amber)">▢</span>output</span>
+          <span>dots: ergo (TL) · automation (TR)</span>
+          <span>links: <span style="color:var(--teal)">━</span>chained <span style="color:var(--red)">┅</span>auto-island</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="grouptabs">
+          <button class="btn sm on">Insights</button>
+          <button class="btn sm">Build</button>
+          <button class="btn sm">Automation</button>
+          <button class="btn sm">AI Chat</button>
+          <button class="btn sm help" title="Schema reference">?</button>
+        </div>
+        <div class="subtabs">
+          <button class="chip on">Rating</button>
+          <button class="chip">Balance</button>
+          <button class="chip">Cost</button>
+        </div>
+        <div class="panelbody">
+          <div class="grade"><div class="gradeBox">A</div><div><div class="lab">Composite</div><div style="font-size:20px;font-weight:600">92 / 100</div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Flow efficiency</span><span>88</span></div><div class="bar"><div style="width:88%"></div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Line balance</span><span>83</span></div><div class="bar"><div style="width:83%"></div></div></div>
+          <div class="kpi"><div class="kpiTop"><span>Automation fit</span><span>76</span></div><div class="bar"><div style="width:76%"></div></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <p class="annot">Group → panel map: <b>Insights</b> = Rating · Balance · Cost · <b>Build</b> = Flow · Configure · <b>Automation</b> · <b>AI Chat</b> · <b>?</b> = Schema reference. Every action that exists today stays reachable in ≤2 clicks.</p>
+</body>
+</html>

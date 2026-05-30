@@ -1,0 +1,10 @@
+import { chromium } from "playwright-core";
+const EXEC = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+const browser = await chromium.launch({ executablePath: EXEC });
+const ctx = await browser.newContext({ viewport: { width: 1180, height: 1000 }, deviceScaleFactor: 2 });
+const page = await ctx.newPage();
+await page.goto("file:///home/user/genai4floorplans/mockup/layout.html", { waitUntil: "networkidle" });
+await page.waitForTimeout(300);
+await page.screenshot({ path: "/home/user/genai4floorplans/screenshots/mockup-layout.png", fullPage: true });
+console.log("saved mockup-layout.png");
+await browser.close();
