@@ -18,6 +18,7 @@ import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
 import { CostPanel } from "./components/CostPanel";
 import { DagView } from "./components/DagView";
+import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
 import {
   AutomationPanel,
@@ -33,6 +34,28 @@ import { AMBER, TEAL, TEALD, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
+
+// Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
+// sub-tab row when a group has >1 panel. Schema is reached via the "?" help icon.
+type Group = "insights" | "build" | "automation" | "chat";
+const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[] }[] = [
+  { id: "insights", label: "Insights", tabs: [
+    { tab: "rating", label: "Rating" },
+    { tab: "balance", label: "Balance" },
+    { tab: "cost", label: "Cost" },
+  ] },
+  { id: "build", label: "Build", tabs: [
+    { tab: "flow", label: "Flow" },
+    { tab: "inspect", label: "Configure" },
+  ] },
+  { id: "automation", label: "Automation", tabs: [{ tab: "auto", label: "Automation" }] },
+  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "💬 AI Chat" }] },
+];
+const GROUP_OF: Record<Tab, Group | undefined> = {
+  rating: "insights", balance: "insights", cost: "insights",
+  flow: "build", inspect: "build",
+  auto: "automation", chat: "chat", schema: undefined,
+};
 
 export function App() {
   const api = useFlowPlan();
@@ -51,6 +74,8 @@ export function App() {
   const [showRollup, setShowRollup] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
+  // Remember the last sub-tab visited per group, so returning to a group restores it.
+  const lastSubTab = useRef<Record<Group, Tab>>({ insights: "rating", build: "flow", automation: "auto", chat: "chat" });
 
   const { model, rating } = api;
 
@@ -58,6 +83,13 @@ export function App() {
     setSel(id);
     if (id) setTab("inspect");
   }, []);
+
+  // Keep the per-group memory in sync however the tab changed (incl. in-panel
+  // deep-links like Balance → Configure), so re-opening a group restores it.
+  useEffect(() => {
+    const g = GROUP_OF[tab];
+    if (g) lastSubTab.current[g] = tab;
+  }, [tab]);
 
   // ---- flow drawing: pick source then target
   const pickStation = useCallback(
@@ -184,12 +216,15 @@ export function App() {
       </button>
     );
   }
-  function tBtn(k: Tab, l: string) {
-    return (
-      <button className={"btn" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>
-        {l}
-      </button>
-    );
+  // The active group follows the active tab (so in-panel deep-links to Configure
+  // still light up the right group). Schema (via "?") belongs to no group.
+  const activeGroup = GROUP_OF[tab];
+  function selectGroup(g: Group) {
+    setTab(lastSubTab.current[g]);
+  }
+  function selectSubTab(g: Group, k: Tab) {
+    lastSubTab.current[g] = k;
+    setTab(k);
   }
 
   const improvedModel = { ...model, stations: rating.optimized };
@@ -268,12 +303,6 @@ export function App() {
         <div className="logo">
           FLOW<span>PLAN</span>
         </div>
-        <div className="views">
-          {vBtn("actual", "● Actual")}
-          {vBtn("improved", "◇ Improved")}
-          {vBtn("split", "⇄ Both")}
-          {vBtn("dag", "⊟ DAG")}
-        </div>
         <div className="spacer" />
         <select
           className="cellSwitch"
@@ -283,7 +312,7 @@ export function App() {
             else api.switchCell(e.target.value);
           }}
           title="Switch cell"
-          style={{ width: "auto", maxWidth: 160 }}
+          style={{ width: "auto", maxWidth: 180 }}
         >
           {api.cells.map((c) => (
             <option key={c.id} value={c.id}>
@@ -295,48 +324,65 @@ export function App() {
         <button className="btn sm" onClick={() => setShowRollup(true)} title="Site rollup across all cells">
           Site
         </button>
+        <span className="hsep" />
         <button className="btn sm" onClick={api.undo} disabled={!api.canUndo} title="Undo (Ctrl/Cmd+Z)">
           ↺
         </button>
         <button className="btn sm" onClick={api.redo} disabled={!api.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)">
           ↻
         </button>
-        <button className="btn" onClick={() => fileRef.current?.click()}>
-          Load
-        </button>
+        <span className="hsep" />
         <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
-        <button className="btn" onClick={() => downloadJSON(model)}>
-          Export
-        </button>
-        <button className="btn" onClick={() => downloadKpiCsv(model)} title="Export KPI + automation tables as CSV">
-          CSV
-        </button>
-        <button
-          className="btn"
-          onClick={async () => {
-            const ok = await downloadLayoutPNG("ACTUAL", (model.name || "layout").replace(/\s+/g, "_"));
-            if (!ok) toast("Switch to the Actual view to export the layout", "warn");
-          }}
-          title="Export the layout as a PNG image"
-        >
-          PNG
-        </button>
-        <button className="btn" onClick={() => openReport(model)} title="Open a printable one-page report">
-          Report
-        </button>
-        <button className="btn" onClick={() => setShowCompare(true)} title="Compare saved scenarios">
-          Compare
-        </button>
+        <Menu
+          label="Export ▾"
+          title="Load, export & report"
+          items={[
+            { label: "Load JSON…", onClick: () => fileRef.current?.click() },
+            { label: "Export JSON", onClick: () => downloadJSON(model) },
+            { label: "Export CSV", onClick: () => downloadKpiCsv(model) },
+            {
+              label: "Export PNG",
+              onClick: async () => {
+                const ok = await downloadLayoutPNG("ACTUAL", (model.name || "layout").replace(/\s+/g, "_"));
+                if (!ok) toast("Switch to the Actual view to export the layout", "warn");
+              },
+            },
+            { label: "Open report", onClick: () => openReport(model) },
+          ]}
+        />
         <button className="btn" onClick={() => setShowSettings(true)} title="Settings">
           ⚙
         </button>
-        <button className="btn" onClick={() => { if (confirm("Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario).")) { api.reset(SAMPLE); setSel(null); setView("actual"); } }}>
-          Reset
-        </button>
+        <Menu
+          label="⋯"
+          title="More actions"
+          items={[
+            { label: "Compare scenarios", onClick: () => setShowCompare(true) },
+            {
+              label: "Reset to sample",
+              danger: true,
+              onClick: () => {
+                if (confirm("Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario).")) {
+                  api.reset(SAMPLE);
+                  setSel(null);
+                  setView("actual");
+                }
+              },
+            },
+          ]}
+        />
       </header>
 
       <main>
         <div className="canvas" style={{ position: "relative" }}>
+          <div className="viewbar">
+            <div className="views">
+              {vBtn("actual", "● Actual")}
+              {vBtn("improved", "◇ Improved")}
+              {vBtn("split", "⇄ Both")}
+              {vBtn("dag", "⊟ DAG")}
+            </div>
+          </div>
           {canvasInner}
           <div className="legend">
             <span>
@@ -349,15 +395,26 @@ export function App() {
           </div>
         </div>
         <div className="side">
-          <div className="tabs">
-            {tBtn("rating", "Rating")}
-            {tBtn("balance", "Balance")}
-            {tBtn("flow", "Flow")}
-            {tBtn("auto", "Automation")}
-            {tBtn("inspect", "Configure")}
-            {tBtn("cost", "Cost")}
-            {tBtn("chat", "💬 AI Chat")}
-            {tBtn("schema", "Schema")}
+          <div className="tabbar">
+            <div className="grouptabs">
+              {TAB_GROUPS.map((g) => (
+                <button key={g.id} className={"btn" + (activeGroup === g.id ? " on" : "")} onClick={() => selectGroup(g.id)}>
+                  {g.label}
+                </button>
+              ))}
+              <button className={"btn help-tab" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
+                ?
+              </button>
+            </div>
+            {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
+              <div className="subtabs">
+                {TAB_GROUPS.find((g) => g.id === activeGroup)!.tabs.map((t) => (
+                  <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => selectSubTab(activeGroup, t.tab)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           {tab === "rating" && <RatingPanel {...panelProps} />}
           {tab === "balance" && <BalancePanel {...panelProps} />}

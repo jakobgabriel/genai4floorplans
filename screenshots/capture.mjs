@@ -13,6 +13,22 @@ async function shot(page, name) {
   console.log("saved", name);
 }
 
+// Side-panel navigation helpers for the grouped tab rail. A group button selects
+// the group; a sub-tab chip (rendered only when its group is active) selects the
+// panel. We click the group first (when needed) then the leaf.
+const GROUP_OF = { Rating: "Insights", Balance: "Insights", Cost: "Insights", Flow: "Build", Configure: "Build" };
+async function goTab(page, leaf) {
+  const group = GROUP_OF[leaf];
+  if (group) await page.locator(".grouptabs").getByRole("button", { name: group }).click();
+  // Group-only panels (Automation, AI Chat) are reached by the group button itself.
+  if (leaf === "Automation" || leaf === "AI Chat") {
+    await page.locator(".grouptabs").getByRole("button", { name: leaf }).click();
+    return;
+  }
+  // Leaf panels live in the sub-tab row (or are the group's default).
+  await page.locator(".subtabs").getByRole("button", { name: leaf, exact: true }).click();
+}
+
 const browser = await chromium.launch({ executablePath: EXEC });
 
 // ---------- Desktop flow ----------
@@ -29,18 +45,18 @@ await page.click("text=Start from the sample cell");
 await page.waitForSelector("text=Actual-state rating");
 await shot(page, "02-rating-actual");
 
-// 3) Balance tab
-await page.click('button:has-text("Balance")');
+// 3) Balance tab (sub-tab of Insights)
+await goTab(page, "Balance");
 await page.waitForSelector("text=Line balance & bottleneck");
 await shot(page, "03-balance");
 
-// 4) Flow tab (validation + templates + settings + scenarios)
-await page.click('button:has-text("Flow")');
+// 4) Flow tab (Build group) — validation + templates + scenarios
+await goTab(page, "Flow");
 await page.waitForSelector("text=Cell form templates");
 await shot(page, "04-flow");
 
-// 5) Automation tab
-await page.click('button:has-text("Automation")');
+// 5) Automation group
+await goTab(page, "Automation");
 await page.waitForSelector("text=Automation chaining");
 await shot(page, "05-automation");
 
@@ -63,7 +79,7 @@ await shot(page, "08-split");
 
 // 9) AI Chat tab
 await page.click('button:has-text("● Actual")');
-await page.click('button:has-text("AI Chat")');
+await goTab(page, "AI Chat");
 await page.waitForSelector("text=/Propose layout improvements/");
 await page.click("text=/Propose layout improvements/");
 await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
@@ -75,24 +91,26 @@ await page.waitForTimeout(400);
 await shot(page, "11-copilot-narrate");
 
 // 11) Customizable KPI weights (Rating tab)
-await page.click('button:has-text("Rating")');
+await goTab(page, "Rating");
 await page.click("text=/Adjust KPI weights/");
 await page.waitForTimeout(300);
 await shot(page, "12-weights");
 
 // 12) Scenario comparison — save a named variant via the Flow panel, then compare
-await page.click('button:has-text("Flow")');
+await goTab(page, "Flow");
 const nameInput = page.locator('.side input[placeholder="name this variant…"]');
 await nameInput.fill("Baseline");
 await page.locator('.side').getByRole("button", { name: "Save", exact: true }).click();
 await page.waitForTimeout(200);
 // also save the optimizer floor as a second variant for a meaningful comparison
-await page.click('button:has-text("AI Chat")');
+await goTab(page, "AI Chat");
 await page.click("text=/Propose layout improvements/");
 await page.waitForSelector("text=/Sequence steps by flow/", { timeout: 5000 });
 await page.locator('button:has-text("Save as scenario")').first().click();
 await page.waitForTimeout(200);
-await page.locator("header").getByRole("button", { name: "Compare" }).click();
+// Compare now lives in the header "⋯" overflow menu.
+await page.locator("header").getByRole("button", { name: "⋯" }).click();
+await page.getByRole("menuitem", { name: "Compare scenarios" }).click();
 await page.waitForSelector("text=/Compare scenarios/");
 await page.waitForTimeout(300);
 await shot(page, "13-compare");
@@ -104,6 +122,11 @@ await page.locator("header").getByRole("button", { name: "⚙" }).click();
 await page.waitForSelector("text=/Configure AI Chat/");
 await page.waitForTimeout(200);
 await shot(page, "14-settings");
+// 13b) Settings with the OpenAI provider selected (per-provider key + model fields)
+await page.locator(".modal select").selectOption("openai");
+await page.waitForSelector('text=/OpenAI API key/');
+await page.waitForTimeout(200);
+await shot(page, "25-settings-openai");
 await page.locator(".modal").getByRole("button", { name: "Cancel" }).click();
 
 // 14) DAG view
@@ -122,7 +145,7 @@ await shot(page, "16-cell-editor");
 // 16) Yield & scrap (give CNC a scrap rate, then view Balance)
 const scrapInput = page.locator('.side label.field:has-text("Scrap rate (%)") input');
 await scrapInput.fill("8");
-await page.click('button:has-text("Balance")');
+await goTab(page, "Balance");
 await page.locator("text=/Rolled throughput yield/").scrollIntoViewIfNeeded();
 await page.waitForTimeout(200);
 await shot(page, "17-yield");
@@ -140,19 +163,19 @@ await shot(page, "18-parallel-canvas");
 await page.click('button:has-text("⊟ DAG")');
 await page.waitForTimeout(300);
 await shot(page, "19-dag-parallel");
-await page.click('button:has-text("Balance")');
+await goTab(page, "Balance");
 await page.locator("text=/Critical path/").scrollIntoViewIfNeeded();
 await page.waitForTimeout(200);
 await shot(page, "20-balance-critical");
 
 // 21) Cost & ROI tab
-await page.click('button:has-text("Cost")');
+await goTab(page, "Cost");
 await page.waitForSelector("text=/Cost & ROI|Cost &amp; ROI|Operating cost per part/");
 await page.waitForTimeout(200);
 await shot(page, "21-cost");
 
 // 22) AI Chat — goal-driven optimization plan
-await page.click('button:has-text("AI Chat")');
+await goTab(page, "AI Chat");
 await page.waitForSelector("text=/Goal-driven optimization/");
 await page.locator("text=/Goal-driven optimization/").scrollIntoViewIfNeeded();
 await page.click('button:has-text("Find a plan")');

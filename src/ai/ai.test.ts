@@ -100,7 +100,7 @@ describe("Claude adapter (mocked) — engine re-scores AI output", () => {
         },
       }) as unknown as Response) as unknown as FetchLike;
 
-    const provider = createClaudeProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" }, fakeFetch);
+    const provider = createClaudeProvider({ apiKey: "k", model: "claude-sonnet-4-6" }, fakeFetch);
     const proposals = await provider.propose(ctxFor());
     expect(proposals.length).toBe(1);
     // composite is the engine's, never 999
@@ -168,13 +168,13 @@ describe("Claude adapter design + vision (mocked)", () => {
   }
 
   it("design parses the model JSON the LLM returns", async () => {
-    const provider = createClaudeProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" }, fetchReturning(SAMPLE));
+    const provider = createClaudeProvider({ apiKey: "k", model: "claude-sonnet-4-6" }, fetchReturning(SAMPLE));
     const model = await provider.design("anything");
     expect(model.stations.length).toBe(SAMPLE.stations.length);
   });
 
   it("ingestImage parses a model from a vision response", async () => {
-    const provider = createClaudeProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" }, fetchReturning(SAMPLE));
+    const provider = createClaudeProvider({ apiKey: "k", model: "claude-sonnet-4-6" }, fetchReturning(SAMPLE));
     const model = await provider.ingestImage({ data: "abc", mediaType: "image/png" });
     expect(model.stations.length).toBe(SAMPLE.stations.length);
   });
@@ -185,7 +185,11 @@ describe("getProvider", () => {
     expect(getProvider(DEFAULT_SETTINGS).name).toBe(strategist.name);
   });
   it("uses Claude when configured", () => {
-    const p = getProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", apiKey: "k" });
+    const p = getProvider({ ...DEFAULT_SETTINGS, aiProvider: "claude", keys: { claude: "k", openai: "" } });
     expect(p.name).toContain("Claude");
+  });
+  it("uses OpenAI when configured", () => {
+    const p = getProvider({ ...DEFAULT_SETTINGS, aiProvider: "openai", keys: { claude: "", openai: "k" } });
+    expect(p.name).toContain("OpenAI");
   });
 });

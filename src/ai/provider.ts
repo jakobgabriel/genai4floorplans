@@ -1,16 +1,20 @@
 import type { Model } from "../model/types";
-import type { Settings } from "../store/settings";
+import { resolveCreds, type Settings } from "../store/settings";
 import type { AiImage, AiProvider, EditResult, GoalResult, GoalSpec, Proposal, ProposalContext } from "./types";
 import { strategist } from "./strategist";
 import { createClaudeProvider } from "./llm/claude";
+import { createOpenAiProvider } from "./llm/openai";
 
-// Selects the active provider. Claude is used only when configured with a key;
-// any adapter failure falls back to the deterministic strategist so AI Chat
-// always works offline.
+// Selects the active provider. A cloud provider (Claude or OpenAI) is used only
+// when configured with a key; any adapter failure falls back to the deterministic
+// strategist so AI Chat always works offline.
 export function getProvider(settings: Settings): AiProvider {
-  if (settings.aiProvider === "claude" && settings.apiKey.trim()) {
-    const claude = createClaudeProvider(settings);
-    return withFallback(claude, strategist);
+  const creds = resolveCreds(settings);
+  if (settings.aiProvider === "claude" && creds.apiKey.trim()) {
+    return withFallback(createClaudeProvider(creds), strategist);
+  }
+  if (settings.aiProvider === "openai" && creds.apiKey.trim()) {
+    return withFallback(createOpenAiProvider(creds), strategist);
   }
   return strategist;
 }

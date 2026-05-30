@@ -34,7 +34,9 @@ const OBJECTIVES: Array<[GoalObjective, string]> = [
 export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi; settings: Settings; openSettings: () => void }) {
   const { toast } = useToast();
   const provider = useMemo(() => getProvider(settings), [settings]);
-  const isClaude = provider.name.includes("Claude");
+  // Any cloud LLM (Claude or OpenAI) unlocks vision; the offline strategist can't see.
+  const isLlm = settings.aiProvider !== "offline" && provider.name !== "Offline strategist";
+  const providerLabel = isLlm ? (provider.name.includes("OpenAI") ? "OpenAI" : "Claude") : "Offline";
   const ctx: ProposalContext = { model: api.model, rating: api.rating, validation: api.validation, chain: api.chain };
 
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -73,7 +75,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
   return (
     <div className="pad">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div className="lab">AI Chat · {isClaude ? "Claude" : "Offline"}</div>
+        <div className="lab">AI Chat · {providerLabel}</div>
         <button className="btn sm" onClick={openSettings}>
           ⚙ Settings
         </button>
@@ -263,7 +265,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         From a photo (vision)
       </div>
-      {isClaude ? (
+      {isLlm ? (
         <>
           <input
             ref={fileRef}
@@ -289,7 +291,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
         </>
       ) : (
         <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>
-          Vision needs a Claude API key — add one in ⚙ Settings to extract a model from a photo.
+          Vision needs an LLM provider (Claude or OpenAI) — add a key in ⚙ Settings to extract a model from a photo.
         </div>
       )}
 

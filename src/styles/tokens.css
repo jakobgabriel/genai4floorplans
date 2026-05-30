@@ -85,6 +85,64 @@ header {
 .spacer {
   flex: 1;
 }
+.hsep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+  margin: 2px 2px;
+}
+
+/* ---- dropdown menus (Export ▾, ⋯) ---- */
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 172px;
+  z-index: 30;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.menu-pop.left {
+  right: auto;
+  left: 0;
+}
+.menu-pop button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 5px;
+}
+.menu-pop button:hover:not(:disabled) {
+  background: var(--panel2);
+}
+.menu-pop button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.menu-pop button.danger {
+  color: var(--red);
+}
+
+/* ---- canvas sub-toolbar (view toggle) ---- */
+.viewbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
 main {
   display: flex;
   flex: 1;
@@ -142,6 +200,54 @@ svg {
 .tabs .btn {
   flex: 1;
   min-width: 64px;
+}
+
+/* ---- grouped side-panel tabs ---- */
+.tabbar {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.grouptabs {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px 12px 0;
+}
+.grouptabs .btn {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  font-size: 11px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.grouptabs .help-tab {
+  flex: 0 0 auto;
+  width: 34px;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+}
+.subtabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+}
+.subtabs .chip {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  color: var(--textDim);
+  background: transparent;
+}
+.subtabs .chip.on {
+  color: var(--text);
+  background: var(--panel2);
+  border-color: var(--tealDim);
 }
 .pad {
   padding: 16px;
@@ -423,10 +529,23 @@ code {
   }
   header {
     gap: 8px;
+    flex-wrap: wrap;
+  }
+  .views {
+    flex-wrap: wrap;
   }
   .views .btn {
     padding: 8px 10px;
     font-size: 11px;
+  }
+  .viewbar {
+    flex-wrap: wrap;
+  }
+  .grouptabs {
+    flex-wrap: wrap;
+  }
+  .grouptabs .btn {
+    flex: 1 1 auto;
   }
   .modelName {
     display: none;
