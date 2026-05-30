@@ -16,6 +16,10 @@ export function FlowEditorPopover({
 }) {
   const f = api.model.flows.find((x) => x.from === flow.from && x.to === flow.to);
   if (!f) return null;
+  const src = api.model.stations.find((x) => x.id === f.from);
+  const dst = api.model.stations.find((x) => x.id === f.to);
+  const isDistribute = (src?.splitMode ?? "distribute") === "distribute" && api.model.flows.filter((x) => x.from === f.from).length > 1;
+  const isAssemble = (dst?.mergeMode ?? "sum") === "assemble";
   return (
     <div
       style={{
@@ -66,6 +70,30 @@ export function FlowEditorPopover({
           ))}
         </select>
       </Field>
+      {isDistribute ? (
+        <Field label="Split share (%)">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={f.share != null ? Math.round(f.share * 100) : ""}
+            placeholder="equal"
+            onFocus={api.checkpoint}
+            onChange={(e) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { share: e.target.value === "" ? undefined : Math.max(0, Math.min(100, +e.target.value)) / 100 } })}
+          />
+        </Field>
+      ) : null}
+      {isAssemble ? (
+        <Field label="Units per assembly">
+          <input
+            type="number"
+            min={1}
+            value={f.unitsPerAssembly ?? 1}
+            onFocus={api.checkpoint}
+            onChange={(e) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { unitsPerAssembly: Math.max(1, Math.round(+e.target.value)) } })}
+          />
+        </Field>
+      ) : null}
       <button
         className="btn sm"
         style={{ width: "100%", borderColor: RED, color: RED, marginTop: 4 }}

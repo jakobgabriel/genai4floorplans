@@ -104,12 +104,12 @@ function chainIslands(model: Model, ctx: ProposalContext): Model | null {
   return { ...model, flows };
 }
 
-function relieveBottleneck(model: Model, ctx: ProposalContext): Model | null {
+function addParallelLane(model: Model, ctx: ProposalContext): Model | null {
   const bn = ctx.rating.balance.bottleneck;
   if (!bn) return null;
   return {
     ...model,
-    stations: model.stations.map((s) => (s.id === bn.id ? { ...s, operators: s.operators + 1 } : s)),
+    stations: model.stations.map((s) => (s.id === bn.id ? { ...s, parallelUnits: Math.max(1, s.parallelUnits ?? 1) + 1 } : s)),
   };
 }
 
@@ -192,13 +192,13 @@ export const strategist: AiProvider = {
         model: ci,
       });
 
-    const rb = relieveBottleneck(model, ctx);
+    const rb = addParallelLane(model, ctx);
     if (rb && rating.balance.bottleneck)
       drafts.push({
-        strategy: "bottleneck",
-        title: `Add an operator at ${rating.balance.bottleneck.name}`,
+        strategy: "parallel-lane",
+        title: `Add a parallel lane at ${rating.balance.bottleneck.name}`,
         rationale:
-          "The constraint caps line output. Parallelizing it (one more operator/station, if the work splits) raises the whole line's throughput.",
+          "The constraint caps line output. Running an extra identical lane in parallel multiplies its capacity and lifts the whole line's throughput.",
         model: rb,
       });
 

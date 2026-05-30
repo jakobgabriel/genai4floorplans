@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "../store/reducer";
-import { AUTO, ERGO, ROLES, SIDES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights, type Side, type Station } from "../model/types";
+import { AUTO, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights, type Side, type Station } from "../model/types";
 import type { CellForm } from "../engine/templates";
 import { WEIGHTS, normalizeWeights } from "../engine/rating";
 import { bottleneckAdvice } from "../engine/balance";
@@ -218,10 +218,60 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
         );
       })}
       <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
-        Rate = min(3600/cycle × shift-hours × operators, capacity/shift). Low-util steps are starved by
-        the bottleneck — that's spare capacity, not a problem to fix.
+        Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
+        steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
       </div>
+      <ParallelSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
+    </div>
+  );
+}
+
+function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const bal = api.rating.balance;
+  const byId: Record<string, string> = {};
+  api.model.stations.forEach((s) => (byId[s.id] = s.name));
+  const path = bal.criticalPath.filter((id) => byId[id]);
+  return (
+    <div>
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Critical path
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 6 }}>
+        {path.length === 0 ? (
+          <span style={{ fontSize: 11, color: TEXTD }}>—</span>
+        ) : (
+          path.map((id, i) => (
+            <span key={id} style={{ display: "inline-flex", alignItems: "center" }}>
+              <span className="pill" style={{ background: "rgba(43,182,168,.12)", color: TEAL, cursor: "pointer" }} onClick={() => { setSel(id); setTab("inspect"); }}>
+                {byId[id]}
+              </span>
+              {i < path.length - 1 ? <span style={{ color: TEXTD, margin: "0 2px" }}>→</span> : null}
+            </span>
+          ))
+        )}
+      </div>
+      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
+
+      {bal.syncWaits.length > 0 ? (
+        <>
+          <div className="lab" style={{ margin: "14px 0 8px" }}>
+            Merge synchronization
+          </div>
+          {bal.syncWaits.map((sw) => (
+            <div key={sw.mergeId} className="issue" style={{ borderLeftColor: AMBER, background: "rgba(224,164,88,.08)", cursor: "pointer" }} onClick={() => { setSel(sw.mergeId); setTab("inspect"); }}>
+              <div style={{ fontWeight: 600, marginBottom: 3 }}>
+                {sw.mergeName}: paced by {sw.bindingName} at {sw.bindingRate.toLocaleString()}/sh
+              </div>
+              {sw.waiters.map((w) => (
+                <div key={w.id} style={{ fontSize: 11 }}>
+                  · {w.name} idles ~{w.idle.toLocaleString()}/sh — add a ≈{w.buffer.toLocaleString()}-part buffer to decouple.
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -536,6 +586,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
     );
   }
   const outFlows = m.flows.filter((f) => f.from === s.id);
+  const inCount = m.flows.filter((f) => f.to === s.id).length;
   const up = (patch: Record<string, unknown>) => api.commit({ type: "UPDATE_STATION", id: s.id, patch });
   return (
     <div className="pad">
@@ -626,6 +677,37 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           />
         </Field>
       </div>
+      <div className="row2">
+        <Field label="Parallel units (×N)" help="Identical resources running in parallel at this step. Capacity scales ×N.">
+          <input
+            type="number"
+            min={1}
+            value={s.parallelUnits ?? 1}
+            onFocus={api.checkpoint}
+            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { parallelUnits: Math.max(1, Math.round(+e.target.value)) } })}
+          />
+        </Field>
+        {outFlows.length > 1 ? (
+          <Field label="Split mode" help="distribute = volume splits by share across lanes; fork = each branch gets full part count (distinct components).">
+            <select value={s.splitMode ?? "distribute"} onChange={(e) => up({ splitMode: e.target.value })}>
+              {SPLIT_MODES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <div style={{ flex: 1 }} />
+        )}
+      </div>
+      {inCount > 1 ? (
+        <Field label="Merge mode" help="sum = inbound rates add; assemble = synchronized, needs one of each input (rate = slowest feeder).">
+          <select value={s.mergeMode ?? "sum"} onChange={(e) => up({ mergeMode: e.target.value })}>
+            {MERGE_MODES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
       <Field label="Fixed / anchored">
         <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
           {s.fixed ? "FIXED — won't be moved" : "Movable"}
@@ -797,6 +879,9 @@ export function SchemaPanel() {
         ["inSide/outSide", "enum?", "port edge: left·right·top·bottom"],
         ["scrapSide", "enum?", "scrap-out edge"],
         ["scrapRate", "number?", "0–1 scrapped (Yield panel)"],
+        ["parallelUnits", "int?", "identical parallel lanes (×N capacity)"],
+        ["splitMode", "enum?", "distribute·fork (outgoing)"],
+        ["mergeMode", "enum?", "sum·assemble (incoming)"],
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}
@@ -810,6 +895,8 @@ export function SchemaPanel() {
         ["unitCost", "float", "cost per unit-distance"],
         ["transport", "enum", "manual·forklift·conveyor·agv"],
         ["partWeightKg", "float", "per-part weight"],
+        ["share", "number?", "split fraction (distribute)"],
+        ["unitsPerAssembly", "int?", "inputs per assembled unit"],
         ["notes", "string", "free text"],
       ])}
       <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>

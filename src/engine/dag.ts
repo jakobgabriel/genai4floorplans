@@ -25,6 +25,42 @@ export interface DagResult {
   hasCycle: boolean;
 }
 
+// Kahn topological order of station ids over the flow graph. Cyclic leftovers
+// are appended in declaration order so callers always see every node once.
+export function topoOrder(stations: Station[], flows: Flow[]): string[] {
+  const ids = stations.map((s) => s.id);
+  const idSet = new Set(ids);
+  const adj: Record<string, string[]> = {};
+  const indeg: Record<string, number> = {};
+  ids.forEach((i) => {
+    adj[i] = [];
+    indeg[i] = 0;
+  });
+  flows.forEach((f) => {
+    if (idSet.has(f.from) && idSet.has(f.to)) {
+      adj[f.from].push(f.to);
+      indeg[f.to]++;
+    }
+  });
+  const queue = ids.filter((i) => indeg[i] === 0);
+  const order: string[] = [];
+  const seen = new Set<string>();
+  while (queue.length) {
+    const n = queue.shift() as string;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    order.push(n);
+    adj[n].forEach((m) => {
+      indeg[m]--;
+      if (indeg[m] <= 0) queue.push(m);
+    });
+  }
+  ids.forEach((i) => {
+    if (!seen.has(i)) order.push(i);
+  });
+  return order;
+}
+
 // Layered layout for the process flow as a DAG. Layers come from a
 // longest-path assignment over a Kahn topological order; back-edges (which make
 // the graph cyclic) are detected with a DFS colouring and flagged rather than

@@ -45,6 +45,7 @@ interface Props {
   mode?: CanvasMode;
   flowFirst?: string | null;
   selFlow?: { from: string; to: string } | null;
+  criticalPath?: string[];
   onSelect?: (id: string | null) => void;
   onSelectFlow?: (f: { from: string; to: string } | null) => void;
   onHoverStation?: (s: Station | null, clientX: number, clientY: number) => void;
@@ -178,6 +179,10 @@ export function LayoutCanvas(props: Props) {
   stations.forEach((s) => (byId[s.id] = s));
   const linkKind: Record<string, string> = {};
   (chain?.links ?? []).forEach((l) => (linkKind[l.from + ">" + l.to] = l.kind));
+  const cp = props.criticalPath ?? [];
+  const cpEdges = new Set<string>();
+  const cpNodes = new Set(cp);
+  for (let i = 0; i < cp.length - 1; i++) cpEdges.add(cp[i] + ">" + cp[i + 1]);
 
   const gridLines = [];
   for (let i = 0; i <= model.gridW; i++)
@@ -241,7 +246,8 @@ export function LayoutCanvas(props: Props) {
           const ip = portPoint(b, b.inSide ?? "left");
           const w = 0.5 + (f.volume / 1200) * 3;
           const k = linkKind[f.from + ">" + f.to];
-          const col = k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
+          const onCp = cpEdges.has(f.from + ">" + f.to);
+          const col = onCp ? TEAL : k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
           const dash = k === "manual" || k === "mixed" ? "5 4" : undefined;
           const sel = props.selFlow && props.selFlow.from === f.from && props.selFlow.to === f.to;
           const x1 = PAD + op.x * cell;
@@ -250,7 +256,7 @@ export function LayoutCanvas(props: Props) {
           const y2 = PAD + ip.y * cell;
           return (
             <g key={"f" + i}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={sel ? TEXT : col} strokeWidth={sel ? w + 1.5 : w} opacity={k ? 0.75 : 0.45} strokeDasharray={dash} markerEnd="url(#fp-arrow)" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={sel ? TEXT : col} strokeWidth={sel ? w + 1.5 : onCp ? w + 1 : w} opacity={onCp ? 0.95 : k ? 0.75 : 0.45} strokeDasharray={dash} markerEnd="url(#fp-arrow)" />
               {interactive && props.onSelectFlow ? (
                 <line
                   x1={x1}
@@ -285,8 +291,12 @@ export function LayoutCanvas(props: Props) {
           const seld = selId === s.id;
           const picked = props.flowFirst === s.id;
           const colliding = draggingId === s.id && dragCollide;
+          const onCpNode = cpNodes.has(s.id);
+          const units = Math.max(1, s.parallelUnits ?? 1);
+          const assemble = (s.mergeMode ?? "sum") === "assemble" && flows.filter((f) => f.to === s.id).length > 1;
           const roleStroke = s.role === "input" ? TEAL : s.role === "output" ? AMBER : null;
-          const outline = colliding ? RED : picked || seld ? TEAL : s.fixed ? AMBER : roleStroke ?? TEALD;
+          const outline = colliding ? RED : picked || seld ? TEAL : onCpNode ? TEAL : s.fixed ? AMBER : roleStroke ?? TEALD;
+          const strokeW = picked || seld || colliding || onCpNode ? 2 : 1.2;
           const fillCol = colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2;
           const shaped = !!(s.cells && s.cells.length);
           const occ = shaped ? stationCells(s) : [];
@@ -306,19 +316,36 @@ export function LayoutCanvas(props: Props) {
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
               onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
             >
+              {/* stacked shadow implies parallel lanes */}
+              {units > 1 && !shaped ? (
+                <>
+                  <rect x={PAD + s.x * cell + 5} y={PAD + s.y * cell + 5} width={s.w * cell} height={s.h * cell} rx={5} fill={PANEL2} stroke={TEALD} strokeWidth={1} opacity={0.6} />
+                  <rect x={PAD + s.x * cell + 2.5} y={PAD + s.y * cell + 2.5} width={s.w * cell} height={s.h * cell} rx={5} fill={PANEL2} stroke={TEALD} strokeWidth={1} opacity={0.8} />
+                </>
+              ) : null}
               {shaped ? (
                 <>
                   {occ.map((c, i) => (
                     <rect key={"c" + i} x={PAD + c.x * cell} y={PAD + c.y * cell} width={cell} height={cell} fill={fillCol} />
                   ))}
-                  <path d={footprintBoundary(occ, cell)} fill="none" stroke={outline} strokeWidth={picked || seld || colliding ? 2 : 1.2} strokeLinejoin="round" />
+                  <path d={footprintBoundary(occ, cell)} fill="none" stroke={outline} strokeWidth={strokeW} strokeLinejoin="round" />
                 </>
               ) : (
                 <>
-                  <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={fillCol} stroke={outline} strokeWidth={picked || seld || colliding ? 2 : 1.2} />
+                  <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} rx={5} fill={fillCol} stroke={outline} strokeWidth={strokeW} />
                   {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
                 </>
               )}
+              {units > 1 ? (
+                <text x={PAD + s.x * cell + 5} y={PAD + (s.y + s.h) * cell - 5} fill={TEAL} fontSize={9} fontWeight={700} style={{ pointerEvents: "none" }}>
+                  ×{units}
+                </text>
+              ) : null}
+              {assemble ? (
+                <text x={PAD + ip.x * cell + 6} y={PAD + ip.y * cell - 5} fill={AMBER} fontSize={10} style={{ pointerEvents: "none" }}>
+                  ⋈
+                </text>
+              ) : null}
               <circle cx={PAD + s.x * cell + 7} cy={PAD + s.y * cell + 7} r={3} fill={ERGO_COL[s.ergoRisk] || TEXTD} />
               <circle cx={PAD + (s.x + s.w) * cell - 7} cy={PAD + s.y * cell + 7} r={3} fill={AUTO_COL[s.auto] || TEXTD} />
               {/* scrap-out port + dashed stub when this step scraps parts */}

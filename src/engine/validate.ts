@@ -42,6 +42,23 @@ export function validateFlow(stations: Station[], flows: Flow[]): ValidationResu
     if (s.role === "output" && out[s.id] > 0)
       issues.push({ sev: "warn", id: s.id, msg: `${s.name}: output area has outgoing flow — usually a sink only.` });
   });
+  // Parallel-flow sanity: distribute shares should sum to ~1; assemble needs ≥2 inputs.
+  const outByFrom: Record<string, Flow[]> = {};
+  stations.forEach((s) => (outByFrom[s.id] = []));
+  flows.forEach((f) => {
+    if (outByFrom[f.from]) outByFrom[f.from].push(f);
+  });
+  stations.forEach((s) => {
+    const outs = outByFrom[s.id] || [];
+    if ((s.splitMode ?? "distribute") === "distribute" && outs.length > 1 && outs.some((f) => f.share != null)) {
+      const sum = outs.reduce((a, f) => a + (f.share ?? 0), 0);
+      if (Math.abs(sum - 1) > 0.02)
+        issues.push({ sev: "warn", id: s.id, msg: `${s.name}: split shares sum to ${(sum * 100).toFixed(0)}% (should be 100%). They'll be normalized.` });
+    }
+    if ((s.mergeMode ?? "sum") === "assemble" && inn[s.id] < 2)
+      issues.push({ sev: "warn", id: s.id, msg: `${s.name}: set to "assemble" but has fewer than two incoming flows.` });
+  });
+
   const inputs = stations.filter((s) => s.role === "input").map((s) => s.id);
   const adj: Record<string, string[]> = {};
   stations.forEach((s) => {

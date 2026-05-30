@@ -127,6 +127,24 @@ await page.locator("text=/Rolled throughput yield/").scrollIntoViewIfNeeded();
 await page.waitForTimeout(200);
 await shot(page, "17-yield");
 
+// 17) Parallel processing: give CNC 3 parallel lanes, then show canvas / DAG / balance
+await page.click('button:has-text("⊟ DAG")');
+await page.click("text=CNC Turning");
+await page.waitForSelector("text=/Parallel units/");
+const punits = page.locator('.side label.field:has-text("Parallel units") input');
+await punits.fill("3");
+await page.waitForTimeout(200);
+await page.click('button:has-text("● Actual")');
+await page.waitForTimeout(300);
+await shot(page, "18-parallel-canvas");
+await page.click('button:has-text("⊟ DAG")');
+await page.waitForTimeout(300);
+await shot(page, "19-dag-parallel");
+await page.click('button:has-text("Balance")');
+await page.locator("text=/Critical path/").scrollIntoViewIfNeeded();
+await page.waitForTimeout(200);
+await shot(page, "20-balance-critical");
+
 await ctx.close();
 
 // ---------- Mobile flow ----------

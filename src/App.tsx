@@ -209,6 +209,7 @@ export function App() {
           mode={mode}
           flowFirst={flowFirst}
           selFlow={selFlow}
+          criticalPath={rating.balance.criticalPath}
           onSelect={selectAndInspect}
           onSelectFlow={setSelFlow}
           onHoverStation={(s, x, y) => setHover(s ? { station: s, x, y } : null)}
@@ -248,7 +249,7 @@ export function App() {
       </div>
     );
   } else if (view === "dag") {
-    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} />;
+    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
   } else {
     canvasInner = (
       <div className="splitWrap">

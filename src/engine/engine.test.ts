@@ -60,7 +60,7 @@ describe("Rating (SAMPLE)", () => {
 
 describe("Balance (SAMPLE)", () => {
   it("identifies CNC as the bottleneck, not the longest-cycle Assembly", () => {
-    const b = balanceAnalysis(SAMPLE.stations, SAMPLE.shiftHours);
+    const b = balanceAnalysis(SAMPLE.stations, SAMPLE.flows, SAMPLE.shiftHours);
     expect(b.bottleneck?.id).toBe("cnc");
     expect({ lineOut: b.lineOut, takt: b.takt, score: b.score }).toMatchInlineSnapshot(`
       {

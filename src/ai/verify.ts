@@ -24,10 +24,13 @@ export function scoreDeltas(before: Rating, after: Rating): KpiDeltas {
 /** Stable signature of a layout (positions + the fields that affect the rating). */
 export function layoutSignature(m: Model): string {
   return m.stations
-    .map((s) => [s.id, s.x, s.y, s.w, s.h, s.role, s.auto, s.operators, s.cycleTimeSec, s.fixed].join(":"))
+    .map((s) =>
+      [s.id, s.x, s.y, s.w, s.h, s.role, s.auto, s.operators, s.cycleTimeSec, s.fixed, s.parallelUnits ?? 1, s.splitMode ?? "distribute", s.mergeMode ?? "sum"].join(":"),
+    )
     .sort()
-    .join("|")
-    + "#" + m.flows.map((f) => [f.from, f.to, f.transport, f.volume].join(":")).sort().join("|");
+    .join("|") +
+    "#" +
+    m.flows.map((f) => [f.from, f.to, f.transport, f.volume, f.share ?? "", f.unitsPerAssembly ?? 1].join(":")).sort().join("|");
 }
 
 export interface ProposalDraft {

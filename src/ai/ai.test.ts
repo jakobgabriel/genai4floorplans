@@ -33,13 +33,12 @@ describe("strategist.propose", () => {
     }
   });
 
-  it("offers a bottleneck proposal that raises line output", async () => {
+  it("offers a parallel-lane proposal that raises line output", async () => {
     const ctx = ctxFor();
     const proposals = await strategist.propose(ctx);
-    const bn = proposals.find((p) => p.strategy === "bottleneck");
+    const bn = proposals.find((p) => p.strategy === "parallel-lane");
     expect(bn).toBeTruthy();
-    // Parallelizing the constraint lifts throughput (parts/shift); note the
-    // balance *score* measures uniformity and can move the other way.
+    // An extra parallel lane at the constraint lifts throughput (parts/shift).
     expect(bn!.after.balance.lineOut).toBeGreaterThan(ctx.rating.balance.lineOut);
   });
 });

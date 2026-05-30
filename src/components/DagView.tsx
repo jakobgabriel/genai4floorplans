@@ -12,10 +12,29 @@ const COL_GAP = 200;
 const ROW_GAP = 74;
 const PAD = 24;
 
-export function DagView({ model, chain, selId, onSelect }: { model: Model; chain: ChainResult; selId: string | null; onSelect: (id: string) => void }) {
+export function DagView({ model, chain, selId, onSelect, criticalPath = [] }: { model: Model; chain: ChainResult; selId: string | null; onSelect: (id: string) => void; criticalPath?: string[] }) {
   const dag = dagLayout(model.stations, model.flows);
   const kind: Record<string, string> = {};
   chain.links.forEach((l) => (kind[l.from + ">" + l.to] = l.kind));
+  const units: Record<string, number> = {};
+  const assemble: Record<string, boolean> = {};
+  const inCount: Record<string, number> = {};
+  model.flows.forEach((f) => (inCount[f.to] = (inCount[f.to] ?? 0) + 1));
+  model.stations.forEach((s) => {
+    units[s.id] = Math.max(1, s.parallelUnits ?? 1);
+    assemble[s.id] = (s.mergeMode ?? "sum") === "assemble" && (inCount[s.id] ?? 0) > 1;
+  });
+  const cpEdges = new Set<string>();
+  for (let i = 0; i < criticalPath.length - 1; i++) cpEdges.add(criticalPath[i] + ">" + criticalPath[i + 1]);
+  const shareLabel = (from: string, to: string): string | null => {
+    const src = model.stations.find((s) => s.id === from);
+    if ((src?.splitMode ?? "distribute") !== "distribute") return null;
+    const sibs = model.flows.filter((f) => f.from === from);
+    if (sibs.length < 2) return null;
+    const f = sibs.find((x) => x.to === to);
+    if (!f || f.share == null) return null;
+    return Math.round(f.share * 100) + "%";
+  };
 
   const pos: Record<string, { x: number; y: number }> = {};
   dag.nodes.forEach((n) => {
@@ -53,29 +72,47 @@ export function DagView({ model, chain, selId, onSelect }: { model: Model; chain
           const y1 = a.y + NODE_H / 2;
           const x2 = b.x;
           const y2 = b.y + NODE_H / 2;
-          const col = e.back ? RED : edgeColor(kind[e.from + ">" + e.to]);
+          const onCp = cpEdges.has(e.from + ">" + e.to);
+          const col = e.back ? RED : onCp ? TEAL : edgeColor(kind[e.from + ">" + e.to]);
           const midX = (x1 + x2) / 2;
           const d = e.back
             ? `M${x1} ${y1} C ${x1 + 60} ${y1 - 50}, ${x2 - 60} ${y2 - 50}, ${x2} ${y2}`
             : `M${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
-          const wdt = 1 + Math.min(4, (e.volume / 1200) * 3);
-          return <path key={"e" + i} d={d} fill="none" stroke={col} strokeWidth={wdt} strokeDasharray={e.back ? "5 4" : undefined} opacity={0.8} markerEnd="url(#dag-arrow)" />;
+          const wdt = (1 + Math.min(4, (e.volume / 1200) * 3)) * (onCp ? 1.6 : 1);
+          const sl = shareLabel(e.from, e.to);
+          return (
+            <g key={"e" + i}>
+              <path d={d} fill="none" stroke={col} strokeWidth={wdt} strokeDasharray={e.back ? "5 4" : undefined} opacity={onCp ? 1 : 0.8} markerEnd="url(#dag-arrow)" />
+              {sl ? (
+                <text x={midX} y={(y1 + y2) / 2 - 4} fill={TEXTD} fontSize={9} textAnchor="middle">
+                  {sl}
+                </text>
+              ) : null}
+            </g>
+          );
         })}
 
         {dag.nodes.map((n) => {
           const p = pos[n.id];
           const sel = n.id === selId;
+          const onCp = criticalPath.includes(n.id);
           const roleCol = n.role === "input" ? TEAL : n.role === "output" ? AMBER : TEALD;
           return (
             <g key={n.id} style={{ cursor: "pointer" }} onClick={() => onSelect(n.id)}>
-              <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={7} fill={PANEL2} stroke={sel ? TEAL : roleCol} strokeWidth={sel ? 2.5 : 1.4} />
+              <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={7} fill={PANEL2} stroke={sel ? TEAL : onCp ? TEAL : roleCol} strokeWidth={sel || onCp ? 2.5 : 1.4} />
               <text x={p.x + NODE_W / 2} y={p.y + 16} fill={TEXT} fontSize={11} fontWeight={600} textAnchor="middle" style={{ fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                {n.name.length > 18 ? n.name.slice(0, 17) + "…" : n.name}
+                {n.name.length > 16 ? n.name.slice(0, 15) + "…" : n.name}
               </text>
               <text x={p.x + NODE_W / 2} y={p.y + 30} fill={TEXTD} fontSize={8} textAnchor="middle">
                 {n.role}
+                {units[n.id] > 1 ? "  ·  ×" + units[n.id] : ""}
                 {n.scrapRate > 0 ? "  ·  scrap " + Math.round(n.scrapRate * 100) + "%" : ""}
               </text>
+              {assemble[n.id] ? (
+                <text x={p.x + 6} y={p.y + 14} fill={AMBER} fontSize={11}>
+                  ⋈
+                </text>
+              ) : null}
               {/* in (left) / out (right) ports */}
               <circle cx={p.x} cy={p.y + NODE_H / 2} r={3} fill={TEAL} />
               <circle cx={p.x + NODE_W} cy={p.y + NODE_H / 2} r={3} fill={AMBER} />

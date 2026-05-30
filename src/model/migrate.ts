@@ -24,10 +24,16 @@ const toV2: Migration = (m) => ({ ...m, schemaVersion: 2 });
 // unchanged; normalizeStation fills the new fields.
 const toV3: Migration = (m) => ({ ...m, schemaVersion: 3 });
 
+// version 3 -> 4: parallel processing — parallelUnits, splitMode/mergeMode, and
+// per-flow share/unitsPerAssembly. Inert defaults (1 unit, distribute/sum), so a
+// serial line's throughput math is unchanged.
+const toV4: Migration = (m) => ({ ...m, schemaVersion: 4 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
   2: toV3,
+  3: toV4,
 };
 
 export function migrate(raw: unknown): Model {

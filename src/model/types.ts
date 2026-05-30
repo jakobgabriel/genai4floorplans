@@ -10,6 +10,10 @@ export type ErgoRisk = "low" | "med" | "high";
 export type Transport = "manual" | "forklift" | "conveyor" | "agv";
 /** Which edge of a station's bounding box a port sits on. */
 export type Side = "left" | "right" | "top" | "bottom";
+/** How a station's output divides across its outgoing flows. */
+export type SplitMode = "distribute" | "fork";
+/** How a station combines its incoming flows. */
+export type MergeMode = "sum" | "assemble";
 
 export interface Station {
   id: string;
@@ -40,6 +44,12 @@ export interface Station {
   scrapSide?: Side;
   /** Fraction of incoming parts scrapped at this step (0–1). Default 0. */
   scrapRate?: number;
+  /** Number of identical parallel resources at this step. Default 1 (capacity ×N). */
+  parallelUnits?: number;
+  /** How this step's output divides across outgoing flows. Default "distribute". */
+  splitMode?: SplitMode;
+  /** How this step combines incoming flows. Default "sum". */
+  mergeMode?: MergeMode;
 }
 
 export interface Flow {
@@ -50,6 +60,10 @@ export interface Flow {
   transport: Transport;
   partWeightKg: number;
   notes: string;
+  /** Share (0–1) of the source's output routed here for a "distribute" split. */
+  share?: number;
+  /** Units of this input consumed per assembled unit at an "assemble" merge. Default 1. */
+  unitsPerAssembly?: number;
 }
 
 export interface NoGoZone {
@@ -93,9 +107,11 @@ export const AUTO: AutoState[] = ["manual", "semi", "auto"];
 export const ERGO: ErgoRisk[] = ["low", "med", "high"];
 export const TRANSPORT: Transport[] = ["manual", "forklift", "conveyor", "agv"];
 export const SIDES: Side[] = ["left", "right", "top", "bottom"];
+export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
+export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;
