@@ -1,16 +1,22 @@
 {
-  "name": "flowplan",
+  "name": "flowplan-monorepo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "description": "FlowPlan — cell & material-flow assessment tool for manufacturing",
+  "workspaces": [
+    "packages/core",
+    "packages/web",
+    "packages/server"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "npm run dev --workspace @flowplan/web",
+    "build": "npm run build --workspace @flowplan/web",
+    "preview": "npm run preview --workspace @flowplan/web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --noEmit"
+    "test:integration": "npm run test:integration --workspace @flowplan/server",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
     "react": "^18.3.1",
