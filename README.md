@@ -6,36 +6,55 @@ actual state across flow, balance, ergonomics and automation, then see a scored
 
 This is the productized app, ported from the original single-file demo
 (`legacy/flowplan-demo.html`) into a modular, typed, tested React + TypeScript
-SPA. The full product spec lives in [`docs/flowplanspec.md`](docs/flowplanspec.md).
+SPA, now an **npm-workspaces monorepo** with an optional API backend. The full
+product spec lives in [`docs/flowplanspec.md`](docs/flowplanspec.md).
 
 ## Quick start
 
 ```bash
 npm install
-npm run dev        # local dev server
-npm run build      # type-check + production build to dist/
+npm run dev        # web dev server (the SPA)
+npm run build      # production build of the SPA to packages/web/dist/
 npm run preview    # serve the production build
-npm run test       # run the engine + UI test suites
+npm run test       # run all workspace test suites (no database needed)
+npm run typecheck  # type-check core + web + server
 ```
 
-The build output in `dist/` is fully static and can be served by any web host.
+The SPA build output is fully static and can be served by any web host. The app
+runs entirely offline (localStorage) with no backend; the API server adds
+accounts, teams, and a server-side AI proxy when you want them.
 
-## Architecture
+## Architecture — monorepo
 
 ```
-src/
-  model/      types, defaults, sample cell, schema migration
-  engine/     pure, unit-tested calculators (KPIs, optimizer, balance,
-              validation, automation, templates, composite rating)
-  store/      model reducer + undo/redo history, autosave, named scenarios
-  io/         JSON import/export (validated, non-destructive) and CSV export
-  components/ SVG layout canvas + the six side panels + onboarding/UI
+packages/
+  core/    @flowplan/core — pure, isomorphic logic shared by web + server:
+           model/ (types, defaults, sample, migration), engine/ (KPIs, optimizer,
+           balance, validation, automation, templates, rating), ai/ (strategist,
+           verify, prompts, llm transports, fallback), store/reducer, io/json.
+  web/     the React SPA: components, store (useFlowPlan, workspace, scenarios,
+           settings, the StorageProvider abstraction), io download/csv/image/report,
+           ai/provider (client selector + remote provider).
+  server/  @flowplan/server — Express + Prisma + Postgres API (see its README):
+           multi-tenant teams, workspace/cell/scenario CRUD, server-side AI proxy.
 ```
 
-The **engine is framework-free and deterministic** (spec §4). The UI consumes it;
-no rating logic lives in components. Golden-fixture tests in
-`src/engine/engine.test.ts` lock the demo's numbers so refactors can't silently
-change a rating.
+The **engine is framework-free and deterministic** (spec §4) and lives in
+`@flowplan/core` so the server re-scores AI output with the exact same code the
+client uses. Golden-fixture tests in `packages/core/src/engine/engine.test.ts`
+lock the demo's numbers so refactors can't silently change a rating.
+
+`@flowplan/core` is consumed as a workspace package (`@flowplan/core/<path>`),
+resolved to source via its `exports` map — no build step required to run or test.
+
+## Storage: offline-first, optional cloud
+
+The web app reads/writes through a `StorageProvider` abstraction
+(`packages/web/src/store/storage/`). Signed-out, it uses `LocalStorageProvider`
+(today's localStorage behavior); signed into a team, `ApiStorageProvider` syncs to
+the server. Both satisfy one contract test, so the app behaves identically either
+way. AI keys, when using the server, live encrypted server-side and never reach
+the browser. See [`packages/server/README.md`](packages/server/README.md).
 
 ## What's in this version
 

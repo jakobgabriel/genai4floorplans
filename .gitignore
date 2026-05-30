@@ -6,3 +6,6 @@ dist-ssr
 .vite
 coverage
 *.tsbuildinfo
+.env
+.env.*
+!.env.example

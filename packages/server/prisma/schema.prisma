@@ -1,0 +1,139 @@
+// FlowPlan database schema. Each cell/scenario stores its full domain Model as a
+// JSONB column (models are small; @flowplan/core/migrate owns intra-JSON schema
+// evolution, so a SCHEMA_VERSION bump needs no Prisma migration). A denormalized
+// schemaVersion column enables lazy migrate-on-read and bulk sweeps.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum AiProviderId {
+  CLAUDE
+  OPENAI
+}
+
+enum AiCapability {
+  PROPOSE
+  NARRATE
+  EDIT
+  INGEST
+  DESIGN
+  INGEST_IMAGE
+  OPTIMIZE_GOAL
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String?
+  passwordHash String? // null when OAuth-only
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+  aiUsage      AiUsageLog[]
+}
+
+model Team {
+  id          String             @id @default(cuid())
+  name        String
+  createdAt   DateTime           @default(now())
+  memberships Membership[]
+  workspaces  Workspace[]
+  aiCreds     TeamAiCredential[]
+  aiUsage     AiUsageLog[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+}
+
+model Workspace {
+  id        String     @id @default(cuid())
+  teamId    String
+  name      String
+  activeId  String? // mirrors Workspace.activeId; soft reference to a Cell.id
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  cells     Cell[]
+  scenarios Scenario[]
+
+  @@index([teamId])
+}
+
+model Cell {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  schemaVersion Int // denormalized copy of model.schemaVersion
+  model         Json // the full Model object (JSONB)
+  position      Int       @default(0) // preserve tab order
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Scenario {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  schemaVersion Int
+  model         Json // full Model snapshot (the saved variant)
+  savedAt       DateTime  @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name]) // matches localStorage keyed-by-name semantics
+  @@index([workspaceId])
+}
+
+model TeamAiCredential {
+  id            String       @id @default(cuid())
+  teamId        String
+  provider      AiProviderId
+  model         String // e.g. "claude-sonnet-4-6", "gpt-4o"
+  keyCiphertext Bytes // AES-256-GCM ciphertext of the API key
+  keyIv         Bytes // 12-byte GCM nonce
+  keyTag        Bytes // 16-byte GCM auth tag
+  createdAt     DateTime     @default(now())
+  team          Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, provider]) // one key per provider per team
+}
+
+model AiUsageLog {
+  id         String       @id @default(cuid())
+  teamId     String
+  userId     String
+  provider   AiProviderId
+  capability AiCapability
+  model      String
+  ok         Boolean
+  latencyMs  Int
+  errorCode  String? // when ok=false
+  createdAt  DateTime     @default(now())
+  team       Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+}

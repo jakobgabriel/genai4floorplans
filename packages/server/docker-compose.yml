@@ -1,0 +1,19 @@
+# Local Postgres for development and the optional integration test suite.
+# Usage:
+#   docker compose up -d
+#   DATABASE_URL=postgresql://flowplan:flowplan@localhost:5432/flowplan npm run prisma:deploy
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flowplan
+      POSTGRES_PASSWORD: flowplan
+      POSTGRES_DB: flowplan
+    ports:
+      - "5432:5432"
+    volumes:
+      - flowplan_pgdata:/var/lib/postgresql/data
+
+volumes:
+  flowplan_pgdata:
