@@ -41,7 +41,11 @@ COPY --from=build /app/packages/server/docker-entrypoint.sh ./packages/server/do
 # web manifest (so `npm run -w` workspace resolution is happy) + the built SPA.
 COPY --from=build /app/packages/web/package.json ./packages/web/package.json
 COPY --from=build /app/packages/web/dist ./packages/web/dist
-RUN chmod +x packages/server/docker-entrypoint.sh
+RUN chmod +x /app/packages/server/docker-entrypoint.sh
 
 EXPOSE 4000
-ENTRYPOINT ["packages/server/docker-entrypoint.sh"]
+# Absolute path + explicit `sh`: with the exec form a relative path is resolved
+# against the container root (not WORKDIR), which fails as "no such file or
+# directory"; an absolute path is unambiguous and `sh` makes it robust to the
+# exec bit / host line-ending quirks. The script `exec`s the server (stays PID 1).
+ENTRYPOINT ["/bin/sh", "/app/packages/server/docker-entrypoint.sh"]
