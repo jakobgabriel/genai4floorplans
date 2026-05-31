@@ -150,7 +150,7 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
   );
 }
 
-export function Explorer({ api, onClose }: { api: FlowPlanApi; onClose: () => void }) {
+export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: () => void }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [edit, setEdit] = useState<Edit>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -187,11 +187,10 @@ export function Explorer({ api, onClose }: { api: FlowPlanApi; onClose: () => vo
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="explorer" onClick={(e) => e.stopPropagation()}>
+    <div className="explorer">
         <div className="explorer-head">
           <h2 style={{ margin: 0, fontSize: 14 }}>Workspace</h2>
-          <button className="btn sm" onClick={onClose} title="Close">✕</button>
+          <button className="btn sm" onClick={onCollapse} title="Collapse sidebar">◀</button>
         </div>
         <div className="explorer-actions">
           <button className="btn sm" onClick={() => ctx.startNew(null)}>＋ Folder</button>
@@ -220,7 +219,6 @@ export function Explorer({ api, onClose }: { api: FlowPlanApi; onClose: () => vo
           Drag a layout or folder onto a folder to move it (or onto empty space for the root). Deleting a
           folder keeps its contents, moved up one level.
         </div>
-      </div>
     </div>
   );
 }

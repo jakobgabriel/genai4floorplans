@@ -563,16 +563,36 @@ code {
   }
 }
 
-/* Workspace Explorer — a left-anchored drawer (folder tree of layouts). */
-.explorer {
-  margin-right: auto;
-  align-self: stretch;
-  width: 340px;
-  max-width: 90vw;
+/* Workspace Explorer — a collapsible left sidebar integrated into <main>. */
+.explorer-side {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
+  overflow: hidden;
+}
+.explorer-side.collapsed,
+.side.collapsed {
+  flex-basis: 40px;
+  width: 40px;
+  overflow: hidden;
+}
+/* thin rail shown when a sidebar is collapsed: a single expand button */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+}
+.rail-btn {
+  writing-mode: vertical-rl;
+  padding: 8px 4px;
+}
+.explorer {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;

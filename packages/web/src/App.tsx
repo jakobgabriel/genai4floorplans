@@ -75,8 +75,12 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showRollup, setShowRollup] = useState(false);
-  const [showExplorer, setShowExplorer] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
+  const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") === "1");
+  const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
+  useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
+  useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
   // Remember the last sub-tab visited per group, so returning to a group restores it.
@@ -310,9 +314,9 @@ export function App() {
         </div>
         <div className="spacer" />
         <button
-          className="btn sm"
-          onClick={() => setShowExplorer(true)}
-          title="Browse layouts & folders"
+          className={"btn sm" + (explorerCollapsed ? "" : " on")}
+          onClick={() => setExplorerCollapsed((v) => !v)}
+          title="Toggle the workspace sidebar"
           style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
           🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
@@ -364,6 +368,17 @@ export function App() {
       </header>
 
       <main>
+        <aside className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}>
+          {explorerCollapsed ? (
+            <div className="rail">
+              <button className="btn sm rail-btn" onClick={() => setExplorerCollapsed(false)} title="Show workspace sidebar">
+                🗂 Workspace
+              </button>
+            </div>
+          ) : (
+            <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
+          )}
+        </aside>
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
@@ -384,7 +399,15 @@ export function App() {
             </span>
           </div>
         </div>
-        <div className="side">
+        <div className={"side" + (configCollapsed ? " collapsed" : "")}>
+          {configCollapsed ? (
+            <div className="rail">
+              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show config panel">
+                ⚙ Config
+              </button>
+            </div>
+          ) : (
+          <>
           <div className="tabbar">
             <div className="grouptabs">
               {TAB_GROUPS.map((g) => (
@@ -394,6 +417,9 @@ export function App() {
               ))}
               <button className={"btn help-tab" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
                 ?
+              </button>
+              <button className="btn help-tab" title="Collapse config panel" onClick={() => setConfigCollapsed(true)}>
+                ▶
               </button>
             </div>
             {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
@@ -414,6 +440,8 @@ export function App() {
           {tab === "cost" && <CostPanel {...panelProps} />}
           {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
+          </>
+          )}
         </div>
       </main>
 
@@ -424,7 +452,6 @@ export function App() {
       ) : null}
       {showCompare ? <ScenarioCompare api={api} onClose={() => setShowCompare(false)} /> : null}
       {showRollup ? <SiteRollup api={api} onClose={() => setShowRollup(false)} /> : null}
-      {showExplorer ? <Explorer api={api} onClose={() => setShowExplorer(false)} /> : null}
       {showReset ? (
         <ConfirmDialog
           title="Reset to sample"

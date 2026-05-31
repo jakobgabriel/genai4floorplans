@@ -40,7 +40,7 @@ afterEach(() => {
 
 describe("Explorer", () => {
   it("renders the nested folder tree with layouts", () => {
-    render(<Explorer api={makeApi()} onClose={() => {}} />);
+    render(<Explorer api={makeApi()} onCollapse={() => {}} />);
     // folder names also appear in each row's move-to picker, so allow multiples
     expect(screen.getAllByText(/Line 1/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Sub/).length).toBeGreaterThan(0);
@@ -50,7 +50,7 @@ describe("Explorer", () => {
 
   it("switches to a layout when its row is clicked", () => {
     const api = makeApi();
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getByText(/Nested layout/));
     expect(api.switchCell).toHaveBeenCalledWith("c2");
   });
@@ -58,7 +58,7 @@ describe("Explorer", () => {
   it("creates a root folder via an inline input (no browser prompt)", () => {
     const api = makeApi();
     const promptSpy = vi.spyOn(window, "prompt");
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getByText("＋ Folder"));
     const input = screen.getByPlaceholderText("Folder name");
     fireEvent.change(input, { target: { value: "New line" } });
@@ -69,7 +69,7 @@ describe("Explorer", () => {
 
   it("renames a folder inline (no browser prompt)", () => {
     const api = makeApi();
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
     fireEvent.click(screen.getByText("Rename"));
     const input = screen.getByDisplayValue("Line 1");
@@ -80,7 +80,7 @@ describe("Explorer", () => {
 
   it("adds a layout into a folder from its action menu", () => {
     const api = makeApi();
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
     fireEvent.click(screen.getByText("New layout here"));
     expect(api.addCell).toHaveBeenCalledWith(expect.anything(), undefined, "f1");
@@ -88,7 +88,7 @@ describe("Explorer", () => {
 
   it("moves a layout by dragging it onto a folder", () => {
     const api = makeApi();
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     const cellRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
     const folderRow = screen.getByText(/🗀 Line 1/).closest(".tree-row") as HTMLElement;
     fireEvent.dragStart(cellRow);
@@ -99,7 +99,7 @@ describe("Explorer", () => {
 
   it("moves a layout to the root by dropping on empty tree space", () => {
     const api = makeApi();
-    const { container } = render(<Explorer api={api} onClose={() => {}} />);
+    const { container } = render(<Explorer api={api} onCollapse={() => {}} />);
     const nested = screen.getByText(/Nested layout/).closest(".tree-row") as HTMLElement;
     const tree = container.querySelector(".explorer-tree") as HTMLElement;
     fireEvent.dragStart(nested);
@@ -110,7 +110,7 @@ describe("Explorer", () => {
   it("deletes a folder via an inline confirm (no browser confirm)", () => {
     const api = makeApi();
     const confirmSpy = vi.spyOn(window, "confirm");
-    render(<Explorer api={api} onClose={() => {}} />);
+    render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
     fireEvent.click(screen.getByText("Delete"));
     // inline "Delete? ✓ ✗" appears; clicking ✓ performs the delete
