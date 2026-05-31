@@ -17,6 +17,7 @@ import { Explorer } from "./components/Explorer";
 import { ComparePage } from "./pages/ComparePage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
+import { AdminPage } from "./pages/AdminPage";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
@@ -311,6 +312,7 @@ export function App() {
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
+  if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
 
   return (
     <div className="wrap">
@@ -365,6 +367,8 @@ export function App() {
           items={[
             { label: "Compare scenarios", onClick: () => navigate("/compare") },
             { label: "Site overview", onClick: () => navigate("/site") },
+            { label: "Archived items", onClick: () => navigate("/archive") },
+            { label: "Admin (teams & workspaces)", onClick: () => navigate("/admin") },
             {
               label: "Reset to sample",
               danger: true,
