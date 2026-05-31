@@ -27,7 +27,10 @@ function makeApi(over: Partial<FlowPlanApi> = {}): FlowPlanApi {
     createFolder: vi.fn(),
     renameFolder: vi.fn(),
     moveFolder: vi.fn(),
-    deleteFolder: vi.fn(),
+    archiveCell: vi.fn(),
+    archiveFolder: vi.fn(),
+    archivedCells: [],
+    archivedFolders: [],
     ...over,
   } as unknown as FlowPlanApi;
 }
@@ -107,15 +110,23 @@ describe("Explorer", () => {
     expect(api.moveCell).toHaveBeenCalledWith("c2", null);
   });
 
-  it("deletes a folder via an inline confirm (no browser confirm)", () => {
+  it("archives a folder (with contents) via an inline confirm (no browser confirm)", () => {
     const api = makeApi();
     const confirmSpy = vi.spyOn(window, "confirm");
     render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
-    fireEvent.click(screen.getByText("Delete"));
-    // inline "Delete? ✓ ✗" appears; clicking ✓ performs the delete
-    fireEvent.click(screen.getByTitle("Confirm delete"));
-    expect(api.deleteFolder).toHaveBeenCalledWith("f1");
+    fireEvent.click(screen.getByText("Archive (with contents)"));
+    // inline "Archive + contents? ✓ ✗" appears; clicking ✓ archives recursively
+    fireEvent.click(screen.getByTitle("Confirm archive"));
+    expect(api.archiveFolder).toHaveBeenCalledWith("f1");
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("archives a layout from its row button", () => {
+    const api = makeApi();
+    render(<Explorer api={api} onCollapse={() => {}} />);
+    const rootRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
+    fireEvent.click(rootRow.querySelector(".tree-archive") as HTMLElement);
+    expect(api.archiveCell).toHaveBeenCalledWith("c1");
   });
 });

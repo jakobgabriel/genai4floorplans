@@ -11,6 +11,7 @@ import {
   makeCell,
   makeFolder,
   isDescendant,
+  subtreeFolderIds,
   saveWorkspace,
   type Cell,
   type Folder,
@@ -45,7 +46,7 @@ export interface FlowPlanApi {
   renameCell: (id: string, name: string) => void;
   deleteCell: (id: string) => void;
   moveCell: (id: string, folderId: string | null) => void;
-  /** All cells with the active one's live (unsaved) model — for the site rollup. */
+  /** All (non-archived) cells with the active one's live model — for the site rollup. */
   snapshotCells: () => Cell[];
   // ---- folders (arbitrarily nested) ----
   folders: Folder[];
@@ -53,13 +54,25 @@ export interface FlowPlanApi {
   renameFolder: (id: string, name: string) => void;
   /** Move a folder under a new parent; ignored if it would create a cycle. */
   moveFolder: (id: string, parentId: string | null) => void;
-  /** Delete a folder, reparenting its contents (sub-folders, cells) up one level. */
-  deleteFolder: (id: string) => void;
+  // ---- archive (soft delete, recoverable) ----
+  /** Archive a layout (hidden from the tree, recoverable). */
+  archiveCell: (id: string) => void;
+  /** Archive a folder AND all its contents (sub-folders + layouts), recursively. */
+  archiveFolder: (id: string) => void;
+  restoreCell: (id: string) => void;
+  restoreFolder: (id: string) => void;
+  /** Permanently delete an archived layout. */
+  purgeCell: (id: string) => void;
+  /** Permanently delete an archived folder and its contents. */
+  purgeFolder: (id: string) => void;
+  archivedCells: CellRef[];
+  archivedFolders: Folder[];
 }
 
 export function useFlowPlan(): FlowPlanApi {
   const [ws, setWs] = useState<Workspace>(() => loadWorkspace());
-  const activeCell = ws.cells.find((c) => c.id === ws.activeId) ?? ws.cells[0];
+  const activeCell =
+    ws.cells.find((c) => c.id === ws.activeId && !c.archived) ?? ws.cells.find((c) => !c.archived) ?? ws.cells[0];
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(activeCell.model));
   const model = state.present;
 
@@ -202,22 +215,91 @@ export function useFlowPlan(): FlowPlanApi {
     });
   }, [persistActive]);
 
-  const deleteFolder = useCallback((id: string) => {
+  // Pick a non-archived cell to land on after the active one is archived; seed a
+  // blank if the workspace would otherwise have no visible layout.
+  function fallbackActive(cells: Cell[]): { cells: Cell[]; activeId: string; model: Model } {
+    const next = cells.find((c) => !c.archived);
+    if (next) return { cells, activeId: next.id, model: next.model };
+    const blank = makeCell("Cell A", blankModel());
+    return { cells: cells.concat([blank]), activeId: blank.id, model: blank.model };
+  }
+
+  const archiveCell = useCallback((id: string) => {
+    let cells = persistActive(ws).map((c) => (c.id === id ? { ...c, archived: true } : c));
+    const wasActive = id === ws.activeId;
+    let activeId = ws.activeId;
+    let resetModel: Model | null = null;
+    if (wasActive) { const r = fallbackActive(cells); cells = r.cells; activeId = r.activeId; resetModel = r.model; }
+    const next: Workspace = { ...ws, cells, activeId };
+    setWs(next);
+    saveWorkspace(next);
+    if (resetModel) dispatch({ kind: "reset", model: resetModel });
+  }, [ws, persistActive]);
+
+  // Archive a folder AND everything inside it (sub-folders + their layouts).
+  const archiveFolder = useCallback((id: string) => {
+    const ids = subtreeFolderIds(ws.folders, id);
+    const folders = ws.folders.map((f) => (ids.has(f.id) ? { ...f, archived: true } : f));
+    let cells = persistActive(ws).map((c) => (c.folderId && ids.has(c.folderId) ? { ...c, archived: true } : c));
+    const activeArchived = cells.find((c) => c.id === ws.activeId)?.archived;
+    let activeId = ws.activeId;
+    let resetModel: Model | null = null;
+    if (activeArchived) { const r = fallbackActive(cells); cells = r.cells; activeId = r.activeId; resetModel = r.model; }
+    const next: Workspace = { ...ws, folders, cells, activeId };
+    setWs(next);
+    saveWorkspace(next);
+    if (resetModel) dispatch({ kind: "reset", model: resetModel });
+  }, [ws, persistActive]);
+
+  const restoreCell = useCallback((id: string) => {
     setWs((prev) => {
-      const target = prev.folders.find((f) => f.id === id);
-      if (!target) return prev;
-      const up = target.parentId; // reparent contents one level up
-      const folders = prev.folders
-        .filter((f) => f.id !== id)
-        .map((f) => (f.parentId === id ? { ...f, parentId: up } : f));
-      const cells = persistActive(prev).map((c) => (c.folderId === id ? { ...c, folderId: up } : c));
-      const next = { ...prev, cells, folders };
+      const cells = prev.cells.map((c) => {
+        if (c.id !== id) return c;
+        // if the owning folder is still archived, lift the layout to the root so it's visible
+        const folderArchived = c.folderId ? prev.folders.find((f) => f.id === c.folderId)?.archived : false;
+        return { ...c, archived: false, folderId: folderArchived ? null : c.folderId };
+      });
+      const next = { ...prev, cells };
       saveWorkspace(next);
       return next;
     });
-  }, [persistActive]);
+  }, []);
 
-  const snapshotCells = useCallback((): Cell[] => persistActive(ws), [ws, persistActive]);
+  const restoreFolder = useCallback((id: string) => {
+    setWs((prev) => {
+      const folders = prev.folders.map((f) => {
+        if (f.id !== id) return f;
+        const parentArchived = f.parentId ? prev.folders.find((p) => p.id === f.parentId)?.archived : false;
+        return { ...f, archived: false, parentId: parentArchived ? null : f.parentId };
+      });
+      const next = { ...prev, folders };
+      saveWorkspace(next);
+      return next;
+    });
+  }, []);
+
+  const purgeCell = useCallback((id: string) => {
+    setWs((prev) => {
+      const next = { ...prev, cells: prev.cells.filter((c) => c.id !== id) };
+      saveWorkspace(next);
+      return next;
+    });
+  }, []);
+
+  const purgeFolder = useCallback((id: string) => {
+    setWs((prev) => {
+      const ids = subtreeFolderIds(prev.folders, id);
+      const next = {
+        ...prev,
+        folders: prev.folders.filter((f) => !ids.has(f.id)),
+        cells: prev.cells.filter((c) => !(c.folderId && ids.has(c.folderId))),
+      };
+      saveWorkspace(next);
+      return next;
+    });
+  }, []);
+
+  const snapshotCells = useCallback((): Cell[] => persistActive(ws).filter((c) => !c.archived), [ws, persistActive]);
 
   return {
     model,
@@ -232,7 +314,9 @@ export function useFlowPlan(): FlowPlanApi {
     reset,
     undo,
     redo,
-    cells: ws.cells.map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId })),
+    cells: ws.cells
+      .filter((c) => !c.archived)
+      .map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId })),
     activeId: ws.activeId,
     switchCell,
     addCell,
@@ -241,10 +325,17 @@ export function useFlowPlan(): FlowPlanApi {
     deleteCell,
     moveCell,
     snapshotCells,
-    folders: ws.folders,
+    folders: ws.folders.filter((f) => !f.archived),
     createFolder,
     renameFolder,
     moveFolder,
-    deleteFolder,
+    archiveCell,
+    archiveFolder,
+    restoreCell,
+    restoreFolder,
+    purgeCell,
+    purgeFolder,
+    archivedCells: ws.cells.filter((c) => c.archived).map((c) => ({ id: c.id, name: c.name, folderId: c.folderId })),
+    archivedFolders: ws.folders.filter((f) => f.archived),
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
+import { navigate } from "../store/useHashRoute";
 import { Menu } from "./Menu";
 import { TEAL, TEXTD } from "./colors";
 
@@ -83,6 +84,7 @@ function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string;
       >
         ▦ {name}
       </button>
+      <button className="tree-archive" title="Archive layout" onClick={() => ctx.api.archiveCell(id)}>🗄</button>
     </div>
   );
 }
@@ -113,8 +115,8 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         )}
         {ctx.confirmId === folder.id ? (
           <span className="tree-confirm">
-            Delete?
-            <button className="btn sm danger" title="Confirm delete" onClick={() => { ctx.api.deleteFolder(folder.id); ctx.setConfirmId(null); }}>✓</button>
+            Archive&nbsp;+&nbsp;contents?
+            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveFolder(folder.id); ctx.setConfirmId(null); }}>✓</button>
             <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}>✗</button>
           </span>
         ) : (
@@ -125,7 +127,7 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
               { label: "New sub-folder", onClick: () => ctx.startNew(folder.id) },
               { label: "New layout here", onClick: () => ctx.api.addCell(blankModel(), undefined, folder.id) },
               { label: "Rename", onClick: () => { ctx.setConfirmId(null); ctx.setEdit({ kind: "rename", id: folder.id, name: folder.name }); } },
-              { label: "Delete", danger: true, onClick: () => { ctx.setEdit(null); ctx.setConfirmId(folder.id); } },
+              { label: "Archive (with contents)", danger: true, onClick: () => { ctx.setEdit(null); ctx.setConfirmId(folder.id); } },
             ]}
           />
         )}
@@ -195,6 +197,9 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
         <div className="explorer-actions">
           <button className="btn sm" onClick={() => ctx.startNew(null)}>＋ Folder</button>
           <button className="btn sm" onClick={() => api.addCell(blankModel(), undefined, null)}>＋ Layout</button>
+          <button className="btn sm" onClick={() => navigate("/archive")} title="Archived layouts & folders">
+            🗄 {api.archivedCells.length + api.archivedFolders.length || ""}
+          </button>
         </div>
         <div
           className={"explorer-tree" + (dropTarget === ROOT ? " drop" : "")}
@@ -216,8 +221,8 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
           ))}
         </div>
         <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>
-          Drag a layout or folder onto a folder to move it (or onto empty space for the root). Deleting a
-          folder keeps its contents, moved up one level.
+          Drag a layout or folder onto a folder to move it (or onto empty space for the root). Archiving a
+          folder archives its contents too — restore them from the Archive (🗄).
         </div>
     </div>
   );

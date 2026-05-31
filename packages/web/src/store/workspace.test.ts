@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadWorkspace, saveWorkspace, makeCell, makeFolder, isDescendant } from "./workspace";
+import { loadWorkspace, saveWorkspace, makeCell, makeFolder, isDescendant, subtreeFolderIds } from "./workspace";
 import { SAMPLE } from "@flowplan/core/model/sample";
 import { SCHEMA_VERSION } from "@flowplan/core/model/types";
 
@@ -53,6 +53,30 @@ describe("workspace", () => {
     expect(back.folders).toHaveLength(2);
     expect(back.cells[0].folderId).toBe(sub.id);
     expect(back.activeId).toBe(ws.cells[1].id);
+  });
+
+  it("subtreeFolderIds collects a folder and all its descendants", () => {
+    const a = makeFolder("A", null, 0);
+    const b = makeFolder("B", a.id, 0);
+    const c = makeFolder("C", b.id, 0);
+    const other = makeFolder("Other", null, 1);
+    const ids = subtreeFolderIds([a, b, c, other], a.id);
+    expect([...ids].sort()).toEqual([a.id, b.id, c.id].sort());
+    expect(ids.has(other.id)).toBe(false);
+  });
+
+  it("round-trips the archived flag through localStorage", () => {
+    const ws = {
+      cells: [makeCell("Live", SAMPLE), { ...makeCell("Gone", SAMPLE), archived: true }],
+      folders: [{ ...makeFolder("Old", null, 0), archived: true }],
+      activeId: "",
+    };
+    ws.activeId = ws.cells[0].id;
+    saveWorkspace(ws);
+    const back = loadWorkspace();
+    expect(back.cells.find((c) => c.name === "Gone")!.archived).toBe(true);
+    expect(back.cells.find((c) => c.name === "Live")!.archived).toBe(false);
+    expect(back.folders[0].archived).toBe(true);
   });
 
   it("isDescendant guards folder-move cycles", () => {

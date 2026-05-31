@@ -13,6 +13,8 @@ export interface Cell {
   model: Model;
   /** Owning folder; null = workspace root (today's flat behavior). */
   folderId: string | null;
+  /** Soft-deleted: hidden from the tree, recoverable from the Archive. */
+  archived?: boolean;
 }
 
 // Arbitrarily-nested folders organize layouts. parentId null = workspace root;
@@ -22,6 +24,8 @@ export interface Folder {
   name: string;
   parentId: string | null;
   position: number;
+  /** Soft-deleted (with its contents). Recoverable from the Archive. */
+  archived?: boolean;
 }
 
 export interface Workspace {
@@ -39,7 +43,7 @@ function newId(prefix: string): string {
 }
 
 function migrateCell(c: Cell): Cell {
-  return { id: c.id || newId("cell"), name: c.name || "Cell", model: migrate(c.model), folderId: c.folderId ?? null };
+  return { id: c.id || newId("cell"), name: c.name || "Cell", model: migrate(c.model), folderId: c.folderId ?? null, archived: !!c.archived };
 }
 
 /** Load the workspace, migrating a legacy single-cell autosave into one cell. */
@@ -70,6 +74,7 @@ function migrateFolder(f: Folder): Folder {
     name: f.name || "Folder",
     parentId: f.parentId ?? null,
     position: typeof f.position === "number" ? f.position : 0,
+    archived: !!f.archived,
   };
 }
 
@@ -98,4 +103,21 @@ export function isDescendant(folders: Folder[], folderId: string, candidateId: s
     cursor = folders.find((f) => f.id === cursor)?.parentId ?? null;
   }
   return false;
+}
+
+/** A folder id plus all of its descendant folder ids — the subtree to act on
+ *  when archiving / restoring / permanently deleting a folder and its contents. */
+export function subtreeFolderIds(folders: Folder[], rootId: string): Set<string> {
+  const ids = new Set<string>([rootId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const f of folders) {
+      if (f.parentId && ids.has(f.parentId) && !ids.has(f.id)) {
+        ids.add(f.id);
+        added = true;
+      }
+    }
+  }
+  return ids;
 }

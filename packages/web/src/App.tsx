@@ -16,6 +16,7 @@ import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
 import { ComparePage } from "./pages/ComparePage";
 import { SitePage } from "./pages/SitePage";
+import { ArchivePage } from "./pages/ArchivePage";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
@@ -309,6 +310,7 @@ export function App() {
   // navigation; all hooks above have already run, so these early returns are safe.
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
+  if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
 
   return (
     <div className="wrap">
