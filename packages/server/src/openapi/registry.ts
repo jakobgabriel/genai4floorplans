@@ -12,19 +12,23 @@ import {
   Cell,
   CellMeta,
   CreateCellBody,
+  CreateFolderBody,
   CreateTeamBody,
   CreateWorkspaceBody,
   ErrorResponse,
+  Folder,
   LoginBody,
   MemberBody,
   Membership,
   ModelSchema,
+  MoveScenarioBody,
   PatchCellMetaBody,
   PutCellModelBody,
   RatingSchema,
   RegisterBody,
   ScenarioMeta,
   ScenarioModelBody,
+  UpdateFolderBody,
   TeamMembership,
   TeamSummary,
   TeamWithMembers,
@@ -104,6 +108,7 @@ function reg(d: Def): void {
 const teamId = z.object({ teamId: z.string() });
 const wsId = z.object({ wsId: z.string() });
 const cellId = z.object({ cellId: z.string() });
+const folderId = z.object({ folderId: z.string() });
 
 // ---- System ---------------------------------------------------------------
 reg({
@@ -275,9 +280,36 @@ reg({
   errors: [401, 404],
 });
 reg({
+  method: "patch", path: "/api/workspaces/{wsId}/scenarios/{name}", tags: ["Scenarios"],
+  params: wsId.extend({ name: z.string() }), body: MoveScenarioBody,
+  summary: "Move a scenario into a folder (or root)", description: "Requires EDITOR role.",
+  ok: { status: 200, description: "OK", schema: z.object({ scenario: ScenarioMeta }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
   method: "delete", path: "/api/workspaces/{wsId}/scenarios/{name}", tags: ["Scenarios"],
   params: wsId.extend({ name: z.string() }),
   summary: "Delete a scenario", description: "Requires EDITOR role.",
+  ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
+});
+
+// ---- Folders --------------------------------------------------------------
+reg({
+  method: "post", path: "/api/workspaces/{wsId}/folders", tags: ["Folders"], params: wsId, body: CreateFolderBody,
+  summary: "Create a folder (optionally nested under parentId)", description: "Requires EDITOR role.",
+  ok: { status: 201, description: "Created", schema: z.object({ folder: Folder }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "patch", path: "/api/folders/{folderId}", tags: ["Folders"], params: folderId, body: UpdateFolderBody,
+  summary: "Rename, move, or reorder a folder",
+  description: "Requires EDITOR role. Moving into one's own descendant is rejected (cycle guard).",
+  ok: { status: 200, description: "OK", schema: z.object({ folder: Folder }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "delete", path: "/api/folders/{folderId}", tags: ["Folders"], params: folderId,
+  summary: "Delete a folder", description: "Requires EDITOR role. Reparents child folders, layouts, and scenarios up one level (no data loss).",
   ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
 });
 

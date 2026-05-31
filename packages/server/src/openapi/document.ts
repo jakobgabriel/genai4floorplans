@@ -24,6 +24,7 @@ export function buildOpenApiDocument() {
       { name: "Teams" },
       { name: "Members" },
       { name: "Workspaces" },
+      { name: "Folders" },
       { name: "Cells" },
       { name: "Scenarios" },
       { name: "AI" },

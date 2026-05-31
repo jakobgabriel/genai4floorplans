@@ -10,6 +10,7 @@ interface Row {
   name: string;
   model: Model | null;
   isCurrent: boolean;
+  folderId: string | null;
 }
 
 // Side-by-side KPI/grade comparison across the current model and all saved
@@ -17,9 +18,25 @@ interface Row {
 export function ScenarioCompare({ api, onClose }: { api: FlowPlanApi; onClose: () => void }) {
   const { toast } = useToast();
   const rows = useMemo<Row[]>(() => {
-    const saved = listScenarios().map((s) => ({ name: s.name, model: loadScenario(s.name), isCurrent: false }));
-    return [{ name: api.model.name + " (current)", model: api.model, isCurrent: true }, ...saved];
+    const saved = listScenarios().map((s) => ({ name: s.name, model: loadScenario(s.name), isCurrent: false, folderId: s.folderId }));
+    return [{ name: api.model.name + " (current)", model: api.model, isCurrent: true, folderId: null }, ...saved];
   }, [api.model]);
+
+  // Resolve a scenario's folder to a readable path ("Line 1 / Variants").
+  const folderPath = useMemo(() => {
+    const byId = new Map(api.folders.map((f) => [f.id, f]));
+    return (id: string | null): string => {
+      const parts: string[] = [];
+      let cursor = id;
+      while (cursor) {
+        const f = byId.get(cursor);
+        if (!f) break;
+        parts.unshift(f.name);
+        cursor = f.parentId;
+      }
+      return parts.join(" / ");
+    };
+  }, [api.folders]);
 
   const rated = rows
     .filter((r) => r.model)
@@ -65,7 +82,10 @@ export function ScenarioCompare({ api, onClose }: { api: FlowPlanApi; onClose: (
               <tbody>
                 {rated.map((x) => (
                   <tr key={x.name}>
-                    <td style={{ color: x.isCurrent ? TEAL : undefined }}>{x.name}</td>
+                    <td style={{ color: x.isCurrent ? TEAL : undefined }}>
+                      {x.name}
+                      {x.folderId ? <span style={{ color: TEXTD, fontSize: 10 }}> · 🗀 {folderPath(x.folderId)}</span> : null}
+                    </td>
                     <td style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</td>
                     {cols.map((c) => {
                       const v = c.get(x);

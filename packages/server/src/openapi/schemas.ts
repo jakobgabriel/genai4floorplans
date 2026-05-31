@@ -56,14 +56,31 @@ export const UpdateWorkspaceBody = z
   .openapi("UpdateWorkspaceBody");
 
 export const CreateCellBody = z
-  .object({ name: z.string().min(1), model: ModelSchema })
+  .object({ name: z.string().min(1), model: ModelSchema, folderId: z.string().nullable().optional() })
   .openapi("CreateCellBody");
 export const PutCellModelBody = z.object({ model: ModelSchema }).openapi("PutCellModelBody");
 export const PatchCellMetaBody = z
-  .object({ name: z.string().min(1).optional(), position: z.number().int().optional() })
+  .object({
+    name: z.string().min(1).optional(),
+    position: z.number().int().optional(),
+    folderId: z.string().nullable().optional(),
+  })
   .openapi("PatchCellMetaBody");
 
 export const ScenarioModelBody = z.object({ model: ModelSchema }).openapi("ScenarioModelBody");
+export const MoveScenarioBody = z.object({ folderId: z.string().nullable() }).openapi("MoveScenarioBody");
+
+// Folders organize layouts/scenarios; parentId null = workspace root.
+export const CreateFolderBody = z
+  .object({ name: z.string().min(1), parentId: z.string().nullable().optional() })
+  .openapi("CreateFolderBody");
+export const UpdateFolderBody = z
+  .object({
+    name: z.string().min(1).optional(),
+    parentId: z.string().nullable().optional(),
+    position: z.number().int().optional(),
+  })
+  .openapi("UpdateFolderBody");
 
 // AI proxy bodies
 export const AiModelBody = z.object({ model: ModelSchema }).openapi("AiModelBody");
@@ -128,8 +145,22 @@ export const WorkspaceSummary = z
   })
   .openapi("WorkspaceSummary");
 
+export const Folder = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    parentId: z.string().nullable(),
+    position: z.number().int(),
+  })
+  .openapi("Folder");
+
 export const CellMeta = z
-  .object({ id: z.string(), name: z.string(), position: z.number().int() })
+  .object({
+    id: z.string(),
+    name: z.string(),
+    position: z.number().int(),
+    folderId: z.string().nullable(),
+  })
   .openapi("CellMeta");
 
 export const Cell = CellMeta.extend({ model: ModelSchema }).openapi("Cell");
@@ -139,12 +170,13 @@ export const Workspace = z
     id: z.string(),
     name: z.string(),
     activeId: z.string().nullable(),
+    folders: z.array(Folder),
     cells: z.array(Cell),
   })
   .openapi("Workspace");
 
 export const ScenarioMeta = z
-  .object({ name: z.string(), savedAt: z.string().datetime() })
+  .object({ name: z.string(), savedAt: z.string().datetime(), folderId: z.string().nullable() })
   .openapi("ScenarioMeta");
 
 export const AiCredentialMeta = z

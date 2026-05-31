@@ -15,6 +15,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioCompare } from "./components/ScenarioCompare";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { SiteRollup } from "./components/SiteRollup";
+import { Explorer } from "./components/Explorer";
 import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
 import { CostPanel } from "./components/CostPanel";
@@ -73,6 +74,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showRollup, setShowRollup] = useState(false);
+  const [showExplorer, setShowExplorer] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
   // Remember the last sub-tab visited per group, so returning to a group restores it.
@@ -305,23 +307,14 @@ export function App() {
           FLOW<span>PLAN</span>
         </div>
         <div className="spacer" />
-        <select
-          className="cellSwitch"
-          value={api.activeId}
-          onChange={(e) => {
-            if (e.target.value === "__add") api.addCell(blankModel());
-            else api.switchCell(e.target.value);
-          }}
-          title="Switch cell"
-          style={{ width: "auto", maxWidth: 180 }}
+        <button
+          className="btn sm"
+          onClick={() => setShowExplorer(true)}
+          title="Browse layouts & folders"
+          style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
-          {api.cells.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-          <option value="__add">＋ New cell…</option>
-        </select>
+          🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
+        </button>
         <button className="btn sm" onClick={() => setShowRollup(true)} title="Site rollup across all cells">
           Site
         </button>
@@ -435,6 +428,7 @@ export function App() {
       ) : null}
       {showCompare ? <ScenarioCompare api={api} onClose={() => setShowCompare(false)} /> : null}
       {showRollup ? <SiteRollup api={api} onClose={() => setShowRollup(false)} /> : null}
+      {showExplorer ? <Explorer api={api} onClose={() => setShowExplorer(false)} /> : null}
 
       {showOnboard ? (
         <EmptyState

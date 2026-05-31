@@ -58,7 +58,8 @@ workspacesRouter.get(
         id: true,
         name: true,
         activeId: true,
-        cells: { orderBy: { position: "asc" }, select: { id: true, name: true, model: true, schemaVersion: true, position: true } },
+        folders: { orderBy: { position: "asc" }, select: { id: true, name: true, parentId: true, position: true } },
+        cells: { orderBy: { position: "asc" }, select: { id: true, name: true, folderId: true, model: true, schemaVersion: true, position: true } },
       },
     });
     if (!ws) throw notFound();
@@ -67,7 +68,8 @@ workspacesRouter.get(
         id: ws.id,
         name: ws.name,
         activeId: ws.activeId,
-        cells: ws.cells.map((c) => ({ id: c.id, name: c.name, position: c.position, model: migrateStored(c.model, c.schemaVersion) })),
+        folders: ws.folders,
+        cells: ws.cells.map((c) => ({ id: c.id, name: c.name, position: c.position, folderId: c.folderId, model: migrateStored(c.model, c.schemaVersion) })),
       },
     });
   }),

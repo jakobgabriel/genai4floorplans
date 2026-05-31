@@ -7,7 +7,7 @@ import { asJson, migrateStored, versionOf } from "../lib/model.ts";
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { requireTeamRole } from "../middleware/requireTeamRole.ts";
 import type { AuthedRequest } from "../middleware/types.ts";
-import { ScenarioModelBody } from "../openapi/schemas.ts";
+import { ScenarioModelBody, MoveScenarioBody } from "../openapi/schemas.ts";
 
 export const scenariosRouter = Router();
 scenariosRouter.use(requireAuth);
@@ -20,7 +20,7 @@ scenariosRouter.get(
     const scenarios = await getPrisma().scenario.findMany({
       where: { workspaceId: req.params.wsId },
       orderBy: { savedAt: "desc" },
-      select: { name: true, savedAt: true },
+      select: { name: true, savedAt: true, folderId: true },
     });
     res.json({ scenarios });
   }),
@@ -38,7 +38,23 @@ scenariosRouter.put(
       where: { workspaceId_name: { workspaceId: req.params.wsId, name: req.params.name } },
       create: { workspaceId: req.params.wsId, name: req.params.name, schemaVersion: versionOf(model), model: asJson(model) },
       update: { schemaVersion: versionOf(model), model: asJson(model), savedAt: new Date() },
-      select: { name: true, savedAt: true },
+      select: { name: true, savedAt: true, folderId: true },
+    });
+    res.json({ scenario });
+  }),
+);
+
+// Move a scenario into a folder (or back to root with folderId: null).
+scenariosRouter.patch(
+  "/workspaces/:wsId/scenarios/:name",
+  requireTeamRole(Role.EDITOR),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const body = MoveScenarioBody.safeParse(req.body);
+    if (!body.success) throw badRequest("folderId required");
+    const scenario = await getPrisma().scenario.update({
+      where: { workspaceId_name: { workspaceId: req.params.wsId, name: req.params.name } },
+      data: { folderId: body.data.folderId },
+      select: { name: true, savedAt: true, folderId: true },
     });
     res.json({ scenario });
   }),

@@ -554,3 +554,62 @@ code {
     flex-direction: column;
   }
 }
+
+/* Workspace Explorer — a left-anchored drawer (folder tree of layouts). */
+.explorer {
+  margin-right: auto;
+  align-self: stretch;
+  width: 340px;
+  max-width: 90vw;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.explorer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.explorer-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.explorer-tree {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.tree-leaf {
+  flex: 1 1 auto;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-leaf:hover {
+  background: var(--line);
+}
+.tree-move {
+  flex: 0 0 auto;
+  max-width: 96px;
+  font-size: 10.5px;
+}

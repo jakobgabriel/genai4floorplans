@@ -11,10 +11,11 @@ const SCENARIOS_KEY = "flowplan_scenarios";
 export interface ScenarioMeta {
   name: string;
   savedAt: number;
+  folderId: string | null;
 }
 
 interface ScenarioStore {
-  [name: string]: { model: Model; savedAt: number };
+  [name: string]: { model: Model; savedAt: number; folderId?: string | null };
 }
 
 function readScenarios(): ScenarioStore {
@@ -57,14 +58,23 @@ export function saveAutosave(model: Model): void {
 export function listScenarios(): ScenarioMeta[] {
   const store = readScenarios();
   return Object.keys(store)
-    .map((name) => ({ name, savedAt: store[name].savedAt }))
+    .map((name) => ({ name, savedAt: store[name].savedAt, folderId: store[name].folderId ?? null }))
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 
 export function saveScenario(name: string, model: Model): void {
   const store = readScenarios();
-  store[name] = { model: { ...model, name }, savedAt: Date.now() };
+  // Preserve an existing scenario's folder when re-saving over it.
+  store[name] = { model: { ...model, name }, savedAt: Date.now(), folderId: store[name]?.folderId ?? null };
   writeScenarios(store);
+}
+
+export function moveScenario(name: string, folderId: string | null): void {
+  const store = readScenarios();
+  if (store[name]) {
+    store[name] = { ...store[name], folderId };
+    writeScenarios(store);
+  }
 }
 
 export function loadScenario(name: string): Model | null {

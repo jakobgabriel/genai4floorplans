@@ -21,6 +21,13 @@ async function resolveTeamId(req: AuthedRequest): Promise<string | null> {
     });
     return cell?.workspace.teamId ?? null;
   }
+  if (p.folderId) {
+    const folder = await prisma.folder.findUnique({
+      where: { id: p.folderId },
+      select: { workspace: { select: { teamId: true } } },
+    });
+    return folder?.workspace.teamId ?? null;
+  }
   return null;
 }
 

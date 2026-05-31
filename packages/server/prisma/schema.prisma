@@ -74,37 +74,66 @@ model Workspace {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  folders   Folder[]
   cells     Cell[]
   scenarios Scenario[]
 
   @@index([teamId])
 }
 
+// Arbitrarily-nested folders organize layouts (cells) and scenarios within a
+// workspace. parentId null = top-level (workspace root); position orders siblings
+// within a parent. Deleting a folder reparents its contents up one level (the
+// route does this explicitly); SetNull on Cell/Scenario is the integrity backstop.
+model Folder {
+  id          String     @id @default(cuid())
+  workspaceId String
+  parentId    String? // null = top-level
+  name        String
+  position    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent      Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]   @relation("FolderTree")
+  cells       Cell[]
+  scenarios   Scenario[]
+
+  @@index([workspaceId])
+  @@index([parentId])
+}
+
 model Cell {
   id            String    @id @default(cuid())
   workspaceId   String
+  folderId      String? // null = workspace root
   name          String
   schemaVersion Int // denormalized copy of model.schemaVersion
   model         Json // the full Model object (JSONB)
-  position      Int       @default(0) // preserve tab order
+  position      Int       @default(0) // order among siblings in the folder
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
+  @@index([folderId])
 }
 
 model Scenario {
   id            String    @id @default(cuid())
   workspaceId   String
+  folderId      String? // null = workspace root
   name          String
   schemaVersion Int
   model         Json // full Model snapshot (the saved variant)
   savedAt       DateTime  @default(now())
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, name]) // matches localStorage keyed-by-name semantics
   @@index([workspaceId])
+  @@index([folderId])
 }
 
 model TeamAiCredential {

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
@@ -11,9 +11,37 @@ export function SiteRollup({ api, onClose }: { api: FlowPlanApi; onClose: () => 
     return api.snapshotCells().map((c) => {
       const r = buildRating(c.model);
       const cost = costAnalysis(c.model);
-      return { id: c.id, name: c.name, letter: r.letter, composite: r.composite, lineOut: r.balance.lineOut, costPerPart: cost.costPerPart, currency: cost.currency };
+      return { id: c.id, name: c.name, folderId: c.folderId, letter: r.letter, composite: r.composite, lineOut: r.balance.lineOut, costPerPart: cost.costPerPart, currency: cost.currency };
     });
   }, [api]);
+
+  // Group rows by folder for display (path like "Line 1 / Sub"); root = ungrouped.
+  const folderPath = useMemo(() => {
+    const byId = new Map(api.folders.map((f) => [f.id, f]));
+    const path = (id: string | null): string => {
+      const parts: string[] = [];
+      let cursor = id;
+      while (cursor) {
+        const f = byId.get(cursor);
+        if (!f) break;
+        parts.unshift(f.name);
+        cursor = f.parentId;
+      }
+      return parts.join(" / ");
+    };
+    return path;
+  }, [api.folders]);
+
+  const groups = useMemo(() => {
+    const byFolder = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = r.folderId ?? "";
+      (byFolder.get(key) ?? byFolder.set(key, []).get(key)!).push(r);
+    }
+    return Array.from(byFolder.entries())
+      .map(([fid, items]) => ({ label: fid ? folderPath(fid) : "", items }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [rows, folderPath]);
 
   const totalThroughput = rows.reduce((a, r) => a + r.lineOut, 0);
   const avgGrade = rows.length ? rows.reduce((a, r) => a + r.composite, 0) / rows.length : 0;
@@ -54,26 +82,35 @@ export function SiteRollup({ api, onClose }: { api: FlowPlanApi; onClose: () => 
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td style={{ color: r.id === api.activeId ? TEAL : undefined }}>{r.name}</td>
-                <td style={{ color: scoreColor(r.composite), fontWeight: 600 }}>{r.letter}</td>
-                <td>{r.composite.toFixed(0)}</td>
-                <td>{r.lineOut.toLocaleString()}</td>
-                <td>
-                  {cur}
-                  {r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                </td>
-                <td>
-                  {r.id === api.activeId ? (
-                    <span style={{ color: TEXTD }}>active</span>
-                  ) : (
-                    <button className="btn sm" onClick={() => { api.switchCell(r.id); onClose(); }}>
-                      Open
-                    </button>
-                  )}
-                </td>
-              </tr>
+            {groups.map((g) => (
+              <Fragment key={g.label || "__root"}>
+                {g.label ? (
+                  <tr>
+                    <td colSpan={6} style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}>🗀 {g.label}</td>
+                  </tr>
+                ) : null}
+                {g.items.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ color: r.id === api.activeId ? TEAL : undefined, paddingLeft: g.label ? 16 : undefined }}>{r.name}</td>
+                    <td style={{ color: scoreColor(r.composite), fontWeight: 600 }}>{r.letter}</td>
+                    <td>{r.composite.toFixed(0)}</td>
+                    <td>{r.lineOut.toLocaleString()}</td>
+                    <td>
+                      {cur}
+                      {r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </td>
+                    <td>
+                      {r.id === api.activeId ? (
+                        <span style={{ color: TEXTD }}>active</span>
+                      ) : (
+                        <button className="btn sm" onClick={() => { api.switchCell(r.id); onClose(); }}>
+                          Open
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

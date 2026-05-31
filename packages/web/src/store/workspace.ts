@@ -11,23 +11,35 @@ export interface Cell {
   id: string;
   name: string;
   model: Model;
+  /** Owning folder; null = workspace root (today's flat behavior). */
+  folderId: string | null;
+}
+
+// Arbitrarily-nested folders organize layouts. parentId null = workspace root;
+// position orders siblings within a parent.
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  position: number;
 }
 
 export interface Workspace {
   cells: Cell[];
+  folders: Folder[];
   activeId: string;
 }
 
 const KEY = "flowplan_workspace";
 
 let counter = 0;
-function newId(): string {
+function newId(prefix: string): string {
   counter++;
-  return "cell_" + Date.now().toString(36) + "_" + counter.toString(36);
+  return prefix + "_" + Date.now().toString(36) + "_" + counter.toString(36);
 }
 
 function migrateCell(c: Cell): Cell {
-  return { id: c.id || newId(), name: c.name || "Cell", model: migrate(c.model) };
+  return { id: c.id || newId("cell"), name: c.name || "Cell", model: migrate(c.model), folderId: c.folderId ?? null };
 }
 
 /** Load the workspace, migrating a legacy single-cell autosave into one cell. */
@@ -38,8 +50,9 @@ export function loadWorkspace(): Workspace {
       const ws = JSON.parse(raw) as Workspace;
       if (ws && Array.isArray(ws.cells) && ws.cells.length) {
         const cells = ws.cells.map(migrateCell);
+        const folders = Array.isArray(ws.folders) ? ws.folders.map(migrateFolder) : [];
         const activeId = cells.some((c) => c.id === ws.activeId) ? ws.activeId : cells[0].id;
-        return { cells, activeId };
+        return { cells, folders, activeId };
       }
     }
   } catch {
@@ -47,8 +60,17 @@ export function loadWorkspace(): Workspace {
   }
   // First run / legacy: seed from the old autosave or the sample.
   const seed = loadAutosave() ?? SAMPLE;
-  const cell: Cell = { id: newId(), name: seed.name || "Cell A", model: seed };
-  return { cells: [cell], activeId: cell.id };
+  const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null };
+  return { cells: [cell], folders: [], activeId: cell.id };
+}
+
+function migrateFolder(f: Folder): Folder {
+  return {
+    id: f.id || newId("fld"),
+    name: f.name || "Folder",
+    parentId: f.parentId ?? null,
+    position: typeof f.position === "number" ? f.position : 0,
+  };
 }
 
 export function saveWorkspace(ws: Workspace): void {
@@ -59,6 +81,21 @@ export function saveWorkspace(ws: Workspace): void {
   }
 }
 
-export function makeCell(name: string, model: Model): Cell {
-  return { id: newId(), name, model: { ...model, name } };
+export function makeCell(name: string, model: Model, folderId: string | null = null): Cell {
+  return { id: newId("cell"), name, model: { ...model, name }, folderId };
+}
+
+export function makeFolder(name: string, parentId: string | null, position: number): Folder {
+  return { id: newId("fld"), name, parentId, position };
+}
+
+/** True if `candidateId` is `folderId` itself or one of its descendants — the
+ *  guard that stops a folder being moved into its own subtree (a cycle). */
+export function isDescendant(folders: Folder[], folderId: string, candidateId: string | null): boolean {
+  let cursor = candidateId;
+  while (cursor) {
+    if (cursor === folderId) return true;
+    cursor = folders.find((f) => f.id === cursor)?.parentId ?? null;
+  }
+  return false;
 }

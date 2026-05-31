@@ -21,12 +21,14 @@ cellsRouter.post(
     const body = CreateCellBody.safeParse(req.body);
     if (!body.success) throw badRequest("name and a valid model required");
     const model = migrate(body.data.model);
-    const count = await getPrisma().cell.count({ where: { workspaceId: req.params.wsId } });
+    const folderId = body.data.folderId ?? null;
+    // position orders siblings within the folder (null folder = workspace root).
+    const count = await getPrisma().cell.count({ where: { workspaceId: req.params.wsId, folderId } });
     const cell = await getPrisma().cell.create({
-      data: { workspaceId: req.params.wsId, name: body.data.name, schemaVersion: versionOf(model), model: asJson(model), position: count },
-      select: { id: true, name: true, position: true, model: true, schemaVersion: true },
+      data: { workspaceId: req.params.wsId, folderId, name: body.data.name, schemaVersion: versionOf(model), model: asJson(model), position: count },
+      select: { id: true, name: true, position: true, folderId: true, model: true, schemaVersion: true },
     });
-    res.status(201).json({ cell: { id: cell.id, name: cell.name, position: cell.position, model } });
+    res.status(201).json({ cell: { id: cell.id, name: cell.name, position: cell.position, folderId: cell.folderId, model } });
   }),
 );
 
@@ -36,10 +38,10 @@ cellsRouter.get(
   asyncHandler(async (req: AuthedRequest, res) => {
     const cell = await getPrisma().cell.findUnique({
       where: { id: req.params.cellId },
-      select: { id: true, name: true, position: true, model: true, schemaVersion: true },
+      select: { id: true, name: true, position: true, folderId: true, model: true, schemaVersion: true },
     });
     if (!cell) throw notFound();
-    res.json({ cell: { id: cell.id, name: cell.name, position: cell.position, model: migrateStored(cell.model, cell.schemaVersion) } });
+    res.json({ cell: { id: cell.id, name: cell.name, position: cell.position, folderId: cell.folderId, model: migrateStored(cell.model, cell.schemaVersion) } });
   }),
 );
 
@@ -55,7 +57,7 @@ cellsRouter.put(
     const cell = await getPrisma().cell.update({
       where: { id: req.params.cellId },
       data: { model: asJson(model), schemaVersion: versionOf(model) },
-      select: { id: true, name: true, position: true },
+      select: { id: true, name: true, position: true, folderId: true },
     });
     res.json({ cell: { ...cell, model }, rating: buildRating(model) });
   }),
@@ -66,11 +68,11 @@ cellsRouter.patch(
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
     const body = PatchCellMetaBody.safeParse(req.body);
-    if (!body.success) throw badRequest("name or position required");
+    if (!body.success) throw badRequest("name, position or folderId required");
     const cell = await getPrisma().cell.update({
       where: { id: req.params.cellId },
-      data: { name: body.data.name, position: body.data.position },
-      select: { id: true, name: true, position: true },
+      data: { name: body.data.name, position: body.data.position, folderId: body.data.folderId },
+      select: { id: true, name: true, position: true, folderId: true },
     });
     res.json({ cell });
   }),

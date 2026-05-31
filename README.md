@@ -109,6 +109,11 @@ Beyond demo parity, this version adds:
   variants, and CSV export of the KPI + automation tables.
 - **Optimizer credibility** — footprint-collision and no-go avoidance, plus
   bottleneck-aware "split / parallelize" suggestions in the Balance panel.
+- **Organization** — a workspace **Explorer** with arbitrarily-nested folders for
+  layouts and scenarios (create/rename/move/delete; deleting a folder keeps its
+  contents, moved up one level). Full-stack: the cloud API persists the folder
+  tree (`Team → Workspace → Folder → … → Layout`); offline mode keeps it in the
+  local workspace.
 
 ## Honest limitations
 

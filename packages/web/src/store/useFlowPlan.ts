@@ -6,11 +6,21 @@ import { buildRating } from "@flowplan/core/engine/rating";
 import { validateFlow } from "@flowplan/core/engine/validate";
 import { chainRating } from "@flowplan/core/engine/automation";
 import { blankModel } from "@flowplan/core/model/sample";
-import { loadWorkspace, makeCell, saveWorkspace, type Cell, type Workspace } from "./workspace";
+import {
+  loadWorkspace,
+  makeCell,
+  makeFolder,
+  isDescendant,
+  saveWorkspace,
+  type Cell,
+  type Folder,
+  type Workspace,
+} from "./workspace";
 
 export interface CellRef {
   id: string;
   name: string;
+  folderId: string | null;
 }
 
 export interface FlowPlanApi {
@@ -30,12 +40,21 @@ export interface FlowPlanApi {
   cells: CellRef[];
   activeId: string;
   switchCell: (id: string) => void;
-  addCell: (model?: Model, name?: string) => void;
+  addCell: (model?: Model, name?: string, folderId?: string | null) => void;
   duplicateCell: () => void;
   renameCell: (id: string, name: string) => void;
   deleteCell: (id: string) => void;
+  moveCell: (id: string, folderId: string | null) => void;
   /** All cells with the active one's live (unsaved) model — for the site rollup. */
   snapshotCells: () => Cell[];
+  // ---- folders (arbitrarily nested) ----
+  folders: Folder[];
+  createFolder: (name: string, parentId?: string | null) => void;
+  renameFolder: (id: string, name: string) => void;
+  /** Move a folder under a new parent; ignored if it would create a cycle. */
+  moveFolder: (id: string, parentId: string | null) => void;
+  /** Delete a folder, reparenting its contents (sub-folders, cells) up one level. */
+  deleteFolder: (id: string) => void;
 }
 
 export function useFlowPlan(): FlowPlanApi {
@@ -84,7 +103,7 @@ export function useFlowPlan(): FlowPlanApi {
       const cells = persistActive(ws);
       const target = cells.find((c) => c.id === id);
       if (!target) return;
-      const next: Workspace = { cells, activeId: id };
+      const next: Workspace = { cells, folders: ws.folders, activeId: id };
       setWs(next);
       saveWorkspace(next);
       dispatch({ kind: "reset", model: target.model });
@@ -93,9 +112,9 @@ export function useFlowPlan(): FlowPlanApi {
   );
 
   const addCell = useCallback(
-    (m?: Model, name?: string) => {
-      const cell = makeCell(name ?? "Cell " + (ws.cells.length + 1), m ?? blankModel());
-      const next: Workspace = { cells: persistActive(ws).concat([cell]), activeId: cell.id };
+    (m?: Model, name?: string, folderId: string | null = null) => {
+      const cell = makeCell(name ?? "Cell " + (ws.cells.length + 1), m ?? blankModel(), folderId);
+      const next: Workspace = { cells: persistActive(ws).concat([cell]), folders: ws.folders, activeId: cell.id };
       setWs(next);
       saveWorkspace(next);
       dispatch({ kind: "reset", model: cell.model });
@@ -104,8 +123,9 @@ export function useFlowPlan(): FlowPlanApi {
   );
 
   const duplicateCell = useCallback(() => {
-    const cell = makeCell((model.name || "Cell") + " (copy)", model);
-    const next: Workspace = { cells: persistActive(ws).concat([cell]), activeId: cell.id };
+    const active = ws.cells.find((c) => c.id === ws.activeId);
+    const cell = makeCell((model.name || "Cell") + " (copy)", model, active?.folderId ?? null);
+    const next: Workspace = { cells: persistActive(ws).concat([cell]), folders: ws.folders, activeId: cell.id };
     setWs(next);
     saveWorkspace(next);
     dispatch({ kind: "reset", model: cell.model });
@@ -132,13 +152,70 @@ export function useFlowPlan(): FlowPlanApi {
       const activeId = wasActive ? cells[0].id : ws.activeId;
       // keep the active cell's live model if it wasn't the one deleted
       const persisted = cells.map((c) => (c.id === ws.activeId && !wasActive ? { ...c, model } : c));
-      const next: Workspace = { cells: persisted, activeId };
+      const next: Workspace = { cells: persisted, folders: ws.folders, activeId };
       setWs(next);
       saveWorkspace(next);
       if (wasActive) dispatch({ kind: "reset", model: next.cells.find((c) => c.id === activeId)!.model });
     },
     [ws, model],
   );
+
+  const moveCell = useCallback(
+    (id: string, folderId: string | null) => {
+      setWs((prev) => {
+        const cells = persistActive(prev).map((c) => (c.id === id ? { ...c, folderId } : c));
+        const next = { ...prev, cells };
+        saveWorkspace(next);
+        return next;
+      });
+    },
+    [persistActive],
+  );
+
+  const createFolder = useCallback((name: string, parentId: string | null = null) => {
+    setWs((prev) => {
+      const siblings = prev.folders.filter((f) => f.parentId === parentId).length;
+      const folder = makeFolder(name, parentId, siblings);
+      const next = { ...prev, cells: persistActive(prev), folders: prev.folders.concat([folder]) };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
+
+  const renameFolder = useCallback((id: string, name: string) => {
+    setWs((prev) => {
+      const folders = prev.folders.map((f) => (f.id === id ? { ...f, name } : f));
+      const next = { ...prev, cells: persistActive(prev), folders };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
+
+  const moveFolder = useCallback((id: string, parentId: string | null) => {
+    setWs((prev) => {
+      // Reject cycles: a folder can't become its own descendant (or its own parent).
+      if (parentId === id || isDescendant(prev.folders, id, parentId)) return prev;
+      const folders = prev.folders.map((f) => (f.id === id ? { ...f, parentId } : f));
+      const next = { ...prev, cells: persistActive(prev), folders };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
+
+  const deleteFolder = useCallback((id: string) => {
+    setWs((prev) => {
+      const target = prev.folders.find((f) => f.id === id);
+      if (!target) return prev;
+      const up = target.parentId; // reparent contents one level up
+      const folders = prev.folders
+        .filter((f) => f.id !== id)
+        .map((f) => (f.parentId === id ? { ...f, parentId: up } : f));
+      const cells = persistActive(prev).map((c) => (c.folderId === id ? { ...c, folderId: up } : c));
+      const next = { ...prev, cells, folders };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
 
   const snapshotCells = useCallback((): Cell[] => persistActive(ws), [ws, persistActive]);
 
@@ -155,13 +232,19 @@ export function useFlowPlan(): FlowPlanApi {
     reset,
     undo,
     redo,
-    cells: ws.cells.map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name })),
+    cells: ws.cells.map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId })),
     activeId: ws.activeId,
     switchCell,
     addCell,
     duplicateCell,
     renameCell,
     deleteCell,
+    moveCell,
     snapshotCells,
+    folders: ws.folders,
+    createFolder,
+    renameFolder,
+    moveFolder,
+    deleteFolder,
   };
 }

@@ -41,6 +41,18 @@ small; the whole object is the read/write unit; `@flowplan/core/migrate` owns
 intra-JSON schema evolution, so a `SCHEMA_VERSION` bump needs no SQL migration). A
 denormalized `schemaVersion` column drives lazy migrate-on-read.
 
+## Folders
+
+Layouts (cells) and scenarios can be organized into **arbitrarily-nested
+folders** within a workspace (`Folder`, self-referential `parentId`; `folderId`
+on Cell/Scenario, `null` = workspace root). `POST /api/workspaces/:wsId/folders`,
+`PATCH /api/folders/:id` (rename/move/reorder — moving into one's own descendant
+is rejected), `DELETE /api/folders/:id` (**reparents** child folders/layouts/
+scenarios up one level — no data loss). The workspace hydrate returns the folder
+list plus each cell's `folderId`; move a layout with `PATCH /api/cells/:id
+{folderId}` and a scenario with `PATCH /api/workspaces/:wsId/scenarios/:name
+{folderId}`.
+
 ## Auth & authz
 
 httpOnly cookie carrying a stateless JWT (HS256). `requireAuth` verifies the
