@@ -1,0 +1,5 @@
+# Shell scripts must stay LF so they run under /bin/sh in Linux containers,
+# regardless of the host's git core.autocrlf (Windows checkouts default to CRLF,
+# which breaks the shebang/`set -e` line inside the image).
+*.sh text eol=lf
+packages/server/docker-entrypoint.sh text eol=lf

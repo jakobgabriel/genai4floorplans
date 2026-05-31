@@ -41,7 +41,10 @@ COPY --from=build /app/packages/server/docker-entrypoint.sh ./packages/server/do
 # web manifest (so `npm run -w` workspace resolution is happy) + the built SPA.
 COPY --from=build /app/packages/web/package.json ./packages/web/package.json
 COPY --from=build /app/packages/web/dist ./packages/web/dist
-RUN chmod +x /app/packages/server/docker-entrypoint.sh
+# Normalize line endings (a CRLF working tree from a Windows host would otherwise
+# copy in CRLF, making /bin/sh choke on `set -e\r`), then mark it executable.
+RUN sed -i 's/\r$//' /app/packages/server/docker-entrypoint.sh \
+  && chmod +x /app/packages/server/docker-entrypoint.sh
 
 EXPOSE 4000
 # Absolute path + explicit `sh`: with the exec form a relative path is resolved
