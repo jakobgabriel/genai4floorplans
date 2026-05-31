@@ -14,6 +14,7 @@ import { EmptyState } from "./components/EmptyState";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
+import { Resizer } from "./components/Resizer";
 import { ComparePage } from "./pages/ComparePage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
@@ -83,6 +84,12 @@ export function App() {
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
   useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
   useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
+  // Drag-resizable sidebar widths (persisted).
+  const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
+  const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 300));
+  const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
+  useEffect(() => { localStorage.setItem("flowplan_explorer_w", String(explorerWidth)); }, [explorerWidth]);
+  useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
   // Remember the last sub-tab visited per group, so returning to a group restores it.
@@ -379,7 +386,10 @@ export function App() {
       </header>
 
       <main>
-        <aside className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}>
+        <aside
+          className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}
+          style={explorerCollapsed ? undefined : { flexBasis: explorerWidth, width: explorerWidth }}
+        >
           {explorerCollapsed ? (
             <div className="rail">
               <button className="btn sm rail-btn" onClick={() => setExplorerCollapsed(false)} title="Show workspace sidebar">
@@ -390,6 +400,7 @@ export function App() {
             <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
           )}
         </aside>
+        {explorerCollapsed ? null : <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
@@ -410,7 +421,11 @@ export function App() {
             </span>
           </div>
         </div>
-        <div className={"side" + (configCollapsed ? " collapsed" : "")}>
+        {configCollapsed ? null : <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />}
+        <div
+          className={"side" + (configCollapsed ? " collapsed" : "")}
+          style={configCollapsed ? undefined : { flexBasis: configWidth, width: configWidth }}
+        >
           {configCollapsed ? (
             <div className="rail">
               <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show config panel">

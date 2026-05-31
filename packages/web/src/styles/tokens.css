@@ -593,6 +593,20 @@ code {
   background: var(--panel);
   overflow: hidden;
 }
+/* Draggable divider for resizing the sidebars. */
+.resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--line);
+  opacity: 0.35;
+  transition: opacity 0.12s ease, background 0.12s ease;
+  touch-action: none;
+}
+.resizer:hover,
+.resizer:active {
+  opacity: 1;
+  background: var(--teal);
+}
 .explorer-side.collapsed,
 .side.collapsed {
   flex-basis: 40px;

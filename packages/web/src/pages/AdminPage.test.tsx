@@ -1,57 +1,80 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
+
+// Mock the API client so the tests are deterministic (no global fetch / network
+// timing, which leaks across files in the full suite).
+vi.mock("../admin/adminApi", () => ({
+  adminApi: {
+    me: vi.fn(),
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: vi.fn(),
+    listTeams: vi.fn(),
+    createTeam: vi.fn(),
+    getTeam: vi.fn(),
+    addMember: vi.fn(),
+    updateMember: vi.fn(),
+    removeMember: vi.fn(),
+    listWorkspaces: vi.fn(),
+    createWorkspace: vi.fn(),
+  },
+}));
+
 import { AdminPage } from "./AdminPage";
+import { adminApi } from "../admin/adminApi";
 import { ToastProvider } from "../components/ui";
+
+const api = adminApi as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 function renderAdmin() {
   return render(<ToastProvider><AdminPage /></ToastProvider>);
 }
 
-// Build a fetch stub from a route table keyed by "METHOD /path".
-function stub(routes: Record<string, { status?: number; body?: unknown }>) {
-  return vi.fn(async (url: string, init?: RequestInit) => {
-    const key = `${init?.method ?? "GET"} ${String(url).replace(/^\/api/, "")}`;
-    const r = routes[key];
-    if (!r) return { ok: false, status: 404, async json() { return { error: "not found" }; } } as unknown as Response;
-    const status = r.status ?? 200;
-    return { ok: status < 400, status, async json() { return r.body ?? {}; } } as unknown as Response;
-  });
-}
-
-beforeEach(() => { cleanup(); window.location.hash = ""; });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  cleanup();
+  window.location.hash = "";
+  Object.values(api).forEach((fn) => fn.mockReset());
+});
+afterEach(cleanup);
 
 describe("AdminPage", () => {
   it("shows the sign-in form when not authenticated", async () => {
-    vi.stubGlobal("fetch", stub({ "GET /auth/me": { status: 401, body: { error: "unauthorized" } } }));
+    api.me.mockRejectedValue(new Error("unauthorized"));
     renderAdmin();
     await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy());
   });
 
   it("shows the console with teams when authenticated", async () => {
-    vi.stubGlobal("fetch", stub({
-      "GET /auth/me": { body: { user: { id: "u1", email: "a@b.com", name: "A" }, memberships: [] } },
-      "GET /teams": { body: { teams: [{ id: "t1", name: "Acme", createdAt: new Date().toISOString() }] } },
-    }));
+    api.me.mockResolvedValue({ user: { id: "u1", email: "a@b.com", name: "A" }, memberships: [] });
+    api.listTeams.mockResolvedValue({ teams: [{ id: "t1", name: "Acme", createdAt: new Date().toISOString() }] });
     renderAdmin();
-    await waitFor(() => expect(screen.getByText("a@b.com")).toBeTruthy());
-    expect(screen.getByRole("button", { name: "Acme" })).toBeTruthy();
+    // teams load a tick after the session, so wait for the team button itself
+    await waitFor(() => expect(screen.getByRole("button", { name: "Acme" })).toBeTruthy());
+    expect(screen.getByText("a@b.com")).toBeTruthy();
   });
 
   it("signs in via the login form", async () => {
-    const fetchMock = stub({
-      "GET /auth/me": { status: 401, body: { error: "unauthorized" } },
-      "POST /auth/login": { body: { user: { id: "u1", email: "a@b.com", name: null } } },
-      "GET /teams": { body: { teams: [] } },
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    api.me.mockRejectedValue(new Error("unauthorized"));
+    api.login.mockResolvedValue({ user: { id: "u1", email: "a@b.com", name: null } });
+    api.listTeams.mockResolvedValue({ teams: [] });
     renderAdmin();
     await waitFor(() => screen.getByRole("button", { name: "Sign in" }));
     fireEvent.change(document.querySelector('input[type="email"]') as HTMLInputElement, { target: { value: "a@b.com" } });
     fireEvent.change(document.querySelector('input[type="password"]') as HTMLInputElement, { target: { value: "longenough" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(screen.getByText("a@b.com")).toBeTruthy());
-    expect(fetchMock).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({ method: "POST" }));
+    expect(api.login).toHaveBeenCalledWith("a@b.com", "longenough");
+  });
+
+  it("creates a team from the console", async () => {
+    api.me.mockResolvedValue({ user: { id: "u1", email: "a@b.com", name: "A" }, memberships: [] });
+    api.listTeams.mockResolvedValue({ teams: [] });
+    api.createTeam.mockResolvedValue({ team: { id: "t2", name: "New Co", createdAt: new Date().toISOString() } });
+    renderAdmin();
+    await waitFor(() => screen.getByText("a@b.com"));
+    fireEvent.change(screen.getByPlaceholderText("New team name"), { target: { value: "New Co" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(api.createTeam).toHaveBeenCalledWith("New Co"));
   });
 });
