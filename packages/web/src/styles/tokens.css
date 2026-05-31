@@ -78,6 +78,14 @@ header {
   padding: 5px 9px;
   font-size: 11px;
 }
+.btn.danger {
+  border-color: #b3433a;
+  color: #e98b83;
+}
+.btn.danger:hover {
+  background: #b3433a;
+  color: #fff;
+}
 .views {
   display: flex;
   gap: 6px;
@@ -608,8 +616,42 @@ code {
 .tree-leaf:hover {
   background: var(--line);
 }
-.tree-move {
+.tree-twisty {
   flex: 0 0 auto;
-  max-width: 96px;
-  font-size: 10.5px;
+  width: 16px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.tree-grip {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: var(--textDim);
+  font-size: 11px;
+  user-select: none;
+}
+.tree-input {
+  flex: 1 1 auto;
+  font: inherit;
+  padding: 2px 6px;
+  min-width: 0;
+}
+.tree-confirm {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--textDim);
+}
+/* drag-and-drop drop target highlight (layouts/folders moved by dragging) */
+.tree-row.drop,
+.explorer-tree.drop {
+  outline: 1px dashed var(--teal);
+  outline-offset: -1px;
+  background: rgba(43, 182, 168, 0.1);
+  border-radius: 6px;
 }

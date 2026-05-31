@@ -16,6 +16,7 @@ import { ScenarioCompare } from "./components/ScenarioCompare";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { SiteRollup } from "./components/SiteRollup";
 import { Explorer } from "./components/Explorer";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
 import { CostPanel } from "./components/CostPanel";
@@ -75,6 +76,7 @@ export function App() {
   const [showCompare, setShowCompare] = useState(false);
   const [showRollup, setShowRollup] = useState(false);
   const [showExplorer, setShowExplorer] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
   // Remember the last sub-tab visited per group, so returning to a group restores it.
@@ -355,13 +357,7 @@ export function App() {
             {
               label: "Reset to sample",
               danger: true,
-              onClick: () => {
-                if (confirm("Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario).")) {
-                  api.reset(SAMPLE);
-                  setSel(null);
-                  setView("actual");
-                }
-              },
+              onClick: () => setShowReset(true),
             },
           ]}
         />
@@ -429,6 +425,16 @@ export function App() {
       {showCompare ? <ScenarioCompare api={api} onClose={() => setShowCompare(false)} /> : null}
       {showRollup ? <SiteRollup api={api} onClose={() => setShowRollup(false)} /> : null}
       {showExplorer ? <Explorer api={api} onClose={() => setShowExplorer(false)} /> : null}
+      {showReset ? (
+        <ConfirmDialog
+          title="Reset to sample"
+          message="Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario)."
+          confirmLabel="Reset"
+          danger
+          onConfirm={() => { api.reset(SAMPLE); setSel(null); setView("actual"); }}
+          onClose={() => setShowReset(false)}
+        />
+      ) : null}
 
       {showOnboard ? (
         <EmptyState
