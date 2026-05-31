@@ -12,10 +12,11 @@ import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 import { EmptyState } from "./components/EmptyState";
 import { SettingsModal } from "./components/SettingsModal";
-import { ScenarioCompare } from "./components/ScenarioCompare";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
-import { SiteRollup } from "./components/SiteRollup";
 import { Explorer } from "./components/Explorer";
+import { ComparePage } from "./pages/ComparePage";
+import { SitePage } from "./pages/SitePage";
+import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
@@ -73,9 +74,8 @@ export function App() {
   const [showOnboard, setShowOnboard] = useState(() => !localStorage.getItem("flowplan_model"));
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
-  const [showCompare, setShowCompare] = useState(false);
-  const [showRollup, setShowRollup] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [route] = useHashRoute();
   // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
   const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") === "1");
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
@@ -183,9 +183,8 @@ export function App() {
       }
       if (typing) return;
       if (e.key === "Escape") {
-        if (showSettings || showCompare) {
+        if (showSettings) {
           setShowSettings(false);
-          setShowCompare(false);
           return;
         }
         setMode("select");
@@ -214,7 +213,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [api, selId, model.stations, showSettings, showCompare]);
+  }, [api, selId, model.stations, showSettings]);
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
 
@@ -306,6 +305,11 @@ export function App() {
     );
   }
 
+  // Dedicated pages (hash routes). They render full-screen with their own back
+  // navigation; all hooks above have already run, so these early returns are safe.
+  if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
+  if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
+
   return (
     <div className="wrap">
       <header>
@@ -321,7 +325,7 @@ export function App() {
         >
           🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
         </button>
-        <button className="btn sm" onClick={() => setShowRollup(true)} title="Site rollup across all cells">
+        <button className="btn sm" onClick={() => navigate("/site")} title="Site overview across all layouts">
           Site
         </button>
         <span className="hsep" />
@@ -357,7 +361,8 @@ export function App() {
           label="⋯"
           title="More actions"
           items={[
-            { label: "Compare scenarios", onClick: () => setShowCompare(true) },
+            { label: "Compare scenarios", onClick: () => navigate("/compare") },
+            { label: "Site overview", onClick: () => navigate("/site") },
             {
               label: "Reset to sample",
               danger: true,
@@ -450,8 +455,6 @@ export function App() {
       {showSettings ? (
         <SettingsModal initial={settings} onClose={() => setShowSettings(false)} onSaved={setSettings} />
       ) : null}
-      {showCompare ? <ScenarioCompare api={api} onClose={() => setShowCompare(false)} /> : null}
-      {showRollup ? <SiteRollup api={api} onClose={() => setShowRollup(false)} /> : null}
       {showReset ? (
         <ConfirmDialog
           title="Reset to sample"

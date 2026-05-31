@@ -16,6 +16,7 @@ beforeEach(() => {
   cleanup();
   document.body.innerHTML = "";
   localStorage.clear();
+  window.location.hash = ""; // reset the hash router between tests
 });
 afterEach(cleanup);
 
@@ -68,13 +69,25 @@ describe("App", () => {
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
 
-  it("adds a cell and opens the site rollup", () => {
+  it("navigates to the dedicated Site overview page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByText("Site"));
-    expect(screen.getByText("Site rollup")).toBeTruthy();
-    // one cell so far in the rollup table
-    expect(screen.getAllByText(/parts\/shift|Parts\/shift/i).length).toBeGreaterThan(0);
+    // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
+    expect(screen.getByText("Total throughput")).toBeTruthy();
+    fireEvent.click(screen.getByText("← Editor"));
+    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
+  });
+
+  it("navigates to the dedicated Compare page", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByRole("button", { name: "⋯" }));
+    fireEvent.click(screen.getByText("Compare scenarios"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
+    fireEvent.click(screen.getByText("← Editor"));
+    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
   });
 
   it("opens the freeform footprint editor without crashing", () => {

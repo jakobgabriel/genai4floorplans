@@ -2,6 +2,7 @@ import type { Flow } from "@flowplan/core/model/types";
 import { TRANSPORT } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { Field } from "./ui";
+import { CloseButton } from "./CloseButton";
 import { RED } from "./colors";
 
 // Inline editor for a flow selected on the canvas.
@@ -39,9 +40,7 @@ export function FlowEditorPopover({
         <span style={{ fontSize: 11.5 }}>
           {f.from} → {f.to}
         </span>
-        <button className="btn sm" onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton onClick={onClose} />
       </div>
       <Field label="Volume (parts/shift)">
         <input
