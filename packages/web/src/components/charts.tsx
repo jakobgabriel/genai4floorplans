@@ -1,3 +1,4 @@
+import { Tile } from "@carbon/react";
 import type { StationCycle } from "@flowplan/core/engine/cycle";
 import { CYCLE_COL, RED, scoreColor, TEAL, TEXTD } from "./colors";
 
@@ -146,13 +147,14 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
   );
 }
 
-// A compact stat tile (big number + caption) for the page summary strips.
+// A compact KPI tile (label + big value + optional sub) for the page summary
+// strips. A Carbon Tile using the shared `.bi-kpi` markup (see AnalysisDashboard).
 export function Stat({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="stat-tile">
-      <div className="lab">{label}</div>
-      <div style={{ fontSize: "1.75rem", fontWeight: 400, color }}>{value}</div>
-      {sub ? <div style={{ fontSize: "0.75rem", color: TEXTD }}>{sub}</div> : null}
-    </div>
+    <Tile className="bi-kpi">
+      <div className="bi-kpi__lab">{label}</div>
+      <div className="bi-kpi__val" style={{ color }}>{value}</div>
+      {sub ? <div className="bi-kpi__sub">{sub}</div> : null}
+    </Tile>
   );
 }

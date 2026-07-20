@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Tab, TabList, Tabs } from "@carbon/react";
-import { Add, ArrowLeft, TrashCan } from "@carbon/icons-react";
+import { Add, ArrowLeft, GroupObjects, TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
 import type { useLibrary } from "../store/library";
@@ -113,10 +113,10 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
 
           <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
             Grouped elements
-            <span style={{ fontSize: 10.5, color: TEXTD, textTransform: "none", letterSpacing: 0 }}>· made with ⧉ Group on the canvas</span>
+            <span style={{ fontSize: 10.5, color: TEXTD, textTransform: "none", letterSpacing: 0 }}>· made with <GroupObjects size={12} style={{ verticalAlign: "-1px" }} /> Group on the canvas</span>
           </div>
           {subflows.subflows.length === 0 ? (
-            <div style={{ fontSize: 11, color: TEXTD }}>None yet. On the canvas, use ⧉ Group to draw around steps and save them as a reusable element.</div>
+            <div style={{ fontSize: 11, color: TEXTD }}>None yet. On the canvas, use <GroupObjects size={12} style={{ verticalAlign: "-1px" }} /> Group to draw around steps and save them as a reusable element.</div>
           ) : (
             subflows.subflows.map((sf) => (
               <div

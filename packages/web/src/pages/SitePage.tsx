@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
-import { Button, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
-import { ArrowLeft } from "@carbon/icons-react";
+import { Button, Tile, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
+import { ArrowLeft, Folder } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
@@ -55,30 +55,30 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
         <h1 className="page-title">Site overview</h1>
       </div>
 
-      <div className="stat-strip">
+      <div className="bi-kpis">
         <Stat label="Layouts" value={String(rows.length)} />
         <Stat label="Total throughput" value={totalThroughput.toLocaleString()} sub="parts / shift" color={TEAL} />
         <Stat label="Avg grade" value={avgGrade.toFixed(0)} color={scoreColor(avgGrade)} />
         <Stat label="Avg cost / part" value={cur + avgCost.toLocaleString(undefined, { maximumFractionDigits: 2 })} />
       </div>
 
-      <div className="page-grid">
-        <div className="chart-card">
-          <div className="layoutTitle">Score per layout</div>
+      <div className="bi-row bi-row--2">
+        <Tile className="bi-card">
+          <div className="bi-card__head"><h3 className="bi-card__title">Score per layout</h3></div>
           <BarChart bars={scoreBars} max={100} colorByScore />
-        </div>
-        <div className="chart-card">
-          <div className="layoutTitle">Throughput per layout</div>
+        </Tile>
+        <Tile className="bi-card">
+          <div className="bi-card__head"><h3 className="bi-card__title">Throughput per layout</h3></div>
           <BarChart bars={flowBars} />
-        </div>
-        <div className="chart-card">
-          <div className="layoutTitle">Cost / part per layout</div>
+        </Tile>
+        <Tile className="bi-card">
+          <div className="bi-card__head"><h3 className="bi-card__title">Cost / part per layout</h3></div>
           <BarChart bars={costBars} />
-        </div>
+        </Tile>
       </div>
 
-      <div className="chart-card">
-        <div className="layoutTitle">Layouts</div>
+      <Tile className="bi-card">
+        <div className="bi-card__head"><h3 className="bi-card__title">Layouts</h3></div>
         <StructuredListWrapper isCondensed>
           <StructuredListHead>
             <StructuredListRow head><StructuredListCell head>Layout</StructuredListCell><StructuredListCell head>Grade</StructuredListCell><StructuredListCell head>Score</StructuredListCell><StructuredListCell head>Parts/shift</StructuredListCell><StructuredListCell head>Cost/part</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow>
@@ -105,7 +105,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
           </StructuredListBody>
         </StructuredListWrapper>
         <div style={{ fontSize: 10.5, color: TEXTD }}>Each layout is rated independently by the engine. Inter-cell material flow isn't modeled.</div>
-      </div>
+      </Tile>
     </div>
   );
 }
@@ -114,7 +114,7 @@ function FolderGroup({ label, children }: { label: string; children: ReactNode }
   return (
     <Fragment>
       {label ? (
-        <StructuredListRow><StructuredListCell style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}>🗀 {label}</StructuredListCell></StructuredListRow>
+        <StructuredListRow><StructuredListCell style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}><Folder size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} /> {label}</StructuredListCell></StructuredListRow>
       ) : null}
       {children}
     </Fragment>

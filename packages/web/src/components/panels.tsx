@@ -74,18 +74,30 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
   ];
   return (
     <div className="pad">
-      <div className="grade">
-        <div className="gradeBox" style={{ border: "2px solid " + letterCol, color: letterCol }}>
+      <Tile style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+        <div
+          style={{
+            width: "3.5rem",
+            height: "3.5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.75rem",
+            fontWeight: 300,
+            border: "2px solid " + letterCol,
+            color: letterCol,
+          }}
+        >
           {r.letter}
         </div>
         <div>
           <div className="lab">Actual-state rating</div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 600 }}>
+          <div style={{ fontSize: "1.75rem", fontWeight: 400 }}>
             {r.composite.toFixed(0)}
             <span style={{ fontSize: "0.875rem", color: TEXTD }}>/100</span>
           </div>
         </div>
-      </div>
+      </Tile>
       {kpis.map(([lbl, val, sc], i) => {
         const col = scoreColor(sc);
         return (
@@ -1174,7 +1186,7 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
   const vaPct = total > 0 ? Math.round((va / total) * 100) : 0;
 
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
+    <Tile style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span className="lab" style={{ margin: 0 }}>
           Cycle breakdown
@@ -1218,7 +1230,7 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
           <b>{total}s</b> <span style={{ color: vaPct >= 60 ? TEAL : vaPct >= 30 ? AMBER : RED }}>· {vaPct}% value-add</span>
         </span>
       </div>
-    </div>
+    </Tile>
   );
 }
 
