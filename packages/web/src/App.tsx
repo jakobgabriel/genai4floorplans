@@ -22,9 +22,9 @@ import { Button } from "@carbon/react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
-import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { ComparePage } from "./pages/ComparePage";
+import { WorkspacePage } from "./pages/WorkspacePage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
@@ -106,16 +106,12 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [route] = useHashRoute();
-  // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
-  const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") === "1");
+  // Collapsible config panel (persisted). The workspace is now a global page.
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
-  useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
   useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
-  // Drag-resizable sidebar widths (persisted).
+  // Drag-resizable config width (persisted).
   const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
-  const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 300));
   const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
-  useEffect(() => { localStorage.setItem("flowplan_explorer_w", String(explorerWidth)); }, [explorerWidth]);
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
@@ -415,6 +411,7 @@ export function App() {
 
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
+  if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -429,9 +426,9 @@ export function App() {
       </Button>
       <span className="hsep" />
         <button
-          className={"btn sm" + (explorerCollapsed ? "" : " on")}
-          onClick={() => setExplorerCollapsed((v) => !v)}
-          title="Toggle the workspace sidebar"
+          className="btn sm"
+          onClick={() => navigate("/workspace")}
+          title="Open the workspace (folders & layouts)"
           style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
           🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
@@ -488,21 +485,9 @@ export function App() {
 
   const editorBody = (
       <main>
-        <aside
-          className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}
-          style={explorerCollapsed ? undefined : { flexBasis: explorerWidth, width: explorerWidth }}
-        >
-          {explorerCollapsed ? (
-            <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setExplorerCollapsed(false)} title="Show workspace sidebar">
-                🗂 Workspace
-              </button>
-            </div>
-          ) : (
-            <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
-          )}
-        </aside>
-        {explorerCollapsed ? null : <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />}
+        {/* Workspace & folders are a GLOBAL surface (🗂 in the toolbar → the
+            Workspace page), not part of the editor, so the flow editor stays
+            uncluttered. */}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
