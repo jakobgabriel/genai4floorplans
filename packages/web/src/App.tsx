@@ -6,7 +6,8 @@ import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
 import { openReport } from "./io/report";
-import { cloneStation } from "@flowplan/core/store/reducer";
+import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
+import { PaletteBar, NODE_KINDS } from "./components/PaletteBar";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
@@ -308,6 +309,7 @@ export function App() {
   if (view === "actual") {
     canvasInner = (
       <div>
+        <PaletteBar onApplyForm={(form) => { api.commit({ type: "APPLY_TEMPLATE", form }); toast(`Arranged as ${form}-form`); }} />
         <LayoutCanvas
           model={model}
           stations={model.stations}
@@ -339,6 +341,17 @@ export function App() {
             if (model.flows.some((f) => f.from === from && f.to === to)) { toast("Those steps are already connected", "warn"); return; }
             api.commit({ type: "ADD_FLOW", from, to });
             toast(`Connected ${from} → ${to}`);
+          }}
+          onDropNode={(kind, gx, gy) => {
+            const nk = NODE_KINDS.find((k) => k.id === kind);
+            if (!nk) return;
+            const base = makeStation(model);
+            const x = Math.max(0, Math.min(model.gridW - base.w, Math.round(gx - base.w / 2)));
+            const y = Math.max(0, Math.min(model.gridH - base.h, Math.round(gy - base.h / 2)));
+            const station = { ...base, type: nk.type, role: nk.role, name: nk.label, x, y };
+            api.commit({ type: "ADD_STATION", station });
+            selectAndInspect(station.id);
+            toast(`Added ${nk.label}`);
           }}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
         />

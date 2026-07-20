@@ -62,6 +62,8 @@ interface Props {
    *  creates a flow (node-RED-style wiring, spec Law 2 — feedback during the
    *  gesture). Only offered when interactive. */
   onWire?: (from: string, to: string) => void;
+  /** A palette node dropped on the canvas, at fractional grid coords. */
+  onDropNode?: (kind: string, gridX: number, gridY: number) => void;
 }
 
 export function LayoutCanvas(props: Props) {
@@ -237,6 +239,18 @@ export function LayoutCanvas(props: Props) {
         data-layout={label}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
+        onDragOver={interactive && props.onDropNode ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } : undefined}
+        onDrop={
+          interactive && props.onDropNode
+            ? (e) => {
+                const kind = e.dataTransfer.getData("application/x-flowplan-node");
+                if (!kind) return;
+                e.preventDefault();
+                const g = toGrid(e.clientX, e.clientY);
+                props.onDropNode?.(kind, g.x, g.y);
+              }
+            : undefined
+        }
       >
         <defs>
           <marker id="fp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
