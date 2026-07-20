@@ -134,35 +134,44 @@ inspector rail, the tree, and every table). This pass takes the **objective,
 high-coverage, low-risk** layers first and lands them green, and sequences the
 rest as a roadmap.
 
-**Done in this pass** — see the accompanying commits:
+**Done** — see the accompanying commits:
 
-- **C2/C3 in CSS** — every off-ramp `font-size` in `tokens.css` + `planner.css`
-  mapped to the Carbon ramp; non-zero swatch/legend radii → 0. (Zero risk;
-  touches every screen.)
-- **C1/C5 on the entry surface** — the user-facing pages
-  (Library/Admin/Archive/Compare/Site/Workspace) raw `.btn` → Carbon `Button`,
-  glyph icons → `@carbon/icons-react`, `.page-title` → Carbon heading type.
-- **C1 shared primitives** — `CloseButton` → `IconButton`+`Close`;
-  `ConfirmDialog` → Carbon `Modal`; `Menu` → `OverflowMenu`.
-- **C2/C3 inline offenders** — `HeaderKpis` (8.5/13px), `StationTooltip`
-  (radius 6, 11px), `charts` `Stat` (22px) brought onto ramp / squared.
+- **C2/C3 in CSS (Wave 1)** — every off-ramp `font-size` in `tokens.css` +
+  `planner.css` mapped to the Carbon ramp; non-zero swatch/legend radii → 0.
+- **C2/C3 inline (Wave 1)** — every numeric inline `fontSize` across `panels`,
+  `App`, `Explorer`, `LibrarySidebar`, `AiChatPanel`, `HeaderKpis`,
+  `StationTooltip`, `FlowEditorPopover`, `charts` mapped to the ramp; nonzero
+  inline `borderRadius` → 0.
+- **C1/C5 entry pages (Wave 2b)** — Library/Admin/Archive/Compare/Site/Workspace
+  raw `.btn` → Carbon `Button`, glyph icons → `@carbon/icons-react`.
+- **C1 shared primitives (Wave 2a)** — `CloseButton` → `IconButton`+`Close`;
+  `ConfirmDialog` & `SettingsModal` → Carbon `Modal` (+ `Select`/`TextInput`/
+  `ComboBox`); `ConfirmableButton` → Carbon `Button`.
+- **C1 analysis panels (Wave 3)** — `CostPanel`, `CapacityPanel`,
+  `DataSheetPanel`, `WorkloadPanel`, `ProposalPanel`: number inputs →
+  `NumberInput`, range → `Slider`, selects → `Select`, `<select multiple>` →
+  `MultiSelect`, `schemaTbl` → `StructuredList`, `.card/.imp` → `Tile`,
+  `.issue/.ok` → `InlineNotification`, `.pill` → `Tag`, buttons → `Button`.
+- **C5 Explorer tree** — every glyph → `@carbon/icons-react`; action bar →
+  Carbon `Button`/`IconButton`. (Tree-row DnD structure kept intentionally.)
+- **C4 colour cleanup** — stray hex (`#a582c9`/`#d96b5b`/`#0e1416`/`#8d8d8d`) →
+  palette constants or `--cds-*` tokens.
 
-**Deferred (roadmap, by priority)** — tracked here so nothing is lost:
+**In progress / remaining (roadmap, by priority):**
 
-1. **Inspector rail** (`panels.tsx`) — the largest single job: ~24 inputs → the
-   Carbon form set, ~13 selects → `Select`, range → `Slider`, the two
-   `schemaTbl` tables → `DataTable`, ~150 inline styles → CSS classes /
-   type tokens, `.pill` → `Tag`, `.bar` → `ProgressBar`. **Highest remaining.**
-2. **Workload / Capacity / Cost / DataSheet panels** — number inputs →
-   `NumberInput`, `schemaTbl` → `DataTable`/`StructuredList`, `.card`→`Tile`,
-   `.issue/.ok`→`InlineNotification`, `.pill`→`Tag`.
-3. **Explorer tree** → Carbon `TreeView` (+ Carbon icons, `OverflowMenu` rows).
-4. **Toast system** (`ui.tsx`) → `ToastNotification`; **tooltips**
-   (`StationTooltip`, `HelpPopover`, `title=""`) → `Toggletip`/`Tooltip`.
-5. **Tables everywhere** (Admin/Archive/Compare/Site) → `DataTable`.
-6. **Tab strips** (`.subtabs`, `.grouptabs`) → Carbon `Tabs`.
+1. **Inspector rail** (`panels.tsx`) — ~24 inputs → the Carbon form set, ~13
+   selects → `Select`, range → `Slider`, `.pill` → `Tag`, buttons → `Button`.
+   **In progress.**
+2. **Shared toast/tooltip** — `ui.tsx` `ToastProvider` → `ToastNotification`;
+   `HelpPopover` + `title=""` → `Toggletip`/`DefinitionTooltip`.
+3. **`Menu` → `OverflowMenu`** — shared by App toolbar + Explorer rows; needs
+   coordinated `App.test`/`Explorer.test` query updates (trigger no longer has a
+   `title` attr / `⋯` text).
+4. **Tables** (Admin/Archive/Compare/Site) `schemaTbl` → `DataTable`.
+5. **Tab strips** (`.subtabs`, `.grouptabs`, `.tabs .btn`) → Carbon `Tabs`.
+6. **Explorer → full `TreeView`** — requires re-homing the custom drag-and-drop
+   onto TreeView semantics; deferred as a dedicated change.
 7. **AI panel** (`AiChatPanel`) — deferred behind the hidden-AI flag.
-8. **Colour cleanup** — remove data-hue leakage into chrome; delete stray hex.
 
 ---
 
