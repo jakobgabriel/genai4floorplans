@@ -24,7 +24,7 @@ afterEach(cleanup);
 // Analysis view. Open it, then pick an analysis sub-tab.
 function openAnalysis(subTab: string) {
   fireEvent.click(screen.getByText("📊 Analysis"));
-  fireEvent.click(screen.getByRole("button", { name: subTab }));
+  fireEvent.click(screen.getByRole("tab", { name: subTab }));
 }
 
 // Smoke tests: the App must mount and wire its panels/views without crashing —
@@ -50,11 +50,11 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     openAnalysis("Balance");
     expect(screen.getByText(/Line balance & bottleneck/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Automation" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Automation" }));
     expect(screen.getByText(/Automation chaining/)).toBeTruthy();
-    // Schema lives behind the "?" help icon in the inputs rail.
+    // Schema lives behind the "Schema" tab in the inputs rail.
     fireEvent.click(screen.getByText("● Actual"));
-    fireEvent.click(screen.getByRole("button", { name: "?" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Schema" }));
     expect(screen.getByText(/Data model/)).toBeTruthy();
   });
 
@@ -103,7 +103,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
     // Select the first catalog entry, then read its full data sheet.
     fireEvent.click(screen.getByText("CNC turning"));
-    fireEvent.click(screen.getByRole("button", { name: "Documentation" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Documentation" }));
     // The doc surfaces the whole data model, not just name/cycle.
     expect(screen.getByText("Capability (N:M)")).toBeTruthy();
     expect(screen.getByText("turning")).toBeTruthy();

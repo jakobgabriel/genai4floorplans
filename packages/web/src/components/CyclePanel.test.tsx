@@ -20,7 +20,7 @@ function loadSample() {
 // Balance now lives in the dedicated Analysis view (the rail is inputs-only).
 function openBalance() {
   fireEvent.click(screen.getByText("📊 Analysis"));
-  fireEvent.click(screen.getByRole("button", { name: "Balance" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Balance" }));
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station

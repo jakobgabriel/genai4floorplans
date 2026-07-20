@@ -1390,3 +1390,15 @@ input.est-field {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Editor input-rail tab bar: Carbon Tabs + a trailing collapse control. */
+.rail-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-02);
+}
+.rail-tabbar .cds--tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}

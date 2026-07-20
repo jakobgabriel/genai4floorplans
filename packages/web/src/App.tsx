@@ -17,7 +17,8 @@ import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, 
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
 import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
-import { Button, Theme } from "@carbon/react";
+import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
+import { SidePanelClose } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -80,6 +81,14 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
   // AI Chat is hidden for now.
+];
+// The editor input rail's tabs (Configure/Flow/Workload) plus the docs + schema
+// reference. Every value the `tab` state can hold while the rail is shown is a
+// tab, so the Carbon selectedIndex is always resolvable.
+const RAIL_TABS: { tab: Tab; label: string; title?: string }[] = [
+  ...INPUT_TABS,
+  { tab: "doc", label: "Docs", title: "Documentation — every field of the selected step" },
+  { tab: "schema", label: "Schema", title: "Data model / schema reference" },
 ];
 
 export function App() {
@@ -523,12 +532,17 @@ export function App() {
     // rail can stay inputs-only.
     canvasInner = (
       <div className="analysis-view">
-        <div className="subtabs" style={{ maxWidth: 760, margin: "0 auto", padding: 0 }}>
-          {ANALYSIS_TABS.map((t) => (
-            <button key={t.tab} className={"chip" + (analysisTab === t.tab ? " on" : "")} onClick={() => setAnalysisTab(t.tab)}>
-              {t.label}
-            </button>
-          ))}
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <Tabs
+            selectedIndex={Math.max(0, ANALYSIS_TABS.findIndex((t) => t.tab === analysisTab))}
+            onChange={({ selectedIndex }: { selectedIndex: number }) => setAnalysisTab(ANALYSIS_TABS[selectedIndex].tab)}
+          >
+            <TabList aria-label="Analysis sections" contained>
+              {ANALYSIS_TABS.map((t) => (
+                <CarbonTab key={t.tab}>{t.label}</CarbonTab>
+              ))}
+            </TabList>
+          </Tabs>
         </div>
         {analysisTab === "rating" ? (
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -693,21 +707,22 @@ export function App() {
           <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} min={280} max={760} />
           <div className="side" style={{ flexBasis: configWidth, width: configWidth }}>
           <div className="tabbar">
-            <div className="subtabs">
-              {INPUT_TABS.map((t) => (
-                <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => setTab(t.tab)}>
-                  {t.label}
-                </button>
-              ))}
-              <button className={"chip" + (tab === "doc" ? " on" : "")} title="Documentation — every field of the selected step" onClick={() => setTab("doc")}>
-                Docs
-              </button>
-              <button className={"chip" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
-                ?
-              </button>
-              <button className="chip" title="Collapse inputs panel" onClick={() => setConfigCollapsed(true)}>
-                ▶
-              </button>
+            <div className="rail-tabbar">
+              <Tabs
+                selectedIndex={Math.max(0, RAIL_TABS.findIndex((t) => t.tab === tab))}
+                onChange={({ selectedIndex }: { selectedIndex: number }) => setTab(RAIL_TABS[selectedIndex].tab)}
+              >
+                <TabList aria-label="Editor inputs" contained>
+                  {RAIL_TABS.map((t) => (
+                    <CarbonTab key={t.tab} title={t.title}>
+                      {t.label}
+                    </CarbonTab>
+                  ))}
+                </TabList>
+              </Tabs>
+              <IconButton kind="ghost" size="sm" label="Collapse inputs panel" align="bottom" onClick={() => setConfigCollapsed(true)}>
+                <SidePanelClose />
+              </IconButton>
             </div>
           </div>
           {tab === "workload" && <WorkloadPanel {...panelProps} />}

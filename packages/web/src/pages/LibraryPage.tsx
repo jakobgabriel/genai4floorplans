@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@carbon/react";
+import { Button, Tab, TabList, Tabs } from "@carbon/react";
 import { Add, ArrowLeft, TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
@@ -137,9 +137,13 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
         <div className="lib-detail">
           {selEntry ? (
             <>
-              <div className="subtabs" style={{ padding: 0, marginBottom: 12 }}>
-                <button className={"chip" + (detail === "edit" ? " on" : "")} onClick={() => setDetail("edit")}>Edit</button>
-                <button className={"chip" + (detail === "doc" ? " on" : "")} onClick={() => setDetail("doc")}>Documentation</button>
+              <div style={{ marginBottom: "var(--cds-spacing-05)" }}>
+                <Tabs selectedIndex={detail === "doc" ? 1 : 0} onChange={({ selectedIndex }: { selectedIndex: number }) => setDetail(selectedIndex === 1 ? "doc" : "edit")}>
+                  <TabList aria-label="Library entry sections" contained>
+                    <Tab>Edit</Tab>
+                    <Tab>Documentation</Tab>
+                  </TabList>
+                </Tabs>
               </div>
               {detail === "doc" ? (
                 <CatalogEntryDoc entry={selEntry} provenance={selEntry.custom ? "custom" : "builtin"} />
