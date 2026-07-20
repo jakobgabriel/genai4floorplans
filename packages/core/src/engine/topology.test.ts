@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cellTopology, entryExitDistance, pathLength, type TopologyLayout } from "./topology";
+import { cellTopology, entryExitDistance, type TopologyLayout } from "./topology";
 import { cellTemplate } from "./templates";
 import { generateCandidates } from "./generate";
 

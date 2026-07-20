@@ -48,7 +48,7 @@ import {
   type PanelProps,
   type Tab,
 } from "./components/panels";
-import { AMBER, TEAL, TEALD, TEXTD } from "./components/colors";
+import { AMBER, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
