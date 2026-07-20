@@ -1,5 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
-import type { Cell, Folder, Workspace } from "../workspace";
+import { wrapLooseCells, type Cell, type Concept, type Folder, type Workspace } from "../workspace";
 import type { ScenarioMeta } from "../scenarios";
 import type { StorageProvider } from "./StorageProvider";
 
@@ -34,11 +34,14 @@ export class ApiStorageProvider implements StorageProvider {
         name: string;
         activeId: string | null;
         folders: Folder[];
-        cells: { id: string; name: string; model: Model; folderId: string | null }[];
+        concepts?: Concept[];
+        cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null }[];
       };
     }>("GET", `/workspaces/${this.workspaceId}`);
-    const cells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null }));
-    return { cells, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
+    const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null }));
+    // Wrap any loose layouts into concepts so the tree always has a concept level.
+    const { cells, concepts } = wrapLooseCells(migratedCells, workspace.concepts ?? []);
+    return { cells, concepts, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
   }
 
   // The whole-workspace save is decomposed into per-cell saves + an activeId patch;
@@ -51,7 +54,7 @@ export class ApiStorageProvider implements StorageProvider {
     await this.req("PUT", `/cells/${cell.id}`, { model: cell.model });
   }
   async createCell(cell: Cell): Promise<Cell> {
-    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId });
+    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId, conceptId: cell.conceptId });
     return created;
   }
   async renameCell(id: string, name: string): Promise<void> {
@@ -60,8 +63,21 @@ export class ApiStorageProvider implements StorageProvider {
   async deleteCell(id: string): Promise<void> {
     await this.req("DELETE", `/cells/${id}`);
   }
-  async moveCell(id: string, folderId: string | null): Promise<void> {
-    await this.req("PATCH", `/cells/${id}`, { folderId });
+  async moveCell(id: string, conceptId: string | null): Promise<void> {
+    await this.req("PATCH", `/cells/${id}`, { conceptId });
+  }
+  async createConcept(concept: Concept): Promise<Concept> {
+    const { concept: created } = await this.req<{ concept: Concept }>("POST", `/workspaces/${this.workspaceId}/concepts`, { name: concept.name, folderId: concept.folderId });
+    return created;
+  }
+  async renameConcept(id: string, name: string): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { name });
+  }
+  async moveConcept(id: string, folderId: string | null, position?: number): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { folderId, position });
+  }
+  async deleteConcept(id: string): Promise<void> {
+    await this.req("DELETE", `/concepts/${id}`);
   }
   async listScenarios(): Promise<ScenarioMeta[]> {
     const { scenarios } = await this.req<{ scenarios: { name: string; savedAt: string; folderId: string | null }[] }>("GET", `/workspaces/${this.workspaceId}/scenarios`);

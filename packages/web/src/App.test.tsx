@@ -40,8 +40,9 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
-    openAnalysis("Rating");
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    openAnalysis("Overview");
+    // The Overview is now a Carbon dashboard (stat tiles + Yamazumi + precedence).
+    expect(screen.getByText("Yamazumi — cycle time by station")).toBeTruthy();
   });
 
   it("switches between analysis sub-tabs without error", () => {
@@ -57,13 +58,10 @@ describe("App", () => {
     expect(screen.getByText(/Data model/)).toBeTruthy();
   });
 
-  it("generates AI proposals from the Analysis AI Chat tab", async () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
-    openAnalysis("AI Chat");
-    fireEvent.click(screen.getByText(/Propose layout improvements/));
-    // a strategist proposal card appears (engine-scored, offline)
-    await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
+  // AI Chat is hidden for now, so there is no AI tab to drive. The offline
+  // strategist path is still covered by the engine/store tests.
+  it.skip("generates AI proposals from the Analysis AI Chat tab", async () => {
+    // intentionally skipped while the AI surface is hidden.
   });
 
   it("renders the DAG view and the Yield panel", () => {
@@ -95,6 +93,31 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
     fireEvent.click(screen.getByText("← Editor"));
     await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
+  });
+
+  it("opens the process library and shows an element's documentation", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    // The library rail's "manage" link opens the full library page.
+    fireEvent.click(screen.getByText("manage"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
+    // Select the first catalog entry, then read its full data sheet.
+    fireEvent.click(screen.getByText("CNC turning"));
+    fireEvent.click(screen.getByRole("button", { name: "Documentation" }));
+    // The doc surfaces the whole data model, not just name/cycle.
+    expect(screen.getByText("Capability (N:M)")).toBeTruthy();
+    expect(screen.getByText("turning")).toBeTruthy();
+  });
+
+  it("authors a custom (non-predefined) library element", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("manage"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
+    fireEvent.click(screen.getByText("＋ New element"));
+    // A new custom entry appears, tagged and selected for editing.
+    expect(screen.getAllByText(/New element/).length).toBeGreaterThan(0);
+    expect(screen.getByText("custom")).toBeTruthy();
   });
 
   it("opens the freeform footprint editor without crashing", () => {

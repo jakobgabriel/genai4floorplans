@@ -1,4 +1,5 @@
 import type { NoGoZone, Side, Station } from "../model/types";
+import { isBlockingZone } from "../model/types";
 
 export interface Point {
   x: number;
@@ -77,6 +78,8 @@ export function hasCollision(
   zones: NoGoZone[],
 ): boolean {
   const moved: Station = { ...s, x, y };
+  // Only obstacle zones block placement; spacer/aisle/esd merely reserve floor.
+  const blocking = zones.filter(isBlockingZone);
   const shaped = isShaped(moved) || others.some(isShaped);
   if (shaped) {
     const mine = stationCells(moved);
@@ -85,7 +88,7 @@ export function hasCollision(
       if (o.id === s.id) continue;
       for (const c of stationCells(o)) if (occupied.has(c.x + "," + c.y)) return true;
     }
-    for (const z of zones) for (const c of mine) if (cellInRect(c.x, c.y, z)) return true;
+    for (const z of blocking) for (const c of mine) if (cellInRect(c.x, c.y, z)) return true;
     return false;
   }
   const r: Rect = { x, y, w: s.w, h: s.h };
@@ -93,7 +96,7 @@ export function hasCollision(
     if (o.id === s.id) continue;
     if (rectsOverlap(r, o)) return true;
   }
-  for (const z of zones) {
+  for (const z of blocking) {
     if (rectsOverlap(r, z)) return true;
   }
   return false;

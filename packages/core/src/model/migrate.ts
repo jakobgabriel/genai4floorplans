@@ -54,6 +54,19 @@ const toV8: Migration = (m) => ({ ...m, schemaVersion: 8 });
 // and golden fixtures are unaffected.
 const toV9: Migration = (m) => ({ ...m, schemaVersion: 9 });
 
+// version 9 -> 10: flow kinds (good/nok/rwk) for the four separated material
+// paths. Absent on every existing flow (⇒ "good"), so no analysis changes.
+const toV10: Migration = (m) => ({ ...m, schemaVersion: 10 });
+
+// version 10 -> 11: multi-year demand + shift model for capacity analysis.
+// Absent on every existing model, so no analysis changes on load.
+const toV11: Migration = (m) => ({ ...m, schemaVersion: 11 });
+
+// version 11 -> 12: zone kinds on NoGoZone (blocking/spacer/aisle/wall/column/
+// esd). Absent on every existing zone (⇒ "blocking"), so a legacy no-go zone
+// stays an obstacle and placement/floor-space are unchanged on load.
+const toV12: Migration = (m) => ({ ...m, schemaVersion: 12 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -64,6 +77,9 @@ const MIGRATIONS: Record<number, Migration> = {
   6: toV7,
   7: toV8,
   8: toV9,
+  9: toV10,
+  10: toV11,
+  11: toV12,
 };
 
 export function migrate(raw: unknown): Model {

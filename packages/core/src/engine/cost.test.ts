@@ -45,4 +45,20 @@ describe("costAnalysis", () => {
     expect(c.floorSpace.cell).toBeCloseTo(48 * 0.25, 2);
     expect(c.floorSpace.materialSupply).toBeCloseTo(48 * 0.25 * 0.4, 2);
   });
+
+  it("counts reserved space (spacer/aisle/esd) but not blocking obstacles", () => {
+    // A 2×2 spacer is reserved floor; a 2×2 blocking area is not (it's an obstacle).
+    const withZones = {
+      ...SAMPLE,
+      noGoZones: [
+        { x: 0, y: 12, w: 2, h: 2, kind: "spacer" as const },
+        { x: 18, y: 12, w: 2, h: 2, kind: "blocking" as const },
+      ],
+    };
+    const c = costAnalysis(withZones);
+    expect(c.floorSpace.reserved).toBe(4); // only the spacer
+    expect(c.floorSpace.total).toBeCloseTo(48 * 1.35 + 4, 2);
+    // A plain SAMPLE reserves nothing.
+    expect(costAnalysis(SAMPLE).floorSpace.reserved).toBe(0);
+  });
 });

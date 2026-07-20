@@ -9,6 +9,7 @@ import { authRouter } from "./routes/auth.ts";
 import { teamsRouter } from "./routes/teams.ts";
 import { workspacesRouter } from "./routes/workspaces.ts";
 import { foldersRouter } from "./routes/folders.ts";
+import { conceptsRouter } from "./routes/concepts.ts";
 import { cellsRouter } from "./routes/cells.ts";
 import { scenariosRouter } from "./routes/scenarios.ts";
 import { aiRouter } from "./routes/ai.ts";
@@ -22,6 +23,7 @@ export const ROUTE_MOUNTS: { mount: string; router: Router }[] = [
   { mount: "/api/teams", router: teamsRouter },
   { mount: "/api", router: workspacesRouter },
   { mount: "/api", router: foldersRouter },
+  { mount: "/api", router: conceptsRouter },
   { mount: "/api", router: cellsRouter },
   { mount: "/api", router: scenariosRouter },
   { mount: "/api", router: aiRouter },
@@ -59,6 +61,7 @@ export function createApp(): Express {
   // /cells/... prefixes, so they mount at /api and own their full sub-paths.
   app.use("/api", workspacesRouter);
   app.use("/api", foldersRouter);
+  app.use("/api", conceptsRouter);
   app.use("/api", cellsRouter);
   app.use("/api", scenariosRouter);
   app.use("/api", aiRouter);

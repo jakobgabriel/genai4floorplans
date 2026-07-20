@@ -7,17 +7,36 @@ import { SAMPLE } from "@flowplan/core/model/sample";
 // being single-cell. Persisted in localStorage; the active cell drives the app.
 // Inter-cell material flow is out of scope — cells are independent for rollups.
 
+// A Cell is one editable Model — a single LAYOUT. It belongs to a Concept (the
+// workspace item). `folderId` is kept in sync with the owning concept's folder
+// so folder-based rollups keep working, but the tree groups layouts by concept.
 export interface Cell {
   id: string;
   name: string;
   model: Model;
-  /** Owning folder; null = workspace root (today's flat behavior). */
+  /** Owning concept (the workspace item). Null only transiently before wrapping. */
+  conceptId: string | null;
+  /** Owning folder; mirrors the concept's folder. null = workspace root. */
   folderId: string | null;
   /** Soft-deleted: hidden from the tree, recoverable from the Archive. */
   archived?: boolean;
 }
 
-// Arbitrarily-nested folders organize layouts. parentId null = workspace root;
+// A Concept is the workspace item: one manufacturing concept, living in a folder
+// and containing one or more layouts (Cells). This is the unit the user names,
+// files and shares — a layout is an alternative arrangement *within* a concept.
+export interface Concept {
+  id: string;
+  name: string;
+  /** Owning folder; null = workspace root. */
+  folderId: string | null;
+  /** Orders concepts within a folder. */
+  position: number;
+  /** Soft-deleted (with its layouts). Recoverable from the Archive. */
+  archived?: boolean;
+}
+
+// Arbitrarily-nested folders organize concepts. parentId null = workspace root;
 // position orders siblings within a parent.
 export interface Folder {
   id: string;
@@ -30,6 +49,7 @@ export interface Folder {
 
 export interface Workspace {
   cells: Cell[];
+  concepts: Concept[];
   folders: Folder[];
   activeId: string;
 }
@@ -43,20 +63,56 @@ function newId(prefix: string): string {
 }
 
 function migrateCell(c: Cell): Cell {
-  return { id: c.id || newId("cell"), name: c.name || "Cell", model: migrate(c.model), folderId: c.folderId ?? null, archived: !!c.archived };
+  return { id: c.id || newId("cell"), name: c.name || "Cell", model: migrate(c.model), conceptId: c.conceptId ?? null, folderId: c.folderId ?? null, archived: !!c.archived };
 }
 
-/** Load the workspace, migrating a legacy single-cell autosave into one cell. */
+function migrateConcept(c: Concept): Concept {
+  return {
+    id: c.id || newId("cpt"),
+    name: c.name || "Concept",
+    folderId: c.folderId ?? null,
+    position: typeof c.position === "number" ? c.position : 0,
+    archived: !!c.archived,
+  };
+}
+
+/**
+ * Ensure every cell belongs to a concept. Legacy workspaces stored layouts
+ * loose in folders; here each such layout is wrapped in its own concept (same
+ * name, same folder) so "one concept = one workspace item" holds and the tree
+ * has a concept level to render. Existing concepts are preserved.
+ */
+export function wrapLooseCells(cells: Cell[], concepts: Concept[]): { cells: Cell[]; concepts: Concept[] } {
+  const known = new Set(concepts.map((c) => c.id));
+  const nextConcepts = concepts.slice();
+  const posByFolder = new Map<string, number>();
+  nextConcepts.forEach((c) => posByFolder.set(String(c.folderId), Math.max(posByFolder.get(String(c.folderId)) ?? -1, c.position)));
+  const nextCells = cells.map((cell) => {
+    if (cell.conceptId && known.has(cell.conceptId)) return cell;
+    const fk = String(cell.folderId ?? null);
+    const position = (posByFolder.get(fk) ?? -1) + 1;
+    posByFolder.set(fk, position);
+    const concept: Concept = { id: newId("cpt"), name: cell.name || "Concept", folderId: cell.folderId ?? null, position, archived: cell.archived };
+    nextConcepts.push(concept);
+    known.add(concept.id);
+    return { ...cell, conceptId: concept.id };
+  });
+  return { cells: nextCells, concepts: nextConcepts };
+}
+
+/** Load the workspace, migrating legacy single-cell / loose-cell shapes. */
 export function loadWorkspace(): Workspace {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const ws = JSON.parse(raw) as Workspace;
       if (ws && Array.isArray(ws.cells) && ws.cells.length) {
-        const cells = ws.cells.map(migrateCell);
+        const migratedCells = ws.cells.map(migrateCell);
         const folders = Array.isArray(ws.folders) ? ws.folders.map(migrateFolder) : [];
+        const existingConcepts = Array.isArray(ws.concepts) ? ws.concepts.map(migrateConcept) : [];
+        const { cells, concepts } = wrapLooseCells(migratedCells, existingConcepts);
         const activeId = cells.some((c) => c.id === ws.activeId) ? ws.activeId : cells[0].id;
-        return { cells, folders, activeId };
+        return { cells, concepts, folders, activeId };
       }
     }
   } catch {
@@ -64,8 +120,9 @@ export function loadWorkspace(): Workspace {
   }
   // First run / legacy: seed from the old autosave or the sample.
   const seed = loadAutosave() ?? SAMPLE;
-  const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null };
-  return { cells: [cell], folders: [], activeId: cell.id };
+  const concept: Concept = { id: newId("cpt"), name: seed.name || "Concept A", folderId: null, position: 0 };
+  const cell: Cell = { id: newId("cell"), name: seed.name || "Layout A", model: seed, conceptId: concept.id, folderId: null };
+  return { cells: [cell], concepts: [concept], folders: [], activeId: cell.id };
 }
 
 function migrateFolder(f: Folder): Folder {
@@ -86,8 +143,12 @@ export function saveWorkspace(ws: Workspace): void {
   }
 }
 
-export function makeCell(name: string, model: Model, folderId: string | null = null): Cell {
-  return { id: newId("cell"), name, model: { ...model, name }, folderId };
+export function makeCell(name: string, model: Model, folderId: string | null = null, conceptId: string | null = null): Cell {
+  return { id: newId("cell"), name, model: { ...model, name }, folderId, conceptId };
+}
+
+export function makeConcept(name: string, folderId: string | null, position: number): Concept {
+  return { id: newId("cpt"), name, folderId, position };
 }
 
 export function makeFolder(name: string, parentId: string | null, position: number): Folder {

@@ -18,7 +18,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
     };
   }, [api.folders, api.archivedFolders]);
 
-  const empty = api.archivedCells.length === 0 && api.archivedFolders.length === 0;
+  const empty = api.archivedCells.length === 0 && api.archivedFolders.length === 0 && api.archivedConcepts.length === 0;
 
   return (
     <div className="page">
@@ -50,6 +50,28 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                 </tbody>
               </table>
               <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a folder brings back the folder; restore its layouts individually below. Permanent delete removes the folder and everything still archived inside it.</div>
+            </div>
+          ) : null}
+
+          {api.archivedConcepts.length > 0 ? (
+            <div className="chart-card">
+              <div className="layoutTitle">Archived concepts</div>
+              <table className="schemaTbl">
+                <thead><tr><th>Concept</th><th>Location</th><th></th></tr></thead>
+                <tbody>
+                  {api.archivedConcepts.map((c) => (
+                    <tr key={c.id}>
+                      <td>◈ {c.name}</td>
+                      <td style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        <button className="btn sm" onClick={() => api.restoreConcept(c.id)}>Restore</button>
+                        <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeConcept(c.id)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a concept brings back the concept and all its layouts.</div>
             </div>
           ) : null}
 

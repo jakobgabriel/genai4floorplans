@@ -28,6 +28,13 @@ async function resolveTeamId(req: AuthedRequest): Promise<string | null> {
     });
     return folder?.workspace.teamId ?? null;
   }
+  if (p.conceptId) {
+    const concept = await prisma.concept.findUnique({
+      where: { id: p.conceptId },
+      select: { workspace: { select: { teamId: true } } },
+    });
+    return concept?.workspace.teamId ?? null;
+  }
   return null;
 }
 

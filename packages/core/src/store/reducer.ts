@@ -1,4 +1,4 @@
-import type { CostConfig, CycleBreakdown, Flow, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
+import type { CostConfig, CycleBreakdown, Demand, Flow, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
@@ -12,6 +12,7 @@ export type ModelAction =
   | { type: "SET_SHIFT_HOURS"; shiftHours: number }
   | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
   | { type: "SET_LOSS_FACTOR"; lossFactor: number | undefined }
+  | { type: "SET_DEMAND"; demand: Demand | undefined }
   | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
@@ -45,7 +46,14 @@ export type ModelAction =
    * ADOPT_STATIONS, which took a finished station array and overwrote the
    * user's placements wholesale.
    */
-  | { type: "ACCEPT_PROPOSAL"; items: ProposalItem[]; itemIds: string[] };
+  | { type: "ACCEPT_PROPOSAL"; items: ProposalItem[]; itemIds: string[] }
+  /**
+   * Insert a grouped/subflow element (node-RED subflow): its member stations and
+   * internal flows are re-id'd, offset to the drop point and appended. Nothing
+   * existing is touched, and ids never collide because each member gets a fresh
+   * id. `stations` carry positions normalised to the group's own (0,0) corner.
+   */
+  | { type: "INSERT_SUBFLOW"; stations: Station[]; flows: Flow[]; x: number; y: number };
 
 function clampStations(model: Model): Station[] {
   return model.stations.map((s) => {
@@ -78,6 +86,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_LOSS_FACTOR":
       return { ...model, lossFactor: action.lossFactor };
+
+    case "SET_DEMAND":
+      return { ...model, demand: action.demand };
 
     case "SET_COST_CONFIG":
       return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };
@@ -204,6 +215,25 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     // applyProposalItems, not here.
     case "ACCEPT_PROPOSAL":
       return { ...model, stations: applyProposalItems(model, action.items, action.itemIds) };
+
+    case "INSERT_SUBFLOW": {
+      const idMap: Record<string, string> = {};
+      // Thread a growing model so newStationId never re-issues an id within the batch.
+      let acc: Model = model;
+      const added: Station[] = [];
+      action.stations.forEach((s) => {
+        const id = newStationId(acc, "sub");
+        idMap[s.id] = id;
+        const { x, y } = clampToGrid(s, s.x + action.x, s.y + action.y, model.gridW, model.gridH);
+        const ns: Station = { ...s, id, x, y };
+        added.push(ns);
+        acc = { ...acc, stations: acc.stations.concat([ns]) };
+      });
+      const newFlows = action.flows
+        .filter((f) => idMap[f.from] && idMap[f.to])
+        .map((f) => normalizeFlow({ ...f, from: idMap[f.from], to: idMap[f.to] }));
+      return { ...model, stations: model.stations.concat(added), flows: model.flows.concat(newFlows) };
+    }
 
     case "SET_WORK_ELEMENTS":
       return { ...model, workElements: action.elements };

@@ -14,9 +14,12 @@ interface Props {
   onGoto: (step: FlowStep) => void;
   actions?: ReactNode;
   children: ReactNode;
+  /** Editor mode: hide the process stepper and let the body fill the viewport,
+   *  so the node-RED editor runs full-screen below the top bar. */
+  fullBleed?: boolean;
 }
 
-export function ProcessShell({ step, reached, onGoto, actions, children }: Props) {
+export function ProcessShell({ step, reached, onGoto, actions, children, fullBleed = false }: Props) {
   const index = FLOW_STEPS.indexOf(step);
 
   return (
@@ -28,21 +31,23 @@ export function ProcessShell({ step, reached, onGoto, actions, children }: Props
         <HeaderGlobalBar>{actions}</HeaderGlobalBar>
       </Header>
 
-      <div className="shell">
-        <nav className="shell__steps" aria-label="Planning process">
-          <ProgressIndicator
-            currentIndex={index}
-            spaceEqually
-            onChange={(i: number) => {
-              const target = FLOW_STEPS[i];
-              if (target && reached.includes(target)) onGoto(target);
-            }}
-          >
-            {FLOW_STEPS.map((s) => (
-              <ProgressStep key={s} label={STEP_META[s].label} disabled={!reached.includes(s)} />
-            ))}
-          </ProgressIndicator>
-        </nav>
+      <div className={"shell" + (fullBleed ? " shell--editor" : "")}>
+        {fullBleed ? null : (
+          <nav className="shell__steps" aria-label="Planning process">
+            <ProgressIndicator
+              currentIndex={index}
+              spaceEqually
+              onChange={(i: number) => {
+                const target = FLOW_STEPS[i];
+                if (target && reached.includes(target)) onGoto(target);
+              }}
+            >
+              {FLOW_STEPS.map((s) => (
+                <ProgressStep key={s} label={STEP_META[s].label} disabled={!reached.includes(s)} />
+              ))}
+            </ProgressIndicator>
+          </nav>
+        )}
 
         <div className="shell__body">{children}</div>
       </div>

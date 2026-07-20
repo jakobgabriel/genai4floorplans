@@ -3,33 +3,44 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import { Explorer } from "./Explorer";
 import type { FlowPlanApi } from "../store/useFlowPlan";
-import type { Folder } from "../store/workspace";
+import type { Concept, Folder } from "../store/workspace";
 
 // A spy stand-in for the bits of FlowPlanApi the Explorer touches. The data layer
-// (folder CRUD, reparenting) is covered by the workspace/storage tests; here we
-// assert the tree renders and the row actions call the right api methods.
+// (folder/concept CRUD, reparenting) is covered by the workspace/store tests;
+// here we assert the Folder > Concept > Layout tree renders and the row actions
+// call the right api methods.
 function makeApi(over: Partial<FlowPlanApi> = {}): FlowPlanApi {
   const folders: Folder[] = [
     { id: "f1", name: "Line 1", parentId: null, position: 0 },
     { id: "f2", name: "Sub", parentId: "f1", position: 0 },
   ];
+  const concepts: Concept[] = [
+    { id: "cpt1", name: "Root concept", folderId: null, position: 0 },
+    { id: "cpt2", name: "Nested concept", folderId: "f2", position: 0 },
+  ];
   const cells = [
-    { id: "c1", name: "Root layout", folderId: null },
-    { id: "c2", name: "Nested layout", folderId: "f2" },
+    { id: "c1", name: "Root layout", folderId: null, conceptId: "cpt1" },
+    { id: "c2", name: "Nested layout", folderId: "f2", conceptId: "cpt2" },
   ];
   return {
     folders,
+    concepts,
     cells,
     activeId: "c1",
     switchCell: vi.fn(),
     moveCell: vi.fn(),
     addCell: vi.fn(),
     createFolder: vi.fn(),
+    createConcept: vi.fn(),
     renameFolder: vi.fn(),
+    renameConcept: vi.fn(),
     moveFolder: vi.fn(),
+    moveConcept: vi.fn(),
     archiveCell: vi.fn(),
+    archiveConcept: vi.fn(),
     archiveFolder: vi.fn(),
     archivedCells: [],
+    archivedConcepts: [],
     archivedFolders: [],
     ...over,
   } as unknown as FlowPlanApi;
@@ -42,11 +53,12 @@ afterEach(() => {
 });
 
 describe("Explorer", () => {
-  it("renders the nested folder tree with layouts", () => {
+  it("renders the folder > concept > layout tree", () => {
     render(<Explorer api={makeApi()} onCollapse={() => {}} />);
-    // folder names also appear in each row's move-to picker, so allow multiples
     expect(screen.getAllByText(/Line 1/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Sub/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Root concept/)).toBeTruthy();
+    expect(screen.getByText(/Nested concept/)).toBeTruthy();
     expect(screen.getByText(/Root layout/)).toBeTruthy();
     expect(screen.getByText(/Nested layout/)).toBeTruthy();
   });
@@ -70,6 +82,16 @@ describe("Explorer", () => {
     expect(promptSpy).not.toHaveBeenCalled();
   });
 
+  it("creates a root concept via an inline input", () => {
+    const api = makeApi();
+    render(<Explorer api={api} onCollapse={() => {}} />);
+    fireEvent.click(screen.getByText("＋ Concept"));
+    const input = screen.getByPlaceholderText("Concept name");
+    fireEvent.change(input, { target: { value: "New concept" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(api.createConcept).toHaveBeenCalledWith("New concept", null);
+  });
+
   it("renames a folder inline (no browser prompt)", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
@@ -81,33 +103,34 @@ describe("Explorer", () => {
     expect(api.renameFolder).toHaveBeenCalledWith("f1", "Renamed");
   });
 
-  it("adds a layout into a folder from its action menu", () => {
+  it("adds a layout into a concept from its action menu", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
-    fireEvent.click(screen.getByText("New layout here"));
-    expect(api.addCell).toHaveBeenCalledWith(expect.anything(), undefined, "f1");
+    const row = screen.getByText(/Root concept/).closest(".tree-row") as HTMLElement;
+    fireEvent.click(row.querySelector('[title="Concept actions"]') as HTMLElement);
+    fireEvent.click(screen.getByText("New layout"));
+    expect(api.addCell).toHaveBeenCalledWith(expect.anything(), undefined, "cpt1");
   });
 
-  it("moves a layout by dragging it onto a folder", () => {
+  it("moves a layout by dragging it onto a concept", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
     const cellRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
-    const folderRow = screen.getByText(/🗀 Line 1/).closest(".tree-row") as HTMLElement;
+    const conceptRow = screen.getByText(/Nested concept/).closest(".tree-row") as HTMLElement;
     fireEvent.dragStart(cellRow);
-    fireEvent.dragOver(folderRow);
-    fireEvent.drop(folderRow);
-    expect(api.moveCell).toHaveBeenCalledWith("c1", "f1");
+    fireEvent.dragOver(conceptRow);
+    fireEvent.drop(conceptRow);
+    expect(api.moveCell).toHaveBeenCalledWith("c1", "cpt2");
   });
 
-  it("moves a layout to the root by dropping on empty tree space", () => {
+  it("moves a concept to the root by dropping on empty tree space", () => {
     const api = makeApi();
     const { container } = render(<Explorer api={api} onCollapse={() => {}} />);
-    const nested = screen.getByText(/Nested layout/).closest(".tree-row") as HTMLElement;
+    const nested = screen.getByText(/Nested concept/).closest(".tree-row") as HTMLElement;
     const tree = container.querySelector(".explorer-tree") as HTMLElement;
     fireEvent.dragStart(nested);
     fireEvent.drop(tree);
-    expect(api.moveCell).toHaveBeenCalledWith("c2", null);
+    expect(api.moveConcept).toHaveBeenCalledWith("cpt2", null);
   });
 
   it("archives a folder (with contents) via an inline confirm (no browser confirm)", () => {
@@ -116,10 +139,19 @@ describe("Explorer", () => {
     render(<Explorer api={api} onCollapse={() => {}} />);
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
     fireEvent.click(screen.getByText("Archive (with contents)"));
-    // inline "Archive + contents? ✓ ✗" appears; clicking ✓ archives recursively
     fireEvent.click(screen.getByTitle("Confirm archive"));
     expect(api.archiveFolder).toHaveBeenCalledWith("f1");
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("archives a concept via an inline confirm", () => {
+    const api = makeApi();
+    render(<Explorer api={api} onCollapse={() => {}} />);
+    const row = screen.getByText(/Root concept/).closest(".tree-row") as HTMLElement;
+    fireEvent.click(row.querySelector('[title="Concept actions"]') as HTMLElement);
+    fireEvent.click(screen.getByText("Archive (with layouts)"));
+    fireEvent.click(screen.getByTitle("Confirm archive"));
+    expect(api.archiveConcept).toHaveBeenCalledWith("cpt1");
   });
 
   it("archives a layout from its row button", () => {

@@ -128,6 +128,12 @@ export interface CostConfig {
   materialSupplyFactor?: number;
 }
 
+/** The four separated material paths (blueprint §09/§10). The separation itself
+ *  is the guardrail: a reject must not be able to leave on the good-part route,
+ *  ensured by geometry, not by a work instruction. Absent ⇒ "good". */
+export type FlowKind = "good" | "nok" | "rwk";
+export const FLOW_KINDS: FlowKind[] = ["good", "nok", "rwk"];
+
 export interface Flow {
   from: string;
   to: string;
@@ -140,7 +146,18 @@ export interface Flow {
   share?: number;
   /** Units of this input consumed per assembled unit at an "assemble" merge. Default 1. */
   unitsPerAssembly?: number;
+  /** Which of the four material paths this flow is. Absent ⇒ good part. */
+  kind?: FlowKind;
 }
+
+/** Non-station canvas elements. `blocking`/`wall`/`column` are obstacles the
+ *  placement engine must avoid; `spacer`/`aisle`/`esd` are reserved space that
+ *  does not block placement but is reported in the floor-space split. Absent
+ *  kind ⇒ "blocking", so a legacy no-go zone stays an obstacle. */
+export type ZoneKind = "blocking" | "spacer" | "aisle" | "wall" | "column" | "esd";
+export const ZONE_KINDS: ZoneKind[] = ["blocking", "spacer", "aisle", "wall", "column", "esd"];
+/** Kinds the placement engine treats as an obstacle. */
+export const BLOCKING_ZONE_KINDS: ZoneKind[] = ["blocking", "wall", "column"];
 
 export interface NoGoZone {
   x: number;
@@ -148,6 +165,13 @@ export interface NoGoZone {
   w: number;
   h: number;
   label?: string;
+  /** What kind of reserved/blocked space this is. Absent ⇒ "blocking". */
+  kind?: ZoneKind;
+}
+
+/** True when a zone blocks station placement (vs. merely reserving floor). */
+export function isBlockingZone(z: NoGoZone): boolean {
+  return BLOCKING_ZONE_KINDS.includes(z.kind ?? "blocking");
 }
 
 /** Composite-rating weights (spec §4). Defined here so the model can carry an
@@ -274,6 +298,34 @@ export function stationConfidence(s: Station, fields: StationDataField[] = STATI
   return weakestConfidence(fields.map((f) => qualityConfidence(fieldQuality(s, f))));
 }
 
+/** Demand over a program horizon plus the shift model (PAUL Demands + Capa MA).
+ *  Drives capacity: machines needed per year, operators per year. Independent of
+ *  the layout — a cell can be evaluated against several years of demand. */
+export interface DemandYear {
+  year: number;
+  /** Units required that year (already includes any flex volume). */
+  units: number;
+}
+export interface Demand {
+  years: DemandYear[];
+  /** Shifts per working day. */
+  shiftsPerDay?: number;
+  /** Hours of production per shift. */
+  hoursPerShift?: number;
+  /** Working days per year. */
+  workingDaysPerYear?: number;
+  /** Overall effectiveness (OEE), 0–1, applied to available time. */
+  oee?: number;
+}
+
+/** Default shift model when a Demand omits fields (one 8 h shift, 220 days, 85 % OEE). */
+export const DEFAULT_SHIFT_MODEL = {
+  shiftsPerDay: 1,
+  hoursPerShift: 8,
+  workingDaysPerYear: 220,
+  oee: 0.85,
+} as const;
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -298,6 +350,8 @@ export interface Model {
   /** Which manufacturing concept this cell represents (engine/concepts.ts).
    *  Purely descriptive — the rating does not read it. */
   conceptKind?: string;
+  /** Multi-year demand + shift model, for capacity analysis (PAUL Capa MA/HC). */
+  demand?: Demand;
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -314,7 +368,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 12;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

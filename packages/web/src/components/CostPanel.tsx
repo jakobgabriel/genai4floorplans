@@ -37,6 +37,14 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       {row("Opex / shift", money(c.opexPerShift))}
       {row("Equipment capex", money(c.capexTotal))}
 
+      {/* LDC/MDC split (PAUL): labour-dependent vs machine-dependent cost/part. */}
+      <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center" }}>
+        Cost per part — LDC / MDC
+        <HelpPopover text="PAUL split: LDC = labour-dependent cost (operator time), MDC = machine-dependent cost (energy + transport). Together they make the operating cost per part." />
+      </div>
+      {row("LDC — labour", money(c.ldcPerPart))}
+      {row("MDC — machine", money(c.mdcPerPart))}
+
       {/* Floor space, split cell vs material supply (blueprint §4.9): the bin and
           replenishment area is routinely forgotten and understates by a third. */}
       <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center" }}>
@@ -45,6 +53,7 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       </div>
       {row("Cell", `${c.floorSpace.cell.toLocaleString()} ${c.floorSpace.unit}`)}
       {row("Material supply", `+${c.floorSpace.materialSupply.toLocaleString()} ${c.floorSpace.unit}`)}
+      {c.floorSpace.reserved > 0 ? row("Reserved (spacer/aisle)", `+${c.floorSpace.reserved.toLocaleString()} ${c.floorSpace.unit}`) : null}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 3, borderTop: `1px solid ${TEXTD}33`, paddingTop: 3 }}>
         <span style={{ color: TEXTD }}>Total footprint</span>
         <strong>{c.floorSpace.total.toLocaleString()} {c.floorSpace.unit}</strong>

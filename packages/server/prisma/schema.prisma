@@ -75,6 +75,7 @@ model Workspace {
   updatedAt DateTime   @updatedAt
   team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
   folders   Folder[]
+  concepts  Concept[]
   cells     Cell[]
   scenarios Scenario[]
 
@@ -96,6 +97,7 @@ model Folder {
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   parent      Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
   children    Folder[]   @relation("FolderTree")
+  concepts    Concept[]
   cells       Cell[]
   scenarios   Scenario[]
 
@@ -103,21 +105,43 @@ model Folder {
   @@index([parentId])
 }
 
+// A Concept is the workspace item: one manufacturing concept, living in a folder
+// and holding one or more layouts (Cells). Mirrors Folder's placement fields.
+// Deleting a concept cascades to its cells (a layout can't exist without one).
+model Concept {
+  id          String    @id @default(cuid())
+  workspaceId String
+  folderId    String? // null = workspace root
+  name        String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  cells       Cell[]
+
+  @@index([workspaceId])
+  @@index([folderId])
+}
+
 model Cell {
   id            String    @id @default(cuid())
   workspaceId   String
-  folderId      String? // null = workspace root
+  folderId      String? // null = workspace root; mirrors the owning concept's folder
+  conceptId     String? // the owning concept (workspace item)
   name          String
   schemaVersion Int // denormalized copy of model.schemaVersion
   model         Json // the full Model object (JSONB)
-  position      Int       @default(0) // order among siblings in the folder
+  position      Int       @default(0) // order among siblings in the concept
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  concept       Concept?  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([folderId])
+  @@index([conceptId])
 }
 
 model Scenario {

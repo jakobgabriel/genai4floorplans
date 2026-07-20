@@ -12,9 +12,11 @@ import {
   Cell,
   CellMeta,
   CreateCellBody,
+  CreateConceptBody,
   CreateFolderBody,
   CreateTeamBody,
   CreateWorkspaceBody,
+  Concept,
   ErrorResponse,
   Folder,
   LoginBody,
@@ -28,6 +30,7 @@ import {
   RegisterBody,
   ScenarioMeta,
   ScenarioModelBody,
+  UpdateConceptBody,
   UpdateFolderBody,
   TeamMembership,
   TeamSummary,
@@ -109,6 +112,7 @@ const teamId = z.object({ teamId: z.string() });
 const wsId = z.object({ wsId: z.string() });
 const cellId = z.object({ cellId: z.string() });
 const folderId = z.object({ folderId: z.string() });
+const conceptId = z.object({ conceptId: z.string() });
 
 // ---- System ---------------------------------------------------------------
 reg({
@@ -309,7 +313,27 @@ reg({
 });
 reg({
   method: "delete", path: "/api/folders/{folderId}", tags: ["Folders"], params: folderId,
-  summary: "Delete a folder", description: "Requires EDITOR role. Reparents child folders, layouts, and scenarios up one level (no data loss).",
+  summary: "Delete a folder", description: "Requires EDITOR role. Reparents child folders, concepts, layouts, and scenarios up one level (no data loss).",
+  ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
+});
+
+// ---- Concepts -------------------------------------------------------------
+reg({
+  method: "post", path: "/api/workspaces/{wsId}/concepts", tags: ["Concepts"], params: wsId, body: CreateConceptBody,
+  summary: "Create a concept (optionally inside a folder)", description: "Requires EDITOR role. A concept is the workspace item holding one or more layouts.",
+  ok: { status: 201, description: "Created", schema: z.object({ concept: Concept }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "patch", path: "/api/concepts/{conceptId}", tags: ["Concepts"], params: conceptId, body: UpdateConceptBody,
+  summary: "Rename, move, or reorder a concept",
+  description: "Requires EDITOR role. Moving into a folder moves its layouts with it.",
+  ok: { status: 200, description: "OK", schema: z.object({ concept: Concept }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "delete", path: "/api/concepts/{conceptId}", tags: ["Concepts"], params: conceptId,
+  summary: "Delete a concept", description: "Requires EDITOR role. Its layouts cascade with it.",
   ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
 });
 

@@ -1,5 +1,5 @@
 import type { Model, Station } from "../model/types";
-import { DEFAULT_COST_CONFIG, DEFAULT_MATERIAL_SUPPLY_FACTOR, DEFAULT_SHIFT_HOURS } from "../model/types";
+import { DEFAULT_COST_CONFIG, DEFAULT_MATERIAL_SUPPLY_FACTOR, DEFAULT_SHIFT_HOURS, isBlockingZone } from "../model/types";
 import { computeKPIs } from "./kpis";
 import { balanceAnalysis } from "./balance";
 import { autoPotential } from "./automation";
@@ -23,7 +23,9 @@ export interface FloorSpace {
   cell: number;
   /** Extra area for material supply = cell × materialSupplyFactor. */
   materialSupply: number;
-  /** cell + materialSupply — never shown alone, always with the split. */
+  /** Reserved space drawn on the canvas (spacer/aisle/esd zones). 0 when none. */
+  reserved: number;
+  /** cell + materialSupply + reserved — never shown alone, always with the split. */
   total: number;
   factor: number;
   unit: "m²" | "cells";
@@ -37,6 +39,10 @@ export interface CostResult {
   transportPerShift: number;
   opexPerShift: number;
   costPerPart: number;
+  /** Labour-dependent cost per part (PAUL LDC) — operator time. */
+  ldcPerPart: number;
+  /** Machine-dependent cost per part (PAUL MDC) — energy + transport. */
+  mdcPerPart: number;
   lineOut: number;
   floorSpace: FloorSpace;
   automation: AutomationROI[];
@@ -59,6 +65,9 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
 
   const lineOut = balanceAnalysis(model.stations, model.flows, shiftHours).lineOut;
   const costPerPart = lineOut > 0 ? +(opexPerShift / lineOut).toFixed(3) : 0;
+  // LDC/MDC split (PAUL): labour-dependent vs machine-dependent cost per part.
+  const ldcPerPart = lineOut > 0 ? +(laborPerShift / lineOut).toFixed(3) : 0;
+  const mdcPerPart = lineOut > 0 ? +((energyPerShift + transportPerShift) / lineOut).toFixed(3) : 0;
 
   // Floor space, split cell vs material supply (blueprint §4.9). Cell area is the
   // footprint the stations occupy; material supply is the routinely-forgotten
@@ -68,10 +77,17 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
   const factor = cfg.materialSupplyFactor ?? DEFAULT_MATERIAL_SUPPLY_FACTOR;
   const cell = +(cellUnits * cellArea).toFixed(2);
   const materialSupply = +(cell * factor).toFixed(2);
+  // Reserved space explicitly drawn on the canvas: spacer/aisle/esd zones (not
+  // blocking obstacles, which represent columns/walls the cell must design around).
+  const reservedUnits = (model.noGoZones ?? [])
+    .filter((z) => !isBlockingZone(z))
+    .reduce((a, z) => a + z.w * z.h, 0);
+  const reserved = +(reservedUnits * cellArea).toFixed(2);
   const floorSpace: FloorSpace = {
     cell,
     materialSupply,
-    total: +(cell + materialSupply).toFixed(2),
+    reserved,
+    total: +(cell + materialSupply + reserved).toFixed(2),
     factor,
     unit: cfg.cellAreaM2 && cfg.cellAreaM2 > 0 ? "m²" : "cells",
   };
@@ -87,5 +103,5 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
       return { id: s.id, name: s.name, verdict: ap.verdict, automationCapex: capex, laborSavedPerYear: Math.round(laborSavedPerYear), paybackMonths };
     });
 
-  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, lineOut, floorSpace, automation };
+  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, ldcPerPart, mdcPerPart, lineOut, floorSpace, automation };
 }
