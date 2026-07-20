@@ -18,7 +18,8 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { parseSteps } from "./planner/parseSteps";
 import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
 import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
-import { Button } from "@carbon/react";
+import { Button, Theme } from "@carbon/react";
+import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
@@ -85,12 +86,14 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
+  const { theme, toggle: toggleTheme } = useTheme();
   const subflows = useSubflows();
   const library = useLibrary();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("inspect");
   const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
   const [selId, setSel] = useState<string | null>(null);
+  const [selZone, setSelZone] = useState<number | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [overlay, setOverlay] = useState<Overlay>("none");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
@@ -161,6 +164,7 @@ export function App() {
   const selectAndInspect = useCallback((id: string | null) => {
     setSel(id);
     if (id) {
+      setSelZone(null);
       setView((v) => (v === "analysis" ? "actual" : v));
       setTab("inspect");
     }
@@ -277,7 +281,14 @@ export function App() {
         setMode("select");
         setFlowFirst(null);
         setSel(null);
+        setSelZone(null);
         setSelFlow(null);
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selZone != null) {
+        e.preventDefault();
+        api.commit({ type: "REMOVE_NOGO", index: selZone });
+        setSelZone(null);
         return;
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selId) {
@@ -300,7 +311,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [api, selId, model.stations, showSettings]);
+  }, [api, selId, selZone, model.stations, showSettings]);
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
 
@@ -371,12 +382,13 @@ export function App() {
   let canvasInner;
   if (view === "actual") {
     canvasInner = (
-      <div>
+      <div className="canvasInner-fill">
         <LayoutCanvas
           model={model}
           stations={model.stations}
           flows={model.flows}
           chain={api.chain}
+          fill
           ghost={rating.optimized}
           proposalItems={proposal?.items}
           onAcceptMove={(id) => {
@@ -385,6 +397,9 @@ export function App() {
             toast(`${proposal.items.find((i) => i.stationId === id)?.name ?? "Move"} accepted`);
           }}
           selId={selId}
+          selZone={selZone}
+          onSelectZone={setSelZone}
+          onUpdateNoGo={(index, patch) => api.live({ type: "UPDATE_NOGO", index, patch })}
           label="ACTUAL"
           badge={TEAL}
           cell={CELL}
@@ -528,12 +543,15 @@ export function App() {
 
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
-  if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} onGuided={startGuided} /></div>;
-  if (route === "/library") return <div className="wrap"><LibraryPage api={api} subflows={subflows} library={library} /></div>;
-  if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
-  if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
-  if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
-  if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
+  // Each is wrapped in <Theme> so the entry/workspace screen re-themes with the
+  // editor (they render OUTSIDE ProcessShell's Theme).
+  const page = (node: React.ReactNode) => <Theme theme={theme}><div className="wrap">{node}</div></Theme>;
+  if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} theme={theme} onToggleTheme={toggleTheme} />);
+  if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />);
+  if (route === "/compare") return page(<ComparePage api={api} />);
+  if (route === "/site") return page(<SitePage api={api} />);
+  if (route === "/archive") return page(<ArchivePage api={api} />);
+  if (route === "/admin") return page(<AdminPage />);
 
   const editorToolbar = (
     <div className="editorbar">
@@ -745,7 +763,7 @@ export function App() {
   );
 
   return (
-    <ProcessShell step={step} reached={reached} onGoto={goTo} fullBleed={step === "refine"}>
+    <ProcessShell step={step} reached={reached} onGoto={goTo} fullBleed={step === "refine"} theme={theme} onToggleTheme={toggleTheme}>
       {step === "situation" ? (
         <SituationStep
           hasCell={api.cells.length > 0}

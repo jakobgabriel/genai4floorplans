@@ -31,6 +31,15 @@
   --amber: #e0a458;
   --red: #d96b5b;
 
+  /* Station-type fills (colors.ts TYPE_COL). Dark ramp by default; the light
+     ramp is under :root[data-theme="light"] so station boxes stay legible on
+     both themes. */
+  --type-machine: #16343a;
+  --type-manual: #2a2f1e;
+  --type-quality: #1e2a36;
+  --type-store: #2a2320;
+  --type-buffer: #241e2a;
+
   /* Carbon interactive + status */
   --interactive: var(--cds-interactive);
   --danger: var(--cds-button-danger-primary);
@@ -67,6 +76,17 @@
   /* Motion */
   --dur: 110ms;
   --ease: cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+/* Light theme: swap the station-type fills to soft tints so boxes read on white.
+   Carbon's own --cds-* tokens flip via the <Theme theme="white"> wrapper; this
+   only covers the custom data-encoding fills that Carbon doesn't own. */
+:root[data-theme="light"] {
+  --type-machine: #d6e6ea;
+  --type-manual: #e8ead9;
+  --type-quality: #dbe6f0;
+  --type-store: #efe6df;
+  --type-buffer: #e6dcef;
 }
 
 * {
@@ -295,6 +315,33 @@ main {
 }
 .editor-main > .canvas {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--sp-04);
+}
+/* The full-bleed editor canvas: viewbar stays auto, the flow area grows to fill. */
+.canvasInner-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.canvas-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.canvas-fill .layoutTitle {
+  flex: 0 0 auto;
+}
+.canvas-svg--fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
 }
 /* ---------- left library sidebar ---------- */
 .libside {
@@ -407,6 +454,9 @@ svg {
   max-width: 100%;
   height: auto;
   display: block;
+  /* Dragging stations/zones must never rubber-band-select the SVG labels. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .legend {
