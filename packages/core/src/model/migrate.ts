@@ -47,6 +47,13 @@ const toV7: Migration = (m) => ({ ...m, schemaVersion: 7 });
 // absent on every existing model, so nothing is balanced differently on load.
 const toV8: Migration = (m) => ({ ...m, schemaVersion: 8 });
 
+// version 8 -> 9: per-field data quality on stations (spec §5). Sparse and
+// absent on every existing station, so a missing entry is treated as
+// "estimated" at render — an unmarked number reads as suspect, which is the
+// intended honest default. Purely metadata: no engine number changes, so grades
+// and golden fixtures are unaffected.
+const toV9: Migration = (m) => ({ ...m, schemaVersion: 9 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -56,6 +63,7 @@ const MIGRATIONS: Record<number, Migration> = {
   5: toV6,
   6: toV7,
   7: toV8,
+  8: toV9,
 };
 
 export function migrate(raw: unknown): Model {

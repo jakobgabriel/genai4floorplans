@@ -41,6 +41,24 @@ export function sumCycle(c: CycleBreakdown): number {
   return c.valueAddSec + c.handlingSec + c.walkSec + c.waitSec + c.setupSec;
 }
 
+/** Provenance of a single stored number (spec §5, fixes Excel failure F8 —
+ *  "no confidence signal"). Rendered always-visible: `estimated` draws as a
+ *  hatched range, the firmer two as a point. A number's confidence must be
+ *  assigned when it enters the model, never inferred at render. */
+export type DataQuality = "measured" | "benchmarked" | "estimated";
+export const DATA_QUALITIES: DataQuality[] = ["measured", "benchmarked", "estimated"];
+
+/** Station numeric fields that carry a data-quality flag — the ones investment
+ *  follows, where false precision is expensive. */
+export type StationDataField = "cycleTimeSec" | "capex" | "energyKw" | "capacityPerShift" | "changeoverMin";
+export const STATION_DATA_FIELDS: StationDataField[] = [
+  "cycleTimeSec",
+  "capex",
+  "energyKw",
+  "capacityPerShift",
+  "changeoverMin",
+];
+
 export interface Station {
   id: string;
   name: string;
@@ -90,6 +108,10 @@ export interface Station {
   provides?: string[];
   /** Annual volume band this resource is validated for (spec §3.4, gate 2). */
   volumeBand?: { minUnitsPerYear: number; maxUnitsPerYear: number };
+  /** Per-field provenance for this station's numbers (spec §5). Sparse: a
+   *  missing entry is treated as "estimated" at render, so an unmarked number
+   *  reads as suspect rather than firm. Assigned at model entry, not at render. */
+  dataQuality?: Partial<Record<StationDataField, DataQuality>>;
 }
 
 /** Cost assumptions for the ROI model. Informational — not in the composite. */
@@ -227,6 +249,25 @@ export function weakestConfidence(list: Confidence[]): Confidence {
   return "high";
 }
 
+/** The confidence a per-field data quality propagates as, so a derived number
+ *  (TCO, station-count, throughput) can take the weakest of its inputs (§5).
+ *  measured → high, benchmarked → med, estimated → low. */
+export function qualityConfidence(q: DataQuality): Confidence {
+  return q === "measured" ? "high" : q === "benchmarked" ? "med" : "low";
+}
+
+/** Data quality of a station field, defaulting to "estimated" when unmarked —
+ *  an unmarked number is suspect, not firm (spec §5). */
+export function fieldQuality(s: Station, field: StationDataField): DataQuality {
+  return s.dataQuality?.[field] ?? "estimated";
+}
+
+/** Confidence a station propagates, taken as the weakest across its marked
+ *  numeric fields (§5). Used when a derived figure is built from the station. */
+export function stationConfidence(s: Station, fields: StationDataField[] = STATION_DATA_FIELDS): Confidence {
+  return weakestConfidence(fields.map((f) => qualityConfidence(fieldQuality(s, f))));
+}
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -261,7 +302,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {
