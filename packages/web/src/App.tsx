@@ -19,7 +19,7 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
 import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
-import { ChartColumn, Compare, FlowConnection, GroupObjects, Idea, Layers, SidePanelClose } from "@carbon/icons-react";
+import { ChartColumn, Compare, FlowConnection, GroupObjects, Idea, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -39,6 +39,8 @@ import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { improvedLayout } from "@flowplan/core/engine/improved";
+import { costAnalysis } from "@flowplan/core/engine/cost";
+import { OptimizeModal } from "./components/OptimizeModal";
 import { useSubflows, makeSubflow } from "./store/subflows";
 import { useLibrary } from "./store/library";
 import { catalogStationPatch } from "@flowplan/core/model/catalog";
@@ -152,6 +154,7 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [showOptimize, setShowOptimize] = useState(false);
   const [route] = useHashRoute();
   // Collapsible config panel (persisted). The workspace is now a global page.
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
@@ -347,11 +350,26 @@ export function App() {
   // reposition), not just pairwise swaps. Recomputed with the model.
   const improved = useMemo(() => improvedLayout(model), [model]);
   const improvedModel = { ...model, stations: improved.stations };
+  const cost = useMemo(() => costAnalysis(model), [model]);
 
   // §4: the optimizer's output is a proposal, not a write. Recomputed with the
   // rating; dismissal is cleared whenever a genuinely new one appears.
   const proposal = useMemo(() => makePlacementProposal(model, rating), [model, rating]);
   useEffect(() => { setProposalDismissed(false); }, [proposal?.baseSignature]);
+
+  // Applying the optimised layout — reused by the Improved view and the
+  // one-click Optimize modal. Non-destructive: a form re-lay is an
+  // APPLY_TEMPLATE, a reposition is an ACCEPT_PROPOSAL, both undoable.
+  const applyImproved = useCallback(() => {
+    if (improved.strategy === "form" && improved.form) {
+      api.commit({ type: "APPLY_TEMPLATE", form: improved.form });
+      toast(`Applied ${improved.form}-form layout`);
+    } else if (proposal) {
+      api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
+      toast(`${proposal.items.length} move${proposal.items.length === 1 ? "" : "s"} accepted`);
+    }
+    setView("actual");
+  }, [api, improved.strategy, improved.form, proposal, toast]);
 
   // One drop handler for every draggable in the left library sidebar and the
   // palette: a station kind, a typed zone ("zone:*"), a library entry ("lib:*"),
@@ -480,16 +498,6 @@ export function App() {
       </div>
     );
   } else if (view === "improved") {
-    const applyImproved = () => {
-      if (improved.strategy === "form" && improved.form) {
-        api.commit({ type: "APPLY_TEMPLATE", form: improved.form });
-        toast(`Applied ${improved.form}-form layout`);
-      } else if (proposal) {
-        api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
-        toast(`${proposal.items.length} move${proposal.items.length === 1 ? "" : "s"} accepted`);
-      }
-      setView("actual");
-    };
     canvasInner = (
       <div>
         <LayoutCanvas model={improvedModel} stations={improvedModel.stations} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
@@ -673,6 +681,16 @@ export function App() {
               <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
                 <Button
                   size="sm"
+                  kind="primary"
+                  renderIcon={MagicWand}
+                  title="Reposition stations for the shortest material path and preview the before/after savings"
+                  onClick={() => setShowOptimize(true)}
+                >
+                  Optimize
+                </Button>
+                <span className="hsep" />
+                <Button
+                  size="sm"
                   kind={mode === "group" ? "primary" : "ghost"}
                   renderIcon={GroupObjects}
                   title="Group mode: drag a rectangle around steps to save them as a reusable grouped element"
@@ -842,6 +860,17 @@ export function App() {
 
       {hover ? <StationTooltip station={hover.station} x={hover.x} y={hover.y} shiftHours={model.shiftHours ?? 8} /> : null}
 
+      {showOptimize ? (
+        <OptimizeModal
+          open
+          model={model}
+          improved={improved}
+          rating={rating}
+          cost={cost}
+          onApply={applyImproved}
+          onClose={() => setShowOptimize(false)}
+        />
+      ) : null}
       {showSettings ? (
         <SettingsModal initial={settings} onClose={() => setShowSettings(false)} onSaved={setSettings} />
       ) : null}

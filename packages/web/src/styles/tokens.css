@@ -1315,6 +1315,26 @@ input.est-field {
   margin-left: var(--sp-04);
 }
 
+/* ---------- optimize layout modal (before/after) ---------- */
+.opt-modal__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-05);
+}
+.opt-modal__rationale {
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+.opt-modal__note {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  line-height: 1.5;
+  margin-top: var(--sp-05);
+}
+
 /* ---------- process library (master-detail) ---------- */
 .lib-layout {
   display: grid;
