@@ -52,6 +52,7 @@ import {
 import { AMBER, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
+type Overlay = "none" | "confidence" | "congestion";
 const CELL = 30;
 
 // Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
@@ -86,6 +87,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("rating");
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
+  const [overlay, setOverlay] = useState<Overlay>("none");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
@@ -327,6 +329,8 @@ export function App() {
           badge={TEAL}
           cell={CELL}
           interactive
+          overlay={overlay}
+          utilById={Object.fromEntries(rating.balance.steps.map((s) => [s.id, s.util]))}
           mode={mode}
           flowFirst={flowFirst}
           selFlow={selFlow}
@@ -503,6 +507,17 @@ export function App() {
               {vBtn("split", "⇄ Both")}
               {vBtn("dag", "⊟ DAG")}
             </div>
+            {view === "actual" ? (
+              <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
+                <span style={{ fontSize: 11, color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
+                <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
+                  Confidence
+                </button>
+                <button className={"btn sm" + (overlay === "congestion" ? " on" : "")} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
+                  Congestion
+                </button>
+              </div>
+            ) : null}
           </div>
           {canvasInner}
           <div className="legend">

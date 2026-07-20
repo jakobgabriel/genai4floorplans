@@ -4,6 +4,7 @@ import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
+import { fieldQuality } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
 import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
 
@@ -64,6 +65,10 @@ interface Props {
   onWire?: (from: string, to: string) => void;
   /** A palette node dropped on the canvas, at fractional grid coords. */
   onDropNode?: (kind: string, gridX: number, gridY: number) => void;
+  /** Composable canvas overlay (spec §37, the city-builder idiom). */
+  overlay?: "none" | "confidence" | "congestion";
+  /** Per-station utilization (0-100) for the congestion overlay. */
+  utilById?: Record<string, number>;
 }
 
 export function LayoutCanvas(props: Props) {
@@ -256,6 +261,10 @@ export function LayoutCanvas(props: Props) {
           <marker id="fp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
           </marker>
+          <pattern id="fp-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="transparent" />
+            <line x1="0" y1="0" x2="0" y2="6" stroke={AMBER} strokeWidth="1.4" opacity="0.5" />
+          </pattern>
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
@@ -431,6 +440,24 @@ export function LayoutCanvas(props: Props) {
                   {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
                 </>
               )}
+              {/* Composable overlay (spec §37). Confidence hatches steps built on
+                  an estimated cycle; congestion heats by utilization. */}
+              {(() => {
+                const ov = props.overlay ?? "none";
+                if (ov === "none" || s.role !== "process") return null;
+                const rx = PAD + s.x * cell;
+                const ry = PAD + s.y * cell;
+                const rw = s.w * cell;
+                const rh = s.h * cell;
+                if (ov === "confidence") {
+                  if (fieldQuality(s, "cycleTimeSec") !== "estimated") return null;
+                  return <rect x={rx} y={ry} width={rw} height={rh} rx={shaped ? 0 : 5} fill="url(#fp-hatch)" pointerEvents="none" />;
+                }
+                // congestion: teal (cool) → amber → red (hot) by utilization.
+                const u = Math.max(0, Math.min(100, props.utilById?.[s.id] ?? 0));
+                const heat = u >= 85 ? RED : u >= 60 ? AMBER : TEAL;
+                return <rect x={rx} y={ry} width={rw} height={rh} rx={shaped ? 0 : 5} fill={heat} opacity={0.1 + (u / 100) * 0.4} pointerEvents="none" />;
+              })()}
               {units > 1 ? (
                 <text x={PAD + s.x * cell + 5} y={PAD + (s.y + s.h) * cell - 5} fill={TEAL} fontSize={9} fontWeight={700} style={{ pointerEvents: "none" }}>
                   ×{units}
