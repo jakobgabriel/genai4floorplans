@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
-import { ArrowLeft, TrashCan } from "@carbon/icons-react";
+import { Button, Tile, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
+import { ArrowLeft, TrashCan, Workspace } from "@carbon/icons-react";
 import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceSummary, type User } from "../admin/adminApi";
 import { navigate } from "../store/useHashRoute";
 import { useToast } from "../components/ui";
@@ -56,8 +56,8 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
   };
 
   return (
-    <div className="chart-card" style={{ maxWidth: 380 }}>
-      <div className="layoutTitle">{mode === "login" ? "Sign in" : "Create an account"}</div>
+    <Tile className="bi-card" style={{ maxWidth: 380 }}>
+      <div className="bi-card__head"><h3 className="bi-card__title">{mode === "login" ? "Sign in" : "Create an account"}</h3></div>
       {mode === "register" ? (
         <div className="field"><label>Name (optional)</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
       ) : null}
@@ -72,7 +72,7 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
         </Button>
       </div>
       <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
-    </div>
+    </Tile>
   );
 }
 
@@ -98,8 +98,8 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
 
   return (
     <div className="admin-grid">
-      <div className="chart-card">
-        <div className="layoutTitle">Teams</div>
+      <Tile className="bi-card">
+        <div className="bi-card__head"><h3 className="bi-card__title">Teams</h3></div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
           <Button size="sm" kind="tertiary" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Button>
@@ -110,12 +110,12 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
             {t.name}
           </Button>
         ))}
-      </div>
+      </Tile>
 
       {sel && detail ? (
         <>
-          <div className="chart-card">
-            <div className="layoutTitle">Members · {detail.name}</div>
+          <Tile className="bi-card">
+            <div className="bi-card__head"><h3 className="bi-card__title">Members · {detail.name}</h3></div>
             <AddMember teamId={sel} onDone={reloadDetail} fail={fail} />
             <StructuredListWrapper isCondensed>
               <StructuredListHead><StructuredListRow head><StructuredListCell head>Member</StructuredListCell><StructuredListCell head>Role</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
@@ -133,22 +133,22 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
                 ))}
               </StructuredListBody>
             </StructuredListWrapper>
-          </div>
+          </Tile>
 
-          <div className="chart-card">
-            <div className="layoutTitle">Workspaces · {detail.name}</div>
+          <Tile className="bi-card">
+            <div className="bi-card__head"><h3 className="bi-card__title">Workspaces · {detail.name}</h3></div>
             <NewWorkspace teamId={sel} onDone={() => select(sel)} fail={fail} />
             {workspaces.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No workspaces yet.</p> : null}
             {workspaces.map((w) => (
               <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--line)" }}>
-                <span style={{ color: TEAL }}>▣</span> {w.name}
+                <Workspace size={14} style={{ verticalAlign: "-2px", marginRight: 4, color: TEAL }} /> {w.name}
                 <span style={{ fontSize: 10, color: TEXTD }}> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
               </div>
             ))}
-          </div>
+          </Tile>
         </>
       ) : (
-        <div className="chart-card"><p style={{ color: TEXTD }}>Select a team to manage its members and workspaces.</p></div>
+        <Tile className="bi-card"><p style={{ color: TEXTD }}>Select a team to manage its members and workspaces.</p></Tile>
       )}
     </div>
   );

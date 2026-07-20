@@ -137,6 +137,15 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-top: 3rem; /* clears the fixed Carbon Header (AppHeader) */
+}
+/* Page intro paragraph under a page title — Carbon helper-text style. */
+.page-sub {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.43;
+  max-width: 60ch;
+  margin: 0 0 var(--cds-spacing-05);
 }
 
 /* NOTE: there is deliberately no bare `header {}` rule here. The editor's
@@ -1437,4 +1446,141 @@ input.est-field {
 .rail-tabbar .cds--tabs {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* ---------- Analysis: business-analytics dashboard ---------- */
+.bi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-05);
+}
+.bi-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-03);
+}
+.bi-kpi {
+  padding: var(--sp-05);
+}
+.bi-kpi__lab {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.bi-kpi__val {
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: var(--sp-02);
+  font-family: "IBM Plex Sans", sans-serif;
+}
+.bi-kpi__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-02);
+}
+.bi-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-05);
+}
+.bi-row--2 {
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
+.bi-card {
+  padding: var(--sp-05);
+}
+.bi-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-04);
+}
+.bi-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
+}
+.bi-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-04);
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.bi-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+}
+.bi-legend__sw {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.bi-split__bar {
+  display: flex;
+  height: 0.75rem;
+  width: 100%;
+  overflow: hidden;
+  background: var(--cds-layer-accent-01);
+  margin-bottom: var(--sp-03);
+}
+.bi-split__seg {
+  height: 100%;
+  border-right: 2px solid var(--cds-layer-01);
+}
+.bi-split__seg:last-child {
+  border-right: 0;
+}
+.bi-scroll {
+  overflow-x: auto;
+}
+.bi-note {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-04);
+  line-height: 1.4;
+}
+.bi-empty {
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-05) 0;
+}
+
+/* Material-flow card: inline KPI row + sub-label. */
+.bi-flowkpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-06);
+  margin-bottom: var(--sp-05);
+}
+.bi-flowkpi {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.bi-flowkpi__lab {
+  display: block;
+  margin-bottom: var(--sp-02);
+}
+.bi-flowkpi__val {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--cds-text-primary);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.bi-card__sublab {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-bottom: var(--sp-03);
 }

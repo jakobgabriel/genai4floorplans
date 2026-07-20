@@ -44,7 +44,7 @@ function cycleField(): HTMLInputElement {
 
 /** The five breakdown inputs, scoped to the breakdown card. */
 function breakdownInputs(): HTMLInputElement[] {
-  const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+  const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
   return within(card).getAllByRole("spinbutton") as HTMLInputElement[];
 }
 
@@ -97,7 +97,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
     const inputs = breakdownInputs();
     expect(inputs).toHaveLength(5); // valueAdd, handling, walk, wait, setup
 
@@ -148,7 +148,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
     fireEvent.click(within(card).getByRole("button", { name: "Reset" }));
 
     expect(screen.queryByText("Cycle breakdown")).toBeNull();
