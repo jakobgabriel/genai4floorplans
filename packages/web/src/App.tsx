@@ -25,6 +25,7 @@ import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Resizer } from "./components/Resizer";
 import { ComparePage } from "./pages/ComparePage";
 import { WorkspacePage } from "./pages/WorkspacePage";
+import { LibraryPage } from "./pages/LibraryPage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
@@ -412,6 +413,7 @@ export function App() {
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
   if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
+  if (route === "/library") return <div className="wrap"><LibraryPage api={api} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;

@@ -1,5 +1,6 @@
 import type { CellForm } from "@flowplan/core/engine/templates";
 import type { Role, StationType } from "@flowplan/core/model/types";
+import { navigate } from "../store/useHashRoute";
 import { TEAL, AMBER, TEXTD, TYPE_COL } from "./colors";
 
 // The palette (node-RED idiom): drag a node onto the canvas to place it. This
@@ -65,6 +66,10 @@ export function PaletteBar({ onApplyForm }: { onApplyForm: (form: CellForm) => v
           {f.label}
         </button>
       ))}
+      <span className="palette-sep" />
+      <button className="palette-node" onClick={() => navigate("/library")} title="Open the process library — standard building blocks">
+        📚 Library
+      </button>
       <span className="palette-hint" style={{ color: TEXTD }}>· drag a node onto the grid, or a port to another node to wire</span>
     </div>
   );
