@@ -18,13 +18,13 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
 
   const kpi = (label: string, value: string, color?: string, title?: string) => (
     <div style={{ lineHeight: 1.15 }} title={title}>
-      <div style={{ fontSize: 8.5, color: TEXTD, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: color ?? "var(--text)" }}>{value}</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, textTransform: "uppercase", letterSpacing: "0.32px" }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: color ?? "var(--cds-text-primary)" }}>{value}</div>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-05)", marginLeft: "var(--cds-spacing-05)", flexWrap: "wrap" }}>
       {kpi("Grade", String(rating.letter), scoreColor(rating.composite), `Composite ${rating.composite.toFixed(1)}/100`)}
       {kpi("Output", num(rating.balance.lineOut) + "/sh", undefined, "Line output, constrained by the bottleneck")}
       {kpi(

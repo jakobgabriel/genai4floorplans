@@ -23,7 +23,7 @@ export function DataSheetPanel({ api }: PanelProps) {
     <div className="pad">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div className="lab">Cell data sheet</div>
-        <span className="pill" style={{ background: TEAL, color: "#0e1416", fontWeight: 600, letterSpacing: 0.5 }}>{d.archetype}</span>
+        <span className="pill" style={{ background: TEAL, color: "var(--cds-text-on-color)", fontWeight: 600, letterSpacing: "0.32px" }}>{d.archetype}</span>
       </div>
       <table className="schemaTbl">
         <tbody>

@@ -11,7 +11,7 @@ import "./planner/planner.css";
 import "./styles/tokens.css";
 
 const root = createRoot(document.getElementById("root")!);
-root.render(<div style={{ padding: "2rem", fontFamily: "'IBM Plex Sans',sans-serif", color: "#8d8d8d" }}>Loading workspace…</div>);
+root.render(<div style={{ padding: "2rem", fontFamily: "'IBM Plex Sans',sans-serif", color: "var(--cds-text-secondary)" }}>Loading workspace…</div>);
 
 // Establish the DB-backed session (auto-login the seeded dev user in dev), then
 // render. If the API is unreachable the app still renders in its localStorage

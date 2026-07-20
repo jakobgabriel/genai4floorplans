@@ -58,7 +58,7 @@ import {
 } from "./components/panels";
 import { AnalysisDashboard } from "./components/AnalysisDashboard";
 import { StationDoc } from "./components/ElementDoc";
-import { AMBER, TEAL, TEXTD } from "./components/colors";
+import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag" | "analysis";
 type Overlay = "none" | "confidence" | "congestion";
@@ -673,7 +673,7 @@ export function App() {
               </span>
               <span>dots: ergo (TL) · automation (TR)</span>
               <span>
-                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: RED }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
               </span>
             </div>
           )}

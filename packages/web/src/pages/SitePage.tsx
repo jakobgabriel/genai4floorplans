@@ -1,4 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
+import { Button } from "@carbon/react";
+import { ArrowLeft } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
@@ -49,7 +51,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
   return (
     <div className="page">
       <div className="page-head">
-        <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
+        <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
         <h1 className="page-title">Site overview</h1>
       </div>
 
@@ -93,7 +95,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
                     <td>{cur}{r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                     <td>
                       {r.id === api.activeId ? <span style={{ color: TEXTD }}>active</span> : (
-                        <button className="btn sm" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</button>
+                        <Button size="sm" kind="tertiary" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</Button>
                       )}
                     </td>
                   </tr>

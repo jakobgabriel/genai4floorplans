@@ -372,7 +372,7 @@ main {
   min-height: 0;
 }
 .libside__group {
-  font-size: 10px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--textDim);
@@ -385,7 +385,7 @@ main {
   margin-top: 0;
 }
 .libside__manage {
-  font-size: 10px;
+  font-size: 0.75rem;
   text-transform: none;
   letter-spacing: 0;
   color: var(--cds-link-primary);
@@ -404,7 +404,7 @@ main {
   align-items: center;
   gap: 5px;
   padding: 3px 7px;
-  font-size: 11.5px;
+  font-size: 0.75rem;
   border: 1px solid var(--cds-border-subtle-01);
   border-left-width: 3px;
   background: var(--cds-layer-02);
@@ -419,7 +419,7 @@ main {
   gap: var(--sp-03);
 }
 .libside__empty {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
 }
 .canvas {
@@ -805,7 +805,7 @@ code {
   border-bottom: 1px solid var(--cds-border-subtle-01);
 }
 .palette-lab {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--cds-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -831,7 +831,7 @@ code {
 .palette-swatch {
   width: 8px;
   height: 8px;
-  border-radius: 1px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .palette-form {
@@ -853,7 +853,7 @@ code {
   margin: 0 var(--sp-02);
 }
 .palette-hint {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* ---------- data quality / confidence (spec §5) ---------- */
@@ -876,7 +876,7 @@ code {
   border-bottom: 1px dashed var(--amber);
 }
 .qmark {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   margin-left: 3px;
   vertical-align: 0.05em;
 }
@@ -891,7 +891,7 @@ code {
   width: 1.1rem;
   height: 1.1rem;
   padding: 0;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1;
   background: var(--cds-layer-02);
   color: var(--cds-text-secondary);
@@ -930,7 +930,7 @@ input.est-field {
   border-radius: 50%;
   border: 1px solid var(--cds-text-secondary);
   color: var(--cds-text-secondary);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   margin-left: var(--sp-02);
   cursor: help;
   position: relative;
@@ -1179,7 +1179,7 @@ input.est-field {
   padding: var(--sp-05);
 }
 .dash-tile__lab {
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--textDim);
@@ -1188,13 +1188,13 @@ input.est-field {
   gap: 2px;
 }
 .dash-tile__val {
-  font-size: 24px;
+  font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.2;
   margin-top: 4px;
 }
 .dash-tile__sub {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
   margin-top: 2px;
 }
@@ -1214,7 +1214,7 @@ input.est-field {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
 }
 .dash-legend__item {
@@ -1226,7 +1226,7 @@ input.est-field {
 .dash-legend__sw {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 0;
   display: inline-block;
 }
 .dash-dag {
@@ -1234,7 +1234,7 @@ input.est-field {
 }
 .dash-note,
 .dash-empty {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
   margin-top: var(--sp-03);
 }
@@ -1255,17 +1255,17 @@ input.est-field {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 .improved-metric {
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 600;
 }
 .improved-rationale {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--textDim);
   line-height: 1.5;
   margin: var(--sp-04) 0;
 }
 .improved-note {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
   margin-left: var(--sp-04);
 }
@@ -1308,24 +1308,24 @@ input.est-field {
 .lib-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .lib-item__name {
   flex: 1 1 auto;
-  font-size: 12.5px;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .lib-item__meta {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   flex: 0 0 auto;
 }
 .lib-tag {
-  font-size: 9px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--amber);
@@ -1340,7 +1340,7 @@ input.est-field {
 .lib-member > summary {
   padding: var(--sp-03) var(--sp-04);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ---------- element documentation ---------- */
@@ -1348,11 +1348,11 @@ input.est-field {
   margin-bottom: var(--sp-04);
 }
 .element-doc__title {
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 600;
 }
 .element-doc__sub {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
   text-transform: capitalize;
 }

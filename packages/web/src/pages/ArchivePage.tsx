@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Button } from "@carbon/react";
+import { ArrowLeft } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
 import { ConfirmableButton } from "../components/ConfirmableButton";
@@ -23,7 +25,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
   return (
     <div className="page">
       <div className="page-head">
-        <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
+        <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
         <h1 className="page-title">Archive</h1>
       </div>
 
@@ -42,7 +44,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                       <td>🗀 {f.name}</td>
                       <td style={{ color: TEXTD }}>{folderName(f.parentId) || "Workspace root"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn sm" onClick={() => api.restoreFolder(f.id)}>Restore</button>
+                        <Button size="sm" kind="tertiary" onClick={() => api.restoreFolder(f.id)}>Restore</Button>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeFolder(f.id)} />
                       </td>
                     </tr>
@@ -64,7 +66,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                       <td>◈ {c.name}</td>
                       <td style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn sm" onClick={() => api.restoreConcept(c.id)}>Restore</button>
+                        <Button size="sm" kind="tertiary" onClick={() => api.restoreConcept(c.id)}>Restore</Button>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeConcept(c.id)} />
                       </td>
                     </tr>
@@ -86,7 +88,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                       <td>▦ {c.name}</td>
                       <td style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn sm" onClick={() => api.restoreCell(c.id)}>Restore</button>
+                        <Button size="sm" kind="tertiary" onClick={() => api.restoreCell(c.id)}>Restore</Button>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeCell(c.id)} />
                       </td>
                     </tr>

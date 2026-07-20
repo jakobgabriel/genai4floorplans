@@ -6,7 +6,7 @@ import { costAnalysis } from "@flowplan/core/engine/cost";
 import { YamazumiChart } from "./charts";
 import { DagView } from "./DagView";
 import { OpenPointsSection, ImprovementList, type PanelProps } from "./panels";
-import { AMBER, CYCLE_COL, RED, TEAL, TEXTD, scoreColor } from "./colors";
+import { AMBER, CYCLE_COL, PURPLE, RED, TEAL, TEXTD, scoreColor } from "./colors";
 import { HelpPopover } from "./ui";
 
 // The Analysis "Overview" as a readable Carbon dashboard rather than dense
@@ -15,7 +15,7 @@ import { HelpPopover } from "./ui";
 // Every figure is derived from pieces that already exist (rating, cycle, cost,
 // freedom) — this component only arranges them.
 
-const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: "#a582c9", compulsory: TEXTD };
+const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: PURPLE, compulsory: TEXTD };
 
 function DashTile({ label, value, sub, color, help }: { label: string; value: string; sub?: string; color?: string; help?: string }) {
   return (

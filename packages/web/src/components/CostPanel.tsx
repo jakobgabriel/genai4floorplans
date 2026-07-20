@@ -2,7 +2,7 @@ import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
 import { Field, HelpPopover } from "./ui";
 import type { PanelProps } from "./panels";
-import { AMBER, TEAL, TEXTD, scoreColor } from "./colors";
+import { AMBER, RED, TEAL, TEXTD, scoreColor } from "./colors";
 
 // Cost & ROI panel. Informational — reuses costAnalysis (which reuses the flow
 // and balance engines). Not part of the composite grade.
@@ -86,7 +86,7 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
         Automation ROI
       </div>
       {c.automation.map((a) => {
-        const col = a.paybackMonths == null ? TEXTD : a.paybackMonths <= 18 ? TEAL : a.paybackMonths <= 36 ? AMBER : "#d96b5b";
+        const col = a.paybackMonths == null ? TEXTD : a.paybackMonths <= 18 ? TEAL : a.paybackMonths <= 36 ? AMBER : RED;
         return (
           <div key={a.id} className="card" style={{ cursor: "pointer" }} onClick={() => { setSel(a.id); setTab("inspect"); }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>

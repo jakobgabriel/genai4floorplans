@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@carbon/react";
+import { ArrowLeft, TrashCan } from "@carbon/icons-react";
 import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceSummary, type User } from "../admin/adminApi";
 import { navigate } from "../store/useHashRoute";
 import { useToast } from "../components/ui";
@@ -18,12 +20,12 @@ export function AdminPage() {
 
   const head = (
     <div className="page-head">
-      <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
+      <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
       <h1 className="page-title">Admin · teams &amp; workspaces</h1>
       {user ? (
         <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", color: TEXTD, fontSize: 12 }}>
           {user.email}
-          <button className="btn sm" onClick={() => adminApi.logout().then(() => setUser(null))}>Sign out</button>
+          <Button size="sm" kind="tertiary" onClick={() => adminApi.logout().then(() => setUser(null))}>Sign out</Button>
         </span>
       ) : null}
     </div>
@@ -62,12 +64,12 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
       <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
       <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button className="btn on" disabled={busy || !email || password.length < 8} onClick={submit}>
+        <Button size="sm" kind="primary" disabled={busy || !email || password.length < 8} onClick={submit}>
           {mode === "login" ? "Sign in" : "Register"}
-        </button>
-        <button className="btn sm" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+        </Button>
+        <Button size="sm" kind="tertiary" onClick={() => setMode(mode === "login" ? "register" : "login")}>
           {mode === "login" ? "Need an account?" : "Have an account?"}
-        </button>
+        </Button>
       </div>
       <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
     </div>
@@ -100,13 +102,13 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
         <div className="layoutTitle">Teams</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
-          <button className="btn sm" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</button>
+          <Button size="sm" kind="tertiary" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Button>
         </div>
         {teams.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No teams yet — create one (you become its owner).</p> : null}
         {teams.map((t) => (
-          <button key={t.id} className={"btn sm" + (sel === t.id ? " on" : "")} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 4 }} onClick={() => select(t.id)}>
+          <Button key={t.id} size="sm" kind={sel === t.id ? "primary" : "tertiary"} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 4 }} onClick={() => select(t.id)}>
             {t.name}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -126,7 +128,7 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
-                    <td><button className="btn sm danger" onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</button></td>
+                    <td><Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</Button></td>
                   </tr>
                 ))}
               </tbody>
@@ -159,7 +161,7 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
       <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1 }} />
       <select value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
-      <button className="btn sm" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</button>
+      <Button size="sm" kind="tertiary" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Button>
     </div>
   );
 }
@@ -169,7 +171,7 @@ function NewWorkspace({ teamId, onDone, fail }: { teamId: string; onDone: () => 
   return (
     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
       <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
-      <button className="btn sm" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</button>
+      <Button size="sm" kind="tertiary" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</Button>
     </div>
   );
 }
