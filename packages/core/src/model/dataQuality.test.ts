@@ -84,7 +84,7 @@ describe("migration v8 -> v9", () => {
     };
     const m = migrate(v8);
     expect(m.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(9);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(9);
     // dataQuality stays sparse (absent) — no materialised defaults.
     expect(m.stations[0].dataQuality).toBeUndefined();
     expect(m.stations[0].cycleTimeSec).toBe(12);

@@ -10,6 +10,7 @@ import { findImprovements, type Improvement } from "@flowplan/core/engine/improv
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { classifyFreedom, type FreedomFinding } from "@flowplan/core/engine/freedom";
 import { openPoints } from "@flowplan/core/engine/openpoints";
+import { guardrailCheck } from "@flowplan/core/engine/guardrails";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
@@ -324,6 +325,38 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <ParallelSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
       <FreedomSection api={api} setTab={setTab} />
+      <GuardrailSection api={api} setSel={setSel} setTab={setTab} />
+    </div>
+  );
+}
+
+// Guardrail contract (blueprint §10). The four material paths and, above all,
+// the good/reject separation the cell guarantees at its edges. Only shown once
+// reject/rework paths are modelled.
+function GuardrailSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const findings = useMemo(() => guardrailCheck(api.model), [api.model]);
+  const hasReject = api.model.flows.some((f) => (f.kind ?? "good") !== "good");
+  if (!hasReject && findings.length === 0) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="lab" style={{ marginBottom: 6, display: "flex", alignItems: "center" }}>
+        Guardrails — four material paths
+        <HelpPopover text="The cell's interface contract (blueprint §10). The separation is the guardrail: a reject must not be able to leave on the good-part route, ensured by geometry. NOK = red, RWK = amber dashed on the canvas." />
+      </div>
+      {findings.length === 0 ? (
+        <div className="ok">Good and reject paths are spatially separated — a mix-up is impossible by design.</div>
+      ) : (
+        findings.map((f) => (
+          <div
+            key={f.id}
+            className="issue"
+            style={{ borderLeftColor: f.severity === "error" ? RED : AMBER, marginBottom: 6, cursor: f.stationId ? "pointer" : "default", fontSize: 11 }}
+            onClick={() => { if (f.stationId) { setSel(f.stationId); setTab("inspect"); } }}
+          >
+            {f.message}
+          </div>
+        ))
+      )}
     </div>
   );
 }

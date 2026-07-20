@@ -128,6 +128,12 @@ export interface CostConfig {
   materialSupplyFactor?: number;
 }
 
+/** The four separated material paths (blueprint §09/§10). The separation itself
+ *  is the guardrail: a reject must not be able to leave on the good-part route,
+ *  ensured by geometry, not by a work instruction. Absent ⇒ "good". */
+export type FlowKind = "good" | "nok" | "rwk";
+export const FLOW_KINDS: FlowKind[] = ["good", "nok", "rwk"];
+
 export interface Flow {
   from: string;
   to: string;
@@ -140,6 +146,8 @@ export interface Flow {
   share?: number;
   /** Units of this input consumed per assembled unit at an "assemble" merge. Default 1. */
   unitsPerAssembly?: number;
+  /** Which of the four material paths this flow is. Absent ⇒ good part. */
+  kind?: FlowKind;
 }
 
 export interface NoGoZone {
@@ -314,7 +322,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

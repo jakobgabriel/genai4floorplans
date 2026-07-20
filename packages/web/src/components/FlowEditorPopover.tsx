@@ -1,5 +1,5 @@
 import type { Flow } from "@flowplan/core/model/types";
-import { TRANSPORT } from "@flowplan/core/model/types";
+import { TRANSPORT, FLOW_KINDS } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { Field } from "./ui";
 import { CloseButton } from "./CloseButton";
@@ -66,6 +66,16 @@ export function FlowEditorPopover({
         >
           {TRANSPORT.map((t) => (
             <option key={t}>{t}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Material path" help="good = IN/OUT good part · nok = reject ejection · rwk = rework return. Reject paths must leave in a different direction from the good part.">
+        <select
+          value={f.kind ?? "good"}
+          onChange={(e) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { kind: e.target.value as Flow["kind"] } })}
+        >
+          {FLOW_KINDS.map((k) => (
+            <option key={k} value={k}>{k === "good" ? "good part" : k === "nok" ? "NOK (reject)" : "RWK (rework)"}</option>
           ))}
         </select>
       </Field>

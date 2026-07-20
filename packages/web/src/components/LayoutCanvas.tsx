@@ -295,8 +295,14 @@ export function LayoutCanvas(props: Props) {
           const w = 0.5 + (f.volume / 1200) * 3;
           const k = linkKind[f.from + ">" + f.to];
           const onCp = cpEdges.has(f.from + ">" + f.to);
-          const col = onCp ? TEAL : k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
-          const dash = k === "manual" || k === "mixed" ? "5 4" : undefined;
+          // Reject/rework paths take priority in colouring — they must read as a
+          // separate material path (blueprint §10).
+          const fkind = f.kind ?? "good";
+          const col =
+            fkind === "nok" ? RED :
+            fkind === "rwk" ? AMBER :
+            onCp ? TEAL : k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
+          const dash = fkind === "nok" ? undefined : fkind === "rwk" ? "5 4" : k === "manual" || k === "mixed" ? "5 4" : undefined;
           const sel = props.selFlow && props.selFlow.from === f.from && props.selFlow.to === f.to;
           const x1 = PAD + op.x * cell;
           const y1 = PAD + op.y * cell;

@@ -54,6 +54,10 @@ const toV8: Migration = (m) => ({ ...m, schemaVersion: 8 });
 // and golden fixtures are unaffected.
 const toV9: Migration = (m) => ({ ...m, schemaVersion: 9 });
 
+// version 9 -> 10: flow kinds (good/nok/rwk) for the four separated material
+// paths. Absent on every existing flow (⇒ "good"), so no analysis changes.
+const toV10: Migration = (m) => ({ ...m, schemaVersion: 10 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -64,6 +68,7 @@ const MIGRATIONS: Record<number, Migration> = {
   6: toV7,
   7: toV8,
   8: toV9,
+  9: toV10,
 };
 
 export function migrate(raw: unknown): Model {
