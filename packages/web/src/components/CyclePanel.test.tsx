@@ -37,8 +37,7 @@ function inspect(stationName: string) {
 
 /** The opaque "Cycle time (s)" input, located via its field label. */
 function cycleField(): HTMLInputElement {
-  const label = screen.getByText(/Cycle time \(s\)/).closest("label") as HTMLElement;
-  return label.querySelector("input") as HTMLInputElement;
+  return screen.getByLabelText(/Cycle time \(s\)/) as HTMLInputElement;
 }
 
 /** The five breakdown inputs, scoped to the breakdown card. */
