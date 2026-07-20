@@ -35,6 +35,7 @@ import { StationTooltip } from "./components/StationTooltip";
 import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
+import { improvedLayout } from "@flowplan/core/engine/improved";
 import { CostPanel } from "./components/CostPanel";
 import { DataSheetPanel } from "./components/DataSheetPanel";
 import { CapacityPanel } from "./components/CapacityPanel";
@@ -283,7 +284,10 @@ export function App() {
   const gotoInput = useCallback((t: Tab) => { setView("actual"); setTab(t); }, []);
   const analysisPanelProps: PanelProps = { ...panelProps, setTab: gotoInput, setSel: selectAndInspect };
 
-  const improvedModel = { ...model, stations: rating.optimized };
+  // The Improved view is a genuinely-better relayout (best cell form or a
+  // reposition), not just pairwise swaps. Recomputed with the model.
+  const improved = useMemo(() => improvedLayout(model), [model]);
+  const improvedModel = { ...model, stations: improved.stations };
 
   // §4: the optimizer's output is a proposal, not a write. Recomputed with the
   // rating; dismissal is cleared whenever a genuinely new one appears.
@@ -368,16 +372,42 @@ export function App() {
       </div>
     );
   } else if (view === "improved") {
+    const applyImproved = () => {
+      if (improved.strategy === "form" && improved.form) {
+        api.commit({ type: "APPLY_TEMPLATE", form: improved.form });
+        toast(`Applied ${improved.form}-form layout`);
+      } else if (proposal) {
+        api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
+        toast(`${proposal.items.length} move${proposal.items.length === 1 ? "" : "s"} accepted`);
+      }
+      setView("actual");
+    };
     canvasInner = (
       <div>
-        <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
-        <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
-        </div>
-        <div style={{ fontSize: 12, color: TEXTD, marginTop: 10 }}>
-          {proposal
-            ? `${proposal.items.length} proposed move${proposal.items.length === 1 ? "" : "s"} — switch to Actual to accept them on the canvas.`
-            : "Already optimal — no moves to propose."}
+        <LayoutCanvas model={improvedModel} stations={improvedModel.stations} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
+        <div className="improved-summary">
+          {improved.better ? (
+            <>
+              <div className="improved-metrics">
+                <span className="improved-metric" style={{ color: TEAL }}>
+                  {improved.deltas.flowCostPct.toFixed(0)}% flow cost
+                </span>
+                <span className="improved-metric" style={{ color: improved.deltas.travelPct < 0 ? TEAL : TEXTD }}>
+                  {improved.deltas.travelPct.toFixed(0)}% travel
+                </span>
+                <span className="improved-metric" style={{ color: TEXTD }}>
+                  {improved.strategy === "form" ? `${improved.form}-form` : `${improved.deltas.moved} moved`}
+                </span>
+              </div>
+              <p className="improved-rationale">{improved.rationale}</p>
+              <Button size="sm" kind="primary" onClick={applyImproved}>
+                Apply this layout
+              </Button>
+              <span className="improved-note">Non-destructive — you can undo (Ctrl/Cmd+Z).</span>
+            </>
+          ) : (
+            <p className="improved-rationale">{improved.rationale}</p>
+          )}
         </div>
       </div>
     );
@@ -387,7 +417,7 @@ export function App() {
     canvasInner = (
       <div className="splitWrap">
         <LayoutCanvas model={model} stations={model.stations} flows={model.flows} chain={api.chain} selId={selId} label="ACTUAL" badge={TEAL} cell={CELL - 4} onSelect={setSel} />
-        <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL - 4} onSelect={setSel} />
+        <LayoutCanvas model={improvedModel} stations={improvedModel.stations} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL - 4} onSelect={setSel} />
       </div>
     );
   } else {

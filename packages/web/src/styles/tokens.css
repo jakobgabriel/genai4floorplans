@@ -1094,6 +1094,34 @@ input.est-field {
   padding: var(--sp-05) 0;
 }
 
+/* ---------- improved view summary ---------- */
+.improved-summary {
+  margin-top: var(--sp-05);
+  max-width: 640px;
+}
+.improved-metrics {
+  display: flex;
+  gap: var(--sp-05);
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.improved-metric {
+  font-size: 15px;
+  font-weight: 600;
+}
+.improved-rationale {
+  font-size: 12px;
+  color: var(--textDim);
+  line-height: 1.5;
+  margin: var(--sp-04) 0;
+}
+.improved-note {
+  font-size: 10.5px;
+  color: var(--textDim);
+  margin-left: var(--sp-04);
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 1056px) {
