@@ -59,7 +59,7 @@ describe("planner — entry", () => {
     fireEvent.click(screen.getByText("Improve a planned cell"));
     // Skips demand/process/concepts entirely — that case already has a layout.
     // The editor (inputs-only rail) is shown; the view toggle is always present.
-    expect(screen.getByText("● Actual")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
   });
 });
 
@@ -124,7 +124,7 @@ describe("planner — guided flow", () => {
     toConcepts();
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor is a stage of the process, not a separate destination.
-    expect(screen.getByText("● Actual")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
     // ...with a forward exit to the Summary.
     expect(screen.getByRole("button", { name: "Continue to summary" })).toBeTruthy();
   });
@@ -149,7 +149,7 @@ describe("planner — guided flow", () => {
   it("runs the editor full-screen, without the planning stepper", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Start from the sample cell" }));
-    expect(screen.getByText("● Actual")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
     // The node-RED editor is chromeless: the planning stepper is hidden so the
     // canvas fills the viewport between the two rails.
     expect(document.querySelector(".shell__steps")).toBeNull();

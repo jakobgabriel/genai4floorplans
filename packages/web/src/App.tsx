@@ -18,7 +18,7 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
 import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
-import { SidePanelClose } from "@carbon/icons-react";
+import { ChartColumn, Compare, FlowConnection, GroupObjects, Idea, Layers, SidePanelClose } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -330,11 +330,11 @@ export function App() {
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
 
-  function vBtn(k: View, l: string) {
+  function vBtn(k: View, label: string, Icon: typeof Layers) {
     return (
-      <button className={"btn" + (view === k ? " on" : "")} onClick={() => setView(k)}>
-        {l}
-      </button>
+      <Button size="sm" kind={view === k ? "primary" : "ghost"} renderIcon={Icon} onClick={() => setView(k)}>
+        {label}
+      </Button>
     );
   }
   // Analysis panels deep-link to inputs (e.g. Balance → Configure); wrap setTab
@@ -653,29 +653,31 @@ export function App() {
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
-              {vBtn("actual", "● Actual")}
-              {vBtn("improved", "◇ Improved")}
-              {vBtn("split", "⇄ Both")}
-              {vBtn("dag", "⊟ DAG")}
-              {vBtn("analysis", "📊 Analysis")}
+              {vBtn("actual", "Actual", Layers)}
+              {vBtn("improved", "Improved", Idea)}
+              {vBtn("split", "Both", Compare)}
+              {vBtn("dag", "DAG", FlowConnection)}
+              {vBtn("analysis", "Analysis", ChartColumn)}
             </div>
             {view === "actual" ? (
               <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
-                <button
-                  className={"btn sm" + (mode === "group" ? " on" : "")}
+                <Button
+                  size="sm"
+                  kind={mode === "group" ? "primary" : "ghost"}
+                  renderIcon={GroupObjects}
                   title="Group mode: drag a rectangle around steps to save them as a reusable grouped element"
                   onClick={() => setMode((m) => (m === "group" ? "select" : "group"))}
                 >
-                  ⧉ Group
-                </button>
+                  Group
+                </Button>
                 <span className="hsep" />
                 <span style={{ fontSize: "0.75rem", color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
-                <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
+                <Button size="sm" kind={overlay === "confidence" ? "primary" : "ghost"} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
                   Confidence
-                </button>
-                <button className={"btn sm" + (overlay === "congestion" ? " on" : "")} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
+                </Button>
+                <Button size="sm" kind={overlay === "congestion" ? "primary" : "ghost"} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
                   Congestion
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>

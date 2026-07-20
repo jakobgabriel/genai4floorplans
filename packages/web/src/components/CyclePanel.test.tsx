@@ -19,7 +19,7 @@ function loadSample() {
 
 // Balance now lives in the dedicated Analysis view (the rail is inputs-only).
 function openBalance() {
-  fireEvent.click(screen.getByText("📊 Analysis"));
+  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
   fireEvent.click(screen.getByRole("tab", { name: "Balance" }));
 }
 
@@ -29,7 +29,7 @@ function openBalance() {
  *  behind an "Advanced settings" toggle, so expand it for the tests that need
  *  those controls. */
 function inspect(stationName: string) {
-  fireEvent.click(screen.getByText("⊟ DAG"));
+  fireEvent.click(screen.getByRole("button", { name: "DAG" }));
   fireEvent.click(screen.getAllByText(stationName)[0]);
   const adv = screen.queryByRole("button", { name: /Advanced settings/ });
   if (adv) fireEvent.click(adv);

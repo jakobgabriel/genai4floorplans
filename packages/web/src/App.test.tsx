@@ -23,7 +23,7 @@ afterEach(cleanup);
 // The right rail is inputs-only now; all derived analysis lives in the dedicated
 // Analysis view. Open it, then pick an analysis sub-tab.
 function openAnalysis(subTab: string) {
-  fireEvent.click(screen.getByText("📊 Analysis"));
+  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
   fireEvent.click(screen.getByRole("tab", { name: subTab }));
 }
 
@@ -53,7 +53,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Automation" }));
     expect(screen.getByText(/Automation chaining/)).toBeTruthy();
     // Schema lives behind the "Schema" tab in the inputs rail.
-    fireEvent.click(screen.getByText("● Actual"));
+    fireEvent.click(screen.getByRole("button", { name: "Actual" }));
     fireEvent.click(screen.getByRole("tab", { name: "Schema" }));
     expect(screen.getByText(/Data model/)).toBeTruthy();
   });
@@ -68,7 +68,7 @@ describe("App", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // View toggle now sits in the sub-toolbar above the canvas.
-    fireEvent.click(screen.getByText("⊟ DAG"));
+    fireEvent.click(screen.getByRole("button", { name: "DAG" }));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
     openAnalysis("Balance");
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
@@ -82,7 +82,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy());
   });
 
   it("navigates to the dedicated Compare page", async () => {
@@ -92,7 +92,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Compare scenarios"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy());
   });
 
   it("opens the process library and shows an element's documentation", async () => {
@@ -123,7 +123,7 @@ describe("App", () => {
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByText("⊟ DAG"));
+    fireEvent.click(screen.getByRole("button", { name: "DAG" }));
     // click a DAG node to select + open Configure
     fireEvent.click(screen.getByText("CNC Turning"));
     // Footprint editing lives under the inspector's Advanced section.
