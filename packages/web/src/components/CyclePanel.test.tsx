@@ -17,18 +17,22 @@ function loadSample() {
   fireEvent.click(screen.getByText("Start from the sample cell"));
 }
 
-// Balance is a sub-tab of the Insights group; selecting a station switches the
-// side panel to Build/Configure, so the group has to be re-opened first.
+// Balance now lives in the dedicated Analysis view (the rail is inputs-only).
 function openBalance() {
-  fireEvent.click(screen.getByRole("button", { name: "Insights" }));
+  fireEvent.click(screen.getByText("📊 Analysis"));
   fireEvent.click(screen.getByRole("button", { name: "Balance" }));
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
- *  names also appear in the panel lists, so always take the first match. */
+ *  names also appear in the panel lists, so always take the first match. The
+ *  inspector keeps advanced fields (cycle decomposition, footprint, ports)
+ *  behind an "Advanced settings" toggle, so expand it for the tests that need
+ *  those controls. */
 function inspect(stationName: string) {
   fireEvent.click(screen.getByText("⊟ DAG"));
   fireEvent.click(screen.getAllByText(stationName)[0]);
+  const adv = screen.queryByRole("button", { name: /Advanced settings/ });
+  if (adv) fireEvent.click(adv);
 }
 
 /** The opaque "Cycle time (s)" input, located via its field label. */

@@ -73,6 +73,7 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     shiftHours: o.shiftHours ?? DEFAULT_SHIFT_HOURS,
     weights: o.weights,
     costConfig: o.costConfig,
+    lossFactor: typeof o.lossFactor === "number" ? o.lossFactor : undefined,
     noGoZones: Array.isArray(o.noGoZones) ? o.noGoZones : [],
     stations: stations.map(normalizeStation),
     flows: flows.map(normalizeFlow),

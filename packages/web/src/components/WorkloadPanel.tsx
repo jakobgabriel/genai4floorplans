@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import type { PanelProps } from "./panels";
 import type { Confidence, TimeMethod, WorkClass, WorkElement } from "@flowplan/core/model/types";
-import { CONFIDENCES, TIME_METHODS, WORK_CLASSES } from "@flowplan/core/model/types";
+import { CONFIDENCES, LOSS_FACTOR_BAND, TIME_METHODS, WORK_CLASSES, lossFactorOf } from "@flowplan/core/model/types";
 import { analyseWorkload, makeWorkElement, precedenceOrder } from "@flowplan/core/engine/workload";
 import { inferWorkload, type InferenceResult } from "@flowplan/core/engine/infer";
 import { AMBER, LINE, RED, TEAL, TEXT, TEXTD } from "./colors";
+import { HelpPopover } from "./ui";
 
 // Spec §11 — the product-free workload editor.
 //
@@ -45,8 +46,16 @@ export function WorkloadPanel({ api }: PanelProps) {
     return slowest > 0 ? slowest : undefined;
   }, [model.stations]);
 
-  const a = useMemo(() => analyseWorkload(elements, model.variantModes, taktSec), [elements, model.variantModes, taktSec]);
+  const lossFactor = lossFactorOf(model);
+  const a = useMemo(
+    () => analyseWorkload(elements, model.variantModes, taktSec, lossFactor),
+    [elements, model.variantModes, taktSec, lossFactor],
+  );
   const order = useMemo(() => precedenceOrder(elements), [elements]);
+  // "Chosen" is what the planner actually built — the process stations on the
+  // layout — set against the work-content "calculated" figure (spec / IE
+  // blueprint: STATIONS CALCULATED 4.9 · STATIONS CHOSEN 5).
+  const chosenStations = model.stations.filter((s) => s.role === "process").length;
 
   function add() {
     const id = `we${elements.length + 1}_${Math.random().toString(36).slice(2, 6)}`;
@@ -117,7 +126,45 @@ export function WorkloadPanel({ api }: PanelProps) {
         <div style={{ fontSize: 10.5, color: TEXTD }}>
           VA {a.vaPct == null ? "—" : `${a.vaPct.toFixed(0)}%`} · operator-bound{" "}
           {a.attendedPct == null ? "—" : `${a.attendedPct.toFixed(0)}%`}
-          {a.minStationsWeighted != null ? ` · ${a.minStationsWeighted} stations (${a.minStationsWorst} worst-case)` : " · no takt yet"}
+          {a.stationsCalculated == null ? " · no takt yet" : ""}
+        </div>
+
+        {/* Stations calculated (decimal, loss-factored) vs chosen (spec §4.3):
+            the decimal says how much headroom is left. Never silently rounded. */}
+        {a.stationsCalculated != null ? (
+          <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11 }}>
+            <span>
+              <span style={{ color: TEXTD }}>calculated </span>
+              <strong style={{ color: TEXT }}>{a.stationsCalculated.toFixed(1)}</strong>
+              <span style={{ color: TEXTD }}> ({a.stationsCalculatedWorst?.toFixed(1)} worst)</span>
+            </span>
+            <span>
+              <span style={{ color: TEXTD }}>chosen </span>
+              <strong style={{ color: chosenStations >= Math.ceil(a.stationsCalculatedWorst ?? a.stationsCalculated) ? TEAL : AMBER }}>
+                {chosenStations}
+              </strong>
+              <span style={{ color: TEXTD }}> placed</span>
+            </span>
+          </div>
+        ) : null}
+
+        {/* Loss factor — a chosen IE constant, shown with its band so it reads as
+            provenance, not a free knob. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 10.5, color: TEXTD }}>
+          <span>
+            loss factor
+            <HelpPopover text={`Carries walking, reaching, handling and balancing loss — none of which is in a standard time. Calculated stations = (work content ÷ takt) × loss factor. Band ${LOSS_FACTOR_BAND[0]}–${LOSS_FACTOR_BAND[1]}; default 1.2.`} />
+          </span>
+          <input
+            type="range"
+            min={LOSS_FACTOR_BAND[0]}
+            max={LOSS_FACTOR_BAND[1]}
+            step={0.01}
+            value={lossFactor}
+            style={{ flex: 1, maxWidth: 120 }}
+            onChange={(e) => api.commit({ type: "SET_LOSS_FACTOR", lossFactor: +e.target.value })}
+          />
+          <strong style={{ color: TEXT }}>{lossFactor.toFixed(2)}</strong>
         </div>
       </div>
 

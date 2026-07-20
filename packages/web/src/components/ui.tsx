@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
-export function Field(props: { label: string; help?: string; children: ReactNode }) {
+export function Field(props: { label: string; help?: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <label className="field">
-      <span>
+      <span className={props.aside ? "field-lab-row" : undefined}>
         {props.label}
         {props.help ? <HelpPopover text={props.help} /> : null}
+        {props.aside}
       </span>
       {props.children}
     </label>

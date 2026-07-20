@@ -1,8 +1,9 @@
 import type { Model, Station } from "../model/types";
-import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS } from "../model/types";
+import { DEFAULT_COST_CONFIG, DEFAULT_MATERIAL_SUPPLY_FACTOR, DEFAULT_SHIFT_HOURS } from "../model/types";
 import { computeKPIs } from "./kpis";
 import { balanceAnalysis } from "./balance";
 import { autoPotential } from "./automation";
+import { stationCells } from "./geometry";
 
 export interface AutomationROI {
   id: string;
@@ -11,6 +12,21 @@ export interface AutomationROI {
   automationCapex: number;
   laborSavedPerYear: number;
   paybackMonths: number | null; // null = no labor to save / no capex set
+}
+
+/** Floor space reported as two separate figures (blueprint §4.9). The cell area
+ *  is planned; the bin/replenishment area routinely is not, and one combined
+ *  number understates the footprint by a third. Units are m² when
+ *  costConfig.cellAreaM2 is set, otherwise grid cells (`unit`). */
+export interface FloorSpace {
+  /** Area occupied by the stations themselves. */
+  cell: number;
+  /** Extra area for material supply = cell × materialSupplyFactor. */
+  materialSupply: number;
+  /** cell + materialSupply — never shown alone, always with the split. */
+  total: number;
+  factor: number;
+  unit: "m²" | "cells";
 }
 
 export interface CostResult {
@@ -22,6 +38,7 @@ export interface CostResult {
   opexPerShift: number;
   costPerPart: number;
   lineOut: number;
+  floorSpace: FloorSpace;
   automation: AutomationROI[];
 }
 
@@ -43,6 +60,22 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
   const lineOut = balanceAnalysis(model.stations, model.flows, shiftHours).lineOut;
   const costPerPart = lineOut > 0 ? +(opexPerShift / lineOut).toFixed(3) : 0;
 
+  // Floor space, split cell vs material supply (blueprint §4.9). Cell area is the
+  // footprint the stations occupy; material supply is the routinely-forgotten
+  // bins/replenishment area on top of it.
+  const cellUnits = model.stations.reduce((a, s) => a + stationCells(s).length, 0);
+  const cellArea = cfg.cellAreaM2 && cfg.cellAreaM2 > 0 ? cfg.cellAreaM2 : 1;
+  const factor = cfg.materialSupplyFactor ?? DEFAULT_MATERIAL_SUPPLY_FACTOR;
+  const cell = +(cellUnits * cellArea).toFixed(2);
+  const materialSupply = +(cell * factor).toFixed(2);
+  const floorSpace: FloorSpace = {
+    cell,
+    materialSupply,
+    total: +(cell + materialSupply).toFixed(2),
+    factor,
+    unit: cfg.cellAreaM2 && cfg.cellAreaM2 > 0 ? "m²" : "cells",
+  };
+
   const automation: AutomationROI[] = model.stations
     .filter((s) => s.role === "process")
     .map((s) => {
@@ -54,5 +87,5 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
       return { id: s.id, name: s.name, verdict: ap.verdict, automationCapex: capex, laborSavedPerYear: Math.round(laborSavedPerYear), paybackMonths };
     });
 
-  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, lineOut, automation };
+  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, lineOut, floorSpace, automation };
 }

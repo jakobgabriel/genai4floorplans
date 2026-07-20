@@ -11,6 +11,7 @@ export type ModelAction =
   | { type: "SET_GRID"; gridW: number; gridH: number }
   | { type: "SET_SHIFT_HOURS"; shiftHours: number }
   | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
+  | { type: "SET_LOSS_FACTOR"; lossFactor: number | undefined }
   | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
@@ -74,6 +75,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_WEIGHTS":
       return { ...model, weights: action.weights };
+
+    case "SET_LOSS_FACTOR":
+      return { ...model, lossFactor: action.lossFactor };
 
     case "SET_COST_CONFIG":
       return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };

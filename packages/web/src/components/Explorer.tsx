@@ -32,6 +32,8 @@ interface Ctx {
   dropInto: (folderId: string | null) => void;
   childFolders: (parentId: string | null) => Folder[];
   cellsIn: (folderId: string | null) => FlowPlanApi["cells"];
+  /** Called after a cell is opened, so a global workspace page can return to the editor. */
+  onOpenCell?: () => void;
 }
 
 // An autofocused inline editor: commits on Enter/blur, cancels on Escape. Empty
@@ -78,7 +80,7 @@ function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string;
       <span className="tree-grip" title="Drag to move into a folder">⠿</span>
       <button
         className="tree-leaf"
-        onClick={() => ctx.api.switchCell(id)}
+        onClick={() => { ctx.api.switchCell(id); ctx.onOpenCell?.(); }}
         style={{ color: active ? TEAL : undefined, fontWeight: active ? 600 : 400 }}
         title="Open layout"
       >
@@ -152,7 +154,7 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
   );
 }
 
-export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: () => void }) {
+export function Explorer({ api, onCollapse, onOpenCell }: { api: FlowPlanApi; onCollapse?: () => void; onOpenCell?: () => void }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [edit, setEdit] = useState<Edit>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -186,13 +188,14 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
     },
     childFolders: (parentId) => api.folders.filter((f) => f.parentId === parentId).sort((a, b) => a.position - b.position),
     cellsIn: (folderId) => api.cells.filter((c) => c.folderId === folderId),
+    onOpenCell,
   };
 
   return (
     <div className="explorer">
         <div className="explorer-head">
           <h2 style={{ margin: 0, fontSize: 14 }}>Workspace</h2>
-          <button className="btn sm" onClick={onCollapse} title="Collapse sidebar">◀</button>
+          {onCollapse ? <button className="btn sm" onClick={onCollapse} title="Close">◀</button> : null}
         </div>
         <div className="explorer-actions">
           <button className="btn sm" onClick={() => ctx.startNew(null)}>＋ Folder</button>

@@ -41,6 +41,24 @@ export function sumCycle(c: CycleBreakdown): number {
   return c.valueAddSec + c.handlingSec + c.walkSec + c.waitSec + c.setupSec;
 }
 
+/** Provenance of a single stored number (spec §5, fixes Excel failure F8 —
+ *  "no confidence signal"). Rendered always-visible: `estimated` draws as a
+ *  hatched range, the firmer two as a point. A number's confidence must be
+ *  assigned when it enters the model, never inferred at render. */
+export type DataQuality = "measured" | "benchmarked" | "estimated";
+export const DATA_QUALITIES: DataQuality[] = ["measured", "benchmarked", "estimated"];
+
+/** Station numeric fields that carry a data-quality flag — the ones investment
+ *  follows, where false precision is expensive. */
+export type StationDataField = "cycleTimeSec" | "capex" | "energyKw" | "capacityPerShift" | "changeoverMin";
+export const STATION_DATA_FIELDS: StationDataField[] = [
+  "cycleTimeSec",
+  "capex",
+  "energyKw",
+  "capacityPerShift",
+  "changeoverMin",
+];
+
 export interface Station {
   id: string;
   name: string;
@@ -90,6 +108,10 @@ export interface Station {
   provides?: string[];
   /** Annual volume band this resource is validated for (spec §3.4, gate 2). */
   volumeBand?: { minUnitsPerYear: number; maxUnitsPerYear: number };
+  /** Per-field provenance for this station's numbers (spec §5). Sparse: a
+   *  missing entry is treated as "estimated" at render, so an unmarked number
+   *  reads as suspect rather than firm. Assigned at model entry, not at render. */
+  dataQuality?: Partial<Record<StationDataField, DataQuality>>;
 }
 
 /** Cost assumptions for the ROI model. Informational — not in the composite. */
@@ -98,6 +120,12 @@ export interface CostConfig {
   energyCostPerKwh?: number;
   annualShifts?: number;
   currency?: string;
+  /** Physical area of one grid cell, m². Lets floor space report in m² instead
+   *  of abstract grid cells. Absent ⇒ figures are in grid cells. */
+  cellAreaM2?: number;
+  /** Extra floor for bins and replenishment, as a fraction of the cell area.
+   *  The blueprint's "forgotten 30-40 %". Absent ⇒ DEFAULT_MATERIAL_SUPPLY_FACTOR. */
+  materialSupplyFactor?: number;
 }
 
 export interface Flow {
@@ -227,6 +255,25 @@ export function weakestConfidence(list: Confidence[]): Confidence {
   return "high";
 }
 
+/** The confidence a per-field data quality propagates as, so a derived number
+ *  (TCO, station-count, throughput) can take the weakest of its inputs (§5).
+ *  measured → high, benchmarked → med, estimated → low. */
+export function qualityConfidence(q: DataQuality): Confidence {
+  return q === "measured" ? "high" : q === "benchmarked" ? "med" : "low";
+}
+
+/** Data quality of a station field, defaulting to "estimated" when unmarked —
+ *  an unmarked number is suspect, not firm (spec §5). */
+export function fieldQuality(s: Station, field: StationDataField): DataQuality {
+  return s.dataQuality?.[field] ?? "estimated";
+}
+
+/** Confidence a station propagates, taken as the weakest across its marked
+ *  numeric fields (§5). Used when a derived figure is built from the station. */
+export function stationConfidence(s: Station, fields: StationDataField[] = STATION_DATA_FIELDS): Confidence {
+  return weakestConfidence(fields.map((f) => qualityConfidence(fieldQuality(s, f))));
+}
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -242,6 +289,12 @@ export interface Model {
   stations: Station[];
   flows: Flow[];
   noGoZones: NoGoZone[];
+  /** Balancing loss factor (spec / IE blueprint). Carries walking, reaching,
+   *  handling and balancing loss — none of which appears in a standard time —
+   *  so the calculated station count is (work content ÷ takt) × lossFactor.
+   *  Stored as a constant so it is neither measured nor forgotten. Absent ⇒
+   *  DEFAULT_LOSS_FACTOR. */
+  lossFactor?: number;
   /** Which manufacturing concept this cell represents (engine/concepts.ts).
    *  Purely descriptive — the rating does not read it. */
   conceptKind?: string;
@@ -261,7 +314,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {
@@ -272,13 +325,33 @@ export const EMPTY_CYCLE: CycleBreakdown = {
   setupSec: 0,
 };
 
+/** Extra floor for bins and replenishment as a fraction of cell area — the
+ *  blueprint's "forgotten 30-40 %". 0.35 is the midpoint. */
+export const DEFAULT_MATERIAL_SUPPLY_FACTOR = 0.35;
+
 /** Default cost assumptions used when costConfig fields are absent. */
 export const DEFAULT_COST_CONFIG = {
   laborCostPerHour: 45,
   energyCostPerKwh: 0.15,
   annualShifts: 460,
   currency: "$",
+  materialSupplyFactor: DEFAULT_MATERIAL_SUPPLY_FACTOR,
 } as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;
+
+/** Default balancing loss factor. 1.2 is the IE-standard midpoint of the band
+ *  below — enough to carry walking/reaching/handling/balancing loss without a
+ *  measurement campaign. */
+export const DEFAULT_LOSS_FACTOR = 1.2;
+
+/** The documented band a loss factor should sit in. Shown in the UI so the
+ *  number reads as a chosen constant with provenance, not a free tuning knob. */
+export const LOSS_FACTOR_BAND: readonly [number, number] = [1.15, 1.25];
+
+/** A model's loss factor, clamped to sane bounds, defaulting when unset. */
+export function lossFactorOf(model: { lossFactor?: number }): number {
+  const v = model.lossFactor;
+  return typeof v === "number" && isFinite(v) && v > 0 ? Math.max(1, Math.min(2, v)) : DEFAULT_LOSS_FACTOR;
+}

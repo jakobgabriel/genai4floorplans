@@ -1,11 +1,14 @@
+import type { ReactNode } from "react";
 import type { Station } from "@flowplan/core/model/types";
+import { fieldQuality } from "@flowplan/core/model/types";
 import { stationRate } from "@flowplan/core/engine/balance";
 import { AUTO_COL, ERGO_COL, TEXTD } from "./colors";
+import { QualityValue } from "./confidence";
 
 // Lightweight HTML tooltip positioned over the canvas on station hover.
 export function StationTooltip({ station, x, y, shiftHours }: { station: Station; x: number; y: number; shiftHours: number }) {
   const rate = stationRate(station, shiftHours);
-  const row = (k: string, v: string) => (
+  const row = (k: string, v: ReactNode) => (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
       <span style={{ color: TEXTD }}>{k}</span>
       <span>{v}</span>
@@ -32,7 +35,7 @@ export function StationTooltip({ station, x, y, shiftHours }: { station: Station
       {row("role · type", `${station.role} · ${station.type}`)}
       {station.role === "process" ? (
         <>
-          {row("cycle", `${station.cycleTimeSec}s`)}
+          {row("cycle", <QualityValue value={station.cycleTimeSec} quality={fieldQuality(station, "cycleTimeSec")} unit="s" />)}
           {row("operators", String(station.operators))}
           {row("rate", isFinite(rate) ? `${rate.toLocaleString()}/shift` : "—")}
           <div style={{ display: "flex", justifyContent: "space-between" }}>

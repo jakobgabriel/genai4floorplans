@@ -1,18 +1,21 @@
 import { useMemo, useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
 import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
 import { findImprovements, type Improvement } from "@flowplan/core/engine/improve";
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
+import { classifyFreedom, type FreedomFinding } from "@flowplan/core/engine/freedom";
+import { openPoints } from "@flowplan/core/engine/openpoints";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
 import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
+import { QualitySelect } from "./confidence";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
   deleteScenario,
@@ -21,7 +24,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload" | "datasheet";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -89,6 +92,7 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
           </div>
         );
       })}
+      <OpenPointsSection api={api} setSel={setSel} setTab={setTab} />
       <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
       <div className="lab" style={{ marginBottom: 8 }}>
         Where the cost sits
@@ -126,6 +130,37 @@ const IMPROVEMENT_COLOR: Record<Improvement["kind"], string> = {
  * number was always 0% — which read as "nothing can be improved" when it meant
  * "this one optimiser has nothing to do". This shows every axis instead.
  */
+// Open points (blueprint §4.1): the release actions generated from the estimated
+// flags — not typed by the user. Investment follows these numbers, so an
+// estimated one is an action before release, not a detail.
+function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const points = useMemo(() => openPoints(api.model), [api.model]);
+  if (points.length === 0) return null;
+  return (
+    <div style={{ margin: "6px 0 14px" }}>
+      <div className="lab" style={{ marginBottom: 6, display: "flex", alignItems: "center" }}>
+        Open points — {points.length}
+        <HelpPopover text="Generated from the estimated numbers in the model, not typed. Each is an input to secure before investment release, because investment follows these figures." />
+      </div>
+      {points.map((p) => (
+        <div
+          key={p.id}
+          className="issue"
+          style={{ borderLeftColor: p.severity === "block" ? RED : AMBER, marginBottom: 6, cursor: p.ref ? "pointer" : "default", fontSize: 11 }}
+          onClick={() => {
+            if (p.ref && api.model.stations.some((s) => s.id === p.ref)) {
+              setSel(p.ref);
+              setTab("inspect");
+            }
+          }}
+        >
+          {p.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ImprovementList({
   api,
   setSel,
@@ -288,6 +323,56 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <CycleSection api={api} setSel={setSel} setTab={setTab} />
       <ParallelSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
+      <FreedomSection api={api} setTab={setTab} />
+    </div>
+  );
+}
+
+// Freedom-finding (blueprint §4.8). A linear routing implies an order that
+// mostly does not exist; this surfaces which operations the balancer may move to
+// fill an under-loaded station. Only meaningful once a workload is present.
+const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: "#a582c9", compulsory: TEXTD };
+const FREEDOM_HELP =
+  "A numbered routing implies a compulsory sequence that mostly does not exist. free = depends only on an early step, place it anywhere with slack (this is the balancing gain to look for). swappable = shares a predecessor with a sibling, either order works. exclusive = never runs in the same mode as another op, so they can share a station. compulsory = genuine physical precedence.";
+function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) => void }) {
+  const els = api.model.workElements ?? [];
+  const fr = useMemo(() => classifyFreedom(els, api.model.variantModes), [els, api.model.variantModes]);
+  if (els.length === 0) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="lab" style={{ marginBottom: 6, display: "flex", alignItems: "center" }}>
+        Placement freedom
+        <HelpPopover text={FREEDOM_HELP} />
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10.5, marginBottom: 8 }}>
+        {(["free", "swappable", "exclusive", "compulsory"] as FreedomFinding[]).map((k) =>
+          fr.counts[k] > 0 ? (
+            <span key={k} style={{ color: FREEDOM_COL[k] }}>
+              {fr.counts[k]} {k}
+            </span>
+          ) : null,
+        )}
+      </div>
+      <table className="schemaTbl">
+        <tbody>
+          {fr.elements.map((e) => (
+            <tr key={e.elementId}>
+              <td style={{ width: "1%", whiteSpace: "nowrap" }}>
+                <span style={{ color: FREEDOM_COL[e.finding], fontWeight: 600 }}>{e.finding}</span>
+              </td>
+              <td>
+                <div>{e.name}</div>
+                <div style={{ fontSize: 10, color: TEXTD }}>{e.reason}</div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {fr.counts.free > 0 ? (
+        <div style={{ fontSize: 10.5, color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
+          {fr.counts.free} free operation{fr.counts.free === 1 ? "" : "s"} can fill an under-loaded station →
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -730,6 +815,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const s = m.stations.find((x) => x.id === selId);
   const [renameVal, setRenameVal] = useState("");
   const [addTo, setAddTo] = useState("");
+  const [showAdv, setShowAdv] = useState(false);
   if (!s) {
     return (
       <div className="pad">
@@ -743,6 +829,14 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const outFlows = m.flows.filter((f) => f.from === s.id);
   const inCount = m.flows.filter((f) => f.to === s.id).length;
   const up = (patch: Record<string, unknown>) => api.commit({ type: "UPDATE_STATION", id: s.id, patch });
+  // Provenance (spec §5): each investment-driving number carries a data-quality
+  // flag. `up` merges shallowly, so pass the whole dataQuality object.
+  const setQuality = (field: StationDataField, q: DataQuality) =>
+    up({ dataQuality: { ...s.dataQuality, [field]: q } });
+  const qAside = (field: StationDataField) => (
+    <QualitySelect value={fieldQuality(s, field)} onChange={(q) => setQuality(field, q)} />
+  );
+  const estClass = (field: StationDataField) => (fieldQuality(s, field) === "estimated" ? "est-field" : undefined);
   return (
     <div className="pad">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -751,9 +845,53 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           Delete
         </button>
       </div>
+      {/* Essentials — the handful of fields a first pass needs. Everything else
+          is one click away under Advanced, so this is no longer the app's
+          densest screen. */}
       <Field label="Name">
         <input value={s.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { name: e.target.value } })} />
       </Field>
+      <div className="row2">
+        <Field label="Role (I/O flexible)">
+          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
+            {ROLES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Type">
+          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
+            {STATION_TYPES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="row2">
+        <Field label="Cycle time (s)" aside={qAside("cycleTimeSec")} help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
+          <input className={estClass("cycleTimeSec")} type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
+        </Field>
+        <Field label="Operators">
+          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
+        </Field>
+      </div>
+      <Field label="Fixed / anchored">
+        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
+          {s.fixed ? "FIXED — won't be moved" : "Movable"}
+        </button>
+      </Field>
+
+      <button
+        className="btn sm"
+        style={{ width: "100%", justifyContent: "center", margin: "6px 0 4px" }}
+        aria-expanded={showAdv}
+        onClick={() => setShowAdv((v) => !v)}
+      >
+        {showAdv ? "▾ Hide advanced" : "▸ Advanced settings"}
+      </button>
+
+      {showAdv ? (
+      <>
       <Field label="Station id (rename)" help="Renaming rewrites every flow that references this station.">
         <div style={{ display: "flex", gap: 6 }}>
           <input placeholder={s.id} value={renameVal} onChange={(e) => setRenameVal(e.target.value)} />
@@ -772,22 +910,6 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           </button>
         </div>
       </Field>
-      <div className="row2">
-        <Field label="Role (I/O flexible)">
-          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
-            {ROLES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Type">
-          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
-            {STATION_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <div className="row2">
         <Field label="Width">
           <input type="number" value={s.w} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +e.target.value) } })} />
@@ -864,18 +986,13 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
       ) : null}
       <div className="row2">
-        <Field label="Equipment capex" help="One-time cost of this step's equipment (Cost tab).">
-          <input type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
+        <Field label="Equipment capex" aside={qAside("capex")} help="One-time cost of this step's equipment (Cost tab).">
+          <input className={estClass("capex")} type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
         </Field>
         <Field label="Automation capex" help="Cost to automate this step — drives ROI payback.">
           <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
         </Field>
       </div>
-      <Field label="Fixed / anchored">
-        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
-          {s.fixed ? "FIXED — won't be moved" : "Movable"}
-        </button>
-      </Field>
       <div className="row2">
         <Field label="Automation state">
           <select value={s.auto} onChange={(e) => up({ auto: e.target.value })}>
@@ -893,19 +1010,11 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
       </div>
       <div className="row2">
-        <Field label="Capacity/shift">
-          <input type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
+        <Field label="Capacity/shift" aside={qAside("capacityPerShift")}>
+          <input className={estClass("capacityPerShift")} type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
         </Field>
-        <Field label="Operators">
-          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Cycle time (s)" help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
-          <input type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
-        </Field>
-        <Field label="Changeover (min)">
-          <input type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
+        <Field label="Changeover (min)" aside={qAside("changeoverMin")}>
+          <input className={estClass("changeoverMin")} type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
         </Field>
       </div>
       <CycleBreakdownEditor api={api} s={s} />
@@ -927,6 +1036,8 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
       <Field label="Notes">
         <textarea style={{ minHeight: 42, resize: "vertical" }} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { notes: e.target.value } })} />
       </Field>
+      </>
+      ) : null}
 
       <div className="lab" style={{ margin: "12px 0 6px" }}>
         Connections

@@ -1,6 +1,6 @@
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
-import { Field } from "./ui";
+import { Field, HelpPopover } from "./ui";
 import type { PanelProps } from "./panels";
 import { AMBER, TEAL, TEXTD, scoreColor } from "./colors";
 
@@ -36,6 +36,19 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       {row("Energy / shift", money(c.energyPerShift))}
       {row("Opex / shift", money(c.opexPerShift))}
       {row("Equipment capex", money(c.capexTotal))}
+
+      {/* Floor space, split cell vs material supply (blueprint §4.9): the bin and
+          replenishment area is routinely forgotten and understates by a third. */}
+      <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center" }}>
+        Floor space
+        <HelpPopover text={`Reported as two figures on purpose. Cell = the area the stations occupy. Material supply = bins and replenishment, a further ${Math.round(c.floorSpace.factor * 100)}% that is routinely forgotten. One combined number understates the footprint by about a third. Units: ${c.floorSpace.unit}.`} />
+      </div>
+      {row("Cell", `${c.floorSpace.cell.toLocaleString()} ${c.floorSpace.unit}`)}
+      {row("Material supply", `+${c.floorSpace.materialSupply.toLocaleString()} ${c.floorSpace.unit}`)}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 3, borderTop: `1px solid ${TEXTD}33`, paddingTop: 3 }}>
+        <span style={{ color: TEXTD }}>Total footprint</span>
+        <strong>{c.floorSpace.total.toLocaleString()} {c.floorSpace.unit}</strong>
+      </div>
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Assumptions

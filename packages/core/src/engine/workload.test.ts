@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { VariantMode, WorkElement } from "../model/types";
-import { SCHEMA_VERSION } from "../model/types";
+import { DEFAULT_LOSS_FACTOR, SCHEMA_VERSION, lossFactorOf } from "../model/types";
 import { migrate } from "../model/migrate";
 import { analyseWorkload, makeWorkElement, modesOf, normalizedShares, precedenceOrder } from "./workload";
 
@@ -14,6 +14,34 @@ const mode = (id: string, share: number, overrides: Record<string, number> = {})
   name: id,
   share,
   elementOverrides: overrides,
+});
+
+describe("loss factor & calculated stations (spec §4.2/§4.3)", () => {
+  it("calculated stations = (work content ÷ takt) × loss factor, unrounded", () => {
+    // Two 30s elements → 60s weighted. takt 40 → 1.5 raw × 1.2 loss = 1.8.
+    const a = analyseWorkload([el("a", 30), el("b", 30)], undefined, 40, 1.2);
+    expect(a.minStationsWeighted).toBe(2); // theoretical ceil(1.5)
+    expect(a.stationsCalculated).toBeCloseTo(1.8, 5); // never silently rounded
+    expect(a.lossFactor).toBe(1.2);
+  });
+
+  it("a higher loss factor raises the calculated count", () => {
+    const lean = analyseWorkload([el("a", 100)], undefined, 40, 1.15);
+    const loose = analyseWorkload([el("a", 100)], undefined, 40, 1.25);
+    expect(loose.stationsCalculated).toBeGreaterThan(lean.stationsCalculated as number);
+  });
+
+  it("defaults to 1.2 and clamps nonsense", () => {
+    expect(analyseWorkload([el("a", 40)], undefined, 40).lossFactor).toBe(DEFAULT_LOSS_FACTOR);
+    expect(lossFactorOf({})).toBe(1.2);
+    expect(lossFactorOf({ lossFactor: 1.18 })).toBe(1.18);
+    expect(lossFactorOf({ lossFactor: -5 })).toBe(1.2);
+    expect(lossFactorOf({ lossFactor: 99 })).toBe(2);
+  });
+
+  it("is null without a takt, like the other station figures", () => {
+    expect(analyseWorkload([el("a", 40)], undefined).stationsCalculated).toBeNull();
+  });
 });
 
 describe("mix modes", () => {

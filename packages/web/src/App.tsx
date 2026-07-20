@@ -6,7 +6,8 @@ import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
 import { openReport } from "./io/report";
-import { cloneStation } from "@flowplan/core/store/reducer";
+import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
+import { PaletteBar, NODE_KINDS } from "./components/PaletteBar";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
@@ -21,9 +22,10 @@ import { Button } from "@carbon/react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
-import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { ComparePage } from "./pages/ComparePage";
+import { WorkspacePage } from "./pages/WorkspacePage";
+import { LibraryPage } from "./pages/LibraryPage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
@@ -35,6 +37,7 @@ import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { CostPanel } from "./components/CostPanel";
+import { DataSheetPanel } from "./components/DataSheetPanel";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
@@ -48,43 +51,38 @@ import {
   type PanelProps,
   type Tab,
 } from "./components/panels";
-import { AMBER, TEAL, TEALD, TEXTD } from "./components/colors";
+import { AMBER, TEAL, TEXTD } from "./components/colors";
 
-type View = "actual" | "improved" | "split" | "dag";
+type View = "actual" | "improved" | "split" | "dag" | "analysis";
+type Overlay = "none" | "confidence" | "congestion";
 const CELL = 30;
 
-// Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
-// sub-tab row when a group has >1 panel. Schema is reached via the "?" help icon.
-type Group = "insights" | "build" | "automation" | "chat";
-const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[] }[] = [
-  { id: "insights", label: "Insights", tabs: [
-    { tab: "rating", label: "Rating" },
-    { tab: "balance", label: "Balance" },
-    { tab: "cost", label: "Cost" },
-  ] },
-  { id: "build", label: "Build", tabs: [
-    // Workload leads: the spec's flow is workload → balancer → stations (§11),
-    // so the product-free input comes before the things derived from it.
-    { tab: "workload", label: "Workload" },
-    { tab: "flow", label: "Flow" },
-    { tab: "inspect", label: "Configure" },
-  ] },
-  { id: "automation", label: "Automation", tabs: [{ tab: "auto", label: "Automation" }] },
-  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "💬 AI Chat" }] },
+// The right rail carries INPUTS ONLY — configuration of steps and connections.
+// Everything derived (rating, balance, cost, automation coherence, AI help)
+// lives in the dedicated Analysis view, so the editor stays uncluttered.
+const INPUT_TABS: { tab: Tab; label: string }[] = [
+  { tab: "inspect", label: "Configure" },
+  { tab: "flow", label: "Flow" },
+  { tab: "workload", label: "Workload" },
 ];
-const GROUP_OF: Record<Tab, Group | undefined> = {
-  rating: "insights", balance: "insights", cost: "insights",
-  workload: "build", flow: "build", inspect: "build",
-  auto: "automation", chat: "chat", schema: undefined,
-};
+const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
+  { tab: "rating", label: "Rating" },
+  { tab: "balance", label: "Balance" },
+  { tab: "datasheet", label: "Data sheet" },
+  { tab: "cost", label: "Cost" },
+  { tab: "auto", label: "Automation" },
+  { tab: "chat", label: "AI Chat" },
+];
 
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
   const [view, setView] = useState<View>("actual");
-  const [tab, setTab] = useState<Tab>("rating");
+  const [tab, setTab] = useState<Tab>("inspect");
+  const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
+  const [overlay, setOverlay] = useState<Overlay>("none");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
@@ -111,35 +109,28 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [route] = useHashRoute();
-  // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
-  const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") === "1");
+  // Collapsible config panel (persisted). The workspace is now a global page.
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
-  useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
   useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
-  // Drag-resizable sidebar widths (persisted).
+  // Drag-resizable config width (persisted).
   const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
-  const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 300));
   const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
-  useEffect(() => { localStorage.setItem("flowplan_explorer_w", String(explorerWidth)); }, [explorerWidth]);
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
-  // Remember the last sub-tab visited per group, so returning to a group restores it.
-  const lastSubTab = useRef<Record<Group, Tab>>({ insights: "rating", build: "flow", automation: "auto", chat: "chat" });
 
   const { model, rating } = api;
 
+  // Selecting a step opens Configure in the editor. Only leave the Analysis view
+  // (a deep-link back to the editor); staying in DAG/Improved when selecting a
+  // node there is the expected behaviour.
   const selectAndInspect = useCallback((id: string | null) => {
     setSel(id);
-    if (id) setTab("inspect");
+    if (id) {
+      setView((v) => (v === "analysis" ? "actual" : v));
+      setTab("inspect");
+    }
   }, []);
-
-  // Keep the per-group memory in sync however the tab changed (incl. in-panel
-  // deep-links like Balance → Configure), so re-opening a group restores it.
-  useEffect(() => {
-    const g = GROUP_OF[tab];
-    if (g) lastSubTab.current[g] = tab;
-  }, [tab]);
 
   // ---- derived planning data ----------------------------------------------
   const briefSteps: CoreStep[] = useMemo(() => {
@@ -286,16 +277,10 @@ export function App() {
       </button>
     );
   }
-  // The active group follows the active tab (so in-panel deep-links to Configure
-  // still light up the right group). Schema (via "?") belongs to no group.
-  const activeGroup = GROUP_OF[tab];
-  function selectGroup(g: Group) {
-    setTab(lastSubTab.current[g]);
-  }
-  function selectSubTab(g: Group, k: Tab) {
-    lastSubTab.current[g] = k;
-    setTab(k);
-  }
+  // Analysis panels deep-link to inputs (e.g. Balance → Configure); wrap setTab
+  // so those links also leave the Analysis view for the editor.
+  const gotoInput = useCallback((t: Tab) => { setView("actual"); setTab(t); }, []);
+  const analysisPanelProps: PanelProps = { ...panelProps, setTab: gotoInput, setSel: selectAndInspect };
 
   const improvedModel = { ...model, stations: rating.optimized };
 
@@ -308,6 +293,7 @@ export function App() {
   if (view === "actual") {
     canvasInner = (
       <div>
+        <PaletteBar onApplyForm={(form) => { api.commit({ type: "APPLY_TEMPLATE", form }); toast(`Arranged as ${form}-form`); }} />
         <LayoutCanvas
           model={model}
           stations={model.stations}
@@ -325,6 +311,8 @@ export function App() {
           badge={TEAL}
           cell={CELL}
           interactive
+          overlay={overlay}
+          utilById={Object.fromEntries(rating.balance.steps.map((s) => [s.id, s.util]))}
           mode={mode}
           flowFirst={flowFirst}
           selFlow={selFlow}
@@ -335,6 +323,22 @@ export function App() {
           onMoveStart={api.checkpoint}
           onMove={(id, x, y) => api.live({ type: "MOVE_STATION", id, x, y })}
           onPickStation={pickStation}
+          onWire={(from, to) => {
+            if (model.flows.some((f) => f.from === from && f.to === to)) { toast("Those steps are already connected", "warn"); return; }
+            api.commit({ type: "ADD_FLOW", from, to });
+            toast(`Connected ${from} → ${to}`);
+          }}
+          onDropNode={(kind, gx, gy) => {
+            const nk = NODE_KINDS.find((k) => k.id === kind);
+            if (!nk) return;
+            const base = makeStation(model);
+            const x = Math.max(0, Math.min(model.gridW - base.w, Math.round(gx - base.w / 2)));
+            const y = Math.max(0, Math.min(model.gridH - base.h, Math.round(gy - base.h / 2)));
+            const station = { ...base, type: nk.type, role: nk.role, name: nk.label, x, y };
+            api.commit({ type: "ADD_STATION", station });
+            selectAndInspect(station.id);
+            toast(`Added ${nk.label}`);
+          }}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
@@ -378,17 +382,41 @@ export function App() {
     );
   } else if (view === "dag") {
     canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
-  } else {
+  } else if (view === "split") {
     canvasInner = (
       <div className="splitWrap">
         <LayoutCanvas model={model} stations={model.stations} flows={model.flows} chain={api.chain} selId={selId} label="ACTUAL" badge={TEAL} cell={CELL - 4} onSelect={setSel} />
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL - 4} onSelect={setSel} />
       </div>
     );
+  } else {
+    // Analysis — the dedicated home for every derived figure, so the editor
+    // rail can stay inputs-only.
+    canvasInner = (
+      <div className="analysis-view">
+        <div className="subtabs" style={{ maxWidth: 760, margin: "0 auto", padding: 0 }}>
+          {ANALYSIS_TABS.map((t) => (
+            <button key={t.tab} className={"chip" + (analysisTab === t.tab ? " on" : "")} onClick={() => setAnalysisTab(t.tab)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          {analysisTab === "rating" && <RatingPanel {...analysisPanelProps} />}
+          {analysisTab === "balance" && <BalancePanel {...analysisPanelProps} />}
+          {analysisTab === "datasheet" && <DataSheetPanel {...analysisPanelProps} />}
+          {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
+          {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
+          {analysisTab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
+        </div>
+      </div>
+    );
   }
 
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
+  if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
+  if (route === "/library") return <div className="wrap"><LibraryPage api={api} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -403,9 +431,9 @@ export function App() {
       </Button>
       <span className="hsep" />
         <button
-          className={"btn sm" + (explorerCollapsed ? "" : " on")}
-          onClick={() => setExplorerCollapsed((v) => !v)}
-          title="Toggle the workspace sidebar"
+          className="btn sm"
+          onClick={() => navigate("/workspace")}
+          title="Open the workspace (folders & layouts)"
           style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
           🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
@@ -462,21 +490,9 @@ export function App() {
 
   const editorBody = (
       <main>
-        <aside
-          className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}
-          style={explorerCollapsed ? undefined : { flexBasis: explorerWidth, width: explorerWidth }}
-        >
-          {explorerCollapsed ? (
-            <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setExplorerCollapsed(false)} title="Show workspace sidebar">
-                🗂 Workspace
-              </button>
-            </div>
-          ) : (
-            <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
-          )}
-        </aside>
-        {explorerCollapsed ? null : <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />}
+        {/* Workspace & folders are a GLOBAL surface (🗂 in the toolbar → the
+            Workspace page), not part of the editor, so the flow editor stays
+            uncluttered. */}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
@@ -484,68 +500,74 @@ export function App() {
               {vBtn("improved", "◇ Improved")}
               {vBtn("split", "⇄ Both")}
               {vBtn("dag", "⊟ DAG")}
+              {vBtn("analysis", "📊 Analysis")}
             </div>
-          </div>
-          {canvasInner}
-          <div className="legend">
-            <span>
-              role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output
-            </span>
-            <span>dots: ergo (TL) · automation (TR)</span>
-            <span>
-              links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
-            </span>
-          </div>
-        </div>
-        {configCollapsed ? null : <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />}
-        <div
-          className={"side" + (configCollapsed ? " collapsed" : "")}
-          style={configCollapsed ? undefined : { flexBasis: configWidth, width: configWidth }}
-        >
-          {configCollapsed ? (
-            <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show config panel">
-                ⚙ Config
-              </button>
-            </div>
-          ) : (
-          <>
-          <div className="tabbar">
-            <div className="grouptabs">
-              {TAB_GROUPS.map((g) => (
-                <button key={g.id} className={"btn" + (activeGroup === g.id ? " on" : "")} onClick={() => selectGroup(g.id)}>
-                  {g.label}
+            {view === "actual" ? (
+              <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
+                <span style={{ fontSize: 11, color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
+                <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
+                  Confidence
                 </button>
-              ))}
-              <button className={"btn help-tab" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
-                ?
-              </button>
-              <button className="btn help-tab" title="Collapse config panel" onClick={() => setConfigCollapsed(true)}>
-                ▶
-              </button>
-            </div>
-            {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
-              <div className="subtabs">
-                {TAB_GROUPS.find((g) => g.id === activeGroup)!.tabs.map((t) => (
-                  <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => selectSubTab(activeGroup, t.tab)}>
-                    {t.label}
-                  </button>
-                ))}
+                <button className={"btn sm" + (overlay === "congestion" ? " on" : "")} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
+                  Congestion
+                </button>
               </div>
             ) : null}
           </div>
-          {tab === "rating" && <RatingPanel {...panelProps} />}
-          {tab === "balance" && <BalancePanel {...panelProps} />}
-          {tab === "workload" && <WorkloadPanel {...panelProps} />}
-          {tab === "flow" && <FlowPanel {...panelProps} />}
-          {tab === "auto" && <AutomationPanel {...panelProps} />}
-          {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "cost" && <CostPanel {...panelProps} />}
-          {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
-          {tab === "schema" && <SchemaPanel />}
-          </>
+          {canvasInner}
+          {view === "analysis" ? null : (
+            <div className="legend">
+              <span>
+                role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output
+              </span>
+              <span>dots: ergo (TL) · automation (TR)</span>
+              <span>
+                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+              </span>
+            </div>
           )}
         </div>
+        {/* Inputs rail — configuration of steps and connections only. Hidden in
+            the Analysis view, which is full-width. */}
+        {view === "analysis" ? null : configCollapsed ? (
+          <div className="side collapsed">
+            <div className="rail">
+              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show inputs panel">
+                ⚙ Inputs
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+          <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />
+          <div className="side" style={{ flexBasis: configWidth, width: configWidth }}>
+          <div className="tabbar">
+            <div className="subtabs">
+              {INPUT_TABS.map((t) => (
+                <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => setTab(t.tab)}>
+                  {t.label}
+                </button>
+              ))}
+              <button className={"chip" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
+                ?
+              </button>
+              <button className="chip" title="Collapse inputs panel" onClick={() => setConfigCollapsed(true)}>
+                ▶
+              </button>
+            </div>
+          </div>
+          {tab === "workload" && <WorkloadPanel {...panelProps} />}
+          {tab === "flow" && <FlowPanel {...panelProps} />}
+          {tab === "inspect" && <ConfigurePanel {...panelProps} />}
+          {tab === "schema" && <SchemaPanel />}
+          {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost" || tab === "chat") && (
+            <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
+              Analysis moved to the <button className="chip on" style={{ display: "inline" }} onClick={() => setView("analysis")}>📊 Analysis</button> view.
+            </div>
+          )}
+          </div>
+          </>
+        )}
       </main>
   );
 
@@ -567,7 +589,7 @@ export function App() {
             loadedCandidate.current = picked.id;
             setSel(null);
             setView("actual");
-            setTab("rating");
+            setTab("inspect");
             toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);

@@ -22,11 +22,14 @@
   --textDim: var(--cds-text-secondary);
 
   /* Data-encoding colours. These stay chromatic on purpose: they carry meaning
-     on the canvas and in charts, where Carbon's greys would erase it. */
-  --teal: #3ddbd9;
-  --tealDim: #007d79;
-  --amber: #d2a106;
-  --red: #fa4d56;
+     on the canvas and in charts, where Carbon's greys would erase it.
+     SOURCE OF TRUTH: components/colors.ts. The canvas/charts import the hexes
+     from there; these CSS aliases mirror them verbatim so any chrome that needs
+     a data colour matches the canvas exactly. Keep the two in sync. */
+  --teal: #2bb6a8;
+  --tealDim: #1c6f68;
+  --amber: #e0a458;
+  --red: #d96b5b;
 
   /* Carbon interactive + status */
   --interactive: var(--cds-interactive);
@@ -640,6 +643,132 @@ code {
     opacity: 0;
     transform: translateY(4px);
   }
+}
+
+/* ---------- node palette (node-RED idiom) ---------- */
+
+.palette {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  flex-wrap: wrap;
+  padding: var(--sp-03) 0 var(--sp-04);
+  margin-bottom: var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.palette-lab {
+  font-size: 0.6875rem;
+  color: var(--cds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.palette-node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+  padding: var(--sp-02) var(--sp-03);
+  font-size: 0.75rem;
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-left-width: 3px;
+  cursor: grab;
+  user-select: none;
+}
+.palette-node:active {
+  cursor: grabbing;
+}
+.palette-node:hover {
+  background: var(--cds-layer-hover-02);
+}
+.palette-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  flex: 0 0 auto;
+}
+.palette-form {
+  min-height: 1.5rem;
+  width: 1.75rem;
+  padding: 0;
+  font-size: 0.75rem;
+  background: var(--cds-layer-02);
+  color: var(--cds-text-primary);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.palette-form:hover {
+  background: var(--cds-layer-hover-02);
+}
+.palette-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--cds-border-subtle-01);
+  margin: 0 var(--sp-02);
+}
+.palette-hint {
+  font-size: 0.6875rem;
+}
+
+/* ---------- data quality / confidence (spec §5) ---------- */
+
+/* An estimated number renders as a range with a hatched fill — visibly soft, so
+   it can never be mistaken for a measured point. */
+.qty {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  white-space: nowrap;
+}
+.qty-hatch {
+  padding: 0 2px;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--cds-border-subtle-01) 3px,
+    var(--cds-border-subtle-01) 4px
+  );
+  border-bottom: 1px dashed var(--amber);
+}
+.qmark {
+  font-size: 0.625rem;
+  margin-left: 3px;
+  vertical-align: 0.05em;
+}
+
+/* Compact 3-state provenance selector in the inspector label row. */
+.qsel {
+  display: inline-flex;
+  gap: 1px;
+  margin-left: auto;
+}
+.qsel-btn {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+  background: var(--cds-layer-02);
+  color: var(--cds-text-secondary);
+  border: 1px solid transparent;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qsel-btn:hover {
+  background: var(--cds-layer-hover-02);
+}
+
+/* When a field's value is estimated, mark its input so the softness shows even
+   while editing. */
+input.est-field {
+  border-bottom-style: dashed;
+  border-bottom-color: var(--amber);
+}
+
+/* Field label rows that carry a provenance control lay out as a row. */
+.field > span.field-lab-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
 }
 
 /* ---------- help popover ---------- */

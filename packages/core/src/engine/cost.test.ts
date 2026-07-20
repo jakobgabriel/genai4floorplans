@@ -28,4 +28,21 @@ describe("costAnalysis", () => {
     const doubled = costAnalysis({ ...SAMPLE, costConfig: { laborCostPerHour: 90 } }).laborPerShift;
     expect(doubled).toBeCloseTo(base * 2, 2);
   });
+
+  it("reports floor space split cell vs material supply (blueprint §4.9)", () => {
+    const c = costAnalysis(SAMPLE);
+    // SAMPLE footprints: 3×2 + 3×3 + 4×3 + 3×3 + 3×2 + 3×2 = 6+9+12+9+6+6 = 48 cells.
+    expect(c.floorSpace.cell).toBe(48);
+    expect(c.floorSpace.unit).toBe("cells");
+    // Default +35% material supply, reported separately, never folded in.
+    expect(c.floorSpace.materialSupply).toBeCloseTo(48 * 0.35, 2);
+    expect(c.floorSpace.total).toBeCloseTo(48 * 1.35, 2);
+  });
+
+  it("reports floor space in m² when a cell area is given", () => {
+    const c = costAnalysis({ ...SAMPLE, costConfig: { cellAreaM2: 0.25, materialSupplyFactor: 0.4 } });
+    expect(c.floorSpace.unit).toBe("m²");
+    expect(c.floorSpace.cell).toBeCloseTo(48 * 0.25, 2);
+    expect(c.floorSpace.materialSupply).toBeCloseTo(48 * 0.25 * 0.4, 2);
+  });
 });
