@@ -1,4 +1,5 @@
 import {
+  ClickableTile,
   StructuredListBody,
   StructuredListCell,
   StructuredListHead,
@@ -14,6 +15,52 @@ import type { Candidate } from "@flowplan/core/engine/generate";
 
 import { money, moneyWhole, num } from "../format";
 
+// Featured quick-preview cards (LCG spike): four pre-selected jump-to-variant
+// entry points above the detail table, each the best candidate on one axis.
+function bestBy(pool: Candidate[], score: (c: Candidate) => number): Candidate | null {
+  return pool.reduce<Candidate | null>((best, c) => (best == null || score(c) > score(best) ? c : best), null);
+}
+
+function FeaturedCards({
+  candidates,
+  selectedId,
+  onSelect,
+}: {
+  candidates: Candidate[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const meet = candidates.filter((c) => c.metrics.meetsDemand);
+  const pool = meet.length ? meet : candidates;
+  const cur = candidates[0].cost.currency;
+  const cards = [
+    { key: "balanced", label: "Balanced", sub: "best overall score", c: bestBy(pool, (c) => c.metrics.composite), val: (c: Candidate) => `${c.metrics.composite.toFixed(0)}/100` },
+    { key: "smallest", label: "Smallest footprint", sub: "fewest stations", c: bestBy(pool, (c) => -c.metrics.stations), val: (c: Candidate) => `${c.metrics.stations} steps` },
+    { key: "throughput", label: "Highest throughput", sub: "most output/shift", c: bestBy(pool, (c) => c.metrics.lineOut), val: (c: Candidate) => `${num(c.metrics.lineOut)}/sh` },
+    { key: "tco", label: "Lowest TCO", sub: "loaded cost/part", c: bestBy(pool, (c) => -c.metrics.loadedCostPerPart), val: (c: Candidate) => money(cur, c.metrics.loadedCostPerPart) },
+  ].filter((f) => f.c);
+
+  return (
+    <div className="featured-cards">
+      {cards.map((f) => {
+        const c = f.c!;
+        return (
+          <ClickableTile
+            key={f.key}
+            className={"featured-card" + (c.id === selectedId ? " featured-card--on" : "")}
+            onClick={() => onSelect(c.id)}
+          >
+            <div className="featured-card__label">{f.label}</div>
+            <div className="featured-card__val">{f.val(c)}</div>
+            <div className="featured-card__sub">{c.conceptLabel} · {c.form}-form</div>
+            <div className="featured-card__hint">{f.sub}</div>
+          </ClickableTile>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ConceptTable({
   candidates,
   selectedId,
@@ -27,6 +74,8 @@ export function ConceptTable({
   const cur = candidates[0].cost.currency;
 
   return (
+    <>
+    <FeaturedCards candidates={candidates} selectedId={selectedId} onSelect={onSelect} />
     <StructuredListWrapper selection ariaLabel="Manufacturing concepts" className="planner__table">
       <StructuredListHead>
         <StructuredListRow head>
@@ -83,5 +132,6 @@ export function ConceptTable({
         })}
       </StructuredListBody>
     </StructuredListWrapper>
+    </>
   );
 }
