@@ -8,6 +8,8 @@ import { bottleneckAdvice } from "@flowplan/core/engine/balance";
 import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
 import { findImprovements, type Improvement } from "@flowplan/core/engine/improve";
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
+import { classifyFreedom, type FreedomFinding } from "@flowplan/core/engine/freedom";
+import { openPoints } from "@flowplan/core/engine/openpoints";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
@@ -90,6 +92,7 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
           </div>
         );
       })}
+      <OpenPointsSection api={api} setSel={setSel} setTab={setTab} />
       <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
       <div className="lab" style={{ marginBottom: 8 }}>
         Where the cost sits
@@ -127,6 +130,37 @@ const IMPROVEMENT_COLOR: Record<Improvement["kind"], string> = {
  * number was always 0% — which read as "nothing can be improved" when it meant
  * "this one optimiser has nothing to do". This shows every axis instead.
  */
+// Open points (blueprint §4.1): the release actions generated from the estimated
+// flags — not typed by the user. Investment follows these numbers, so an
+// estimated one is an action before release, not a detail.
+function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const points = useMemo(() => openPoints(api.model), [api.model]);
+  if (points.length === 0) return null;
+  return (
+    <div style={{ margin: "6px 0 14px" }}>
+      <div className="lab" style={{ marginBottom: 6, display: "flex", alignItems: "center" }}>
+        Open points — {points.length}
+        <HelpPopover text="Generated from the estimated numbers in the model, not typed. Each is an input to secure before investment release, because investment follows these figures." />
+      </div>
+      {points.map((p) => (
+        <div
+          key={p.id}
+          className="issue"
+          style={{ borderLeftColor: p.severity === "block" ? RED : AMBER, marginBottom: 6, cursor: p.ref ? "pointer" : "default", fontSize: 11 }}
+          onClick={() => {
+            if (p.ref && api.model.stations.some((s) => s.id === p.ref)) {
+              setSel(p.ref);
+              setTab("inspect");
+            }
+          }}
+        >
+          {p.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ImprovementList({
   api,
   setSel,
@@ -289,6 +323,56 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <CycleSection api={api} setSel={setSel} setTab={setTab} />
       <ParallelSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
+      <FreedomSection api={api} setTab={setTab} />
+    </div>
+  );
+}
+
+// Freedom-finding (blueprint §4.8). A linear routing implies an order that
+// mostly does not exist; this surfaces which operations the balancer may move to
+// fill an under-loaded station. Only meaningful once a workload is present.
+const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: "#a582c9", compulsory: TEXTD };
+const FREEDOM_HELP =
+  "A numbered routing implies a compulsory sequence that mostly does not exist. free = depends only on an early step, place it anywhere with slack (this is the balancing gain to look for). swappable = shares a predecessor with a sibling, either order works. exclusive = never runs in the same mode as another op, so they can share a station. compulsory = genuine physical precedence.";
+function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) => void }) {
+  const els = api.model.workElements ?? [];
+  const fr = useMemo(() => classifyFreedom(els, api.model.variantModes), [els, api.model.variantModes]);
+  if (els.length === 0) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="lab" style={{ marginBottom: 6, display: "flex", alignItems: "center" }}>
+        Placement freedom
+        <HelpPopover text={FREEDOM_HELP} />
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10.5, marginBottom: 8 }}>
+        {(["free", "swappable", "exclusive", "compulsory"] as FreedomFinding[]).map((k) =>
+          fr.counts[k] > 0 ? (
+            <span key={k} style={{ color: FREEDOM_COL[k] }}>
+              {fr.counts[k]} {k}
+            </span>
+          ) : null,
+        )}
+      </div>
+      <table className="schemaTbl">
+        <tbody>
+          {fr.elements.map((e) => (
+            <tr key={e.elementId}>
+              <td style={{ width: "1%", whiteSpace: "nowrap" }}>
+                <span style={{ color: FREEDOM_COL[e.finding], fontWeight: 600 }}>{e.finding}</span>
+              </td>
+              <td>
+                <div>{e.name}</div>
+                <div style={{ fontSize: 10, color: TEXTD }}>{e.reason}</div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {fr.counts.free > 0 ? (
+        <div style={{ fontSize: 10.5, color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
+          {fr.counts.free} free operation{fr.counts.free === 1 ? "" : "s"} can fill an under-loaded station →
+        </div>
+      ) : null}
     </div>
   );
 }

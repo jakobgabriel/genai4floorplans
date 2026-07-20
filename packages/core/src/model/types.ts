@@ -120,6 +120,12 @@ export interface CostConfig {
   energyCostPerKwh?: number;
   annualShifts?: number;
   currency?: string;
+  /** Physical area of one grid cell, m². Lets floor space report in m² instead
+   *  of abstract grid cells. Absent ⇒ figures are in grid cells. */
+  cellAreaM2?: number;
+  /** Extra floor for bins and replenishment, as a fraction of the cell area.
+   *  The blueprint's "forgotten 30-40 %". Absent ⇒ DEFAULT_MATERIAL_SUPPLY_FACTOR. */
+  materialSupplyFactor?: number;
 }
 
 export interface Flow {
@@ -319,12 +325,17 @@ export const EMPTY_CYCLE: CycleBreakdown = {
   setupSec: 0,
 };
 
+/** Extra floor for bins and replenishment as a fraction of cell area — the
+ *  blueprint's "forgotten 30-40 %". 0.35 is the midpoint. */
+export const DEFAULT_MATERIAL_SUPPLY_FACTOR = 0.35;
+
 /** Default cost assumptions used when costConfig fields are absent. */
 export const DEFAULT_COST_CONFIG = {
   laborCostPerHour: 45,
   energyCostPerKwh: 0.15,
   annualShifts: 460,
   currency: "$",
+  materialSupplyFactor: DEFAULT_MATERIAL_SUPPLY_FACTOR,
 } as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
