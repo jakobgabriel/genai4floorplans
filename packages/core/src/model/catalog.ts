@@ -48,6 +48,9 @@ export interface ProcessCatalogEntry {
   /** PE process-identification number, if governed. */
   processId?: string;
   notes?: string;
+  /** True for user-authored (non-predefined) entries. Absent ⇒ a seed building
+   *  block. Lets "Reset to seed" and the documentation view distinguish the two. */
+  custom?: boolean;
 }
 
 /** Seed library — illustrative standard building blocks drawn from the two IE

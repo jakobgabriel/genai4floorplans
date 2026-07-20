@@ -95,6 +95,31 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
   });
 
+  it("opens the process library and shows an element's documentation", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    // The palette carries the Library link.
+    fireEvent.click(screen.getByText("📚 Library"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
+    // Select the first catalog entry, then read its full data sheet.
+    fireEvent.click(screen.getByText("CNC turning"));
+    fireEvent.click(screen.getByRole("button", { name: "Documentation" }));
+    // The doc surfaces the whole data model, not just name/cycle.
+    expect(screen.getByText("Capability (N:M)")).toBeTruthy();
+    expect(screen.getByText("turning")).toBeTruthy();
+  });
+
+  it("authors a custom (non-predefined) library element", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("📚 Library"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
+    fireEvent.click(screen.getByText("＋ New element"));
+    // A new custom entry appears, tagged and selected for editing.
+    expect(screen.getAllByText(/New element/).length).toBeGreaterThan(0);
+    expect(screen.getByText("custom")).toBeTruthy();
+  });
+
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));

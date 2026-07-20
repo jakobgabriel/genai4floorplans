@@ -30,7 +30,7 @@ function stubDir(side: Side): { dx: number; dy: number } {
   return side === "left" ? { dx: -1, dy: 0 } : side === "right" ? { dx: 1, dy: 0 } : side === "top" ? { dx: 0, dy: -1 } : { dx: 0, dy: 1 };
 }
 
-export type CanvasMode = "select" | "flow" | "nogo";
+export type CanvasMode = "select" | "flow" | "nogo" | "group";
 
 interface Props {
   model: Model;
@@ -59,6 +59,9 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** Group mode: drag a rubber-band rectangle; the movable stations inside it
+   *  are handed back so the caller can mint a subflow (node-RED grouping). */
+  onGroupRect?: (zone: NoGoZone) => void;
   /** Drag-to-wire: dragging from a station's OUT port to another station
    *  creates a flow (node-RED-style wiring, spec Law 2 — feedback during the
    *  gesture). Only offered when interactive. */
@@ -151,7 +154,10 @@ export function LayoutCanvas(props: Props) {
     }
     function upHandler(e: PointerEvent) {
       const d = dragRef.current;
-      if (d.nogo && nogoRect && props.onAddNoGo) props.onAddNoGo(nogoRect);
+      if (d.nogo && nogoRect) {
+        if (props.mode === "group") props.onGroupRect?.(nogoRect);
+        else props.onAddNoGo?.(nogoRect);
+      }
       if (d.wireFrom && props.onWire) {
         const g = toGrid(e.clientX, e.clientY);
         const target = stations.find(
@@ -176,7 +182,7 @@ export function LayoutCanvas(props: Props) {
 
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
-    if (mode === "nogo") {
+    if (mode === "nogo" || mode === "group") {
       const g = toGrid(e.clientX, e.clientY);
       dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y }, wireFrom: null };
     } else {
@@ -267,7 +273,7 @@ export function LayoutCanvas(props: Props) {
           </pattern>
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
-        <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
+        <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" || mode === "group" ? "crosshair" : interactive ? "grab" : "default" }} />
         {gridLines}
 
         {(template ?? []).map((t, i) => (
@@ -283,7 +289,7 @@ export function LayoutCanvas(props: Props) {
           <rect key={"z" + i} x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={RED} opacity={0.08} stroke={RED} strokeWidth={1} strokeDasharray="4 3" />
         ))}
         {nogoRect ? (
-          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={RED} opacity={0.18} stroke={RED} strokeWidth={1.5} />
+          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={mode === "group" ? TEAL : RED} opacity={0.18} stroke={mode === "group" ? TEAL : RED} strokeWidth={1.5} strokeDasharray={mode === "group" ? "4 3" : undefined} />
         ) : null}
 
         {flows.map((f, i) => {

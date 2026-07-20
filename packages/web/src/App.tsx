@@ -36,6 +36,7 @@ import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { improvedLayout } from "@flowplan/core/engine/improved";
+import { useSubflows, makeSubflow } from "./store/subflows";
 import { CostPanel } from "./components/CostPanel";
 import { DataSheetPanel } from "./components/DataSheetPanel";
 import { CapacityPanel } from "./components/CapacityPanel";
@@ -52,6 +53,7 @@ import {
   type Tab,
 } from "./components/panels";
 import { AnalysisDashboard } from "./components/AnalysisDashboard";
+import { StationDoc } from "./components/ElementDoc";
 import { AMBER, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag" | "analysis";
@@ -79,6 +81,7 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
+  const subflows = useSubflows();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("inspect");
   const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
@@ -345,6 +348,18 @@ export function App() {
             toast(`Added ${nk.label}`);
           }}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
+          onGroupRect={(z) => {
+            // Movable process stations whose centre falls inside the rubber-band.
+            const inside = model.stations.filter(
+              (s) => s.role === "process" && s.x + s.w / 2 >= z.x && s.x + s.w / 2 <= z.x + z.w && s.y + s.h / 2 >= z.y && s.y + s.h / 2 <= z.y + z.h,
+            );
+            setMode("select");
+            if (inside.length < 2) { toast("Draw around at least two steps to group them", "warn"); return; }
+            const name = window.prompt(`Name this grouped element (${inside.length} steps)`, `Group of ${inside.length}`);
+            if (name == null) return;
+            const sf = makeSubflow(model, inside.map((s) => s.id), name);
+            if (sf) { subflows.add(sf); toast(`Grouped ${inside.length} steps as “${sf.name}”`); }
+          }}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
         {/* §4: the proposal annotates the canvas it belongs to; the per-item
@@ -365,6 +380,8 @@ export function App() {
             ? "Flow mode: tap a source step then a target. Esc to exit."
             : mode === "nogo"
               ? "No-go mode: drag a rectangle. Esc to exit."
+              : mode === "group"
+              ? "Group mode: drag a rectangle around the steps to save as a reusable grouped element. Esc to exit."
               : proposal && !proposalDismissed
                 ? "Drag movable stations · scroll to zoom · click an amber dashed ghost to accept that move · tap to configure"
                 : "Drag movable stations · scroll to zoom · tap to configure"}
@@ -452,7 +469,7 @@ export function App() {
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
   if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
-  if (route === "/library") return <div className="wrap"><LibraryPage api={api} /></div>;
+  if (route === "/library") return <div className="wrap"><LibraryPage api={api} subflows={subflows} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -540,6 +557,14 @@ export function App() {
             </div>
             {view === "actual" ? (
               <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
+                <button
+                  className={"btn sm" + (mode === "group" ? " on" : "")}
+                  title="Group mode: drag a rectangle around steps to save them as a reusable grouped element"
+                  onClick={() => setMode((m) => (m === "group" ? "select" : "group"))}
+                >
+                  ⧉ Group
+                </button>
+                <span className="hsep" />
                 <span style={{ fontSize: 11, color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
                 <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
                   Confidence
@@ -584,6 +609,9 @@ export function App() {
                   {t.label}
                 </button>
               ))}
+              <button className={"chip" + (tab === "doc" ? " on" : "")} title="Documentation — every field of the selected step" onClick={() => setTab("doc")}>
+                Docs
+              </button>
               <button className={"chip" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
                 ?
               </button>
@@ -595,6 +623,14 @@ export function App() {
           {tab === "workload" && <WorkloadPanel {...panelProps} />}
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
+          {tab === "doc" && (
+            <div className="pad">
+              {(() => {
+                const s = model.stations.find((x) => x.id === selId);
+                return s ? <StationDoc station={s} /> : <div style={{ color: TEXTD, fontSize: 12 }}>Select a step on the canvas to read its full data sheet.</div>;
+              })()}
+            </div>
+          )}
           {tab === "schema" && <SchemaPanel />}
           {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost") && (
             <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
