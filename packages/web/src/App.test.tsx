@@ -41,7 +41,8 @@ describe("App", () => {
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
     openAnalysis("Overview");
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    // The Overview is now a Carbon dashboard (stat tiles + Yamazumi + precedence).
+    expect(screen.getByText("Yamazumi — cycle time by station")).toBeTruthy();
   });
 
   it("switches between analysis sub-tabs without error", () => {

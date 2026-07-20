@@ -46,11 +46,11 @@ import {
   BalancePanel,
   ConfigurePanel,
   FlowPanel,
-  RatingPanel,
   SchemaPanel,
   type PanelProps,
   type Tab,
 } from "./components/panels";
+import { AnalysisDashboard } from "./components/AnalysisDashboard";
 import { AMBER, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag" | "analysis";
@@ -402,14 +402,19 @@ export function App() {
             </button>
           ))}
         </div>
-        <div style={{ maxWidth: 760, margin: "0 auto" }}>
-          {analysisTab === "rating" && <RatingPanel {...analysisPanelProps} />}
-          {analysisTab === "balance" && <BalancePanel {...analysisPanelProps} />}
-          {analysisTab === "datasheet" && <DataSheetPanel {...analysisPanelProps} />}
-          {analysisTab === "capacity" && <CapacityPanel {...analysisPanelProps} />}
-          {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
-          {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
-        </div>
+        {analysisTab === "rating" ? (
+          <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+            <AnalysisDashboard {...analysisPanelProps} />
+          </div>
+        ) : (
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+            {analysisTab === "balance" && <BalancePanel {...analysisPanelProps} />}
+            {analysisTab === "datasheet" && <DataSheetPanel {...analysisPanelProps} />}
+            {analysisTab === "capacity" && <CapacityPanel {...analysisPanelProps} />}
+            {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
+            {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
+          </div>
+        )}
       </div>
     );
   }

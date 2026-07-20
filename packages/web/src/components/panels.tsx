@@ -134,7 +134,7 @@ const IMPROVEMENT_COLOR: Record<Improvement["kind"], string> = {
 // Open points (blueprint §4.1): the release actions generated from the estimated
 // flags — not typed by the user. Investment follows these numbers, so an
 // estimated one is an action before release, not a detail.
-function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+export function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
   const points = useMemo(() => openPoints(api.model), [api.model]);
   if (points.length === 0) return null;
   return (
@@ -162,7 +162,7 @@ function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: 
   );
 }
 
-function ImprovementList({
+export function ImprovementList({
   api,
   setSel,
   setTab,
