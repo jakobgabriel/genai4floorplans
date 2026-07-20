@@ -1,5 +1,5 @@
 import type { Confidence, ErgonomicLoad, VariantMode, WorkClass, WorkElement } from "../model/types";
-import { weakestConfidence } from "../model/types";
+import { DEFAULT_LOSS_FACTOR, weakestConfidence } from "../model/types";
 
 // Mixed-model workload analysis (Cell Design spec §3.2, §5.2).
 //
@@ -81,10 +81,19 @@ export interface WorkloadAnalysis {
   attendedTotalSec: number;
   /** Operator-bound share of the weighted content — drives manning. */
   attendedPct: number | null;
-  /** ceil(weighted total ÷ takt). Planning figure. */
+  /** ceil(weighted total ÷ takt). Theoretical minimum — no loss allowance. */
   minStationsWeighted: number | null;
   /** ceil(worst mode total ÷ takt). Feasibility figure. */
   minStationsWorst: number | null;
+  /** (weighted total ÷ takt) × lossFactor, UNROUNDED. The realistic station
+   *  count once walking/reaching/handling/balancing loss is allowed for. The
+   *  decimal is meaningful — it says how much headroom remains — so it is never
+   *  silently rounded (spec / IE blueprint "never round the station count"). */
+  stationsCalculated: number | null;
+  /** Same, against the heaviest mode — the count feasibility actually requires. */
+  stationsCalculatedWorst: number | null;
+  /** The loss factor these calculated counts were derived with. */
+  lossFactor: number;
   /** Elements whose worst-case time alone exceeds takt — they cannot fit one
    *  station at any balance and must be split, automated or paralleled. */
   overTaktElements: ElementLoad[];
@@ -102,10 +111,12 @@ export function analyseWorkload(
   elements: WorkElement[],
   variantModes: VariantMode[] | undefined,
   taktSec?: number,
+  lossFactor: number = DEFAULT_LOSS_FACTOR,
 ): WorkloadAnalysis {
   const modes = modesOf(variantModes);
   const shares = normalizedShares(modes);
   const hasTakt = taktSec != null && taktSec > 0;
+  const lf = lossFactor > 0 ? lossFactor : DEFAULT_LOSS_FACTOR;
 
   const loads: ElementLoad[] = elements.map((el) => {
     const perMode = modes.map((m) => el.time.seconds * multiplierFor(m, el.id));
@@ -198,6 +209,9 @@ export function analyseWorkload(
     attendedPct: weightedTotalSec > 0 ? +((attendedTotalSec / weightedTotalSec) * 100).toFixed(1) : null,
     minStationsWeighted: hasTakt ? Math.ceil(weightedTotalSec / (taktSec as number)) : null,
     minStationsWorst: hasTakt ? Math.ceil((worst?.totalSec ?? 0) / (taktSec as number)) : null,
+    stationsCalculated: hasTakt ? +((weightedTotalSec / (taktSec as number)) * lf).toFixed(2) : null,
+    stationsCalculatedWorst: hasTakt ? +(((worst?.totalSec ?? 0) / (taktSec as number)) * lf).toFixed(2) : null,
+    lossFactor: lf,
     overTaktElements,
     confidence: weakestConfidence(elements.map((e) => e.time.confidence)),
     issues,

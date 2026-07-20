@@ -283,6 +283,12 @@ export interface Model {
   stations: Station[];
   flows: Flow[];
   noGoZones: NoGoZone[];
+  /** Balancing loss factor (spec / IE blueprint). Carries walking, reaching,
+   *  handling and balancing loss — none of which appears in a standard time —
+   *  so the calculated station count is (work content ÷ takt) × lossFactor.
+   *  Stored as a constant so it is neither measured nor forgotten. Absent ⇒
+   *  DEFAULT_LOSS_FACTOR. */
+  lossFactor?: number;
   /** Which manufacturing concept this cell represents (engine/concepts.ts).
    *  Purely descriptive — the rating does not read it. */
   conceptKind?: string;
@@ -323,3 +329,18 @@ export const DEFAULT_COST_CONFIG = {
 
 /** Default shift length (hours) used by the balance engine when unspecified. */
 export const DEFAULT_SHIFT_HOURS = 8;
+
+/** Default balancing loss factor. 1.2 is the IE-standard midpoint of the band
+ *  below — enough to carry walking/reaching/handling/balancing loss without a
+ *  measurement campaign. */
+export const DEFAULT_LOSS_FACTOR = 1.2;
+
+/** The documented band a loss factor should sit in. Shown in the UI so the
+ *  number reads as a chosen constant with provenance, not a free tuning knob. */
+export const LOSS_FACTOR_BAND: readonly [number, number] = [1.15, 1.25];
+
+/** A model's loss factor, clamped to sane bounds, defaulting when unset. */
+export function lossFactorOf(model: { lossFactor?: number }): number {
+  const v = model.lossFactor;
+  return typeof v === "number" && isFinite(v) && v > 0 ? Math.max(1, Math.min(2, v)) : DEFAULT_LOSS_FACTOR;
+}
