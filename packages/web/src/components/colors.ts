@@ -1,4 +1,4 @@
-import type { AutoState, ErgoRisk, StationType } from "@flowplan/core/model/types";
+import type { AutoState, CycleKey, ErgoRisk, StationType } from "@flowplan/core/model/types";
 
 export const TEAL = "#2bb6a8";
 export const TEALD = "#1c6f68";
@@ -22,3 +22,15 @@ export const AUTO_COL: Record<AutoState, string> = { manual: RED, semi: AMBER, a
 export function scoreColor(score: number): string {
   return score >= 80 ? TEAL : score >= 60 ? AMBER : RED;
 }
+
+// Cycle-time classes. Value-add is the only teal band — the four waste classes
+// read as warm/cool "not teal" so a glance at a Yamazumi bar shows the ratio.
+export const BLUE = "#6f9bd1";
+export const PURPLE = "#a582c9";
+export const CYCLE_COL: Record<CycleKey, string> = {
+  valueAddSec: TEAL,
+  handlingSec: AMBER,
+  walkSec: BLUE,
+  waitSec: RED,
+  setupSec: PURPLE,
+};

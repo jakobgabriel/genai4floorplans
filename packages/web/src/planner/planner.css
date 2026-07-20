@@ -1,0 +1,329 @@
+/* Planner + application shell.
+ * Layout only — every colour, type size and space is a Carbon token. */
+
+/* ---------- shell ---------- */
+
+.shell {
+  padding-top: 3rem; /* Carbon Header is fixed at 3rem */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cds-background);
+}
+
+.shell__steps {
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
+  flex: 0 0 auto;
+}
+
+.shell__steps .cds--progress-label {
+  font-size: 0.875rem;
+}
+
+.shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell__actionLabel {
+  font-size: 0.875rem;
+  padding: 0 var(--cds-spacing-03);
+}
+
+/* ---------- planner steps ---------- */
+
+.planner {
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--cds-spacing-07) var(--cds-spacing-06) var(--cds-spacing-05);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  flex: 0 0 auto;
+}
+
+.planner--wide {
+  max-width: 84rem;
+}
+
+.planner__head {
+  margin-bottom: var(--cds-spacing-06);
+}
+
+.planner__title {
+  font-size: 2.625rem;
+  font-weight: 300;
+  line-height: 1.199;
+  letter-spacing: 0;
+  margin: 0 0 var(--cds-spacing-04);
+}
+
+.planner__h2 {
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.28;
+  margin: 0 0 var(--cds-spacing-03);
+}
+
+.planner__sub {
+  color: var(--cds-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 var(--cds-spacing-06);
+  max-width: 55ch;
+}
+
+/* ---------- use-case tiles ---------- */
+
+.planner__grid {
+  row-gap: var(--cds-spacing-05);
+  margin-bottom: var(--cds-spacing-06);
+}
+
+.planner__tile {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--cds-spacing-06);
+}
+
+.planner__tile--off {
+  opacity: 0.6;
+}
+
+.planner__tileHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-04);
+}
+
+.planner__tileHead h3 {
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.planner__q {
+  color: var(--cds-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.43;
+  margin: 0 0 var(--cds-spacing-05);
+}
+
+.planner__meta {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.34;
+  margin: 0 0 var(--cds-spacing-03);
+}
+
+.planner__meta b {
+  color: var(--cds-text-primary);
+  font-weight: 600;
+}
+
+.planner__caveat {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.34;
+  margin: var(--cds-spacing-03) 0 0;
+  padding-left: var(--cds-spacing-04);
+  border-left: 2px solid var(--cds-support-warning);
+}
+
+.planner__lifecycle {
+  margin: auto 0 0;
+  padding-top: var(--cds-spacing-05);
+  color: var(--cds-text-placeholder);
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  font-size: 0.6875rem;
+}
+
+.planner__escape {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-02);
+  padding-top: var(--cds-spacing-05);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+
+.planner__escapeLab {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  margin-right: var(--cds-spacing-03);
+}
+
+/* ---------- form steps ---------- */
+
+.planner .cds--css-grid {
+  padding-inline: 0;
+  margin-inline: 0;
+  row-gap: var(--cds-spacing-06);
+}
+
+.planner__derived {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  margin-top: var(--cds-spacing-06);
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
+}
+
+.planner__derivedLab {
+  display: block;
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  margin-bottom: var(--cds-spacing-02);
+}
+
+.planner__derivedVal {
+  display: block;
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1.25;
+}
+
+.planner__count {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  margin-top: var(--cds-spacing-05);
+}
+
+.planner .cds--form-item,
+.planner .cds--radio-button-group,
+.planner .cds--text-area__wrapper {
+  margin-bottom: var(--cds-spacing-05);
+}
+
+/* ---------- concept table ---------- */
+
+.planner__table {
+  margin-bottom: var(--cds-spacing-05);
+}
+
+/* Fixed column rhythm — the default flex distribution let money and counts
+   drift apart, which made the table hard to scan. */
+.planner__table .cds--structured-list-row {
+  display: grid;
+  grid-template-columns: minmax(11rem, 1.3fr) minmax(10rem, 1.1fr) minmax(7rem, 0.8fr) 6rem minmax(6rem, 0.6fr) minmax(12rem, 1fr);
+  align-items: center;
+  cursor: pointer;
+}
+
+.planner__table .cds--structured-list-row--header-row {
+  cursor: default;
+  background: var(--cds-layer-accent-01);
+}
+
+.planner__table .cds--structured-list-th,
+.planner__table .cds--structured-list-td {
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+}
+
+.planner__row--on {
+  background: var(--cds-layer-selected-01);
+  box-shadow: inset 3px 0 0 0 var(--cds-interactive);
+}
+
+.planner__cellSub {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.planner__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--cds-spacing-02);
+}
+
+/* Flex items shrink below their content by default, which squeezed the pill
+   background narrower than its own label. */
+.planner__tags .cds--tag {
+  flex: 0 0 auto;
+  margin: 0;
+  max-width: none;
+  white-space: nowrap;
+}
+
+/* ---------- step navigation ---------- */
+
+.planner__actions {
+  display: flex;
+  gap: 1px;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 var(--cds-spacing-06) var(--cds-spacing-07);
+  flex: 0 0 auto;
+}
+
+.planner__actions .cds--btn {
+  flex: 0 0 auto;
+  min-width: 12rem;
+}
+
+/* ---------- editor step ---------- */
+
+.editorbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  padding: 0 var(--cds-spacing-05);
+  min-height: 3rem;
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+
+.shell__body > main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 66rem) {
+  .planner__title {
+    font-size: 2rem;
+  }
+  .planner__actions .cds--btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 42rem) {
+  .shell__steps {
+    padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  }
+  .planner,
+  .planner__actions {
+    padding-left: var(--cds-spacing-05);
+    padding-right: var(--cds-spacing-05);
+  }
+  .planner__table .cds--structured-list-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Inferred-value marker. Everything the tool guessed is labelled, so a guess is
+   never mistaken for something the planner supplied. */
+.planner__inferred {
+  color: var(--cds-support-warning);
+  font-size: 0.6875rem;
+  letter-spacing: 0.32px;
+  margin-top: 2px;
+}
+
+.planner__table--infer .cds--structured-list-row {
+  grid-template-columns: minmax(10rem, 1.4fr) 7rem minmax(9rem, 1fr) 8rem 7rem;
+}

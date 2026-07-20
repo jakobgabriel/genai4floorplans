@@ -6,8 +6,17 @@ actual state across flow, balance, ergonomics and automation, then see a scored
 
 This is the productized app, ported from the original single-file demo
 (`legacy/flowplan-demo.html`) into a modular, typed, tested React + TypeScript
-SPA, now an **npm-workspaces monorepo** with an optional API backend. The full
-product spec lives in [`docs/flowplanspec.md`](docs/flowplanspec.md).
+SPA, now an **npm-workspaces monorepo** with an optional API backend.
+
+Two specs, and they answer different questions:
+
+- [`docs/line-planner-spec.md`](docs/line-planner-spec.md) — the **governing
+  specification** (Line Planner v1.0). What the tool is meant to become. Cite it
+  by section number.
+- [`docs/flowplanspec.md`](docs/flowplanspec.md) — the **as-built** product spec.
+  What the application does today.
+- [`docs/spec-alignment.md`](docs/spec-alignment.md) — the gap between them,
+  stated honestly, with a suggested build order.
 
 ## Quick start
 

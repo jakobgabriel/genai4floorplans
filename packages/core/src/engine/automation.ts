@@ -1,4 +1,5 @@
 import type { Flow, Station } from "../model/types";
+import { effectiveCycleSec } from "./cycle";
 
 export type LinkKind = "manual" | "mixed" | "auto-island" | "chained-auto";
 
@@ -27,7 +28,8 @@ export function autoHeuristic(s: Station): number {
   if (s.role === "input" || s.role === "output") score -= 10;
   if (s.ergoRisk === "high") score += 20;
   else if (s.ergoRisk === "med") score += 8;
-  if (s.cycleTimeSec > 0 && s.cycleTimeSec < 30) score += 10;
+  const cycleSec = effectiveCycleSec(s);
+  if (cycleSec > 0 && cycleSec < 30) score += 10;
   if (s.changeoverMin > 30) score -= 10;
   if (s.capacityPerShift > 1500) score += 8;
   if (s.operators >= 3) score += 10;

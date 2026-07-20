@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
+import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
+import { findImprovements, type Improvement } from "@flowplan/core/engine/improve";
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
-import { AMBER, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
+import { YamazumiChart } from "./charts";
+import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
@@ -18,7 +21,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -40,7 +43,7 @@ const KPI_HELP: Record<string, string> = {
   "Automation coherence": "100 − (auto-islands ÷ links). An auto-island is two automated steps joined by a manual handoff.",
 };
 
-export function RatingPanel({ api, setView }: PanelProps) {
+export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
   const r = api.rating;
   const letterCol = scoreColor(r.composite);
   const kpis: Array<[string, number | null, number]> = [
@@ -86,20 +89,7 @@ export function RatingPanel({ api, setView }: PanelProps) {
           </div>
         );
       })}
-      <div className="imp">
-        <div className="lab">
-          Improvement potential
-          <HelpPopover text="Greedy pairwise swaps — a local floor, not a global optimum. It repositions movable boxes; it won't resize or re-route, and it respects fixed stations and no-go zones." />
-        </div>
-        <div className="impVal">
-          −{r.flowReductionPct.toFixed(0)}% <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>flow cost</span>
-        </div>
-        {r.moves.length > 0 ? (
-          <button className="btn" style={{ marginTop: 10, width: "100%", borderColor: TEALD, color: TEAL }} onClick={() => setView("improved")}>
-            View improved layout →
-          </button>
-        ) : null}
-      </div>
+      <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
       <div className="lab" style={{ marginBottom: 8 }}>
         Where the cost sits
       </div>
@@ -115,6 +105,80 @@ export function RatingPanel({ api, setView }: PanelProps) {
         </div>
       ))}
       <WeightsEditor api={api} />
+    </div>
+  );
+}
+
+
+const IMPROVEMENT_COLOR: Record<Improvement["kind"], string> = {
+  bottleneck: RED,
+  rebalance: AMBER,
+  waste: AMBER,
+  relayout: TEAL,
+  form: TEAL,
+};
+
+/**
+ * Ranked improvement opportunities.
+ *
+ * Replaces the old single "improvement potential" number, which only measured
+ * position swaps. A generated cell is already placed in flow order, so that
+ * number was always 0% — which read as "nothing can be improved" when it meant
+ * "this one optimiser has nothing to do". This shows every axis instead.
+ */
+function ImprovementList({
+  api,
+  setSel,
+  setTab,
+  setView,
+}: {
+  api: FlowPlanApi;
+  setSel: (id: string | null) => void;
+  setTab: (t: Tab) => void;
+  setView: (v: "actual" | "improved" | "split") => void;
+}) {
+  const report = useMemo(() => findImprovements(api.model), [api.model]);
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="lab" style={{ marginBottom: 8 }}>
+        What could be better
+        <HelpPopover text="Ranked across every axis the engine can see: line balance, the constraint, waste content, station positions and cell form. Throughput gains outrank labour gains, which outrank shorter travel." />
+      </div>
+
+      {report.exhausted ? (
+        <div className="ok" style={{ lineHeight: 1.5 }}>
+          <b>No headroom found.</b>
+          <div style={{ marginTop: 4, color: TEXTD }}>{report.why}</div>
+        </div>
+      ) : (
+        report.improvements.slice(0, 6).map((imp: Improvement, i: number) => (
+          <div
+            key={imp.kind + i}
+            className="card"
+            style={{ borderLeft: "3px solid " + IMPROVEMENT_COLOR[imp.kind], cursor: imp.targetIds.length ? "pointer" : "default" }}
+            onClick={() => {
+              if (imp.kind === "relayout") setView("improved");
+              else if (imp.targetIds[0]) {
+                setSel(imp.targetIds[0]);
+                setTab("inspect");
+              }
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+              <b style={{ fontSize: 12 }}>{imp.title}</b>
+              <span style={{ fontSize: 10.5, color: TEXTD, whiteSpace: "nowrap" }}>
+                {imp.confidence} conf.
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
+          </div>
+        ))
+      )}
+
+      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+        Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
+      </div>
     </div>
   );
 }
@@ -221,9 +285,100 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
         Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
         steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
       </div>
+      <CycleSection api={api} setSel={setSel} setTab={setTab} />
       <ParallelSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
     </div>
+  );
+}
+
+// Value-add vs waste. Only meaningful once at least one step is decomposed, so
+// the section leads with a prompt rather than an empty chart.
+function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const takt = api.rating.balance.takt;
+  const analysis = cycleAnalysis(api.model.stations, takt);
+  const tips = cycleAdvice(analysis);
+  if (analysis.totalCount === 0) return null;
+
+  const open = (id: string) => {
+    setSel(id);
+    setTab("inspect");
+  };
+
+  return (
+    <>
+      <div className="lab" style={{ margin: "18px 0 8px" }}>
+        Value add vs waste
+        <HelpPopover text="Cycle time split into value-add plus four waste classes. Only decomposed steps count toward the line ratio — undecomposed steps show hatched and are excluded." />
+      </div>
+
+      {analysis.decomposedCount === 0 ? (
+        <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.6 }}>
+          No step has a cycle breakdown yet. Select a step → Inspect → <b>Decompose</b> to split its
+          cycle into value-add, handling, walk, wait and setup. The line ratio and waste backlog
+          appear once at least one step is split.
+        </div>
+      ) : (
+        <>
+          <div className="imp" style={{ marginTop: 0 }}>
+            <div className="lab">Value-add ratio{analysis.complete ? "" : " (decomposed steps only)"}</div>
+            <div className="impVal">
+              {analysis.lineValueAddPct}
+              <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>%</span>
+            </div>
+            <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
+              {analysis.lineValueAddSec}s value-add · {analysis.lineNonValueAddSec}s waste ·{" "}
+              {analysis.decomposedCount}/{analysis.totalCount} steps split
+            </div>
+          </div>
+
+          <YamazumiChart rows={analysis.stations} takt={takt} onSelect={open} />
+
+          <div className="legend">
+            {CYCLE_KEYS.map((k) => (
+              <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, display: "inline-block" }} />
+                {CYCLE_LABELS[k]}
+              </span>
+            ))}
+          </div>
+
+          {tips.length > 0 ? (
+            <div className="issue" style={{ borderLeftColor: AMBER, marginTop: 12, cursor: "default" }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Where the waste is</div>
+              {tips.map((t, i) => (
+                <div key={i} style={{ marginBottom: 3 }}>
+                  · {t}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {analysis.waste.length > 0 ? (
+            <>
+              <div className="lab" style={{ margin: "14px 0 8px" }}>
+                Waste backlog (largest first)
+              </div>
+              {analysis.waste.slice(0, 6).map((wst, i) => (
+                <div key={wst.stationId + wst.key + i} style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => open(wst.stationId)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                    <span>
+                      {wst.stationName} · <span style={{ color: CYCLE_COL[wst.key] }}>{wst.label.toLowerCase()}</span>
+                    </span>
+                    <span style={{ color: TEXTD }}>
+                      {wst.sec}s · {wst.sharePct}%
+                    </span>
+                  </div>
+                  <div className="bar">
+                    <div style={{ width: wst.sharePct + "%", background: CYCLE_COL[wst.key] }} />
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : null}
+        </>
+      )}
+    </>
   );
 }
 
@@ -746,13 +901,14 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
       </div>
       <div className="row2">
-        <Field label="Cycle time (s)">
-          <input type="number" value={s.cycleTimeSec} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
+        <Field label="Cycle time (s)" help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
+          <input type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
         </Field>
         <Field label="Changeover (min)">
           <input type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
         </Field>
       </div>
+      <CycleBreakdownEditor api={api} s={s} />
       <div className="row2">
         <Field label="Ergonomic risk">
           <select value={s.ergoRisk} onChange={(e) => up({ ergoRisk: e.target.value })}>
@@ -812,6 +968,79 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         <button className="btn sm" onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
           Add
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Cycle decomposition editor. Opt-in per station: until "Decompose" is pressed
+// the station keeps a single opaque cycleTimeSec and nothing about its scoring
+// changes.
+function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
+  if (s.role !== "process") return null;
+
+  if (!s.cycle) {
+    return (
+      <div style={{ margin: "2px 0 10px" }}>
+        <button
+          className="btn sm"
+          onClick={() => {
+            api.checkpoint();
+            api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: seedBreakdown(s) });
+          }}
+        >
+          Decompose cycle
+        </button>
+        <span style={{ fontSize: 10.5, color: TEXTD, marginLeft: 8 }}>
+          split {s.cycleTimeSec}s into value-add & waste
+        </span>
+      </div>
+    );
+  }
+
+  const total = s.cycleTimeSec;
+  const va = s.cycle.valueAddSec;
+  const vaPct = total > 0 ? Math.round((va / total) * 100) : 0;
+
+  return (
+    <div className="card" style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span className="lab" style={{ margin: 0 }}>
+          Cycle breakdown
+          <HelpPopover text="Only value-add transforms the part. The other four classes are waste — the cycle time is their sum." />
+        </span>
+        <button
+          className="btn sm"
+          title="Discard the split and go back to a single cycle time"
+          onClick={() => {
+            api.checkpoint();
+            api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: undefined });
+          }}
+        >
+          Reset
+        </button>
+      </div>
+
+      {CYCLE_KEYS.map((k) => (
+        <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, flex: "0 0 auto" }} />
+          <span style={{ fontSize: 11, flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
+          <input
+            type="number"
+            min={0}
+            style={{ width: 74, flex: "0 0 auto" }}
+            value={(s.cycle as CycleBreakdown)[k]}
+            onFocus={api.checkpoint}
+            onChange={(e) => api.live({ type: "PATCH_CYCLE_BREAKDOWN", id: s.id, patch: { [k]: Math.max(0, +e.target.value) } })}
+          />
+        </div>
+      ))}
+
+      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: 11 }}>
+        <span>Total cycle</span>
+        <span>
+          <b>{total}s</b> <span style={{ color: vaPct >= 60 ? TEAL : vaPct >= 30 ? AMBER : RED }}>· {vaPct}% value-add</span>
+        </span>
       </div>
     </div>
   );
@@ -880,7 +1109,8 @@ export function SchemaPanel() {
         ["autoOverride", "enum?", "null·yes·no (override potential)"],
         ["capacityPerShift", "int", "throughput ceiling"],
         ["operators", "int", "staffing"],
-        ["cycleTimeSec", "int", "per-part cycle"],
+        ["cycleTimeSec", "int", "per-part cycle (derived from cycle when present)"],
+        ["cycle", "obj?", "valueAdd/handling/walk/wait/setupSec — absent = not decomposed"],
         ["changeoverMin", "int", "setup/changeover time"],
         ["ergoRisk", "enum", "low·med·high"],
         ["shiftHours", "number?", "per-station shift override"],

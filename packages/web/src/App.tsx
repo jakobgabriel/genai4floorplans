@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFlowPlan } from "./store/useFlowPlan";
 import { SAMPLE, blankModel } from "@flowplan/core/model/sample";
 import { parseModelText } from "@flowplan/core/io/json";
@@ -10,7 +10,15 @@ import { cloneStation } from "@flowplan/core/store/reducer";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
-import { EmptyState } from "./components/EmptyState";
+
+import { ProcessShell } from "./planner/ProcessShell";
+import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
+import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
+import { parseSteps } from "./planner/parseSteps";
+import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
+import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { Button } from "@carbon/react";
+import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
@@ -23,6 +31,9 @@ import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
+import { ProposalPanel } from "./components/ProposalPanel";
+import { WorkloadPanel } from "./components/WorkloadPanel";
+import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { CostPanel } from "./components/CostPanel";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
@@ -52,6 +63,9 @@ const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[
     { tab: "cost", label: "Cost" },
   ] },
   { id: "build", label: "Build", tabs: [
+    // Workload leads: the spec's flow is workload → balancer → stations (§11),
+    // so the product-free input comes before the things derived from it.
+    { tab: "workload", label: "Workload" },
     { tab: "flow", label: "Flow" },
     { tab: "inspect", label: "Configure" },
   ] },
@@ -60,7 +74,7 @@ const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[
 ];
 const GROUP_OF: Record<Tab, Group | undefined> = {
   rating: "insights", balance: "insights", cost: "insights",
-  flow: "build", inspect: "build",
+  workload: "build", flow: "build", inspect: "build",
   auto: "automation", chat: "chat", schema: undefined,
 };
 
@@ -74,7 +88,25 @@ export function App() {
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
-  const [showOnboard, setShowOnboard] = useState(() => !localStorage.getItem("flowplan_model"));
+  const [proposalDismissed, setProposalDismissed] = useState(false);
+  const hadModel = !!localStorage.getItem("flowplan_model");
+  const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : "situation");
+  const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : ["situation"]);
+  const goTo = useCallback((s: FlowStep) => {
+    setStep(s);
+    setReached((r) => widen(r, reachedThrough(s)));
+  }, []);
+  // ---- planning brief (lifted out of the planner so the stepper owns it) ----
+  const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
+  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8 });
+  const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
+  const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
+  const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
+  const [complexity, setComplexity] = useState("moderate");
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  // Which candidate has already been loaded into the workspace, so advancing
+  // to Refine twice does not create duplicate cells.
+  const loadedCandidate = useRef<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -109,6 +141,27 @@ export function App() {
     if (g) lastSubTab.current[g] = tab;
   }, [tab]);
 
+  // ---- derived planning data ----------------------------------------------
+  const briefSteps: CoreStep[] = useMemo(() => {
+    if (knowledge === "known") return parseSteps(paste);
+    const sec = COMPLEXITY_SEC[complexity] ?? 35;
+    return stepNames
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((n) => ({ name: n, cycleTimeSec: sec }));
+  }, [knowledge, paste, stepNames, complexity]);
+
+  const brief: GenerateBrief = { ...demand, steps: briefSteps };
+  const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
+
+  const candidates = useMemo(
+    () => (step === "concepts" || step === "summary" ? rankCandidates(generateCandidates(brief)) : []),
+    [step, demand, briefSteps],
+  );
+  const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
+  const useCase = useCaseId ? USE_CASES.find((u) => u.id === useCaseId) ?? null : null;
+
   // ---- flow drawing: pick source then target
   const pickStation = useCallback(
     (id: string) => {
@@ -138,7 +191,7 @@ export function App() {
           api.reset(res.model);
           setSel(null);
           setView("actual");
-          setShowOnboard(false);
+          goTo("refine");
           toast("Loaded “" + res.model.name + "”");
         } else {
           toast(res.error || "Import failed", "err");
@@ -246,6 +299,11 @@ export function App() {
 
   const improvedModel = { ...model, stations: rating.optimized };
 
+  // §4: the optimizer's output is a proposal, not a write. Recomputed with the
+  // rating; dismissal is cleared whenever a genuinely new one appears.
+  const proposal = useMemo(() => makePlacementProposal(model, rating), [model, rating]);
+  useEffect(() => { setProposalDismissed(false); }, [proposal?.baseSignature]);
+
   let canvasInner;
   if (view === "actual") {
     canvasInner = (
@@ -256,6 +314,12 @@ export function App() {
           flows={model.flows}
           chain={api.chain}
           ghost={rating.optimized}
+          proposalItems={proposal?.items}
+          onAcceptMove={(id) => {
+            if (!proposal) return;
+            api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: [id] });
+            toast(`${proposal.items.find((i) => i.stationId === id)?.name ?? "Move"} accepted`);
+          }}
           selId={selId}
           label="ACTUAL"
           badge={TEAL}
@@ -274,12 +338,27 @@ export function App() {
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
+        {/* §4: the proposal annotates the canvas it belongs to; the per-item
+            accept is the ghost itself, not a control in this strip. */}
+        {proposal && !proposalDismissed ? (
+          <ProposalPanel
+            proposal={proposal}
+            model={model}
+            onAcceptAll={() => {
+              api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
+              toast(`${proposal.items.length} moves accepted`);
+            }}
+            onDismiss={() => setProposalDismissed(true)}
+          />
+        ) : null}
         <div className="hint">
           {mode === "flow"
             ? "Flow mode: tap a source step then a target. Esc to exit."
             : mode === "nogo"
               ? "No-go mode: drag a rectangle. Esc to exit."
-              : "Drag movable stations · scroll to zoom · amber dashed = improved position · tap to configure"}
+              : proposal && !proposalDismissed
+                ? "Drag movable stations · scroll to zoom · click an amber dashed ghost to accept that move · tap to configure"
+                : "Drag movable stations · scroll to zoom · tap to configure"}
         </div>
       </div>
     );
@@ -289,17 +368,11 @@ export function App() {
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
         <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
-          {rating.moves.length > 0 ? (
-            <button
-              className="btn"
-              style={{ borderColor: TEALD, color: TEAL }}
-              onClick={() => { api.commit({ type: "ADOPT_STATIONS", stations: rating.optimized }); setView("actual"); toast("Improved layout adopted"); }}
-            >
-              Adopt as new actual
-            </button>
-          ) : (
-            <span style={{ fontSize: 12, color: TEXTD }}>Already optimal — no moves found.</span>
-          )}
+        </div>
+        <div style={{ fontSize: 12, color: TEXTD, marginTop: 10 }}>
+          {proposal
+            ? `${proposal.items.length} proposed move${proposal.items.length === 1 ? "" : "s"} — switch to Actual to accept them on the canvas.`
+            : "Already optimal — no moves to propose."}
         </div>
       </div>
     );
@@ -321,13 +394,14 @@ export function App() {
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
   if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
 
-  return (
-    <div className="wrap">
-      <header>
-        <div className="logo">
-          FLOW<span>PLAN</span>
-        </div>
-        <div className="spacer" />
+  const editorToolbar = (
+    <div className="editorbar">
+      <HeaderKpis api={api} />
+      <div className="spacer" />
+      <Button size="sm" kind="primary" onClick={() => goTo("summary")}>
+        Continue to summary
+      </Button>
+      <span className="hsep" />
         <button
           className={"btn sm" + (explorerCollapsed ? "" : " on")}
           onClick={() => setExplorerCollapsed((v) => !v)}
@@ -383,8 +457,10 @@ export function App() {
             },
           ]}
         />
-      </header>
+    </div>
+  );
 
+  const editorBody = (
       <main>
         <aside
           className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}
@@ -460,6 +536,7 @@ export function App() {
           </div>
           {tab === "rating" && <RatingPanel {...panelProps} />}
           {tab === "balance" && <BalancePanel {...panelProps} />}
+          {tab === "workload" && <WorkloadPanel {...panelProps} />}
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "auto" && <AutomationPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
@@ -470,6 +547,92 @@ export function App() {
           )}
         </div>
       </main>
+  );
+
+  const stepNav = (
+    <div className="planner__actions">
+      <Button
+        kind="secondary"
+        onClick={() => goTo(FLOW_STEPS[Math.max(0, FLOW_STEPS.indexOf(step) - 1)])}
+        disabled={step === "situation"}
+      >
+        Back
+      </Button>
+      <Button
+        onClick={() => {
+          // Leaving Concepts loads the chosen candidate, so Refine edits the
+          // generated cell rather than whatever was open before.
+          if (step === "concepts" && picked && loadedCandidate.current !== picked.id) {
+            api.addCell(picked.model, picked.model.name);
+            loadedCandidate.current = picked.id;
+            setSel(null);
+            setView("actual");
+            setTab("rating");
+            toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
+          }
+          goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
+        }}
+        disabled={
+          step === "summary" ||
+          (step === "demand" && !(demand.annualVolume > 0)) ||
+          (step === "process" && briefSteps.length === 0) ||
+          (step === "concepts" && !picked)
+        }
+      >
+        {step === "concepts" ? "Refine this layout" : "Continue"}
+      </Button>
+    </div>
+  );
+
+  return (
+    <ProcessShell step={step} reached={reached} onGoto={goTo}>
+      {step === "situation" ? (
+        <SituationStep
+          hasCell={api.cells.length > 0}
+          onSkip={() => goTo("refine")}
+          onPick={(id) => { setUseCaseId(id); const uc = USE_CASES.find((u) => u.id === id); goTo(uc && uc.steps.length > 1 ? "demand" : "refine"); }}
+          onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
+          onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
+          onImport={() => fileRef.current?.click()}
+        />
+      ) : null}
+
+      {step === "demand" ? <DemandStep values={demand} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} /> : null}
+
+      {step === "process" ? (
+        <ProcessStepView
+          knowledge={knowledge}
+          setKnowledge={setKnowledge}
+          paste={paste}
+          setPaste={setPaste}
+          names={stepNames}
+          setNames={setStepNames}
+          complexity={complexity}
+          setComplexity={setComplexity}
+          steps={briefSteps}
+        />
+      ) : null}
+
+      {step === "concepts" ? (
+        <ConceptsStep
+          candidates={candidates}
+          selectedId={picked?.id ?? null}
+          onSelect={setPickedId}
+          perShift={perShift}
+          programYears={demand.programYears}
+        />
+      ) : null}
+
+      {step === "refine" ? (
+        <>
+          {editorToolbar}
+          {editorBody}
+        </>
+      ) : null}
+
+      {step === "summary" ? <SummaryStep picked={picked} useCase={useCase} /> : null}
+
+      {step !== "refine" ? stepNav : null}
 
       {hover ? <StationTooltip station={hover.station} x={hover.x} y={hover.y} shiftHours={model.shiftHours ?? 8} /> : null}
 
@@ -487,13 +650,7 @@ export function App() {
         />
       ) : null}
 
-      {showOnboard ? (
-        <EmptyState
-          onSample={() => { api.reset(SAMPLE); setShowOnboard(false); }}
-          onBlank={() => { api.reset(blankModel()); setShowOnboard(false); setTab("flow"); }}
-          onImport={() => fileRef.current?.click()}
-        />
-      ) : null}
-    </div>
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
+    </ProcessShell>
   );
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
+import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
 import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
@@ -36,6 +37,10 @@ interface Props {
   flows: Flow[];
   chain?: ChainResult;
   ghost?: Station[];
+  /** Solver moves behind the ghosts (spec §4). Makes each ghost acceptable in place. */
+  proposalItems?: ProposalItem[];
+  /** Accept ONE move — the ghost is the button (Law 1: click the thing itself). */
+  onAcceptMove?: (stationId: string) => void;
   template?: Slot[] | null;
   selId?: string | null;
   label: string;
@@ -56,7 +61,7 @@ interface Props {
 }
 
 export function LayoutCanvas(props: Props) {
-  const { model, stations, flows, chain, ghost, template, selId, label, badge, cell, interactive } = props;
+  const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);
   const baseW = model.gridW * cell + PAD * 2;
@@ -71,6 +76,7 @@ export function LayoutCanvas(props: Props) {
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoverGhost, setHoverGhost] = useState<string | null>(null);
   const [dragCollide, setDragCollide] = useState(false);
   const panStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
@@ -276,16 +282,49 @@ export function LayoutCanvas(props: Props) {
           );
         })}
 
+        {/*
+          Ghost previews (spec §2 "ghost preview before commit"). When proposal
+          items are supplied each ghost becomes its own accept target — Law 1,
+          confirmation by clicking the thing itself, and Law 5, the decision
+          lives on the canvas rather than in a table beside it. Hovering shows
+          the mechanism, not just the verdict (Law 6).
+        */}
         {(ghost ?? []).map((s) => {
           const cur = byId[s.id];
           if (!cur || (cur.x === s.x && cur.y === s.y)) return null;
+          const item = proposalItems?.find((i) => i.stationId === s.id);
+          const live = Boolean(item && onAcceptMove);
+          const hot = hoverGhost === s.id;
+          const gx = PAD + s.x * cell;
+          const gy = PAD + s.y * cell;
+          const gw = s.w * cell;
+          const gh = s.h * cell;
           return (
             <g key={"g" + s.id}>
-              <rect x={PAD + s.x * cell} y={PAD + s.y * cell} width={s.w * cell} height={s.h * cell} fill="none" stroke={AMBER} strokeWidth={1.5} strokeDasharray="5 4" rx={4} opacity={0.85} />
-              <line x1={PAD + center(cur).x * cell} y1={PAD + center(cur).y * cell} x2={PAD + center(s).x * cell} y2={PAD + center(s).y * cell} stroke={AMBER} strokeWidth={1} strokeDasharray="2 3" opacity={0.6} />
+              <line x1={PAD + center(cur).x * cell} y1={PAD + center(cur).y * cell} x2={PAD + center(s).x * cell} y2={PAD + center(s).y * cell} stroke={AMBER} strokeWidth={hot ? 1.8 : 1} strokeDasharray="2 3" opacity={hot ? 0.95 : 0.6} />
+              <rect x={gx} y={gy} width={gw} height={gh} fill={hot ? "rgba(224,164,88,.16)" : "none"} stroke={AMBER} strokeWidth={hot ? 2.4 : 1.5} strokeDasharray="5 4" rx={4} opacity={0.85} />
+              {live && hot ? <rect x={gx} y={gy} width={gw} height={gh} fill="rgba(224,164,88,.10)" rx={4} pointerEvents="none" /> : null}
             </g>
           );
         })}
+
+        {/* Hover readout for the focused ghost. In-canvas, never a dialog (Law 1). */}
+        {(() => {
+          const s = (ghost ?? []).find((g) => g.id === hoverGhost);
+          const item = proposalItems?.find((i) => i.stationId === hoverGhost);
+          if (!s || !item) return null;
+          const gx = PAD + s.x * cell;
+          const gy = PAD + s.y * cell;
+          const w = Math.max(150, item.rationale.length * 4.6);
+          const x = Math.min(Math.max(PAD, gx + s.w * cell / 2 - w / 2), model.gridW * cell + PAD - w);
+          const y = gy - 30 < PAD ? gy + s.h * cell + 8 : gy - 30;
+          return (
+            <g pointerEvents="none">
+              <rect x={x} y={y} width={w} height={24} rx={3} fill="rgba(10,18,20,.94)" stroke={AMBER} strokeWidth={0.8} />
+              <text x={x + 7} y={y + 15} fontSize={9.5} fill={TEXT}>{item.rationale}</text>
+            </g>
+          );
+        })()}
 
         {stations.map((s) => {
           const seld = selId === s.id;
@@ -369,6 +408,43 @@ export function LayoutCanvas(props: Props) {
             </g>
           );
         })}
+
+        {/*
+          Accept affordances, rendered LAST so they sit above the stations.
+          They are deliberately small ✓ badges rather than a full-size rect over
+          the ghost: a ghost frequently overlaps a real station (two stations
+          swapping is the common proposal), and a full-rect target would both
+          be intercepted by the station and swallow drags on it. A dedicated
+          badge keeps Law 1 (click the thing itself) without breaking Law 4.
+        */}
+        {onAcceptMove
+          ? (ghost ?? []).map((s) => {
+              const cur = byId[s.id];
+              if (!cur || (cur.x === s.x && cur.y === s.y)) return null;
+              const item = proposalItems?.find((i) => i.stationId === s.id);
+              if (!item) return null;
+              const hot = hoverGhost === s.id;
+              const bx = PAD + s.x * cell + s.w * cell - 9;
+              const by = PAD + s.y * cell + 9;
+              return (
+                <g
+                  key={"acc" + s.id}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={() => setHoverGhost(s.id)}
+                  onMouseLeave={() => setHoverGhost((h) => (h === s.id ? null : h))}
+                  onClick={(e) => { e.stopPropagation(); setHoverGhost(null); onAcceptMove(s.id); }}
+                >
+                  <title>{`${item.rationale} — click to accept this move`}</title>
+                  <circle cx={bx} cy={by} r={hot ? 9 : 7.5} fill={hot ? AMBER : "rgba(14,20,22,.85)"} stroke={AMBER} strokeWidth={1.2} />
+                  <path
+                    d={`M ${bx - 3.6} ${by} l 2.4 2.6 l 5 -5.4`}
+                    fill="none" stroke={hot ? "#1a1205" : AMBER} strokeWidth={1.8}
+                    strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"
+                  />
+                </g>
+              );
+            })
+          : null}
       </svg>
     </div>
   );
