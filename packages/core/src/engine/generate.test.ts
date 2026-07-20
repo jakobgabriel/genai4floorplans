@@ -136,6 +136,46 @@ describe("generateCandidates", () => {
   });
 });
 
+describe("generateCandidates — data-model-faithful brief", () => {
+  it("stamps the default transport and part weight onto every generated flow", () => {
+    const cands = generateCandidates(brief({ defaultTransport: "conveyor", defaultPartWeightKg: 4.5 }));
+    const flows = cands.flatMap((c) => c.model.flows);
+    expect(flows.length).toBeGreaterThan(0);
+    expect(flows.every((f) => f.transport === "conveyor")).toBe(true);
+    expect(flows.every((f) => f.partWeightKg === 4.5)).toBe(true);
+  });
+
+  it("carries the multi-year demand and mix modes onto every model", () => {
+    const demand = { years: [{ year: 1, units: 120000 }, { year: 2, units: 150000 }], shiftsPerDay: 2, hoursPerShift: 7.5, workingDaysPerYear: 230, oee: 0.8 };
+    const modes = [{ id: "m1", name: "Base", share: 1, elementOverrides: {} }];
+    const cands = generateCandidates(brief({ demand, variantModes: modes }));
+    cands.forEach((c) => {
+      expect(c.model.demand).toEqual(demand);
+      expect(c.model.variantModes).toEqual(modes);
+    });
+  });
+
+  it("derives shifts-per-year from the demand shift model when annualShifts is unset", () => {
+    // 2 shifts/day × 230 days = 460 shifts/yr → same per-shift target as the scalar path.
+    const demand = { years: [{ year: 1, units: 120000 }], shiftsPerDay: 2, workingDaysPerYear: 230 };
+    const withDemand = generateCandidates({ name: "X", annualVolume: 120000, steps: brief().steps, demand });
+    const withScalar = generateCandidates({ name: "X", annualVolume: 120000, annualShifts: 460, shiftHours: 8, steps: brief().steps });
+    expect(withDemand.map((c) => c.metrics.stations)).toEqual(withScalar.map((c) => c.metrics.stations));
+  });
+
+  it("propagates a step scrap rate onto at least one generated station", () => {
+    const cands = generateCandidates(brief({ steps: [
+      { name: "Blank", cycleTimeSec: 25 },
+      { name: "Form", cycleTimeSec: 40, scrapRate: 0.05 },
+      { name: "Weld", cycleTimeSec: 55 },
+    ] }));
+    const cell = cands.find((c) => c.concept === "cell");
+    const scrappy = (cell?.model.stations ?? []).filter((s) => (s.scrapRate ?? 0) > 0);
+    expect(scrappy.length).toBeGreaterThan(0);
+    expect(Math.max(...scrappy.map((s) => s.scrapRate ?? 0))).toBeCloseTo(0.05, 5);
+  });
+});
+
 describe("rankCandidates", () => {
   const cands = generateCandidates(brief());
 

@@ -1,5 +1,6 @@
-import type { ErgoRisk, Flow, Model, StationType, VariantMode } from "../model/types";
-import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, SCHEMA_VERSION } from "../model/types";
+import type { Confidence, CycleBreakdown, Demand, ErgoRisk, ErgonomicLoad, Flow, Model, StationType, TimeMethod, Transport, VariantMode, WasteClass, WorkClass } from "../model/types";
+import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, DEFAULT_SHIFT_MODEL, SCHEMA_VERSION } from "../model/types";
+import type { RawStep } from "./infer";
 import { normalizeFlow, normalizeStation } from "../model/defaults";
 import type { CellForm } from "./templates";
 import { cellTopology } from "./topology";
@@ -27,6 +28,25 @@ export interface ProcessStep {
   ergoRisk?: ErgoRisk;
   /** Fraction of parts scrapped at this step (0–1). */
   scrapRate?: number;
+  // ---- data-model-faithful overrides (all optional; absent ⇒ inferred) ----
+  /** Capability id chosen from the catalog rather than matched from the name. */
+  capabilityId?: string;
+  /** Value-add / necessary-NVA / waste classification of the work. */
+  classification?: WorkClass;
+  /** Which of the seven wastes, when NVA/NNVA. */
+  wasteClass?: WasteClass;
+  /** 0–1 operator binding (drives operator/machine separation + automation). */
+  attendedFraction?: number;
+  /** Physical load of the work. */
+  ergonomicLoad?: ErgonomicLoad;
+  /** How the cycle time was obtained. */
+  timeMethod?: TimeMethod;
+  /** Confidence in the cycle time. */
+  confidence?: Confidence;
+  /** Predecessors as 0-based indices into the step list — expresses a DAG. */
+  predecessors?: number[];
+  /** Per-part value-add / NVA decomposition. When set, cycle time = its sum. */
+  cycle?: CycleBreakdown;
 }
 
 export interface GenerateBrief {
@@ -44,6 +64,15 @@ export interface GenerateBrief {
   programYears?: number;
   /** Mix modes for mixed-model balancing (spec §3.2). */
   variantModes?: VariantMode[];
+  /** Multi-year demand + shift model. When present it is carried onto every
+   *  generated model (capacity analysis) and its shift model overrides the
+   *  scalar annualShifts/shiftHours where those are not separately given. */
+  demand?: Demand;
+  /** Default transport mode for the generated inter-station flows. Falls back
+   *  to the concept's transport when unset. */
+  defaultTransport?: Transport;
+  /** Default part weight (kg) stamped on the generated flows. Default 1. */
+  defaultPartWeightKg?: number;
 }
 
 export const DEFAULT_PROGRAM_YEARS = 5;
@@ -111,9 +140,17 @@ function gridFor(n: number): { gridW: number; gridH: number } {
 }
 
 /** Build one concept x form candidate model, sized for demand. */
+/** Shifts per year implied by a demand's shift model (shifts/day × working days). */
+function shiftsFromDemand(d: Demand | undefined): number | undefined {
+  if (!d) return undefined;
+  const perDay = d.shiftsPerDay ?? DEFAULT_SHIFT_MODEL.shiftsPerDay;
+  const days = d.workingDaysPerYear ?? DEFAULT_SHIFT_MODEL.workingDaysPerYear;
+  return perDay > 0 && days > 0 ? perDay * days : undefined;
+}
+
 function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number): Model {
   const p = CONCEPTS[concept];
-  const shiftHours = brief.shiftHours ?? DEFAULT_SHIFT_HOURS;
+  const shiftHours = brief.shiftHours ?? brief.demand?.hoursPerShift ?? DEFAULT_SHIFT_HOURS;
   const grid = gridFor(brief.steps.length);
 
   // Entry and exit belong to the FORM, not to the grid edges. A U-cell puts
@@ -151,8 +188,23 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
 
   // The stations are BALANCED from the work elements, not mapped 1:1 from the
   // planner's step list. How many stations exist is an output of the balancer.
+  // Each step carries whatever the planner overrode; the rest is inferred.
+  const rawSteps: RawStep[] = brief.steps.map((st) => ({
+    name: st.name,
+    seconds: st.cycleTimeSec,
+    capabilityId: st.capabilityId,
+    classification: st.classification,
+    wasteClass: st.wasteClass,
+    attendedFraction: st.attendedFraction,
+    ergonomicLoad: st.ergonomicLoad,
+    timeMethod: st.timeMethod,
+    confidence: st.confidence,
+    predecessors: st.predecessors,
+    cycle: st.cycle,
+    scrapRate: st.scrapRate,
+  }));
   const built = buildWorkloadStations(
-    brief.steps.map((st) => ({ name: st.name, seconds: st.cycleTimeSec })),
+    rawSteps,
     perShiftTarget,
     shiftHours,
     brief.variantModes,
@@ -193,9 +245,9 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
         from: chain[i].id,
         to: chain[i + 1].id,
         volume: Math.round(perShiftTarget),
-        transport: p.transport,
+        transport: brief.defaultTransport ?? p.transport,
         unitCost: 0.05,
-        partWeightKg: 1,
+        partWeightKg: brief.defaultPartWeightKg ?? 1,
       }),
     );
   }
@@ -211,10 +263,14 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
     noGoZones: [],
     conceptKind: concept,
     costConfig: {
-      annualShifts: brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts,
+      annualShifts: brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts,
       laborCostPerHour: brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,
       currency: brief.currency ?? DEFAULT_COST_CONFIG.currency,
     },
+    // Carry the workload's multi-year demand and mix modes so capacity analysis
+    // and mixed-model balancing survive onto the persisted model.
+    ...(brief.demand ? { demand: brief.demand } : {}),
+    ...(brief.variantModes && brief.variantModes.length ? { variantModes: brief.variantModes } : {}),
   };
 
   // No separate lane-sizing pass: the balancer already produces stations that
@@ -251,7 +307,7 @@ function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget:
  */
 export function generateCandidates(brief: GenerateBrief): Candidate[] {
   if (brief.steps.length === 0) return [];
-  const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
+  const shifts = brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts;
   const perShiftTarget = brief.annualVolume > 0 ? brief.annualVolume / shifts : 0;
   const kinds = brief.concepts?.length ? brief.concepts : CONCEPT_KINDS;
   const currency = brief.currency ?? DEFAULT_COST_CONFIG.currency;
