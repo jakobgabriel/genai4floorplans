@@ -1087,6 +1087,42 @@ input.est-field {
   padding: var(--sp-03) var(--sp-04);
 }
 
+/* Carbon TreeView rows: let the label span the row so the name sits left and
+   the action Menu / archive / confirm controls push to the right, and give the
+   drop-target the same focus outline the hand-rolled tree used. */
+.explorer-tree .cds--tree-node__label__details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.explorer-tree .cds--tree-node__label__text {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  width: 100%;
+  overflow: visible;
+}
+.explorer-tree .tree-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  width: 100%;
+}
+.explorer-tree .tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer-tree .tree-controls {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.explorer-tree .tree-node-row.drop {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
+
 .resizer {
   width: 2px;
   flex: 0 0 2px;

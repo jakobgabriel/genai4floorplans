@@ -106,7 +106,7 @@ describe("Explorer", () => {
   it("adds a layout into a concept from its action menu", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    const row = screen.getByText(/Root concept/).closest(".tree-row") as HTMLElement;
+    const row = screen.getByText(/Root concept/).closest('[role="treeitem"]') as HTMLElement;
     fireEvent.click(row.querySelector('[title="Concept actions"]') as HTMLElement);
     fireEvent.click(screen.getByText("New layout"));
     expect(api.addCell).toHaveBeenCalledWith(expect.anything(), undefined, "cpt1");
@@ -115,8 +115,8 @@ describe("Explorer", () => {
   it("moves a layout by dragging it onto a concept", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    const cellRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
-    const conceptRow = screen.getByText(/Nested concept/).closest(".tree-row") as HTMLElement;
+    const cellRow = screen.getByText(/Root layout/).closest('[role="treeitem"]') as HTMLElement;
+    const conceptRow = screen.getByText(/Nested concept/).closest('[role="treeitem"]') as HTMLElement;
     fireEvent.dragStart(cellRow);
     fireEvent.dragOver(conceptRow);
     fireEvent.drop(conceptRow);
@@ -126,7 +126,7 @@ describe("Explorer", () => {
   it("moves a concept to the root by dropping on empty tree space", () => {
     const api = makeApi();
     const { container } = render(<Explorer api={api} onCollapse={() => {}} />);
-    const nested = screen.getByText(/Nested concept/).closest(".tree-row") as HTMLElement;
+    const nested = screen.getByText(/Nested concept/).closest('[role="treeitem"]') as HTMLElement;
     const tree = container.querySelector(".explorer-tree") as HTMLElement;
     fireEvent.dragStart(nested);
     fireEvent.drop(tree);
@@ -147,7 +147,7 @@ describe("Explorer", () => {
   it("archives a concept via an inline confirm", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    const row = screen.getByText(/Root concept/).closest(".tree-row") as HTMLElement;
+    const row = screen.getByText(/Root concept/).closest('[role="treeitem"]') as HTMLElement;
     fireEvent.click(row.querySelector('[title="Concept actions"]') as HTMLElement);
     fireEvent.click(screen.getByText("Archive (with layouts)"));
     fireEvent.click(screen.getByTitle("Confirm archive"));
@@ -157,7 +157,7 @@ describe("Explorer", () => {
   it("archives a layout from its row button", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    const rootRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
+    const rootRow = screen.getByText(/Root layout/).closest('[role="treeitem"]') as HTMLElement;
     fireEvent.click(rootRow.querySelector(".tree-archive") as HTMLElement);
     expect(api.archiveCell).toHaveBeenCalledWith("c1");
   });
