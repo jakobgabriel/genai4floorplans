@@ -220,7 +220,7 @@ gaps that were not being tracked at all:
 | Spec | Status |
 |---|---|
 | §3 seven interaction laws | Unaudited. `components/LayoutCanvas.tsx` needs a pass against Law 1 (no modals), Law 3 (invalid states permitted and visible), Law 5 (canvas primary) |
-| §5 confidence **rendered** as range + hatch | Engine propagates it correctly; **the UI shows point values.** §5 is a rendering requirement, and it is unmet — this is the F8 false-precision failure reappearing |
+| §5 confidence **rendered** as range + hatch | ✅ **Done** (branch `claude/feature-plan-design-overhaul-304leo`). `Station.dataQuality` (schema v9) + `components/confidence.tsx`: estimated numbers render as hatched ranges, measured/benchmarked as marked points, in the inspector, tooltip, open-points and the canvas Confidence overlay |
 | §26 performance budgets | No budgets declared, none measured. Canvas is DOM/SVG; §26 says SVG will not sustain 16 ms at tier L |
 | §27 incremental recomputation | Full recompute on edit; no dirty set |
 | §28 continuous validation | `engine/validate.ts` exists but is not wired as in-place, non-blocking, at-the-violation rendering |
