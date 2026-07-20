@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -13,6 +13,7 @@ import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
 import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
+import { QualitySelect } from "./confidence";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
   deleteScenario,
@@ -743,6 +744,14 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const outFlows = m.flows.filter((f) => f.from === s.id);
   const inCount = m.flows.filter((f) => f.to === s.id).length;
   const up = (patch: Record<string, unknown>) => api.commit({ type: "UPDATE_STATION", id: s.id, patch });
+  // Provenance (spec §5): each investment-driving number carries a data-quality
+  // flag. `up` merges shallowly, so pass the whole dataQuality object.
+  const setQuality = (field: StationDataField, q: DataQuality) =>
+    up({ dataQuality: { ...s.dataQuality, [field]: q } });
+  const qAside = (field: StationDataField) => (
+    <QualitySelect value={fieldQuality(s, field)} onChange={(q) => setQuality(field, q)} />
+  );
+  const estClass = (field: StationDataField) => (fieldQuality(s, field) === "estimated" ? "est-field" : undefined);
   return (
     <div className="pad">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -864,8 +873,8 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
       ) : null}
       <div className="row2">
-        <Field label="Equipment capex" help="One-time cost of this step's equipment (Cost tab).">
-          <input type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
+        <Field label="Equipment capex" aside={qAside("capex")} help="One-time cost of this step's equipment (Cost tab).">
+          <input className={estClass("capex")} type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
         </Field>
         <Field label="Automation capex" help="Cost to automate this step — drives ROI payback.">
           <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
@@ -893,19 +902,19 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </Field>
       </div>
       <div className="row2">
-        <Field label="Capacity/shift">
-          <input type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
+        <Field label="Capacity/shift" aside={qAside("capacityPerShift")}>
+          <input className={estClass("capacityPerShift")} type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
         </Field>
         <Field label="Operators">
           <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
         </Field>
       </div>
       <div className="row2">
-        <Field label="Cycle time (s)" help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
-          <input type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
+        <Field label="Cycle time (s)" aside={qAside("cycleTimeSec")} help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
+          <input className={estClass("cycleTimeSec")} type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
         </Field>
-        <Field label="Changeover (min)">
-          <input type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
+        <Field label="Changeover (min)" aside={qAside("changeoverMin")}>
+          <input className={estClass("changeoverMin")} type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
         </Field>
       </div>
       <CycleBreakdownEditor api={api} s={s} />

@@ -645,6 +645,69 @@ code {
   }
 }
 
+/* ---------- data quality / confidence (spec §5) ---------- */
+
+/* An estimated number renders as a range with a hatched fill — visibly soft, so
+   it can never be mistaken for a measured point. */
+.qty {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  white-space: nowrap;
+}
+.qty-hatch {
+  padding: 0 2px;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--cds-border-subtle-01) 3px,
+    var(--cds-border-subtle-01) 4px
+  );
+  border-bottom: 1px dashed var(--amber);
+}
+.qmark {
+  font-size: 0.625rem;
+  margin-left: 3px;
+  vertical-align: 0.05em;
+}
+
+/* Compact 3-state provenance selector in the inspector label row. */
+.qsel {
+  display: inline-flex;
+  gap: 1px;
+  margin-left: auto;
+}
+.qsel-btn {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+  background: var(--cds-layer-02);
+  color: var(--cds-text-secondary);
+  border: 1px solid transparent;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qsel-btn:hover {
+  background: var(--cds-layer-hover-02);
+}
+
+/* When a field's value is estimated, mark its input so the softness shows even
+   while editing. */
+input.est-field {
+  border-bottom-style: dashed;
+  border-bottom-color: var(--amber);
+}
+
+/* Field label rows that carry a provenance control lay out as a row. */
+.field > span.field-lab-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+}
+
 /* ---------- help popover ---------- */
 
 .help {
