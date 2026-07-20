@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Button } from "@carbon/react";
+import { ArrowLeft } from "@carbon/icons-react";
 import type { Model } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
@@ -113,15 +115,16 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
                   {x.isCurrent ? (
                     <span style={{ color: TEXTD }}>—</span>
                   ) : (
-                    <button
-                      className="btn sm"
+                    <Button
+                      size="sm"
+                      kind="tertiary"
                       onClick={() => {
                         const m = loadScenario(x.name);
                         if (m) { api.reset(m); toast("Loaded “" + x.name + "”"); navigate("/"); }
                       }}
                     >
                       Load
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -137,7 +140,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
 function PageHead() {
   return (
     <div className="page-head">
-      <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
+      <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
       <h1 className="page-title">Compare scenarios</h1>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "@carbon/react";
+import { Add, ArrowLeft, TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
 import type { useLibrary } from "../store/library";
@@ -65,11 +67,11 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
   return (
     <div className="page">
       <div className="page-head">
-        <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
+        <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
         <h1 className="page-title">Process library</h1>
         <div className="spacer" />
-        <button className="btn sm" onClick={newEntry}>＋ New element</button>
-        <button className="btn sm" onClick={() => { if (confirm("Reset the library to the seed catalog? Custom elements are lost.")) { resetToSeed(); setSel(null); } }}>Reset to seed</button>
+        <Button size="sm" kind="tertiary" renderIcon={Add} onClick={newEntry}>New element</Button>
+        <Button size="sm" kind="tertiary" onClick={() => { if (confirm("Reset the library to the seed catalog? Custom elements are lost.")) { resetToSeed(); setSel(null); } }}>Reset to seed</Button>
       </div>
 
       <p style={{ fontSize: 12, color: TEXTD, maxWidth: 640, marginTop: 0 }}>
@@ -84,9 +86,9 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
         <div className="lib-list">
           <div className="explorer-actions" style={{ marginBottom: 10, flexWrap: "wrap" }}>
             {(["all", ...PROCESS_CATEGORIES] as const).map((c) => (
-              <button key={c} className={"btn sm" + (filter === c ? " on" : "")} onClick={() => setFilter(c)}>
+              <Button key={c} size="sm" kind={filter === c ? "primary" : "tertiary"} onClick={() => setFilter(c)}>
                 {c}
-              </button>
+              </Button>
             ))}
           </div>
           {shown.map((e) => (
@@ -145,8 +147,8 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
                 <EntryEditor entry={selEntry} update={update} />
               )}
               <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-                <button className="btn sm on" style={{ flex: 1 }} onClick={() => addToCell(selEntry)}>Add to layout</button>
-                <button className="btn sm danger" onClick={() => { remove(selEntry.id); setSel(null); }}>Delete</button>
+                <Button size="sm" kind="primary" style={{ flex: 1 }} onClick={() => addToCell(selEntry)}>Add to layout</Button>
+                <Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => { remove(selEntry.id); setSel(null); }}>Delete</Button>
               </div>
             </>
           ) : selSub ? (
@@ -165,8 +167,8 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
                 </details>
               ))}
               <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-                <button className="btn sm on" style={{ flex: 1 }} onClick={() => insertSubflow(selSub.id)}>Add to layout</button>
-                <button className="btn sm danger" onClick={() => { subflows.remove(selSub.id); setSel(null); }}>Delete</button>
+                <Button size="sm" kind="primary" style={{ flex: 1 }} onClick={() => insertSubflow(selSub.id)}>Add to layout</Button>
+                <Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => { subflows.remove(selSub.id); setSel(null); }}>Delete</Button>
               </div>
             </>
           ) : (

@@ -14,7 +14,7 @@ import { guardrailCheck } from "@flowplan/core/engine/guardrails";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
+import { AMBER, CYCLE_COL, LINE, PURPLE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
 import { QualitySelect } from "./confidence";
 import type { CanvasMode } from "./LayoutCanvas";
@@ -364,7 +364,7 @@ function GuardrailSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (
 // Freedom-finding (blueprint §4.8). A linear routing implies an order that
 // mostly does not exist; this surfaces which operations the balancer may move to
 // fill an under-loaded station. Only meaningful once a workload is present.
-const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: "#a582c9", compulsory: TEXTD };
+const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: PURPLE, compulsory: TEXTD };
 const FREEDOM_HELP =
   "A numbered routing implies a compulsory sequence that mostly does not exist. free = depends only on an early step, place it anywhere with slack (this is the balancing gain to look for). swappable = shares a predecessor with a sibling, either order works. exclusive = never runs in the same mode as another op, so they can share a station. compulsory = genuine physical precedence.";
 function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) => void }) {

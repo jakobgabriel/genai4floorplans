@@ -81,7 +81,7 @@ describe("App", () => {
     // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
-    fireEvent.click(screen.getByText("← Editor"));
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
     await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
   });
 
@@ -91,7 +91,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "⋯" }));
     fireEvent.click(screen.getByText("Compare scenarios"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
-    fireEvent.click(screen.getByText("← Editor"));
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
     await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
   });
 
@@ -114,7 +114,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByText("manage"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
-    fireEvent.click(screen.getByText("＋ New element"));
+    fireEvent.click(screen.getByRole("button", { name: "New element" }));
     // A new custom entry appears, tagged and selected for editing.
     expect(screen.getAllByText(/New element/).length).toBeGreaterThan(0);
     expect(screen.getByText("custom")).toBeTruthy();
