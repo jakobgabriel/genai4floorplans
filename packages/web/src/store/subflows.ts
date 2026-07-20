@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import type { Flow, Model, Station } from "@flowplan/core/model/types";
+import { getSession, getHydratedSubflows } from "./session";
+import { createSubflow, updateSubflow, deleteSubflow } from "./apiClient";
 
 // User-created grouped elements (node-RED subflows). A subflow captures a set of
 // placed stations plus the flows between them, normalised to its own (0,0)
@@ -24,6 +26,8 @@ export interface Subflow {
 }
 
 export function loadSubflows(): Subflow[] {
+  const hydrated = getHydratedSubflows();
+  if (hydrated) return hydrated;
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -37,6 +41,9 @@ export function loadSubflows(): Subflow[] {
 }
 
 function saveSubflows(items: Subflow[]): void {
+  // DB-backed sessions persist per-mutation via the API; only the offline
+  // fallback mirrors the list to localStorage.
+  if (getSession()) return;
   try {
     localStorage.setItem(KEY, JSON.stringify(items));
   } catch {
@@ -69,20 +76,33 @@ export function makeSubflow(model: Model, ids: string[], name: string): Subflow 
   };
 }
 
-/** React hook exposing the subflow library with add/remove/rename, persisted. */
+/** React hook exposing the subflow library with add/remove/rename, persisted.
+ *  Backed by the team subflow API when a session exists, else localStorage. */
 export function useSubflows() {
   const [subflows, setSubflows] = useState<Subflow[]>(loadSubflows);
-  const add = useCallback(
-    (sf: Subflow) => setSubflows((cur) => { const next = cur.concat([sf]); saveSubflows(next); return next; }),
-    [],
-  );
-  const remove = useCallback(
-    (id: string) => setSubflows((cur) => { const next = cur.filter((s) => s.id !== id); saveSubflows(next); return next; }),
-    [],
-  );
-  const rename = useCallback(
-    (id: string, name: string) => setSubflows((cur) => { const next = cur.map((s) => (s.id === id ? { ...s, name } : s)); saveSubflows(next); return next; }),
-    [],
-  );
+  const add = useCallback((sf: Subflow) => {
+    const session = getSession();
+    if (session) {
+      setSubflows((cur) => cur.concat([sf]));
+      createSubflow(session.teamId, sf)
+        .then((saved) => setSubflows((cur) => cur.map((s) => (s.id === sf.id ? saved : s))))
+        .catch((err) => {
+          console.warn("subflow add failed", err);
+          setSubflows((cur) => cur.filter((s) => s.id !== sf.id));
+        });
+      return;
+    }
+    setSubflows((cur) => { const next = cur.concat([sf]); saveSubflows(next); return next; });
+  }, []);
+  const remove = useCallback((id: string) => {
+    const session = getSession();
+    if (session) deleteSubflow(session.teamId, id).catch((err) => console.warn("subflow remove failed", err));
+    setSubflows((cur) => { const next = cur.filter((s) => s.id !== id); saveSubflows(next); return next; });
+  }, []);
+  const rename = useCallback((id: string, name: string) => {
+    const session = getSession();
+    if (session) updateSubflow(session.teamId, id, { name }).catch((err) => console.warn("subflow rename failed", err));
+    setSubflows((cur) => { const next = cur.map((s) => (s.id === id ? { ...s, name } : s)); saveSubflows(next); return next; });
+  }, []);
   return { subflows, add, remove, rename };
 }

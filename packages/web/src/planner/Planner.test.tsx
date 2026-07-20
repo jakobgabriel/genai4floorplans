@@ -81,26 +81,26 @@ describe("planner — guided flow", () => {
     expect(screen.getByText("200/shift")).toBeTruthy();
   });
 
-  it("offers an estimate path when cycle times are unknown", () => {
+  it("presents the seeded steps as an editable, data-model-faithful table", () => {
     renderApp();
     fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-    fireEvent.click(screen.getByLabelText("Not yet — estimate from complexity"));
-    expect(screen.getByText("These are estimates")).toBeTruthy();
-    // 5 steps × 35s moderate default
-    expect(screen.getByText(/5 steps · 175s total work content/)).toBeTruthy();
-
-    fireEvent.click(screen.getByLabelText(/Complex —/));
-    expect(screen.getByText(/5 steps · 300s total work content/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" })); // → process
+    expect(screen.getByText("What are the process steps?")).toBeTruthy();
+    // The five seeded steps are editable text fields, not a paste box.
+    expect(screen.getByDisplayValue("Weld")).toBeTruthy();
+    expect(screen.getByDisplayValue("Leak test")).toBeTruthy();
+    // A live rollup reports content and how much is still inferred.
+    expect(screen.getByText(/5 steps · .*s total work content · .*value-add/)).toBeTruthy();
   });
 
-  it("blocks Continue when there are no steps", () => {
+  it("adds a step and lets you pin its cycle time", () => {
     renderApp();
     fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.change(screen.getByLabelText("Process steps"), { target: { value: "" } });
-    expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" })); // → process
+    fireEvent.click(screen.getByRole("button", { name: /Add a step/ }));
+    expect(screen.getByText(/6 steps/)).toBeTruthy();
+    // Continue stays enabled — there are steps.
+    expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("ranks concepts by fully loaded cost, showing the capex split", () => {

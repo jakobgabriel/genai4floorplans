@@ -13,11 +13,10 @@ import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
 import { ProcessShell } from "./planner/ProcessShell";
-import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
+import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, DEFAULT_DEMAND, toDemand, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
-import { parseSteps } from "./planner/parseSteps";
-import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
-import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { USE_CASES, type UseCaseId } from "./planner/usecases";
+import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { Button, Theme } from "@carbon/react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
@@ -128,11 +127,14 @@ export function App() {
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
   const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8 });
-  const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
-  const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
-  const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
-  const [complexity, setComplexity] = useState("moderate");
+  const [demand, setDemand] = useState<DemandValues>(DEFAULT_DEMAND);
+  const [processSteps, setProcessSteps] = useState<CoreStep[]>([
+    { name: "Load blank", cycleTimeSec: 15 },
+    { name: "Press", cycleTimeSec: 35 },
+    { name: "Weld", cycleTimeSec: 60 },
+    { name: "Leak test", cycleTimeSec: 25 },
+    { name: "Pack", cycleTimeSec: 20 },
+  ]);
   const [pickedId, setPickedId] = useState<string | null>(null);
   // Which candidate has already been loaded into the workspace, so advancing
   // to Refine twice does not create duplicate cells.
@@ -171,21 +173,25 @@ export function App() {
   }, []);
 
   // ---- derived planning data ----------------------------------------------
-  const briefSteps: CoreStep[] = useMemo(() => {
-    if (knowledge === "known") return parseSteps(paste);
-    const sec = COMPLEXITY_SEC[complexity] ?? 35;
-    return stepNames
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((n) => ({ name: n, cycleTimeSec: sec }));
-  }, [knowledge, paste, stepNames, complexity]);
+  const briefSteps: CoreStep[] = processSteps;
 
-  const brief: GenerateBrief = { ...demand, steps: briefSteps };
+  const brief: GenerateBrief = {
+    name: demand.name,
+    steps: briefSteps,
+    annualVolume: demand.annualVolume,
+    annualShifts: demand.annualShifts,
+    shiftHours: demand.shiftHours,
+    programYears: demand.programYears,
+    demand: toDemand(demand),
+    variantModes: demand.variantModes.length ? demand.variantModes : undefined,
+    defaultTransport: demand.transport,
+    defaultPartWeightKg: demand.partWeightKg,
+  };
   const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
     () => (step === "concepts" || step === "summary" ? rankCandidates(generateCandidates(brief)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [step, demand, briefSteps],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
@@ -779,15 +785,10 @@ export function App() {
 
       {step === "process" ? (
         <ProcessStepView
-          knowledge={knowledge}
-          setKnowledge={setKnowledge}
-          paste={paste}
-          setPaste={setPaste}
-          names={stepNames}
-          setNames={setStepNames}
-          complexity={complexity}
-          setComplexity={setComplexity}
-          steps={briefSteps}
+          steps={processSteps}
+          onChange={setProcessSteps}
+          routing={{ transport: demand.transport, partWeightKg: demand.partWeightKg }}
+          onRouting={(patch) => setDemand((d) => ({ ...d, ...patch }))}
         />
       ) : null}
 
