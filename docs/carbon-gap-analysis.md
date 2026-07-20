@@ -170,6 +170,10 @@ rest as a roadmap.
   (Configure/Flow/Workload/Docs/Schema) and the LibraryPage Edit/Documentation
   subtabs → Carbon `Tabs`/`TabList`/`Tab` (controlled; panels render below). The
   rail collapse glyph → Carbon `IconButton`. Tab-role test queries updated.
+- **C1/C5 editor toolbar (Wave 8)** — the canvas view switcher
+  (Actual/Improved/Both/DAG/Analysis) and the Group + overlay toggles: glyph
+  prefixes (`● ◇ ⇄ ⊟ 📊 ⧉`) → Carbon `Button` + `@carbon/icons-react`, selected
+  state via `kind`.
 
 **Deliberately deferred (with rationale):**
 
