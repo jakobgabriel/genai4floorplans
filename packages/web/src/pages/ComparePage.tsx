@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Button } from "@carbon/react";
+import { Button, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
 import { ArrowLeft } from "@carbon/icons-react";
 import type { Model } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -85,33 +85,33 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
 
       <div className="chart-card" style={{ overflowX: "auto" }}>
         <div className="layoutTitle">KPI breakdown</div>
-        <table className="schemaTbl" style={{ minWidth: 620 }}>
-          <thead>
-            <tr>
-              <th>Scenario</th>
-              <th>Grade</th>
-              {cols.map((c) => (<th key={c.key}>{c.label}</th>))}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
+        <StructuredListWrapper isCondensed style={{ minWidth: 620 }}>
+          <StructuredListHead>
+            <StructuredListRow head>
+              <StructuredListCell head>Scenario</StructuredListCell>
+              <StructuredListCell head>Grade</StructuredListCell>
+              {cols.map((c) => (<StructuredListCell head key={c.key}>{c.label}</StructuredListCell>))}
+              <StructuredListCell head></StructuredListCell>
+            </StructuredListRow>
+          </StructuredListHead>
+          <StructuredListBody>
             {rated.map((x) => (
-              <tr key={x.name}>
-                <td style={{ color: x.isCurrent ? TEAL : undefined }}>
+              <StructuredListRow key={x.name}>
+                <StructuredListCell style={{ color: x.isCurrent ? TEAL : undefined }}>
                   {x.name}
                   {x.folderId ? <span style={{ color: TEXTD, fontSize: 10 }}> · 🗀 {folderPath(x.folderId)}</span> : null}
-                </td>
-                <td style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</td>
+                </StructuredListCell>
+                <StructuredListCell style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</StructuredListCell>
                 {cols.map((c) => {
                   const v = c.get(x);
                   const isBest = Math.abs(v - bestByCol[c.key]) < 1e-6;
                   return (
-                    <td key={c.key} style={{ color: isBest ? TEAL : undefined, fontWeight: isBest ? 600 : 400 }}>
+                    <StructuredListCell key={c.key} style={{ color: isBest ? TEAL : undefined, fontWeight: isBest ? 600 : 400 }}>
                       {c.fmt ? c.fmt(v) : v.toFixed(0)}
-                    </td>
+                    </StructuredListCell>
                   );
                 })}
-                <td>
+                <StructuredListCell>
                   {x.isCurrent ? (
                     <span style={{ color: TEXTD }}>—</span>
                   ) : (
@@ -126,11 +126,11 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
                       Load
                     </Button>
                   )}
-                </td>
-              </tr>
+                </StructuredListCell>
+              </StructuredListRow>
             ))}
-          </tbody>
-        </table>
+          </StructuredListBody>
+        </StructuredListWrapper>
         <div style={{ fontSize: 10.5, color: TEXTD }}>Teal = best in column. Grades/KPIs are recomputed by the engine for each saved layout.</div>
       </div>
     </div>

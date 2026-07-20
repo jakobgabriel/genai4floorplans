@@ -1,5 +1,5 @@
 import { Fragment, useMemo, type ReactNode } from "react";
-import { Button } from "@carbon/react";
+import { Button, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
 import { ArrowLeft } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
@@ -79,31 +79,31 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
 
       <div className="chart-card">
         <div className="layoutTitle">Layouts</div>
-        <table className="schemaTbl">
-          <thead>
-            <tr><th>Layout</th><th>Grade</th><th>Score</th><th>Parts/shift</th><th>Cost/part</th><th></th></tr>
-          </thead>
-          <tbody>
+        <StructuredListWrapper isCondensed>
+          <StructuredListHead>
+            <StructuredListRow head><StructuredListCell head>Layout</StructuredListCell><StructuredListCell head>Grade</StructuredListCell><StructuredListCell head>Score</StructuredListCell><StructuredListCell head>Parts/shift</StructuredListCell><StructuredListCell head>Cost/part</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow>
+          </StructuredListHead>
+          <StructuredListBody>
             {groups.map((g) => (
               <FolderGroup key={g.label || "__root"} label={g.label}>
                 {g.items.map((r) => (
-                  <tr key={r.id}>
-                    <td style={{ color: r.id === api.activeId ? TEAL : undefined, paddingLeft: g.label ? 16 : undefined }}>{r.name}</td>
-                    <td style={{ color: scoreColor(r.composite), fontWeight: 600 }}>{r.letter}</td>
-                    <td>{r.composite.toFixed(0)}</td>
-                    <td>{r.lineOut.toLocaleString()}</td>
-                    <td>{cur}{r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
-                    <td>
+                  <StructuredListRow key={r.id}>
+                    <StructuredListCell style={{ color: r.id === api.activeId ? TEAL : undefined, paddingLeft: g.label ? 16 : undefined }}>{r.name}</StructuredListCell>
+                    <StructuredListCell style={{ color: scoreColor(r.composite), fontWeight: 600 }}>{r.letter}</StructuredListCell>
+                    <StructuredListCell>{r.composite.toFixed(0)}</StructuredListCell>
+                    <StructuredListCell>{r.lineOut.toLocaleString()}</StructuredListCell>
+                    <StructuredListCell>{cur}{r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}</StructuredListCell>
+                    <StructuredListCell>
                       {r.id === api.activeId ? <span style={{ color: TEXTD }}>active</span> : (
                         <Button size="sm" kind="tertiary" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</Button>
                       )}
-                    </td>
-                  </tr>
+                    </StructuredListCell>
+                  </StructuredListRow>
                 ))}
               </FolderGroup>
             ))}
-          </tbody>
-        </table>
+          </StructuredListBody>
+        </StructuredListWrapper>
         <div style={{ fontSize: 10.5, color: TEXTD }}>Each layout is rated independently by the engine. Inter-cell material flow isn't modeled.</div>
       </div>
     </div>
@@ -114,7 +114,7 @@ function FolderGroup({ label, children }: { label: string; children: ReactNode }
   return (
     <Fragment>
       {label ? (
-        <tr><td colSpan={6} style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}>🗀 {label}</td></tr>
+        <StructuredListRow><StructuredListCell style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}>🗀 {label}</StructuredListCell></StructuredListRow>
       ) : null}
       {children}
     </Fragment>

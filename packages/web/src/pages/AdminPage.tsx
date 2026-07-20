@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "@carbon/react";
+import { Button, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
 import { ArrowLeft, TrashCan } from "@carbon/icons-react";
 import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceSummary, type User } from "../admin/adminApi";
 import { navigate } from "../store/useHashRoute";
@@ -117,22 +117,22 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
           <div className="chart-card">
             <div className="layoutTitle">Members · {detail.name}</div>
             <AddMember teamId={sel} onDone={reloadDetail} fail={fail} />
-            <table className="schemaTbl">
-              <thead><tr><th>Member</th><th>Role</th><th></th></tr></thead>
-              <tbody>
+            <StructuredListWrapper isCondensed>
+              <StructuredListHead><StructuredListRow head><StructuredListCell head>Member</StructuredListCell><StructuredListCell head>Role</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
+              <StructuredListBody>
                 {detail.memberships.map((m) => (
-                  <tr key={m.userId}>
-                    <td>{m.user.name || m.user.email}<div style={{ fontSize: 10, color: TEXTD }}>{m.user.email}</div></td>
-                    <td>
+                  <StructuredListRow key={m.userId}>
+                    <StructuredListCell>{m.user.name || m.user.email}<div style={{ fontSize: 10, color: TEXTD }}>{m.user.email}</div></StructuredListCell>
+                    <StructuredListCell>
                       <select value={m.role} onChange={(e) => adminApi.updateMember(sel, m.userId, e.target.value as Role).then(reloadDetail).catch(fail)}>
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
-                    </td>
-                    <td><Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</Button></td>
-                  </tr>
+                    </StructuredListCell>
+                    <StructuredListCell><Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</Button></StructuredListCell>
+                  </StructuredListRow>
                 ))}
-              </tbody>
-            </table>
+              </StructuredListBody>
+            </StructuredListWrapper>
           </div>
 
           <div className="chart-card">
