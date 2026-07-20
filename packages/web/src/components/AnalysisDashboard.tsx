@@ -3,7 +3,7 @@ import { Tile } from "@carbon/react";
 import { cycleAnalysis } from "@flowplan/core/engine/cycle";
 import { classifyFreedom, type FreedomFinding } from "@flowplan/core/engine/freedom";
 import { costAnalysis } from "@flowplan/core/engine/cost";
-import { YamazumiChart } from "./charts";
+import { YamazumiChart, BarChart } from "./charts";
 import { DagView } from "./DagView";
 import { OpenPointsSection, ImprovementList, type PanelProps } from "./panels";
 import { AMBER, CYCLE_COL, PURPLE, RED, TEAL, TEXTD, scoreColor } from "./colors";
@@ -94,6 +94,16 @@ export function AnalysisDashboard(props: PanelProps) {
   const money = (n: number) => cost.currency + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   const openStation = (id: string) => { setView("actual"); setSel(id); setTab("inspect"); };
 
+  // Material flow & distance — layout optimisation minimises material travel.
+  // The heaviest flows (volume × rectilinear distance) are where re-placing
+  // stations saves the most; all from the engine's existing flow detail.
+  const nameOf = (id: string) => model.stations.find((s) => s.id === id)?.name ?? id;
+  const flowBars = [...(rating.actual.flowDetail ?? [])]
+    .filter((f) => f.travel > 0)
+    .sort((a, b) => b.travel - a.travel)
+    .slice(0, 6)
+    .map((f) => ({ label: `${nameOf(f.from)} → ${nameOf(f.to)}`, value: f.travel, display: `${f.dist} × ${f.volume.toLocaleString()}`, color: TEAL }));
+
   const cycleLegend = <Legend items={(Object.keys(CYCLE_COL) as (keyof typeof CYCLE_COL)[]).map((k) => ({ color: CYCLE_COL[k], label: CYCLE_LABEL[k] }))} />;
 
   return (
@@ -139,6 +149,25 @@ export function AnalysisDashboard(props: PanelProps) {
             ]}
           />
           <div className="bi-note">Total footprint {cost.floorSpace.total.toLocaleString()} {cost.floorSpace.unit}.</div>
+        </ChartCard>
+      </div>
+
+      {/* Material flow & distance — the core of layout optimisation. */}
+      <div className="bi-row">
+        <ChartCard title="Material flow & distance" help="Layout optimisation minimises material travel. Total travel = Σ(volume × rectilinear distance). The heaviest flows are where re-placing stations saves the most; distance is in grid cells (× volume/shift).">
+          <div className="bi-flowkpis">
+            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> cell·moves/shift</span>
+            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Placement</span><span className="bi-flowkpi__val" style={{ color: scoreColor(rating.scores.placement) }}>{rating.scores.placement.toFixed(0)}</span> / 100</span>
+            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Flow cost</span><span className="bi-flowkpi__val">{Math.round(rating.actual.flowCost).toLocaleString()}</span></span>
+          </div>
+          {flowBars.length ? (
+            <>
+              <div className="bi-card__sublab">Heaviest flows — distance × volume</div>
+              <div className="bi-scroll"><BarChart bars={flowBars} /></div>
+            </>
+          ) : (
+            <p className="bi-empty">No inter-station material flows yet.</p>
+          )}
         </ChartCard>
       </div>
 

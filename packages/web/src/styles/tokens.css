@@ -1557,3 +1557,30 @@ input.est-field {
   color: var(--cds-text-secondary);
   padding: var(--sp-05) 0;
 }
+
+/* Material-flow card: inline KPI row + sub-label. */
+.bi-flowkpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-06);
+  margin-bottom: var(--sp-05);
+}
+.bi-flowkpi {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.bi-flowkpi__lab {
+  display: block;
+  margin-bottom: var(--sp-02);
+}
+.bi-flowkpi__val {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--cds-text-primary);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.bi-card__sublab {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-bottom: var(--sp-03);
+}
