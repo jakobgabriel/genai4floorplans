@@ -14,6 +14,12 @@ import {
   CreateCellBody,
   CreateConceptBody,
   CreateFolderBody,
+  CreateLibraryEntryBody,
+  CreateSubflowBody,
+  LibraryEntry,
+  Subflow,
+  UpdateLibraryEntryBody,
+  UpdateSubflowBody,
   CreateTeamBody,
   CreateWorkspaceBody,
   Concept,
@@ -334,6 +340,58 @@ reg({
 reg({
   method: "delete", path: "/api/concepts/{conceptId}", tags: ["Concepts"], params: conceptId,
   summary: "Delete a concept", description: "Requires EDITOR role. Its layouts cascade with it.",
+  ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
+});
+
+// ---- Library --------------------------------------------------------------
+const entryId = teamId.extend({ entryId: z.string() });
+reg({
+  method: "get", path: "/api/teams/{teamId}/library", tags: ["Library"], params: teamId,
+  summary: "List the global catalog + this team's custom entries", description: "Requires VIEWER role.",
+  ok: { status: 200, description: "OK", schema: z.object({ entries: z.array(LibraryEntry) }) },
+  errors: [401, 403, 404],
+});
+reg({
+  method: "post", path: "/api/teams/{teamId}/library", tags: ["Library"], params: teamId, body: CreateLibraryEntryBody,
+  summary: "Create a custom library entry for this team", description: "Requires EDITOR role.",
+  ok: { status: 201, description: "Created", schema: z.object({ entry: LibraryEntry }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "patch", path: "/api/teams/{teamId}/library/{entryId}", tags: ["Library"], params: entryId, body: UpdateLibraryEntryBody,
+  summary: "Update a custom library entry", description: "Requires EDITOR role. Global seed entries are read-only.",
+  ok: { status: 200, description: "OK", schema: z.object({ entry: LibraryEntry }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "delete", path: "/api/teams/{teamId}/library/{entryId}", tags: ["Library"], params: entryId,
+  summary: "Delete a custom library entry", description: "Requires EDITOR role.",
+  ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
+});
+
+// ---- Subflows -------------------------------------------------------------
+const subflowId = teamId.extend({ subflowId: z.string() });
+reg({
+  method: "get", path: "/api/teams/{teamId}/subflows", tags: ["Subflows"], params: teamId,
+  summary: "List this team's grouped/subflow elements", description: "Requires VIEWER role.",
+  ok: { status: 200, description: "OK", schema: z.object({ subflows: z.array(Subflow) }) },
+  errors: [401, 403, 404],
+});
+reg({
+  method: "post", path: "/api/teams/{teamId}/subflows", tags: ["Subflows"], params: teamId, body: CreateSubflowBody,
+  summary: "Create a subflow element", description: "Requires EDITOR role.",
+  ok: { status: 201, description: "Created", schema: z.object({ subflow: Subflow }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "patch", path: "/api/teams/{teamId}/subflows/{subflowId}", tags: ["Subflows"], params: subflowId, body: UpdateSubflowBody,
+  summary: "Rename or update a subflow element", description: "Requires EDITOR role.",
+  ok: { status: 200, description: "OK", schema: z.object({ subflow: Subflow }) },
+  errors: [400, 401, 403, 404],
+});
+reg({
+  method: "delete", path: "/api/teams/{teamId}/subflows/{subflowId}", tags: ["Subflows"], params: subflowId,
+  summary: "Delete a subflow element", description: "Requires EDITOR role.",
   ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
 });
 
