@@ -156,22 +156,33 @@ rest as a roadmap.
   Carbon `Button`/`IconButton`. (Tree-row DnD structure kept intentionally.)
 - **C4 colour cleanup** — stray hex (`#a582c9`/`#d96b5b`/`#0e1416`/`#8d8d8d`) →
   palette constants or `--cds-*` tokens.
+- **C1 inspector rail (Wave 4)** — `panels.tsx`: 16 number inputs →
+  `NumberInput`, weights range → `Slider`, 6 text inputs → `TextInput`, 13
+  selects → `Select`, notes → `TextArea`, 19 buttons → `Button`, `.pill` →
+  `Tag`, `.issue/.ok` → `InlineNotification`, eligible `.card` → `Tile`.
+- **C1 shared toast/tooltip/menu (Wave 5)** — `ui.tsx` `ToastProvider` →
+  `ToastNotification`; `HelpPopover` → `Toggletip`; `Menu` → `OverflowMenu`
+  (kebab row actions) / `MenuButton` (labelled).
+- **C1 page tables (Wave 6)** — Admin/Archive/Compare/Site `schemaTbl` →
+  Carbon `StructuredList`.
 
-**In progress / remaining (roadmap, by priority):**
+**Deliberately deferred (with rationale):**
 
-1. **Inspector rail** (`panels.tsx`) — ~24 inputs → the Carbon form set, ~13
-   selects → `Select`, range → `Slider`, `.pill` → `Tag`, buttons → `Button`.
-   **In progress.**
-2. **Shared toast/tooltip** — `ui.tsx` `ToastProvider` → `ToastNotification`;
-   `HelpPopover` + `title=""` → `Toggletip`/`DefinitionTooltip`.
-3. **`Menu` → `OverflowMenu`** — shared by App toolbar + Explorer rows; needs
-   coordinated `App.test`/`Explorer.test` query updates (trigger no longer has a
-   `title` attr / `⋯` text).
-4. **Tables** (Admin/Archive/Compare/Site) `schemaTbl` → `DataTable`.
-5. **Tab strips** (`.subtabs`, `.grouptabs`, `.tabs .btn`) → Carbon `Tabs`.
-6. **Explorer → full `TreeView`** — requires re-homing the custom drag-and-drop
-   onto TreeView semantics; deferred as a dedicated change.
-7. **AI panel** (`AiChatPanel`) — deferred behind the hidden-AI flag.
+1. **Tab strips** (`.subtabs`, `.grouptabs`, `.tabs .btn`) → Carbon `Tabs`.
+   These already render with Carbon contained-tab *geometry* via CSS; a true
+   `Tabs`/`TabList`/`TabPanels` swap is a structural `App.tsx` refactor that
+   changes the tab roles (`button` → `tab`) and would churn many `App.test`
+   queries for little visual gain. Sequenced as its own change.
+2. **Explorer → full `TreeView`** — requires re-homing the bespoke
+   drag-and-drop reorder onto TreeView semantics; the glyphs/buttons are already
+   Carbon (Wave-Explorer), so this is a behavioural refactor, not a visual gap.
+3. **`StructuredList` → `DataTable`** where sorting/selection would help
+   (Compare/Site) — `StructuredList` is a faithful, lower-risk first step;
+   `DataTable` is an enhancement, not a compliance gap.
+4. **AI panel** (`AiChatPanel`) — behind the hidden-AI flag; converted last.
+5. **`StationTooltip`** — kept as a tokenised cursor-following `position:fixed`
+   tooltip; Carbon `Tooltip`/`Toggletip` anchor to an element and can't follow
+   the pointer across the canvas, so a straight swap would regress the UX.
 
 ---
 
