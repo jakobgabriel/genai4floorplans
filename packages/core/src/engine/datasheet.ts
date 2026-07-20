@@ -60,8 +60,11 @@ export function cellDataSheet(model: Model): CellDataSheet {
     bottleneckOverTaktSec: overTakt,
     behaviourAtPlus20: sens.sentence,
     lineBalanceEfficiencyPct: bal.score,
-    // Zero when a single model or all variants run in mix without changeover.
-    changeoverBetweenVariantsSec: (model.variantModes?.length ?? 0) > 1 ? 0 : 0,
+    // FlowPlan balances the weighted mix — variants run in mix, so changeover
+    // between them is 0 by design (the blueprint's "runs in mix" property).
+    // Sequential/batch changeover is a multi-model portfolio concern (parked
+    // LinePortfolio), out of scope for the single mixed-model cell here.
+    changeoverBetweenVariantsSec: 0,
     floorSpaceCell: cost.floorSpace.cell,
     floorSpaceMaterialSupply: cost.floorSpace.materialSupply,
     floorSpaceUnit: cost.floorSpace.unit,
