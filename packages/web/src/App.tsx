@@ -51,40 +51,32 @@ import {
 } from "./components/panels";
 import { AMBER, TEAL, TEXTD } from "./components/colors";
 
-type View = "actual" | "improved" | "split" | "dag";
+type View = "actual" | "improved" | "split" | "dag" | "analysis";
 type Overlay = "none" | "confidence" | "congestion";
 const CELL = 30;
 
-// Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
-// sub-tab row when a group has >1 panel. Schema is reached via the "?" help icon.
-type Group = "insights" | "build" | "automation" | "chat";
-const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[] }[] = [
-  { id: "insights", label: "Insights", tabs: [
-    { tab: "rating", label: "Rating" },
-    { tab: "balance", label: "Balance" },
-    { tab: "cost", label: "Cost" },
-  ] },
-  { id: "build", label: "Build", tabs: [
-    // Workload leads: the spec's flow is workload → balancer → stations (§11),
-    // so the product-free input comes before the things derived from it.
-    { tab: "workload", label: "Workload" },
-    { tab: "flow", label: "Flow" },
-    { tab: "inspect", label: "Configure" },
-  ] },
-  { id: "automation", label: "Automation", tabs: [{ tab: "auto", label: "Automation" }] },
-  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "💬 AI Chat" }] },
+// The right rail carries INPUTS ONLY — configuration of steps and connections.
+// Everything derived (rating, balance, cost, automation coherence, AI help)
+// lives in the dedicated Analysis view, so the editor stays uncluttered.
+const INPUT_TABS: { tab: Tab; label: string }[] = [
+  { tab: "inspect", label: "Configure" },
+  { tab: "flow", label: "Flow" },
+  { tab: "workload", label: "Workload" },
 ];
-const GROUP_OF: Record<Tab, Group | undefined> = {
-  rating: "insights", balance: "insights", cost: "insights",
-  workload: "build", flow: "build", inspect: "build",
-  auto: "automation", chat: "chat", schema: undefined,
-};
+const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
+  { tab: "rating", label: "Rating" },
+  { tab: "balance", label: "Balance" },
+  { tab: "cost", label: "Cost" },
+  { tab: "auto", label: "Automation" },
+  { tab: "chat", label: "AI Chat" },
+];
 
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
   const [view, setView] = useState<View>("actual");
-  const [tab, setTab] = useState<Tab>("rating");
+  const [tab, setTab] = useState<Tab>("inspect");
+  const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [overlay, setOverlay] = useState<Overlay>("none");
@@ -127,22 +119,19 @@ export function App() {
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
-  // Remember the last sub-tab visited per group, so returning to a group restores it.
-  const lastSubTab = useRef<Record<Group, Tab>>({ insights: "rating", build: "flow", automation: "auto", chat: "chat" });
 
   const { model, rating } = api;
 
+  // Selecting a step opens Configure in the editor. Only leave the Analysis view
+  // (a deep-link back to the editor); staying in DAG/Improved when selecting a
+  // node there is the expected behaviour.
   const selectAndInspect = useCallback((id: string | null) => {
     setSel(id);
-    if (id) setTab("inspect");
+    if (id) {
+      setView((v) => (v === "analysis" ? "actual" : v));
+      setTab("inspect");
+    }
   }, []);
-
-  // Keep the per-group memory in sync however the tab changed (incl. in-panel
-  // deep-links like Balance → Configure), so re-opening a group restores it.
-  useEffect(() => {
-    const g = GROUP_OF[tab];
-    if (g) lastSubTab.current[g] = tab;
-  }, [tab]);
 
   // ---- derived planning data ----------------------------------------------
   const briefSteps: CoreStep[] = useMemo(() => {
@@ -289,16 +278,10 @@ export function App() {
       </button>
     );
   }
-  // The active group follows the active tab (so in-panel deep-links to Configure
-  // still light up the right group). Schema (via "?") belongs to no group.
-  const activeGroup = GROUP_OF[tab];
-  function selectGroup(g: Group) {
-    setTab(lastSubTab.current[g]);
-  }
-  function selectSubTab(g: Group, k: Tab) {
-    lastSubTab.current[g] = k;
-    setTab(k);
-  }
+  // Analysis panels deep-link to inputs (e.g. Balance → Configure); wrap setTab
+  // so those links also leave the Analysis view for the editor.
+  const gotoInput = useCallback((t: Tab) => { setView("actual"); setTab(t); }, []);
+  const analysisPanelProps: PanelProps = { ...panelProps, setTab: gotoInput, setSel: selectAndInspect };
 
   const improvedModel = { ...model, stations: rating.optimized };
 
@@ -400,11 +383,32 @@ export function App() {
     );
   } else if (view === "dag") {
     canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
-  } else {
+  } else if (view === "split") {
     canvasInner = (
       <div className="splitWrap">
         <LayoutCanvas model={model} stations={model.stations} flows={model.flows} chain={api.chain} selId={selId} label="ACTUAL" badge={TEAL} cell={CELL - 4} onSelect={setSel} />
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL - 4} onSelect={setSel} />
+      </div>
+    );
+  } else {
+    // Analysis — the dedicated home for every derived figure, so the editor
+    // rail can stay inputs-only.
+    canvasInner = (
+      <div className="analysis-view">
+        <div className="subtabs" style={{ maxWidth: 760, margin: "0 auto", padding: 0 }}>
+          {ANALYSIS_TABS.map((t) => (
+            <button key={t.tab} className={"chip" + (analysisTab === t.tab ? " on" : "")} onClick={() => setAnalysisTab(t.tab)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          {analysisTab === "rating" && <RatingPanel {...analysisPanelProps} />}
+          {analysisTab === "balance" && <BalancePanel {...analysisPanelProps} />}
+          {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
+          {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
+          {analysisTab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
+        </div>
       </div>
     );
   }
@@ -506,6 +510,7 @@ export function App() {
               {vBtn("improved", "◇ Improved")}
               {vBtn("split", "⇄ Both")}
               {vBtn("dag", "⊟ DAG")}
+              {vBtn("analysis", "📊 Analysis")}
             </div>
             {view === "actual" ? (
               <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
@@ -520,65 +525,59 @@ export function App() {
             ) : null}
           </div>
           {canvasInner}
-          <div className="legend">
-            <span>
-              role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output
-            </span>
-            <span>dots: ergo (TL) · automation (TR)</span>
-            <span>
-              links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
-            </span>
-          </div>
+          {view === "analysis" ? null : (
+            <div className="legend">
+              <span>
+                role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output
+              </span>
+              <span>dots: ergo (TL) · automation (TR)</span>
+              <span>
+                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+              </span>
+            </div>
+          )}
         </div>
-        {configCollapsed ? null : <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />}
-        <div
-          className={"side" + (configCollapsed ? " collapsed" : "")}
-          style={configCollapsed ? undefined : { flexBasis: configWidth, width: configWidth }}
-        >
-          {configCollapsed ? (
+        {/* Inputs rail — configuration of steps and connections only. Hidden in
+            the Analysis view, which is full-width. */}
+        {view === "analysis" ? null : configCollapsed ? (
+          <div className="side collapsed">
             <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show config panel">
-                ⚙ Config
+              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show inputs panel">
+                ⚙ Inputs
               </button>
             </div>
-          ) : (
+          </div>
+        ) : (
           <>
+          <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />
+          <div className="side" style={{ flexBasis: configWidth, width: configWidth }}>
           <div className="tabbar">
-            <div className="grouptabs">
-              {TAB_GROUPS.map((g) => (
-                <button key={g.id} className={"btn" + (activeGroup === g.id ? " on" : "")} onClick={() => selectGroup(g.id)}>
-                  {g.label}
+            <div className="subtabs">
+              {INPUT_TABS.map((t) => (
+                <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => setTab(t.tab)}>
+                  {t.label}
                 </button>
               ))}
-              <button className={"btn help-tab" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
+              <button className={"chip" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
                 ?
               </button>
-              <button className="btn help-tab" title="Collapse config panel" onClick={() => setConfigCollapsed(true)}>
+              <button className="chip" title="Collapse inputs panel" onClick={() => setConfigCollapsed(true)}>
                 ▶
               </button>
             </div>
-            {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
-              <div className="subtabs">
-                {TAB_GROUPS.find((g) => g.id === activeGroup)!.tabs.map((t) => (
-                  <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => selectSubTab(activeGroup, t.tab)}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
-          {tab === "rating" && <RatingPanel {...panelProps} />}
-          {tab === "balance" && <BalancePanel {...panelProps} />}
           {tab === "workload" && <WorkloadPanel {...panelProps} />}
           {tab === "flow" && <FlowPanel {...panelProps} />}
-          {tab === "auto" && <AutomationPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "cost" && <CostPanel {...panelProps} />}
-          {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
-          </>
+          {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost" || tab === "chat") && (
+            <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
+              Analysis moved to the <button className="chip on" style={{ display: "inline" }} onClick={() => setView("analysis")}>📊 Analysis</button> view.
+            </div>
           )}
-        </div>
+          </div>
+          </>
+        )}
       </main>
   );
 
@@ -600,7 +599,7 @@ export function App() {
             loadedCandidate.current = picked.id;
             setSel(null);
             setView("actual");
-            setTab("rating");
+            setTab("inspect");
             toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);

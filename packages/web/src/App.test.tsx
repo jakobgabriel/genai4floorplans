@@ -20,6 +20,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+// The right rail is inputs-only now; all derived analysis lives in the dedicated
+// Analysis view. Open it, then pick an analysis sub-tab.
+function openAnalysis(subTab: string) {
+  fireEvent.click(screen.getByText("📊 Analysis"));
+  fireEvent.click(screen.getByRole("button", { name: subTab }));
+}
+
 // Smoke tests: the App must mount and wire its panels/views without crashing —
 // the type checker can't catch a bad prop hand-off or a dead reducer branch.
 describe("App", () => {
@@ -33,27 +40,27 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
+    openAnalysis("Rating");
     expect(screen.getByText("Actual-state rating")).toBeTruthy();
   });
 
-  it("switches between side-panel tabs without error", () => {
+  it("switches between analysis sub-tabs without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    // Balance is a sub-tab under the Insights group (active by default).
-    fireEvent.click(screen.getByRole("button", { name: "Balance" }));
+    openAnalysis("Balance");
     expect(screen.getByText(/Line balance & bottleneck/)).toBeTruthy();
-    // Automation is its own top-level group button.
     fireEvent.click(screen.getByRole("button", { name: "Automation" }));
     expect(screen.getByText(/Automation chaining/)).toBeTruthy();
-    // Schema lives behind the "?" help icon.
+    // Schema lives behind the "?" help icon in the inputs rail.
+    fireEvent.click(screen.getByText("● Actual"));
     fireEvent.click(screen.getByRole("button", { name: "?" }));
     expect(screen.getByText(/Data model/)).toBeTruthy();
   });
 
-  it("generates AI proposals from the AI Chat group", async () => {
+  it("generates AI proposals from the Analysis AI Chat tab", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByRole("button", { name: "AI Chat" }));
+    openAnalysis("AI Chat");
     fireEvent.click(screen.getByText(/Propose layout improvements/));
     // a strategist proposal card appears (engine-scored, offline)
     await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
@@ -65,7 +72,7 @@ describe("App", () => {
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByText("⊟ DAG"));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Balance" }));
+    openAnalysis("Balance");
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
 
@@ -77,7 +84,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
     fireEvent.click(screen.getByText("← Editor"));
-    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
   });
 
   it("navigates to the dedicated Compare page", async () => {
@@ -87,7 +94,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Compare scenarios"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
     fireEvent.click(screen.getByText("← Editor"));
-    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("● Actual")).toBeTruthy());
   });
 
   it("opens the freeform footprint editor without crashing", () => {
