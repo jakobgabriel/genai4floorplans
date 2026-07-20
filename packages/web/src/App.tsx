@@ -38,6 +38,7 @@ import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { CostPanel } from "./components/CostPanel";
 import { DataSheetPanel } from "./components/DataSheetPanel";
+import { CapacityPanel } from "./components/CapacityPanel";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
@@ -69,6 +70,7 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "rating", label: "Rating" },
   { tab: "balance", label: "Balance" },
   { tab: "datasheet", label: "Data sheet" },
+  { tab: "capacity", label: "Capacity" },
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
   { tab: "chat", label: "AI Chat" },
@@ -405,6 +407,7 @@ export function App() {
           {analysisTab === "rating" && <RatingPanel {...analysisPanelProps} />}
           {analysisTab === "balance" && <BalancePanel {...analysisPanelProps} />}
           {analysisTab === "datasheet" && <DataSheetPanel {...analysisPanelProps} />}
+          {analysisTab === "capacity" && <CapacityPanel {...analysisPanelProps} />}
           {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
           {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
           {analysisTab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}

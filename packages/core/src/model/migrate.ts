@@ -58,6 +58,10 @@ const toV9: Migration = (m) => ({ ...m, schemaVersion: 9 });
 // paths. Absent on every existing flow (⇒ "good"), so no analysis changes.
 const toV10: Migration = (m) => ({ ...m, schemaVersion: 10 });
 
+// version 10 -> 11: multi-year demand + shift model for capacity analysis.
+// Absent on every existing model, so no analysis changes on load.
+const toV11: Migration = (m) => ({ ...m, schemaVersion: 11 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -69,6 +73,7 @@ const MIGRATIONS: Record<number, Migration> = {
   7: toV8,
   8: toV9,
   9: toV10,
+  10: toV11,
 };
 
 export function migrate(raw: unknown): Model {

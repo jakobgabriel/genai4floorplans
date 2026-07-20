@@ -282,6 +282,34 @@ export function stationConfidence(s: Station, fields: StationDataField[] = STATI
   return weakestConfidence(fields.map((f) => qualityConfidence(fieldQuality(s, f))));
 }
 
+/** Demand over a program horizon plus the shift model (PAUL Demands + Capa MA).
+ *  Drives capacity: machines needed per year, operators per year. Independent of
+ *  the layout — a cell can be evaluated against several years of demand. */
+export interface DemandYear {
+  year: number;
+  /** Units required that year (already includes any flex volume). */
+  units: number;
+}
+export interface Demand {
+  years: DemandYear[];
+  /** Shifts per working day. */
+  shiftsPerDay?: number;
+  /** Hours of production per shift. */
+  hoursPerShift?: number;
+  /** Working days per year. */
+  workingDaysPerYear?: number;
+  /** Overall effectiveness (OEE), 0–1, applied to available time. */
+  oee?: number;
+}
+
+/** Default shift model when a Demand omits fields (one 8 h shift, 220 days, 85 % OEE). */
+export const DEFAULT_SHIFT_MODEL = {
+  shiftsPerDay: 1,
+  hoursPerShift: 8,
+  workingDaysPerYear: 220,
+  oee: 0.85,
+} as const;
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -306,6 +334,8 @@ export interface Model {
   /** Which manufacturing concept this cell represents (engine/concepts.ts).
    *  Purely descriptive — the rating does not read it. */
   conceptKind?: string;
+  /** Multi-year demand + shift model, for capacity analysis (PAUL Capa MA/HC). */
+  demand?: Demand;
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -322,7 +352,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

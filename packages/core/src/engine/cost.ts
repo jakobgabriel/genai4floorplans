@@ -37,6 +37,10 @@ export interface CostResult {
   transportPerShift: number;
   opexPerShift: number;
   costPerPart: number;
+  /** Labour-dependent cost per part (PAUL LDC) — operator time. */
+  ldcPerPart: number;
+  /** Machine-dependent cost per part (PAUL MDC) — energy + transport. */
+  mdcPerPart: number;
   lineOut: number;
   floorSpace: FloorSpace;
   automation: AutomationROI[];
@@ -59,6 +63,9 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
 
   const lineOut = balanceAnalysis(model.stations, model.flows, shiftHours).lineOut;
   const costPerPart = lineOut > 0 ? +(opexPerShift / lineOut).toFixed(3) : 0;
+  // LDC/MDC split (PAUL): labour-dependent vs machine-dependent cost per part.
+  const ldcPerPart = lineOut > 0 ? +(laborPerShift / lineOut).toFixed(3) : 0;
+  const mdcPerPart = lineOut > 0 ? +((energyPerShift + transportPerShift) / lineOut).toFixed(3) : 0;
 
   // Floor space, split cell vs material supply (blueprint §4.9). Cell area is the
   // footprint the stations occupy; material supply is the routinely-forgotten
@@ -87,5 +94,5 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
       return { id: s.id, name: s.name, verdict: ap.verdict, automationCapex: capex, laborSavedPerYear: Math.round(laborSavedPerYear), paybackMonths };
     });
 
-  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, lineOut, floorSpace, automation };
+  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, ldcPerPart, mdcPerPart, lineOut, floorSpace, automation };
 }
