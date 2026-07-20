@@ -235,6 +235,9 @@ Landed on branch `claude/feature-plan-design-overhaul-304leo` (design overhaul +
 | 2.5 Behaviour at +20 % volume | H2 | branch | `engine/sensitivity.ts` |
 | 2.6 Archetype code MA-shape-NN-seq-labour | H2 | branch | `engine/archetype.ts` |
 | 2.1/2.2 Ranked variants + featured cards | H2 | branch | `planner/ConceptTable` FeaturedCards |
+| 2.9/2.10 NOK/RWK material paths + geometric separation guardrail | H2 | branch | `engine/guardrails.ts`, `Flow.kind`, canvas |
+| 3.x Multi-year demand + machine/head-count capacity | H3 | branch | `engine/capacity.ts`, `CapacityPanel`, `Model.demand` |
+| 2.13-ish LDC/MDC cost-per-part split | H2 | branch | `engine/cost.ts` |
 | — Data models absorbed from the two IE source docs | H1-H4 | branch | `docs/concept-model.md` |
 
 ---
