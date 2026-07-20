@@ -13,6 +13,7 @@ import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
 import { ProcessShell } from "./planner/ProcessShell";
+import { AppHeader, type HeaderSection } from "./components/AppHeader";
 import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, DEFAULT_DEMAND, toDemand, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
@@ -565,13 +566,22 @@ export function App() {
   // navigation; all hooks above have already run, so these early returns are safe.
   // Each is wrapped in <Theme> so the entry/workspace screen re-themes with the
   // editor (they render OUTSIDE ProcessShell's Theme).
-  const page = (node: React.ReactNode) => <Theme theme={theme}><div className="wrap">{node}</div></Theme>;
-  if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} theme={theme} onToggleTheme={toggleTheme} />);
-  if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />);
-  if (route === "/compare") return page(<ComparePage api={api} />);
-  if (route === "/site") return page(<SitePage api={api} />);
-  if (route === "/archive") return page(<ArchivePage api={api} />);
-  if (route === "/admin") return page(<AdminPage />);
+  // Every route gets the same Carbon UI Shell top bar (AppHeader) so the top bar
+  // is identical across the workspace, pages, planner and editor.
+  const page = (node: React.ReactNode, active: HeaderSection = null) => (
+    <Theme theme={theme}>
+      <div className="wrap">
+        <AppHeader theme={theme} onToggleTheme={toggleTheme} active={active} />
+        {node}
+      </div>
+    </Theme>
+  );
+  if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} />, "workspace");
+  if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />, "library");
+  if (route === "/compare") return page(<ComparePage api={api} />, "compare");
+  if (route === "/site") return page(<SitePage api={api} />, "site");
+  if (route === "/archive") return page(<ArchivePage api={api} />, "workspace");
+  if (route === "/admin") return page(<AdminPage />, null);
 
   const editorToolbar = (
     <div className="editorbar">

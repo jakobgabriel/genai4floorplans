@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { Header, HeaderGlobalBar, HeaderGlobalAction, HeaderName, ProgressIndicator, ProgressStep, Theme } from "@carbon/react";
-import { Asleep, Light } from "@carbon/icons-react";
+import { HeaderGlobalAction, ProgressIndicator, ProgressStep, Theme } from "@carbon/react";
 import type { FlowStep } from "./flow";
 import { FLOW_STEPS, STEP_META } from "./flow";
 import type { CarbonTheme } from "../store/theme";
+import { AppHeader } from "../components/AppHeader";
 
 // One shell for the whole application. The process stepper is always present,
 // so the editor is visibly a *stage of planning* rather than a separate tool you
@@ -28,21 +28,7 @@ export function ProcessShell({ step, reached, onGoto, actions, children, fullBle
 
   return (
     <Theme theme={theme}>
-      <Header aria-label="FlowPlan">
-        <HeaderName href="#" prefix="Flow">
-          Plan
-        </HeaderName>
-        <HeaderGlobalBar>
-          {actions}
-          <HeaderGlobalAction
-            aria-label={theme === "g100" ? "Switch to light theme" : "Switch to dark theme"}
-            tooltipAlignment="end"
-            onClick={onToggleTheme}
-          >
-            {theme === "g100" ? <Light size={20} /> : <Asleep size={20} />}
-          </HeaderGlobalAction>
-        </HeaderGlobalBar>
-      </Header>
+      <AppHeader theme={theme} onToggleTheme={onToggleTheme} active="editor" actions={actions} />
 
       <div className={"shell" + (fullBleed ? " shell--editor" : "")}>
         {fullBleed ? null : (

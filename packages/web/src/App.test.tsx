@@ -77,7 +77,7 @@ describe("App", () => {
   it("navigates to the dedicated Site overview page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByText("Site"));
+    fireEvent.click(screen.getByRole("link", { name: "Site" }));
     // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
