@@ -21,14 +21,17 @@ cellsRouter.post(
     const body = CreateCellBody.safeParse(req.body);
     if (!body.success) throw badRequest("name and a valid model required");
     const model = migrate(body.data.model);
-    const folderId = body.data.folderId ?? null;
-    // position orders siblings within the folder (null folder = workspace root).
-    const count = await getPrisma().cell.count({ where: { workspaceId: req.params.wsId, folderId } });
+    const conceptId = body.data.conceptId ?? null;
+    // A layout inherits its concept's folder so folder rollups stay consistent.
+    const concept = conceptId ? await getPrisma().concept.findUnique({ where: { id: conceptId }, select: { folderId: true } }) : null;
+    const folderId = concept ? concept.folderId : body.data.folderId ?? null;
+    // position orders siblings within the concept.
+    const count = await getPrisma().cell.count({ where: { workspaceId: req.params.wsId, conceptId } });
     const cell = await getPrisma().cell.create({
-      data: { workspaceId: req.params.wsId, folderId, name: body.data.name, schemaVersion: versionOf(model), model: asJson(model), position: count },
-      select: { id: true, name: true, position: true, folderId: true, model: true, schemaVersion: true },
+      data: { workspaceId: req.params.wsId, folderId, conceptId, name: body.data.name, schemaVersion: versionOf(model), model: asJson(model), position: count },
+      select: { id: true, name: true, position: true, folderId: true, conceptId: true, model: true, schemaVersion: true },
     });
-    res.status(201).json({ cell: { id: cell.id, name: cell.name, position: cell.position, folderId: cell.folderId, model } });
+    res.status(201).json({ cell: { id: cell.id, name: cell.name, position: cell.position, folderId: cell.folderId, conceptId: cell.conceptId, model } });
   }),
 );
 
@@ -68,11 +71,17 @@ cellsRouter.patch(
   requireTeamRole(Role.EDITOR),
   asyncHandler(async (req: AuthedRequest, res) => {
     const body = PatchCellMetaBody.safeParse(req.body);
-    if (!body.success) throw badRequest("name, position or folderId required");
+    if (!body.success) throw badRequest("name, position, folderId or conceptId required");
+    // Moving a layout into a concept makes it inherit that concept's folder.
+    let folderId = body.data.folderId;
+    if (body.data.conceptId !== undefined) {
+      const concept = body.data.conceptId ? await getPrisma().concept.findUnique({ where: { id: body.data.conceptId }, select: { folderId: true } }) : null;
+      folderId = concept ? concept.folderId : null;
+    }
     const cell = await getPrisma().cell.update({
       where: { id: req.params.cellId },
-      data: { name: body.data.name, position: body.data.position, folderId: body.data.folderId },
-      select: { id: true, name: true, position: true, folderId: true },
+      data: { name: body.data.name, position: body.data.position, folderId, conceptId: body.data.conceptId },
+      select: { id: true, name: true, position: true, folderId: true, conceptId: true },
     });
     res.json({ cell });
   }),

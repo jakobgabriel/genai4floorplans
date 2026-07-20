@@ -56,7 +56,7 @@ export const UpdateWorkspaceBody = z
   .openapi("UpdateWorkspaceBody");
 
 export const CreateCellBody = z
-  .object({ name: z.string().min(1), model: ModelSchema, folderId: z.string().nullable().optional() })
+  .object({ name: z.string().min(1), model: ModelSchema, folderId: z.string().nullable().optional(), conceptId: z.string().nullable().optional() })
   .openapi("CreateCellBody");
 export const PutCellModelBody = z.object({ model: ModelSchema }).openapi("PutCellModelBody");
 export const PatchCellMetaBody = z
@@ -64,8 +64,21 @@ export const PatchCellMetaBody = z
     name: z.string().min(1).optional(),
     position: z.number().int().optional(),
     folderId: z.string().nullable().optional(),
+    conceptId: z.string().nullable().optional(),
   })
   .openapi("PatchCellMetaBody");
+
+// Concepts are the workspace item; each holds one or more layouts (cells).
+export const CreateConceptBody = z
+  .object({ name: z.string().min(1), folderId: z.string().nullable().optional() })
+  .openapi("CreateConceptBody");
+export const UpdateConceptBody = z
+  .object({
+    name: z.string().min(1).optional(),
+    folderId: z.string().nullable().optional(),
+    position: z.number().int().optional(),
+  })
+  .openapi("UpdateConceptBody");
 
 export const ScenarioModelBody = z.object({ model: ModelSchema }).openapi("ScenarioModelBody");
 export const MoveScenarioBody = z.object({ folderId: z.string().nullable() }).openapi("MoveScenarioBody");
@@ -154,12 +167,22 @@ export const Folder = z
   })
   .openapi("Folder");
 
+export const Concept = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    folderId: z.string().nullable(),
+    position: z.number().int(),
+  })
+  .openapi("Concept");
+
 export const CellMeta = z
   .object({
     id: z.string(),
     name: z.string(),
     position: z.number().int(),
     folderId: z.string().nullable(),
+    conceptId: z.string().nullable().optional(),
   })
   .openapi("CellMeta");
 

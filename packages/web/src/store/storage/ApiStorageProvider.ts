@@ -54,7 +54,7 @@ export class ApiStorageProvider implements StorageProvider {
     await this.req("PUT", `/cells/${cell.id}`, { model: cell.model });
   }
   async createCell(cell: Cell): Promise<Cell> {
-    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId });
+    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId, conceptId: cell.conceptId });
     return created;
   }
   async renameCell(id: string, name: string): Promise<void> {
@@ -63,8 +63,21 @@ export class ApiStorageProvider implements StorageProvider {
   async deleteCell(id: string): Promise<void> {
     await this.req("DELETE", `/cells/${id}`);
   }
-  async moveCell(id: string, folderId: string | null): Promise<void> {
-    await this.req("PATCH", `/cells/${id}`, { folderId });
+  async moveCell(id: string, conceptId: string | null): Promise<void> {
+    await this.req("PATCH", `/cells/${id}`, { conceptId });
+  }
+  async createConcept(concept: Concept): Promise<Concept> {
+    const { concept: created } = await this.req<{ concept: Concept }>("POST", `/workspaces/${this.workspaceId}/concepts`, { name: concept.name, folderId: concept.folderId });
+    return created;
+  }
+  async renameConcept(id: string, name: string): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { name });
+  }
+  async moveConcept(id: string, folderId: string | null, position?: number): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { folderId, position });
+  }
+  async deleteConcept(id: string): Promise<void> {
+    await this.req("DELETE", `/concepts/${id}`);
   }
   async listScenarios(): Promise<ScenarioMeta[]> {
     const { scenarios } = await this.req<{ scenarios: { name: string; savedAt: string; folderId: string | null }[] }>("GET", `/workspaces/${this.workspaceId}/scenarios`);

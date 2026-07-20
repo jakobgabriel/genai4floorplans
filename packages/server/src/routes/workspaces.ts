@@ -59,7 +59,8 @@ workspacesRouter.get(
         name: true,
         activeId: true,
         folders: { orderBy: { position: "asc" }, select: { id: true, name: true, parentId: true, position: true } },
-        cells: { orderBy: { position: "asc" }, select: { id: true, name: true, folderId: true, model: true, schemaVersion: true, position: true } },
+        concepts: { orderBy: { position: "asc" }, select: { id: true, name: true, folderId: true, position: true } },
+        cells: { orderBy: { position: "asc" }, select: { id: true, name: true, folderId: true, conceptId: true, model: true, schemaVersion: true, position: true } },
       },
     });
     if (!ws) throw notFound();
@@ -69,7 +70,8 @@ workspacesRouter.get(
         name: ws.name,
         activeId: ws.activeId,
         folders: ws.folders,
-        cells: ws.cells.map((c) => ({ id: c.id, name: c.name, position: c.position, folderId: c.folderId, model: migrateStored(c.model, c.schemaVersion) })),
+        concepts: ws.concepts,
+        cells: ws.cells.map((c) => ({ id: c.id, name: c.name, position: c.position, folderId: c.folderId, conceptId: c.conceptId, model: migrateStored(c.model, c.schemaVersion) })),
       },
     });
   }),
