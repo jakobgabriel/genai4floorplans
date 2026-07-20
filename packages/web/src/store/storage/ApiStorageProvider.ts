@@ -1,5 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
-import type { Cell, Folder, Workspace } from "../workspace";
+import { wrapLooseCells, type Cell, type Concept, type Folder, type Workspace } from "../workspace";
 import type { ScenarioMeta } from "../scenarios";
 import type { StorageProvider } from "./StorageProvider";
 
@@ -34,11 +34,14 @@ export class ApiStorageProvider implements StorageProvider {
         name: string;
         activeId: string | null;
         folders: Folder[];
-        cells: { id: string; name: string; model: Model; folderId: string | null }[];
+        concepts?: Concept[];
+        cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null }[];
       };
     }>("GET", `/workspaces/${this.workspaceId}`);
-    const cells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null }));
-    return { cells, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
+    const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null }));
+    // Wrap any loose layouts into concepts so the tree always has a concept level.
+    const { cells, concepts } = wrapLooseCells(migratedCells, workspace.concepts ?? []);
+    return { cells, concepts, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
   }
 
   // The whole-workspace save is decomposed into per-cell saves + an activeId patch;

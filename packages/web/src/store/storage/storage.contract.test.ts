@@ -118,7 +118,7 @@ function runContract(name: string, make: () => StorageProvider) {
 
     it("creates, saves, renames and deletes a cell", async () => {
       const sp = make();
-      const created = await sp.createCell({ id: "seed", name: "Alpha", folderId: null, model: { ...blankModel(), name: "Alpha" } });
+      const created = await sp.createCell({ id: "seed", name: "Alpha", folderId: null, conceptId: null, model: { ...blankModel(), name: "Alpha" } });
       expect(created.name).toBe("Alpha");
 
       await sp.saveCell({ ...created, model: { ...created.model, gridW: 33 } });
@@ -152,7 +152,7 @@ function runContract(name: string, make: () => StorageProvider) {
       const sp = make();
       const root = await sp.createFolder({ id: "", name: "Line 1", parentId: null, position: 0 });
       const sub = await sp.createFolder({ id: "", name: "Sub", parentId: root.id, position: 0 });
-      const cell = await sp.createCell({ id: "seed", name: "Layout", folderId: null, model: blankModel() });
+      const cell = await sp.createCell({ id: "seed", name: "Layout", folderId: null, conceptId: null, model: blankModel() });
 
       await sp.moveCell(cell.id, sub.id);
       let ws = await sp.loadWorkspace();

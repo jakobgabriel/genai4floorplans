@@ -9,11 +9,13 @@ import { blankModel } from "@flowplan/core/model/sample";
 import {
   loadWorkspace,
   makeCell,
+  makeConcept,
   makeFolder,
   isDescendant,
   subtreeFolderIds,
   saveWorkspace,
   type Cell,
+  type Concept,
   type Folder,
   type Workspace,
 } from "./workspace";
@@ -22,6 +24,7 @@ export interface CellRef {
   id: string;
   name: string;
   folderId: string | null;
+  conceptId: string | null;
 }
 
 export interface FlowPlanApi {
@@ -37,17 +40,28 @@ export interface FlowPlanApi {
   reset: (model: Model) => void;
   undo: () => void;
   redo: () => void;
-  // ---- multi-cell workspace ----
+  // ---- layouts (Cells) within concepts ----
   cells: CellRef[];
   activeId: string;
+  /** The concept the active layout belongs to. */
+  activeConceptId: string | null;
   switchCell: (id: string) => void;
-  addCell: (model?: Model, name?: string, folderId?: string | null) => void;
+  /** Add a layout to a concept (defaults to the active concept). */
+  addCell: (model?: Model, name?: string, conceptId?: string | null) => void;
   duplicateCell: () => void;
   renameCell: (id: string, name: string) => void;
   deleteCell: (id: string) => void;
-  moveCell: (id: string, folderId: string | null) => void;
+  /** Move a layout into another concept. */
+  moveCell: (id: string, conceptId: string | null) => void;
   /** All (non-archived) cells with the active one's live model — for the site rollup. */
   snapshotCells: () => Cell[];
+  // ---- concepts (the workspace item: a concept holds several layouts) ----
+  concepts: Concept[];
+  /** Create a concept in a folder, with an initial layout, and open it. */
+  createConcept: (name: string, folderId?: string | null, model?: Model) => void;
+  renameConcept: (id: string, name: string) => void;
+  /** Move a concept (and its layouts) into another folder. */
+  moveConcept: (id: string, folderId: string | null) => void;
   // ---- folders (arbitrarily nested) ----
   folders: Folder[];
   createFolder: (name: string, parentId?: string | null) => void;
@@ -57,15 +71,21 @@ export interface FlowPlanApi {
   // ---- archive (soft delete, recoverable) ----
   /** Archive a layout (hidden from the tree, recoverable). */
   archiveCell: (id: string) => void;
-  /** Archive a folder AND all its contents (sub-folders + layouts), recursively. */
+  /** Archive a concept AND its layouts. */
+  archiveConcept: (id: string) => void;
+  /** Archive a folder AND all its contents (sub-folders + concepts + layouts). */
   archiveFolder: (id: string) => void;
   restoreCell: (id: string) => void;
+  restoreConcept: (id: string) => void;
   restoreFolder: (id: string) => void;
   /** Permanently delete an archived layout. */
   purgeCell: (id: string) => void;
+  /** Permanently delete an archived concept and its layouts. */
+  purgeConcept: (id: string) => void;
   /** Permanently delete an archived folder and its contents. */
   purgeFolder: (id: string) => void;
   archivedCells: CellRef[];
+  archivedConcepts: Concept[];
   archivedFolders: Folder[];
 }
 
@@ -110,13 +130,15 @@ export function useFlowPlan(): FlowPlanApi {
     [model],
   );
 
+  const activeConceptId = ws.cells.find((c) => c.id === ws.activeId)?.conceptId ?? null;
+
   const switchCell = useCallback(
     (id: string) => {
       if (id === ws.activeId) return;
       const cells = persistActive(ws);
       const target = cells.find((c) => c.id === id);
       if (!target) return;
-      const next: Workspace = { cells, folders: ws.folders, activeId: id };
+      const next: Workspace = { ...ws, cells, activeId: id };
       setWs(next);
       saveWorkspace(next);
       dispatch({ kind: "reset", model: target.model });
@@ -124,21 +146,26 @@ export function useFlowPlan(): FlowPlanApi {
     [ws, persistActive],
   );
 
+  // Add a layout to a concept (defaults to the active concept). The layout
+  // inherits the concept's folder so folder rollups stay consistent.
   const addCell = useCallback(
-    (m?: Model, name?: string, folderId: string | null = null) => {
-      const cell = makeCell(name ?? "Cell " + (ws.cells.length + 1), m ?? blankModel(), folderId);
-      const next: Workspace = { cells: persistActive(ws).concat([cell]), folders: ws.folders, activeId: cell.id };
+    (m?: Model, name?: string, conceptId: string | null = null) => {
+      const cid = conceptId ?? activeConceptId;
+      const concept = ws.concepts.find((c) => c.id === cid) ?? null;
+      const count = ws.cells.filter((c) => c.conceptId === cid).length;
+      const cell = makeCell(name ?? "Layout " + (count + 1), m ?? blankModel(), concept?.folderId ?? null, cid);
+      const next: Workspace = { ...ws, cells: persistActive(ws).concat([cell]), activeId: cell.id };
       setWs(next);
       saveWorkspace(next);
       dispatch({ kind: "reset", model: cell.model });
     },
-    [ws, persistActive],
+    [ws, persistActive, activeConceptId],
   );
 
   const duplicateCell = useCallback(() => {
     const active = ws.cells.find((c) => c.id === ws.activeId);
-    const cell = makeCell((model.name || "Cell") + " (copy)", model, active?.folderId ?? null);
-    const next: Workspace = { cells: persistActive(ws).concat([cell]), folders: ws.folders, activeId: cell.id };
+    const cell = makeCell((model.name || "Layout") + " (copy)", model, active?.folderId ?? null, active?.conceptId ?? null);
+    const next: Workspace = { ...ws, cells: persistActive(ws).concat([cell]), activeId: cell.id };
     setWs(next);
     saveWorkspace(next);
     dispatch({ kind: "reset", model: cell.model });
@@ -160,12 +187,17 @@ export function useFlowPlan(): FlowPlanApi {
   const deleteCell = useCallback(
     (id: string) => {
       const remaining = ws.cells.filter((c) => c.id !== id);
-      const cells = remaining.length ? remaining : [makeCell("Cell A", blankModel())];
+      let concepts = ws.concepts;
+      let seeded: Cell[] = remaining;
+      if (remaining.length === 0) {
+        const concept = makeConcept("Concept A", null, 0);
+        concepts = ws.concepts.concat([concept]);
+        seeded = [makeCell("Layout A", blankModel(), null, concept.id)];
+      }
       const wasActive = id === ws.activeId;
-      const activeId = wasActive ? cells[0].id : ws.activeId;
-      // keep the active cell's live model if it wasn't the one deleted
-      const persisted = cells.map((c) => (c.id === ws.activeId && !wasActive ? { ...c, model } : c));
-      const next: Workspace = { cells: persisted, folders: ws.folders, activeId };
+      const activeId = wasActive ? seeded[0].id : ws.activeId;
+      const persisted = seeded.map((c) => (c.id === ws.activeId && !wasActive ? { ...c, model } : c));
+      const next: Workspace = { ...ws, cells: persisted, concepts, activeId };
       setWs(next);
       saveWorkspace(next);
       if (wasActive) dispatch({ kind: "reset", model: next.cells.find((c) => c.id === activeId)!.model });
@@ -173,10 +205,12 @@ export function useFlowPlan(): FlowPlanApi {
     [ws, model],
   );
 
+  // Move a layout into another concept; it inherits that concept's folder.
   const moveCell = useCallback(
-    (id: string, folderId: string | null) => {
+    (id: string, conceptId: string | null) => {
       setWs((prev) => {
-        const cells = persistActive(prev).map((c) => (c.id === id ? { ...c, folderId } : c));
+        const folderId = prev.concepts.find((c) => c.id === conceptId)?.folderId ?? null;
+        const cells = persistActive(prev).map((c) => (c.id === id ? { ...c, conceptId, folderId } : c));
         const next = { ...prev, cells };
         saveWorkspace(next);
         return next;
@@ -184,6 +218,44 @@ export function useFlowPlan(): FlowPlanApi {
     },
     [persistActive],
   );
+
+  // ---- concepts -----------------------------------------------------------
+  const createConcept = useCallback((name: string, folderId: string | null = null, m?: Model) => {
+    setWs((prev) => {
+      const position = prev.concepts.filter((c) => c.folderId === folderId).length;
+      const concept = makeConcept(name, folderId, position);
+      const cell = makeCell("Layout 1", m ?? blankModel(), folderId, concept.id);
+      const next: Workspace = {
+        ...prev,
+        cells: persistActive(prev).concat([cell]),
+        concepts: prev.concepts.concat([concept]),
+        activeId: cell.id,
+      };
+      saveWorkspace(next);
+      dispatch({ kind: "reset", model: cell.model });
+      return next;
+    });
+  }, [persistActive]);
+
+  const renameConcept = useCallback((id: string, name: string) => {
+    setWs((prev) => {
+      const concepts = prev.concepts.map((c) => (c.id === id ? { ...c, name } : c));
+      const next = { ...prev, cells: persistActive(prev), concepts };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
+
+  // Move a concept (and every layout inside it) into another folder.
+  const moveConcept = useCallback((id: string, folderId: string | null) => {
+    setWs((prev) => {
+      const concepts = prev.concepts.map((c) => (c.id === id ? { ...c, folderId } : c));
+      const cells = persistActive(prev).map((c) => (c.conceptId === id ? { ...c, folderId } : c));
+      const next = { ...prev, concepts, cells };
+      saveWorkspace(next);
+      return next;
+    });
+  }, [persistActive]);
 
   const createFolder = useCallback((name: string, parentId: string | null = null) => {
     setWs((prev) => {
@@ -216,36 +288,54 @@ export function useFlowPlan(): FlowPlanApi {
   }, [persistActive]);
 
   // Pick a non-archived cell to land on after the active one is archived; seed a
-  // blank if the workspace would otherwise have no visible layout.
-  function fallbackActive(cells: Cell[]): { cells: Cell[]; activeId: string; model: Model } {
+  // fresh concept + blank layout if nothing visible remains.
+  function fallbackActive(cells: Cell[], concepts: Concept[]): { cells: Cell[]; concepts: Concept[]; activeId: string; model: Model } {
     const next = cells.find((c) => !c.archived);
-    if (next) return { cells, activeId: next.id, model: next.model };
-    const blank = makeCell("Cell A", blankModel());
-    return { cells: cells.concat([blank]), activeId: blank.id, model: blank.model };
+    if (next) return { cells, concepts, activeId: next.id, model: next.model };
+    const concept = makeConcept("Concept A", null, 0);
+    const blank = makeCell("Layout A", blankModel(), null, concept.id);
+    return { cells: cells.concat([blank]), concepts: concepts.concat([concept]), activeId: blank.id, model: blank.model };
   }
 
   const archiveCell = useCallback((id: string) => {
     let cells = persistActive(ws).map((c) => (c.id === id ? { ...c, archived: true } : c));
+    let concepts = ws.concepts;
     const wasActive = id === ws.activeId;
     let activeId = ws.activeId;
     let resetModel: Model | null = null;
-    if (wasActive) { const r = fallbackActive(cells); cells = r.cells; activeId = r.activeId; resetModel = r.model; }
-    const next: Workspace = { ...ws, cells, activeId };
+    if (wasActive) { const r = fallbackActive(cells, concepts); cells = r.cells; concepts = r.concepts; activeId = r.activeId; resetModel = r.model; }
+    const next: Workspace = { ...ws, cells, concepts, activeId };
     setWs(next);
     saveWorkspace(next);
     if (resetModel) dispatch({ kind: "reset", model: resetModel });
   }, [ws, persistActive]);
 
-  // Archive a folder AND everything inside it (sub-folders + their layouts).
-  const archiveFolder = useCallback((id: string) => {
-    const ids = subtreeFolderIds(ws.folders, id);
-    const folders = ws.folders.map((f) => (ids.has(f.id) ? { ...f, archived: true } : f));
-    let cells = persistActive(ws).map((c) => (c.folderId && ids.has(c.folderId) ? { ...c, archived: true } : c));
+  // Archive a concept AND all its layouts.
+  const archiveConcept = useCallback((id: string) => {
+    let concepts = ws.concepts.map((c) => (c.id === id ? { ...c, archived: true } : c));
+    let cells = persistActive(ws).map((c) => (c.conceptId === id ? { ...c, archived: true } : c));
     const activeArchived = cells.find((c) => c.id === ws.activeId)?.archived;
     let activeId = ws.activeId;
     let resetModel: Model | null = null;
-    if (activeArchived) { const r = fallbackActive(cells); cells = r.cells; activeId = r.activeId; resetModel = r.model; }
-    const next: Workspace = { ...ws, folders, cells, activeId };
+    if (activeArchived) { const r = fallbackActive(cells, concepts); cells = r.cells; concepts = r.concepts; activeId = r.activeId; resetModel = r.model; }
+    const next: Workspace = { ...ws, concepts, cells, activeId };
+    setWs(next);
+    saveWorkspace(next);
+    if (resetModel) dispatch({ kind: "reset", model: resetModel });
+  }, [ws, persistActive]);
+
+  // Archive a folder AND everything inside it (sub-folders + concepts + layouts).
+  const archiveFolder = useCallback((id: string) => {
+    const ids = subtreeFolderIds(ws.folders, id);
+    const folders = ws.folders.map((f) => (ids.has(f.id) ? { ...f, archived: true } : f));
+    let concepts = ws.concepts.map((c) => (c.folderId && ids.has(c.folderId) ? { ...c, archived: true } : c));
+    const archivedConceptIds = new Set(concepts.filter((c) => c.archived).map((c) => c.id));
+    let cells = persistActive(ws).map((c) => ((c.folderId && ids.has(c.folderId)) || (c.conceptId && archivedConceptIds.has(c.conceptId)) ? { ...c, archived: true } : c));
+    const activeArchived = cells.find((c) => c.id === ws.activeId)?.archived;
+    let activeId = ws.activeId;
+    let resetModel: Model | null = null;
+    if (activeArchived) { const r = fallbackActive(cells, concepts); cells = r.cells; concepts = r.concepts; activeId = r.activeId; resetModel = r.model; }
+    const next: Workspace = { ...ws, folders, concepts, cells, activeId };
     setWs(next);
     saveWorkspace(next);
     if (resetModel) dispatch({ kind: "reset", model: resetModel });
@@ -253,13 +343,33 @@ export function useFlowPlan(): FlowPlanApi {
 
   const restoreCell = useCallback((id: string) => {
     setWs((prev) => {
-      const cells = prev.cells.map((c) => {
+      const cell = prev.cells.find((c) => c.id === id);
+      const cells = prev.cells.map((c) => (c.id === id ? { ...c, archived: false } : c));
+      // A layout is only visible inside a live concept, so restore its concept too.
+      const concepts = cell?.conceptId
+        ? prev.concepts.map((k) => {
+            if (k.id !== cell.conceptId) return k;
+            const folderArchived = k.folderId ? prev.folders.find((f) => f.id === k.folderId)?.archived : false;
+            return { ...k, archived: false, folderId: folderArchived ? null : k.folderId };
+          })
+        : prev.concepts;
+      const next = { ...prev, cells, concepts };
+      saveWorkspace(next);
+      return next;
+    });
+  }, []);
+
+  const restoreConcept = useCallback((id: string) => {
+    setWs((prev) => {
+      const concepts = prev.concepts.map((c) => {
         if (c.id !== id) return c;
-        // if the owning folder is still archived, lift the layout to the root so it's visible
         const folderArchived = c.folderId ? prev.folders.find((f) => f.id === c.folderId)?.archived : false;
         return { ...c, archived: false, folderId: folderArchived ? null : c.folderId };
       });
-      const next = { ...prev, cells };
+      // Un-archive the concept's layouts too, moving them to the concept's folder.
+      const folderId = concepts.find((c) => c.id === id)?.folderId ?? null;
+      const cells = prev.cells.map((c) => (c.conceptId === id ? { ...c, archived: false, folderId } : c));
+      const next = { ...prev, concepts, cells };
       saveWorkspace(next);
       return next;
     });
@@ -286,13 +396,27 @@ export function useFlowPlan(): FlowPlanApi {
     });
   }, []);
 
+  const purgeConcept = useCallback((id: string) => {
+    setWs((prev) => {
+      const next = {
+        ...prev,
+        concepts: prev.concepts.filter((c) => c.id !== id),
+        cells: prev.cells.filter((c) => c.conceptId !== id),
+      };
+      saveWorkspace(next);
+      return next;
+    });
+  }, []);
+
   const purgeFolder = useCallback((id: string) => {
     setWs((prev) => {
       const ids = subtreeFolderIds(prev.folders, id);
+      const deadConcepts = new Set(prev.concepts.filter((c) => c.folderId && ids.has(c.folderId)).map((c) => c.id));
       const next = {
         ...prev,
         folders: prev.folders.filter((f) => !ids.has(f.id)),
-        cells: prev.cells.filter((c) => !(c.folderId && ids.has(c.folderId))),
+        concepts: prev.concepts.filter((c) => !(c.folderId && ids.has(c.folderId))),
+        cells: prev.cells.filter((c) => !((c.folderId && ids.has(c.folderId)) || (c.conceptId && deadConcepts.has(c.conceptId)))),
       };
       saveWorkspace(next);
       return next;
@@ -316,8 +440,9 @@ export function useFlowPlan(): FlowPlanApi {
     redo,
     cells: ws.cells
       .filter((c) => !c.archived)
-      .map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId })),
+      .map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId, conceptId: c.conceptId })),
     activeId: ws.activeId,
+    activeConceptId,
     switchCell,
     addCell,
     duplicateCell,
@@ -325,17 +450,25 @@ export function useFlowPlan(): FlowPlanApi {
     deleteCell,
     moveCell,
     snapshotCells,
+    concepts: ws.concepts.filter((c) => !c.archived),
+    createConcept,
+    renameConcept,
+    moveConcept,
     folders: ws.folders.filter((f) => !f.archived),
     createFolder,
     renameFolder,
     moveFolder,
     archiveCell,
+    archiveConcept,
     archiveFolder,
     restoreCell,
+    restoreConcept,
     restoreFolder,
     purgeCell,
+    purgeConcept,
     purgeFolder,
-    archivedCells: ws.cells.filter((c) => c.archived).map((c) => ({ id: c.id, name: c.name, folderId: c.folderId })),
+    archivedCells: ws.cells.filter((c) => c.archived).map((c) => ({ id: c.id, name: c.name, folderId: c.folderId, conceptId: c.conceptId })),
+    archivedConcepts: ws.concepts.filter((c) => c.archived),
     archivedFolders: ws.folders.filter((f) => f.archived),
   };
 }

@@ -100,6 +100,25 @@ export function App() {
   const hadModel = !!localStorage.getItem("flowplan_model");
   const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : "situation");
   const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : ["situation"]);
+  // Workspace-first: a returning user (one who already has a saved workspace)
+  // lands on the Workspace, not straight in the editor. Brand-new users still
+  // get the onboarding flow, then land in the editor; their next visit opens the
+  // workspace. Runs once on mount, so navigating back to the editor is sticky.
+  const didLand = useRef(false);
+  useEffect(() => {
+    if (didLand.current) return;
+    didLand.current = true;
+    const returning = !!localStorage.getItem("flowplan_workspace");
+    const noRoute = !window.location.hash || window.location.hash === "#" || window.location.hash === "#/";
+    if (returning && noRoute) navigate("/workspace");
+  }, []);
+  // Start the guided wizard for a new concept, from the workspace.
+  const startGuided = useCallback(() => {
+    setStep("situation");
+    setReached(["situation"]);
+    setView("actual");
+    navigate("/");
+  }, []);
   const goTo = useCallback((s: FlowStep) => {
     setStep(s);
     setReached((r) => widen(r, reachedThrough(s)));
@@ -509,7 +528,7 @@ export function App() {
 
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
-  if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
+  if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} onGuided={startGuided} /></div>;
   if (route === "/library") return <div className="wrap"><LibraryPage api={api} subflows={subflows} library={library} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
@@ -701,15 +720,15 @@ export function App() {
       </Button>
       <Button
         onClick={() => {
-          // Leaving Concepts loads the chosen candidate, so Refine edits the
-          // generated cell rather than whatever was open before.
+          // Leaving Concepts creates a new workspace Concept from the chosen
+          // candidate (its first layout), so the guided flow yields a concept.
           if (step === "concepts" && picked && loadedCandidate.current !== picked.id) {
-            api.addCell(picked.model, picked.model.name);
+            api.createConcept(picked.model.name, null, picked.model);
             loadedCandidate.current = picked.id;
             setSel(null);
             setView("actual");
             setTab("inspect");
-            toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
+            toast(`Created concept ${picked.conceptLabel} (${picked.form}-form).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
         }}
