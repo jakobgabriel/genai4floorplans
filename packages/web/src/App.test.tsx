@@ -88,7 +88,7 @@ describe("App", () => {
   it("navigates to the dedicated Compare page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByRole("button", { name: "⋯" }));
+    fireEvent.click(screen.getByTitle("More actions"));
     fireEvent.click(screen.getByText("Compare scenarios"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
