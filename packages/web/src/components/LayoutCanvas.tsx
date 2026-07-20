@@ -59,9 +59,16 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** Move/resize an existing zone (index into model.noGoZones). */
+  onUpdateNoGo?: (index: number, patch: Partial<NoGoZone>) => void;
+  /** Index of the currently-selected zone (for move/resize handles). */
+  selZone?: number | null;
+  onSelectZone?: (index: number | null) => void;
   /** Group mode: drag a rubber-band rectangle; the movable stations inside it
    *  are handed back so the caller can mint a subflow (node-RED grouping). */
   onGroupRect?: (zone: NoGoZone) => void;
+  /** Editor mode: let the SVG grow to fill its container (node-RED full-bleed). */
+  fill?: boolean;
   /** Drag-to-wire: dragging from a station's OUT port to another station
    *  creates a flow (node-RED-style wiring, spec Law 2 — feedback during the
    *  gesture). Only offered when interactive. */
@@ -83,11 +90,19 @@ export function LayoutCanvas(props: Props) {
 
   const [zoom, setZoom] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ id: string | null; pan: boolean; nogo: { x: number; y: number } | null; wireFrom: string | null }>({
+  const dragRef = useRef<{
+    id: string | null;
+    pan: boolean;
+    nogo: { x: number; y: number } | null;
+    wireFrom: string | null;
+    /** Moving or resizing an existing zone: its index, the grab offset and the original rect. */
+    zone: { index: number; mode: "move" | "resize"; grabX: number; grabY: number; orig: NoGoZone } | null;
+  }>({
     id: null,
     pan: false,
     nogo: null,
     wireFrom: null,
+    zone: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
   const [wireEnd, setWireEnd] = useState<{ from: string; x: number; y: number } | null>(null);
@@ -124,6 +139,21 @@ export function LayoutCanvas(props: Props) {
       if (d.wireFrom) {
         const p = toSvg(e.clientX, e.clientY);
         setWireEnd({ from: d.wireFrom, x: p.x, y: p.y });
+        return;
+      }
+      if (d.zone && props.onUpdateNoGo) {
+        const g = toGrid(e.clientX, e.clientY);
+        const o = d.zone.orig;
+        if (d.zone.mode === "move") {
+          const nx = Math.max(0, Math.min(model.gridW - o.w, Math.round(o.x + (g.x - d.zone.grabX))));
+          const ny = Math.max(0, Math.min(model.gridH - o.h, Math.round(o.y + (g.y - d.zone.grabY))));
+          props.onUpdateNoGo(d.zone.index, { x: nx, y: ny });
+        } else {
+          const nw = Math.max(1, Math.min(model.gridW - o.x, Math.round(g.x - o.x)));
+          const nh = Math.max(1, Math.min(model.gridH - o.y, Math.round(g.y - o.y)));
+          console.log("RESIZE g=", g.x.toFixed(1), g.y.toFixed(1), "o=", o.x, o.y, "->", nw, nh);
+          props.onUpdateNoGo(d.zone.index, { w: nw, h: nh });
+        }
         return;
       }
       if (d.id && props.onMove) {
@@ -165,7 +195,7 @@ export function LayoutCanvas(props: Props) {
         );
         if (target && target.id !== d.wireFrom) props.onWire(d.wireFrom, target.id);
       }
-      dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null };
+      dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: null };
       panStart.current = null;
       setNogoRect(null);
       setWireEnd(null);
@@ -180,20 +210,35 @@ export function LayoutCanvas(props: Props) {
     };
   }, [interactive, props, stations, toGrid, toSvg, vbW, baseW, nogoRect]);
 
+  // Begin a rubber-band rectangle (no-go draw or group select). Seeding nogoRect
+  // immediately means even a click/tiny drag yields a usable rect, so the
+  // gesture never silently produces nothing.
+  function beginRubberBand(e: React.PointerEvent) {
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y }, wireFrom: null, zone: null };
+    setNogoRect({ x: Math.max(0, Math.round(g.x)), y: Math.max(0, Math.round(g.y)), w: 1, h: 1 });
+  }
+
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
     if (mode === "nogo" || mode === "group") {
-      const g = toGrid(e.clientX, e.clientY);
-      dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y }, wireFrom: null };
+      beginRubberBand(e);
     } else {
       props.onSelect?.(null);
-      dragRef.current = { id: null, pan: true, nogo: null, wireFrom: null };
+      props.onSelectZone?.(null);
+      dragRef.current = { id: null, pan: true, nogo: null, wireFrom: null, zone: null };
       panStart.current = { x: e.clientX, y: e.clientY, ox: off.x, oy: off.y };
     }
   }
 
   function onStationDown(e: React.PointerEvent, s: Station) {
     e.stopPropagation();
+    // In group mode the natural gesture is to drag a box AROUND stations, so a
+    // press that lands on a station must start the rubber-band, not move it.
+    if (mode === "group") {
+      beginRubberBand(e);
+      return;
+    }
     if (mode === "flow") {
       props.onPickStation?.(s.id);
       return;
@@ -201,10 +246,23 @@ export function LayoutCanvas(props: Props) {
     props.onSelect?.(s.id);
     if (interactive && !s.fixed && props.onMove) {
       props.onMoveStart?.();
-      dragRef.current = { id: s.id, pan: false, nogo: null, wireFrom: null };
+      dragRef.current = { id: s.id, pan: false, nogo: null, wireFrom: null, zone: null };
       setDraggingId(s.id);
       setDragCollide(false);
     }
+  }
+
+  // Start moving or resizing an existing zone.
+  function onZoneDown(e: React.PointerEvent, index: number, zoneMode: "move" | "resize") {
+    if (!interactive || mode === "nogo" || mode === "group" || mode === "flow") return;
+    e.stopPropagation();
+    const z = (model.noGoZones ?? [])[index];
+    if (!z) return;
+    props.onSelect?.(null);
+    props.onSelectZone?.(index);
+    props.onMoveStart?.(); // checkpoint once, so the whole drag is one undo step
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: { index, mode: zoneMode, grabX: g.x, grabY: g.y, orig: { ...z } } };
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -233,7 +291,7 @@ export function LayoutCanvas(props: Props) {
     );
 
   return (
-    <div>
+    <div className={props.fill ? "canvas-fill" : undefined}>
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
         {interactive && zoom !== 1 ? (
@@ -245,8 +303,9 @@ export function LayoutCanvas(props: Props) {
       <svg
         ref={svgRef}
         viewBox={`${off.x} ${off.y} ${vbW} ${vbH}`}
-        width={baseW}
-        height={baseH}
+        width={props.fill ? "100%" : baseW}
+        height={props.fill ? "100%" : baseH}
+        className={props.fill ? "canvas-svg--fill" : undefined}
         data-layout={label}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
@@ -288,12 +347,33 @@ export function LayoutCanvas(props: Props) {
         {(model.noGoZones ?? []).map((z, i) => {
           const st = ZONE_STYLE[z.kind ?? "blocking"];
           const solid = (z.kind === "wall" || z.kind === "column");
+          const zsel = props.selZone === i;
+          const zx = PAD + z.x * cell;
+          const zy = PAD + z.y * cell;
+          const zw = z.w * cell;
+          const zh = z.h * cell;
+          const draggable = interactive && mode === "select";
           return (
             <g key={"z" + i}>
-              <rect x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={st.fill} opacity={solid ? 0.28 : 0.08} stroke={st.stroke} strokeWidth={1} strokeDasharray={st.dash} />
-              <text x={PAD + z.x * cell + 4} y={PAD + z.y * cell + 12} fill={st.stroke} fontSize={9} style={{ pointerEvents: "none" }}>
+              <rect
+                x={zx} y={zy} width={zw} height={zh}
+                fill={st.fill} opacity={solid ? 0.28 : 0.08}
+                stroke={st.stroke} strokeWidth={zsel ? 2 : 1} strokeDasharray={zsel ? undefined : st.dash}
+                style={draggable ? { cursor: "move" } : undefined}
+                onPointerDown={draggable ? (e) => onZoneDown(e, i, "move") : undefined}
+              />
+              <text x={zx + 4} y={zy + 12} fill={st.stroke} fontSize={9} style={{ pointerEvents: "none" }}>
                 {z.label || st.label}
               </text>
+              {/* Resize handle at the bottom-right corner of the selected zone. */}
+              {zsel && draggable ? (
+                <rect
+                  x={zx + zw - 5} y={zy + zh - 5} width={10} height={10}
+                  fill={st.stroke} stroke="var(--cds-background)" strokeWidth={1}
+                  style={{ cursor: "nwse-resize" }}
+                  onPointerDown={(e) => onZoneDown(e, i, "resize")}
+                />
+              ) : null}
             </g>
           );
         })}
@@ -515,7 +595,7 @@ export function LayoutCanvas(props: Props) {
                   style={{ cursor: "crosshair" }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: s.id };
+                    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: s.id, zone: null };
                     const p = toSvg(e.clientX, e.clientY);
                     setWireEnd({ from: s.id, x: p.x, y: p.y });
                   }}
