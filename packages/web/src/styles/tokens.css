@@ -22,11 +22,14 @@
   --textDim: var(--cds-text-secondary);
 
   /* Data-encoding colours. These stay chromatic on purpose: they carry meaning
-     on the canvas and in charts, where Carbon's greys would erase it. */
-  --teal: #3ddbd9;
-  --tealDim: #007d79;
-  --amber: #d2a106;
-  --red: #fa4d56;
+     on the canvas and in charts, where Carbon's greys would erase it.
+     SOURCE OF TRUTH: components/colors.ts. The canvas/charts import the hexes
+     from there; these CSS aliases mirror them verbatim so any chrome that needs
+     a data colour matches the canvas exactly. Keep the two in sync. */
+  --teal: #2bb6a8;
+  --tealDim: #1c6f68;
+  --amber: #e0a458;
+  --red: #d96b5b;
 
   /* Carbon interactive + status */
   --interactive: var(--cds-interactive);

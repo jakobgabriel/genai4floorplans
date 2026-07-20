@@ -1,3 +1,6 @@
+// Canonical source of truth for the app's chromatic data-encoding palette.
+// The SVG canvas and charts import these hexes directly; the CSS mirror in
+// styles/tokens.css (--teal/--tealDim/--amber/--red) must match verbatim.
 import type { AutoState, CycleKey, ErgoRisk, StationType } from "@flowplan/core/model/types";
 
 export const TEAL = "#2bb6a8";
