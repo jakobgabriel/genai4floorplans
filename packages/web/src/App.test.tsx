@@ -40,7 +40,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
-    openAnalysis("Rating");
+    openAnalysis("Overview");
     expect(screen.getByText("Actual-state rating")).toBeTruthy();
   });
 
@@ -57,13 +57,10 @@ describe("App", () => {
     expect(screen.getByText(/Data model/)).toBeTruthy();
   });
 
-  it("generates AI proposals from the Analysis AI Chat tab", async () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
-    openAnalysis("AI Chat");
-    fireEvent.click(screen.getByText(/Propose layout improvements/));
-    // a strategist proposal card appears (engine-scored, offline)
-    await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
+  // AI Chat is hidden for now, so there is no AI tab to drive. The offline
+  // strategist path is still covered by the engine/store tests.
+  it.skip("generates AI proposals from the Analysis AI Chat tab", async () => {
+    // intentionally skipped while the AI surface is hidden.
   });
 
   it("renders the DAG view and the Yield panel", () => {

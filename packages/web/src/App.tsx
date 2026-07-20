@@ -32,7 +32,6 @@ import { AdminPage } from "./pages/AdminPage";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
-import { AiChatPanel } from "./components/AiChatPanel";
 import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
@@ -67,13 +66,13 @@ const INPUT_TABS: { tab: Tab; label: string }[] = [
   { tab: "workload", label: "Workload" },
 ];
 const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
-  { tab: "rating", label: "Rating" },
+  { tab: "rating", label: "Overview" },
   { tab: "balance", label: "Balance" },
   { tab: "datasheet", label: "Data sheet" },
   { tab: "capacity", label: "Capacity" },
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
-  { tab: "chat", label: "AI Chat" },
+  // AI Chat is hidden for now.
 ];
 
 export function App() {
@@ -410,7 +409,6 @@ export function App() {
           {analysisTab === "capacity" && <CapacityPanel {...analysisPanelProps} />}
           {analysisTab === "cost" && <CostPanel {...analysisPanelProps} />}
           {analysisTab === "auto" && <AutomationPanel {...analysisPanelProps} />}
-          {analysisTab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
         </div>
       </div>
     );
@@ -563,7 +561,7 @@ export function App() {
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
           {tab === "schema" && <SchemaPanel />}
-          {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost" || tab === "chat") && (
+          {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost") && (
             <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
               Analysis moved to the <button className="chip on" style={{ display: "inline" }} onClick={() => setView("analysis")}>📊 Analysis</button> view.
             </div>
