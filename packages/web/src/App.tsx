@@ -335,6 +335,11 @@ export function App() {
           onMoveStart={api.checkpoint}
           onMove={(id, x, y) => api.live({ type: "MOVE_STATION", id, x, y })}
           onPickStation={pickStation}
+          onWire={(from, to) => {
+            if (model.flows.some((f) => f.from === from && f.to === to)) { toast("Those steps are already connected", "warn"); return; }
+            api.commit({ type: "ADD_FLOW", from, to });
+            toast(`Connected ${from} → ${to}`);
+          }}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}

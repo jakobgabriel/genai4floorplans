@@ -58,6 +58,10 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** Drag-to-wire: dragging from a station's OUT port to another station
+   *  creates a flow (node-RED-style wiring, spec Law 2 — feedback during the
+   *  gesture). Only offered when interactive. */
+  onWire?: (from: string, to: string) => void;
 }
 
 export function LayoutCanvas(props: Props) {
@@ -69,12 +73,14 @@ export function LayoutCanvas(props: Props) {
 
   const [zoom, setZoom] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ id: string | null; pan: boolean; nogo: { x: number; y: number } | null }>({
+  const dragRef = useRef<{ id: string | null; pan: boolean; nogo: { x: number; y: number } | null; wireFrom: string | null }>({
     id: null,
     pan: false,
     nogo: null,
+    wireFrom: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  const [wireEnd, setWireEnd] = useState<{ from: string; x: number; y: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
   const [dragCollide, setDragCollide] = useState(false);
@@ -105,6 +111,11 @@ export function LayoutCanvas(props: Props) {
     if (!interactive) return;
     function moveHandler(e: PointerEvent) {
       const d = dragRef.current;
+      if (d.wireFrom) {
+        const p = toSvg(e.clientX, e.clientY);
+        setWireEnd({ from: d.wireFrom, x: p.x, y: p.y });
+        return;
+      }
       if (d.id && props.onMove) {
         const g = toGrid(e.clientX, e.clientY);
         const s = stations.find((x) => x.id === d.id);
@@ -131,12 +142,20 @@ export function LayoutCanvas(props: Props) {
         });
       }
     }
-    function upHandler() {
+    function upHandler(e: PointerEvent) {
       const d = dragRef.current;
       if (d.nogo && nogoRect && props.onAddNoGo) props.onAddNoGo(nogoRect);
-      dragRef.current = { id: null, pan: false, nogo: null };
+      if (d.wireFrom && props.onWire) {
+        const g = toGrid(e.clientX, e.clientY);
+        const target = stations.find(
+          (s) => g.x >= s.x && g.x <= s.x + s.w && g.y >= s.y && g.y <= s.y + s.h,
+        );
+        if (target && target.id !== d.wireFrom) props.onWire(d.wireFrom, target.id);
+      }
+      dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null };
       panStart.current = null;
       setNogoRect(null);
+      setWireEnd(null);
       setDraggingId(null);
       setDragCollide(false);
     }
@@ -146,16 +165,16 @@ export function LayoutCanvas(props: Props) {
       window.removeEventListener("pointermove", moveHandler);
       window.removeEventListener("pointerup", upHandler);
     };
-  }, [interactive, props, stations, toGrid, vbW, baseW, nogoRect]);
+  }, [interactive, props, stations, toGrid, toSvg, vbW, baseW, nogoRect]);
 
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
     if (mode === "nogo") {
       const g = toGrid(e.clientX, e.clientY);
-      dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y } };
+      dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y }, wireFrom: null };
     } else {
       props.onSelect?.(null);
-      dragRef.current = { id: null, pan: true, nogo: null };
+      dragRef.current = { id: null, pan: true, nogo: null, wireFrom: null };
       panStart.current = { x: e.clientX, y: e.clientY, ox: off.x, oy: off.y };
     }
   }
@@ -169,7 +188,7 @@ export function LayoutCanvas(props: Props) {
     props.onSelect?.(s.id);
     if (interactive && !s.fixed && props.onMove) {
       props.onMoveStart?.();
-      dragRef.current = { id: s.id, pan: false, nogo: null };
+      dragRef.current = { id: s.id, pan: false, nogo: null, wireFrom: null };
       setDraggingId(s.id);
       setDragCollide(false);
     }
@@ -281,6 +300,29 @@ export function LayoutCanvas(props: Props) {
             </g>
           );
         })}
+
+        {/* Live wire being dragged from an OUT port (Law 2: feedback during the
+            gesture). */}
+        {wireEnd
+          ? (() => {
+              const src = byId[wireEnd.from];
+              if (!src) return null;
+              const sp = portPoint(src, src.outSide ?? "right");
+              return (
+                <line
+                  x1={PAD + sp.x * cell}
+                  y1={PAD + sp.y * cell}
+                  x2={wireEnd.x}
+                  y2={wireEnd.y}
+                  stroke={TEAL}
+                  strokeWidth={1.6}
+                  strokeDasharray="4 3"
+                  markerEnd="url(#fp-arrow)"
+                  pointerEvents="none"
+                />
+              );
+            })()
+          : null}
 
         {/*
           Ghost previews (spec §2 "ghost preview before commit"). When proposal
@@ -399,6 +441,26 @@ export function LayoutCanvas(props: Props) {
               {/* IN (teal) and OUT (amber) ports */}
               <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
               <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              {/* Drag-to-wire handle over the OUT port (node-RED-style). A larger
+                  transparent hit target so the 3px port is easy to grab. */}
+              {interactive && props.onWire && mode === "select" ? (
+                <circle
+                  data-outport={s.id}
+                  cx={PAD + op.x * cell}
+                  cy={PAD + op.y * cell}
+                  r={7}
+                  fill="transparent"
+                  style={{ cursor: "crosshair" }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: s.id };
+                    const p = toSvg(e.clientX, e.clientY);
+                    setWireEnd({ from: s.id, x: p.x, y: p.y });
+                  }}
+                >
+                  <title>Drag to another station to connect a flow</title>
+                </circle>
+              ) : null}
               <text x={PAD + (s.x + s.w / 2) * cell} y={PAD + (s.y + s.h / 2) * cell - 5} fill={TEXT} fontSize={10} fontWeight={600} textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: "none", fontFamily: "'IBM Plex Sans',sans-serif" }}>
                 {s.name}
               </text>
