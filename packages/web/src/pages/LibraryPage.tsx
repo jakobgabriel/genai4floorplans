@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
-import { useLibrary } from "../store/library";
+import type { useLibrary } from "../store/library";
 import type { useSubflows } from "../store/subflows";
 import {
   PROCESS_CATEGORIES,
@@ -27,8 +27,8 @@ type Selection = { kind: "entry"; id: string } | { kind: "subflow"; id: string }
 // grouped/subflow elements. Absorbs the PAUL "Catalog" fields plus the
 // blueprint's building blocks; placing an entry authors a station pre-filled
 // with its standards.
-export function LibraryPage({ api, subflows }: { api: FlowPlanApi; subflows: ReturnType<typeof useSubflows> }) {
-  const { entries, add, update, remove, resetToSeed } = useLibrary();
+export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subflows: ReturnType<typeof useSubflows>; library: ReturnType<typeof useLibrary> }) {
+  const { entries, add, update, remove, resetToSeed } = library;
   const { toast } = useToast();
   const [filter, setFilter] = useState<ProcessCategory | "all">("all");
   const [sel, setSel] = useState<Selection>(null);

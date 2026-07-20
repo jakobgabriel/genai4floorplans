@@ -1,7 +1,7 @@
 // Canonical source of truth for the app's chromatic data-encoding palette.
 // The SVG canvas and charts import these hexes directly; the CSS mirror in
 // styles/tokens.css (--teal/--tealDim/--amber/--red) must match verbatim.
-import type { AutoState, CycleKey, ErgoRisk, StationType } from "@flowplan/core/model/types";
+import type { AutoState, CycleKey, ErgoRisk, StationType, ZoneKind } from "@flowplan/core/model/types";
 
 export const TEAL = "#2bb6a8";
 export const TEALD = "#1c6f68";
@@ -36,4 +36,16 @@ export const CYCLE_COL: Record<CycleKey, string> = {
   walkSec: BLUE,
   waitSec: RED,
   setupSec: PURPLE,
+};
+
+// Non-station zone kinds. Obstacles read red/grey (design around them); reserved
+// space reads cool and dashed (planned, not blocked).
+const GREY = "#5a6b6e";
+export const ZONE_STYLE: Record<ZoneKind, { stroke: string; fill: string; dash?: string; label: string }> = {
+  blocking: { stroke: RED, fill: RED, dash: "4 3", label: "Blocking area" },
+  wall: { stroke: GREY, fill: GREY, label: "Wall" },
+  column: { stroke: GREY, fill: GREY, label: "Column" },
+  spacer: { stroke: TEAL, fill: TEAL, dash: "2 4", label: "Spacer" },
+  aisle: { stroke: BLUE, fill: BLUE, dash: "6 4", label: "Aisle" },
+  esd: { stroke: PURPLE, fill: PURPLE, dash: "2 3", label: "ESD zone" },
 };

@@ -125,9 +125,8 @@ describe("planner — guided flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor is a stage of the process, not a separate destination.
     expect(screen.getByText("● Actual")).toBeTruthy();
-    // ...and the process stepper is still present around it.
-    expect(screen.getByText("Refine")).toBeTruthy();
-    expect(screen.getByText("Summary")).toBeTruthy();
+    // ...with a forward exit to the Summary.
+    expect(screen.getByRole("button", { name: "Continue to summary" })).toBeTruthy();
   });
 
   it("reaches the Summary stage after refining", () => {
@@ -147,12 +146,13 @@ describe("planner — guided flow", () => {
     expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
   });
 
-  it("keeps the stepper available from inside the editor", () => {
+  it("runs the editor full-screen, without the planning stepper", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Start from the sample cell" }));
     expect(screen.getByText("● Actual")).toBeTruthy();
-    // Every earlier stage is reachable again from the stepper.
-    fireEvent.click(screen.getByText("Situation"));
-    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
+    // The node-RED editor is chromeless: the planning stepper is hidden so the
+    // canvas fills the viewport between the two rails.
+    expect(document.querySelector(".shell__steps")).toBeNull();
+    expect(document.querySelector(".shell--editor")).toBeTruthy();
   });
 });

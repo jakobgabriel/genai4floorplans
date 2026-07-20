@@ -98,8 +98,8 @@ describe("App", () => {
   it("opens the process library and shows an element's documentation", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    // The palette carries the Library link.
-    fireEvent.click(screen.getByText("📚 Library"));
+    // The library rail's "manage" link opens the full library page.
+    fireEvent.click(screen.getByText("manage"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
     // Select the first catalog entry, then read its full data sheet.
     fireEvent.click(screen.getByText("CNC turning"));
@@ -112,7 +112,7 @@ describe("App", () => {
   it("authors a custom (non-predefined) library element", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByText("📚 Library"));
+    fireEvent.click(screen.getByText("manage"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
     fireEvent.click(screen.getByText("＋ New element"));
     // A new custom entry appears, tagged and selected for editing.

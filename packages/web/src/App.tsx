@@ -7,7 +7,7 @@ import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
 import { openReport } from "./io/report";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
-import { PaletteBar, NODE_KINDS } from "./components/PaletteBar";
+import { NODE_KINDS } from "./components/PaletteBar";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
@@ -23,6 +23,7 @@ import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Resizer } from "./components/Resizer";
+import { LibrarySidebar } from "./components/LibrarySidebar";
 import { ComparePage } from "./pages/ComparePage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -37,6 +38,9 @@ import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { improvedLayout } from "@flowplan/core/engine/improved";
 import { useSubflows, makeSubflow } from "./store/subflows";
+import { useLibrary } from "./store/library";
+import { catalogStationPatch } from "@flowplan/core/model/catalog";
+import type { ZoneKind } from "@flowplan/core/model/types";
 import { CostPanel } from "./components/CostPanel";
 import { DataSheetPanel } from "./components/DataSheetPanel";
 import { CapacityPanel } from "./components/CapacityPanel";
@@ -82,6 +86,7 @@ export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
   const subflows = useSubflows();
+  const library = useLibrary();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("inspect");
   const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
@@ -121,6 +126,11 @@ export function App() {
   const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
   const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
+  // Left library sidebar (node-RED palette), collapsible + drag-resizable, persisted.
+  const [libCollapsed, setLibCollapsed] = useState(() => localStorage.getItem("flowplan_lib_collapsed") === "1");
+  useEffect(() => { localStorage.setItem("flowplan_lib_collapsed", libCollapsed ? "1" : "0"); }, [libCollapsed]);
+  const [libWidth, setLibWidth] = useState(() => numOr("flowplan_lib_w", 260));
+  useEffect(() => { localStorage.setItem("flowplan_lib_w", String(libWidth)); }, [libWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
 
@@ -297,11 +307,52 @@ export function App() {
   const proposal = useMemo(() => makePlacementProposal(model, rating), [model, rating]);
   useEffect(() => { setProposalDismissed(false); }, [proposal?.baseSignature]);
 
+  // One drop handler for every draggable in the left library sidebar and the
+  // palette: a station kind, a typed zone ("zone:*"), a library entry ("lib:*"),
+  // or a grouped subflow ("sub:*").
+  const dropElement = useCallback((kind: string, gx: number, gy: number) => {
+    const place = (w: number, h: number) => ({
+      x: Math.max(0, Math.min(model.gridW - w, Math.round(gx - w / 2))),
+      y: Math.max(0, Math.min(model.gridH - h, Math.round(gy - h / 2))),
+    });
+    if (kind.startsWith("zone:")) {
+      const zk = kind.slice(5) as ZoneKind;
+      const w = 3, h = 2;
+      api.commit({ type: "ADD_NOGO", zone: { ...place(w, h), w, h, kind: zk } });
+      toast(`Placed ${zk} zone`);
+      return;
+    }
+    if (kind.startsWith("lib:")) {
+      const e = library.entries.find((x) => x.id === kind.slice(4));
+      if (!e) return;
+      const base = makeStation(model);
+      const patch = catalogStationPatch(e) as Partial<Station>;
+      const station = { ...base, ...patch, ...place(patch.w ?? base.w, patch.h ?? base.h) };
+      api.commit({ type: "ADD_STATION", station });
+      selectAndInspect(station.id);
+      toast(`Added ${e.name}`);
+      return;
+    }
+    if (kind.startsWith("sub:")) {
+      const sf = subflows.subflows.find((s) => s.id === kind.slice(4));
+      if (!sf) return;
+      api.commit({ type: "INSERT_SUBFLOW", stations: sf.stations, flows: sf.flows, ...place(sf.w, sf.h) });
+      toast(`Inserted “${sf.name}”`);
+      return;
+    }
+    const nk = NODE_KINDS.find((k) => k.id === kind);
+    if (!nk) return;
+    const base = makeStation(model);
+    const station = { ...base, type: nk.type, role: nk.role, name: nk.label, ...place(base.w, base.h) };
+    api.commit({ type: "ADD_STATION", station });
+    selectAndInspect(station.id);
+    toast(`Added ${nk.label}`);
+  }, [api, model, library.entries, subflows.subflows, selectAndInspect, toast]);
+
   let canvasInner;
   if (view === "actual") {
     canvasInner = (
       <div>
-        <PaletteBar onApplyForm={(form) => { api.commit({ type: "APPLY_TEMPLATE", form }); toast(`Arranged as ${form}-form`); }} />
         <LayoutCanvas
           model={model}
           stations={model.stations}
@@ -336,17 +387,7 @@ export function App() {
             api.commit({ type: "ADD_FLOW", from, to });
             toast(`Connected ${from} → ${to}`);
           }}
-          onDropNode={(kind, gx, gy) => {
-            const nk = NODE_KINDS.find((k) => k.id === kind);
-            if (!nk) return;
-            const base = makeStation(model);
-            const x = Math.max(0, Math.min(model.gridW - base.w, Math.round(gx - base.w / 2)));
-            const y = Math.max(0, Math.min(model.gridH - base.h, Math.round(gy - base.h / 2)));
-            const station = { ...base, type: nk.type, role: nk.role, name: nk.label, x, y };
-            api.commit({ type: "ADD_STATION", station });
-            selectAndInspect(station.id);
-            toast(`Added ${nk.label}`);
-          }}
+          onDropNode={dropElement}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
           onGroupRect={(z) => {
             // Movable process stations whose centre falls inside the rubber-band.
@@ -469,7 +510,7 @@ export function App() {
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
   if (route === "/workspace") return <div className="wrap"><WorkspacePage api={api} /></div>;
-  if (route === "/library") return <div className="wrap"><LibraryPage api={api} subflows={subflows} /></div>;
+  if (route === "/library") return <div className="wrap"><LibraryPage api={api} subflows={subflows} library={library} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -483,14 +524,8 @@ export function App() {
         Continue to summary
       </Button>
       <span className="hsep" />
-        <button
-          className="btn sm"
-          onClick={() => navigate("/workspace")}
-          title="Open the workspace (folders & layouts)"
-          style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
-          🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
-        </button>
+        {/* The workspace is deliberately NOT reachable from the editor — it is the
+            app's entry point, not a detour inside the flow editor. */}
         <button className="btn sm" onClick={() => navigate("/site")} title="Site overview across all layouts">
           Site
         </button>
@@ -542,10 +577,22 @@ export function App() {
   );
 
   const editorBody = (
-      <main>
-        {/* Workspace & folders are a GLOBAL surface (🗂 in the toolbar → the
-            Workspace page), not part of the editor, so the flow editor stays
-            uncluttered. */}
+      <main className="editor-main">
+        {/* Node-RED layout: left library rail · full-bleed canvas · right inputs
+            rail. The library carries every draggable (nodes, forms, zones,
+            catalog entries, grouped subflows). Hidden in the full-width Analysis
+            view. Workspace/folders are a global surface, never reachable here. */}
+        {view === "analysis" ? null : (
+          <LibrarySidebar
+            library={library}
+            subflows={subflows}
+            onApplyForm={(form) => { api.commit({ type: "APPLY_TEMPLATE", form }); toast(`Arranged as ${form}-form`); }}
+            collapsed={libCollapsed}
+            setCollapsed={setLibCollapsed}
+            width={libWidth}
+            setWidth={setLibWidth}
+          />
+        )}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
@@ -600,7 +647,7 @@ export function App() {
           </div>
         ) : (
           <>
-          <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} />
+          <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} min={280} max={760} />
           <div className="side" style={{ flexBasis: configWidth, width: configWidth }}>
           <div className="tabbar">
             <div className="subtabs">
@@ -679,7 +726,7 @@ export function App() {
   );
 
   return (
-    <ProcessShell step={step} reached={reached} onGoto={goTo}>
+    <ProcessShell step={step} reached={reached} onGoto={goTo} fullBleed={step === "refine"}>
       {step === "situation" ? (
         <SituationStep
           hasCell={api.cells.length > 0}

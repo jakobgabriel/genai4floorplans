@@ -6,7 +6,7 @@ import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { fieldQuality } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
-import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
+import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 
 const PAD = 12;
 
@@ -285,9 +285,18 @@ export function LayoutCanvas(props: Props) {
           </g>
         ))}
 
-        {(model.noGoZones ?? []).map((z, i) => (
-          <rect key={"z" + i} x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={RED} opacity={0.08} stroke={RED} strokeWidth={1} strokeDasharray="4 3" />
-        ))}
+        {(model.noGoZones ?? []).map((z, i) => {
+          const st = ZONE_STYLE[z.kind ?? "blocking"];
+          const solid = (z.kind === "wall" || z.kind === "column");
+          return (
+            <g key={"z" + i}>
+              <rect x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={st.fill} opacity={solid ? 0.28 : 0.08} stroke={st.stroke} strokeWidth={1} strokeDasharray={st.dash} />
+              <text x={PAD + z.x * cell + 4} y={PAD + z.y * cell + 12} fill={st.stroke} fontSize={9} style={{ pointerEvents: "none" }}>
+                {z.label || st.label}
+              </text>
+            </g>
+          );
+        })}
         {nogoRect ? (
           <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={mode === "group" ? TEAL : RED} opacity={0.18} stroke={mode === "group" ? TEAL : RED} strokeWidth={1.5} strokeDasharray={mode === "group" ? "4 3" : undefined} />
         ) : null}

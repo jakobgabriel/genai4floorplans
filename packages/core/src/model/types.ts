@@ -150,12 +150,28 @@ export interface Flow {
   kind?: FlowKind;
 }
 
+/** Non-station canvas elements. `blocking`/`wall`/`column` are obstacles the
+ *  placement engine must avoid; `spacer`/`aisle`/`esd` are reserved space that
+ *  does not block placement but is reported in the floor-space split. Absent
+ *  kind ⇒ "blocking", so a legacy no-go zone stays an obstacle. */
+export type ZoneKind = "blocking" | "spacer" | "aisle" | "wall" | "column" | "esd";
+export const ZONE_KINDS: ZoneKind[] = ["blocking", "spacer", "aisle", "wall", "column", "esd"];
+/** Kinds the placement engine treats as an obstacle. */
+export const BLOCKING_ZONE_KINDS: ZoneKind[] = ["blocking", "wall", "column"];
+
 export interface NoGoZone {
   x: number;
   y: number;
   w: number;
   h: number;
   label?: string;
+  /** What kind of reserved/blocked space this is. Absent ⇒ "blocking". */
+  kind?: ZoneKind;
+}
+
+/** True when a zone blocks station placement (vs. merely reserving floor). */
+export function isBlockingZone(z: NoGoZone): boolean {
+  return BLOCKING_ZONE_KINDS.includes(z.kind ?? "blocking");
 }
 
 /** Composite-rating weights (spec §4). Defined here so the model can carry an
@@ -352,7 +368,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

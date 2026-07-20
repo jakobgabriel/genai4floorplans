@@ -53,6 +53,7 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       </div>
       {row("Cell", `${c.floorSpace.cell.toLocaleString()} ${c.floorSpace.unit}`)}
       {row("Material supply", `+${c.floorSpace.materialSupply.toLocaleString()} ${c.floorSpace.unit}`)}
+      {c.floorSpace.reserved > 0 ? row("Reserved (spacer/aisle)", `+${c.floorSpace.reserved.toLocaleString()} ${c.floorSpace.unit}`) : null}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 3, borderTop: `1px solid ${TEXTD}33`, paddingTop: 3 }}>
         <span style={{ color: TEXTD }}>Total footprint</span>
         <strong>{c.floorSpace.total.toLocaleString()} {c.floorSpace.unit}</strong>

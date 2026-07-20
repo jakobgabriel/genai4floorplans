@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -656,17 +656,33 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
   return (
     <div>
       <div className="lab" style={{ margin: "16px 0 8px" }}>
-        No-go zones
+        Zones — reserved &amp; blocked space
       </div>
       <button className={"btn sm" + (mode === "nogo" ? " on" : "")} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
-        {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a no-go zone"}
+        {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a blocking area"}
       </button>
-      <div style={{ fontSize: 10.5, color: TEXTD, margin: "6px 0" }}>Drag a rectangle on the canvas. The optimizer and templates avoid these.</div>
+      <div style={{ fontSize: 10.5, color: TEXTD, margin: "6px 0" }}>
+        Drag a rectangle for a blocking area, or drop a Spacer / Aisle / Wall / Column / ESD from the library palette.
+        Blocking, wall and column obstruct placement; spacer, aisle and ESD reserve floor space.
+      </div>
       {(api.model.noGoZones ?? []).map((z, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 11.5 }}>
-          <span>
-            zone {i + 1} · {z.w}×{z.h} @ ({z.x},{z.y})
-          </span>
+        <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, fontSize: 11.5 }}>
+          <select
+            value={z.kind ?? "blocking"}
+            onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { kind: e.target.value as ZoneKind } })}
+            style={{ flex: "0 0 auto" }}
+            aria-label={`Zone ${i + 1} kind`}
+          >
+            {ZONE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+          <input
+            value={z.label ?? ""}
+            placeholder="label"
+            onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { label: e.target.value || undefined } })}
+            style={{ flex: "1 1 auto", minWidth: 0 }}
+            aria-label={`Zone ${i + 1} label`}
+          />
+          <span style={{ color: TEXTD, whiteSpace: "nowrap" }}>{z.w}×{z.h}</span>
           <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}>
             ×
           </button>

@@ -62,6 +62,11 @@ const toV10: Migration = (m) => ({ ...m, schemaVersion: 10 });
 // Absent on every existing model, so no analysis changes on load.
 const toV11: Migration = (m) => ({ ...m, schemaVersion: 11 });
 
+// version 11 -> 12: zone kinds on NoGoZone (blocking/spacer/aisle/wall/column/
+// esd). Absent on every existing zone (⇒ "blocking"), so a legacy no-go zone
+// stays an obstacle and placement/floor-space are unchanged on load.
+const toV12: Migration = (m) => ({ ...m, schemaVersion: 12 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -74,6 +79,7 @@ const MIGRATIONS: Record<number, Migration> = {
   8: toV9,
   9: toV10,
   10: toV11,
+  11: toV12,
 };
 
 export function migrate(raw: unknown): Model {
