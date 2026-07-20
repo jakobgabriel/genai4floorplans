@@ -815,6 +815,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const s = m.stations.find((x) => x.id === selId);
   const [renameVal, setRenameVal] = useState("");
   const [addTo, setAddTo] = useState("");
+  const [showAdv, setShowAdv] = useState(false);
   if (!s) {
     return (
       <div className="pad">
@@ -844,9 +845,53 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           Delete
         </button>
       </div>
+      {/* Essentials — the handful of fields a first pass needs. Everything else
+          is one click away under Advanced, so this is no longer the app's
+          densest screen. */}
       <Field label="Name">
         <input value={s.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { name: e.target.value } })} />
       </Field>
+      <div className="row2">
+        <Field label="Role (I/O flexible)">
+          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
+            {ROLES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Type">
+          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
+            {STATION_TYPES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="row2">
+        <Field label="Cycle time (s)" aside={qAside("cycleTimeSec")} help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
+          <input className={estClass("cycleTimeSec")} type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
+        </Field>
+        <Field label="Operators">
+          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
+        </Field>
+      </div>
+      <Field label="Fixed / anchored">
+        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
+          {s.fixed ? "FIXED — won't be moved" : "Movable"}
+        </button>
+      </Field>
+
+      <button
+        className="btn sm"
+        style={{ width: "100%", justifyContent: "center", margin: "6px 0 4px" }}
+        aria-expanded={showAdv}
+        onClick={() => setShowAdv((v) => !v)}
+      >
+        {showAdv ? "▾ Hide advanced" : "▸ Advanced settings"}
+      </button>
+
+      {showAdv ? (
+      <>
       <Field label="Station id (rename)" help="Renaming rewrites every flow that references this station.">
         <div style={{ display: "flex", gap: 6 }}>
           <input placeholder={s.id} value={renameVal} onChange={(e) => setRenameVal(e.target.value)} />
@@ -865,22 +910,6 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           </button>
         </div>
       </Field>
-      <div className="row2">
-        <Field label="Role (I/O flexible)">
-          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
-            {ROLES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Type">
-          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
-            {STATION_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <div className="row2">
         <Field label="Width">
           <input type="number" value={s.w} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +e.target.value) } })} />
@@ -964,11 +993,6 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
         </Field>
       </div>
-      <Field label="Fixed / anchored">
-        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
-          {s.fixed ? "FIXED — won't be moved" : "Movable"}
-        </button>
-      </Field>
       <div className="row2">
         <Field label="Automation state">
           <select value={s.auto} onChange={(e) => up({ auto: e.target.value })}>
@@ -988,14 +1012,6 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
       <div className="row2">
         <Field label="Capacity/shift" aside={qAside("capacityPerShift")}>
           <input className={estClass("capacityPerShift")} type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
-        </Field>
-        <Field label="Operators">
-          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Cycle time (s)" aside={qAside("cycleTimeSec")} help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
-          <input className={estClass("cycleTimeSec")} type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
         </Field>
         <Field label="Changeover (min)" aside={qAside("changeoverMin")}>
           <input className={estClass("changeoverMin")} type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
@@ -1020,6 +1036,8 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
       <Field label="Notes">
         <textarea style={{ minHeight: 42, resize: "vertical" }} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { notes: e.target.value } })} />
       </Field>
+      </>
+      ) : null}
 
       <div className="lab" style={{ margin: "12px 0 6px" }}>
         Connections

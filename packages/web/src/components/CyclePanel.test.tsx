@@ -25,10 +25,15 @@ function openBalance() {
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
- *  names also appear in the panel lists, so always take the first match. */
+ *  names also appear in the panel lists, so always take the first match. The
+ *  inspector keeps advanced fields (cycle decomposition, footprint, ports)
+ *  behind an "Advanced settings" toggle, so expand it for the tests that need
+ *  those controls. */
 function inspect(stationName: string) {
   fireEvent.click(screen.getByText("⊟ DAG"));
   fireEvent.click(screen.getAllByText(stationName)[0]);
+  const adv = screen.queryByRole("button", { name: /Advanced settings/ });
+  if (adv) fireEvent.click(adv);
 }
 
 /** The opaque "Cycle time (s)" input, located via its field label. */

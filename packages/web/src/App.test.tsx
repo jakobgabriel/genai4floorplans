@@ -96,6 +96,8 @@ describe("App", () => {
     fireEvent.click(screen.getByText("⊟ DAG"));
     // click a DAG node to select + open Configure
     fireEvent.click(screen.getByText("CNC Turning"));
+    // Footprint editing lives under the inspector's Advanced section.
+    fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     expect(screen.getByText(/Footprint shape/)).toBeTruthy();
   });
 });
