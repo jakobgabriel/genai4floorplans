@@ -2,6 +2,7 @@ import type { Model } from "@flowplan/core/model/types";
 import { migrate } from "@flowplan/core/model/migrate";
 import { loadAutosave } from "./scenarios";
 import { SAMPLE } from "@flowplan/core/model/sample";
+import { getProvider, getHydratedWorkspace } from "./session";
 
 // A workspace holds several named cells (each a full Model) so FlowPlan stops
 // being single-cell. Persisted in localStorage; the active cell drives the app.
@@ -100,8 +101,11 @@ export function wrapLooseCells(cells: Cell[], concepts: Concept[]): { cells: Cel
   return { cells: nextCells, concepts: nextConcepts };
 }
 
-/** Load the workspace, migrating legacy single-cell / loose-cell shapes. */
+/** Load the workspace, migrating legacy single-cell / loose-cell shapes. When a
+ *  DB session is bootstrapped, the hydrated (server) workspace is returned. */
 export function loadWorkspace(): Workspace {
+  const hydrated = getHydratedWorkspace();
+  if (hydrated) return hydrated;
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -135,7 +139,23 @@ function migrateFolder(f: Folder): Folder {
   };
 }
 
+// DB-backed save is debounced so the many synchronous saveWorkspace() calls a
+// single user action makes coalesce into one tree-reconcile PUT.
+let providerSaveTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingWs: Workspace | null = null;
+
 export function saveWorkspace(ws: Workspace): void {
+  const provider = getProvider();
+  if (provider) {
+    pendingWs = ws;
+    if (providerSaveTimer) clearTimeout(providerSaveTimer);
+    providerSaveTimer = setTimeout(() => {
+      const toSave = pendingWs;
+      pendingWs = null;
+      if (toSave) provider.saveWorkspace(toSave).catch((e) => console.warn("workspace save failed", e));
+    }, 600);
+    return;
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(ws));
   } catch {

@@ -33,22 +33,29 @@ export class ApiStorageProvider implements StorageProvider {
         id: string;
         name: string;
         activeId: string | null;
-        folders: Folder[];
-        concepts?: Concept[];
-        cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null }[];
+        folders: (Folder & { archived?: boolean })[];
+        concepts?: (Concept & { archived?: boolean })[];
+        cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null; archived?: boolean }[];
       };
     }>("GET", `/workspaces/${this.workspaceId}`);
-    const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null }));
+    const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null, archived: c.archived }));
     // Wrap any loose layouts into concepts so the tree always has a concept level.
     const { cells, concepts } = wrapLooseCells(migratedCells, workspace.concepts ?? []);
-    return { cells, concepts, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
+    const activeId = cells.find((c) => c.id === workspace.activeId && !c.archived)?.id ?? cells.find((c) => !c.archived)?.id ?? cells[0]?.id ?? "";
+    return { cells, concepts, folders: workspace.folders ?? [], activeId };
   }
 
-  // The whole-workspace save is decomposed into per-cell saves + an activeId patch;
-  // the autosave path prefers saveCell() directly to avoid write amplification.
+  // One bulk reconcile of the whole Folder>Concept>Layout tree — the server
+  // upserts everything by id (archived flag included, so the Archive round-trips)
+  // and deletes what's gone. This is the DB-backed client's single save path, so
+  // create/move/delete/archive of any node persists.
   async saveWorkspace(ws: Workspace): Promise<void> {
-    await Promise.all(ws.cells.map((c) => this.saveCell(c)));
-    await this.req("PATCH", `/workspaces/${this.workspaceId}`, { activeId: ws.activeId });
+    await this.req("PUT", `/workspaces/${this.workspaceId}/tree`, {
+      activeId: ws.activeId,
+      folders: ws.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId, position: f.position, archived: !!f.archived })),
+      concepts: ws.concepts.map((c) => ({ id: c.id, name: c.name, folderId: c.folderId, position: c.position, archived: !!c.archived })),
+      cells: ws.cells.map((c) => ({ id: c.id, name: c.name, conceptId: c.conceptId, folderId: c.folderId, position: 0, archived: !!c.archived, model: c.model })),
+    });
   }
   async saveCell(cell: Cell): Promise<void> {
     await this.req("PUT", `/cells/${cell.id}`, { model: cell.model });

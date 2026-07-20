@@ -95,6 +95,18 @@ export const UpdateFolderBody = z
   })
   .openapi("UpdateFolderBody");
 
+// Bulk workspace-tree reconcile: the client PUTs its whole Folder>Concept>Layout
+// tree and the server upserts to match + deletes anything missing. Keeps the
+// DB-backed client's save path to a single call.
+export const WorkspaceTreeBody = z
+  .object({
+    activeId: z.string().nullable().optional(),
+    folders: z.array(z.object({ id: z.string(), name: z.string(), parentId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional() })),
+    concepts: z.array(z.object({ id: z.string(), name: z.string(), folderId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional() })),
+    cells: z.array(z.object({ id: z.string(), name: z.string(), conceptId: z.string().nullable(), folderId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional(), model: ModelSchema })),
+  })
+  .openapi("WorkspaceTreeBody");
+
 // Process library: entries are ProcessCatalogEntry payloads stored as JSON.
 // teamId null = global seed catalog; teamId set = a team's custom entry.
 const CatalogEntryPayload = z.record(z.string(), z.unknown());

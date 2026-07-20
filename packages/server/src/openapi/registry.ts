@@ -44,6 +44,7 @@ import {
   UpdateMemberBody,
   UpdateTeamBody,
   UpdateWorkspaceBody,
+  WorkspaceTreeBody,
   User,
   Workspace,
   WorkspaceSummary,
@@ -235,6 +236,13 @@ reg({
   method: "delete", path: "/api/workspaces/{wsId}", tags: ["Workspaces"], params: wsId,
   summary: "Delete a workspace", description: "Requires OWNER role.",
   ok: { status: 204, description: "No Content" }, errors: [401, 403, 404],
+});
+reg({
+  method: "put", path: "/api/workspaces/{wsId}/tree", tags: ["Workspaces"], params: wsId, body: WorkspaceTreeBody,
+  summary: "Reconcile the whole Folder>Concept>Layout tree",
+  description: "Requires EDITOR role. Upserts every folder/concept/cell by id, deletes anything missing, and sets activeId — the DB-backed client's single save path.",
+  ok: { status: 200, description: "OK", schema: z.object({ ok: z.boolean() }) },
+  errors: [400, 401, 403, 404],
 });
 
 // ---- Cells ----------------------------------------------------------------
