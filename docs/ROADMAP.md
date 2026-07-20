@@ -228,6 +228,14 @@ Landed on branch `claude/feature-plan-design-overhaul-304leo` (design overhaul +
 | — Calm inspector (progressive disclosure) | design | branch | `ConfigurePanel` Essentials/Advanced |
 | 2.12-ish Composable canvas overlays (Confidence, Congestion) | H2/design | branch | `LayoutCanvas` overlay + §37 |
 | — CI (typecheck + test) + clean typecheck | infra | branch | `.github/workflows/ci.yml` |
+| — Right rail = inputs only; analysis in a dedicated view | design | branch | `App` INPUT_TABS/ANALYSIS_TABS |
+| — Workspace & folders made a global page | design | branch | `pages/WorkspacePage`, `/workspace` |
+| — Process library (standard building blocks, N:M capability) | H4/H6 | branch | `model/catalog.ts`, `pages/LibraryPage`, `store/library.ts` |
+| 2.4 Cell Data Sheet (identical-form artifact) | H2 | branch | `engine/datasheet.ts`, `DataSheetPanel` |
+| 2.5 Behaviour at +20 % volume | H2 | branch | `engine/sensitivity.ts` |
+| 2.6 Archetype code MA-shape-NN-seq-labour | H2 | branch | `engine/archetype.ts` |
+| 2.1/2.2 Ranked variants + featured cards | H2 | branch | `planner/ConceptTable` FeaturedCards |
+| — Data models absorbed from the two IE source docs | H1-H4 | branch | `docs/concept-model.md` |
 
 ---
 
