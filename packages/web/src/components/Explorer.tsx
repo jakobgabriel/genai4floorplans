@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@carbon/react";
+import { Add, Archive, Categories, ChevronDown, ChevronRight, Checkmark, Close, DocumentBlank, Draggable, Folder as FolderIcon, SidePanelClose } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Concept, Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
@@ -81,16 +83,16 @@ function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string;
       onDragStart={(e) => { e.stopPropagation(); ctx.setDrag({ type: "cell", id }); }}
       onDragEnd={() => { ctx.setDrag(null); ctx.setDropTarget(null); }}
     >
-      <span className="tree-grip" title="Drag to move into a concept">⠿</span>
+      <span className="tree-grip" title="Drag to move into a concept"><Draggable size={16} /></span>
       <button
         className="tree-leaf"
         onClick={() => { ctx.api.switchCell(id); ctx.onOpenCell?.(); }}
         style={{ color: active ? TEAL : undefined, fontWeight: active ? 600 : 400 }}
         title="Open layout"
       >
-        ▦ {name}
+        <DocumentBlank size={16} /> {name}
       </button>
-      <button className="tree-archive" title="Archive layout" onClick={() => ctx.api.archiveCell(id)}>🗄</button>
+      <button className="tree-archive" title="Archive layout" onClick={() => ctx.api.archiveCell(id)}><Archive size={16} /></button>
     </div>
   );
 }
@@ -113,20 +115,20 @@ function ConceptNode({ ctx, concept, depth }: { ctx: Ctx; concept: Concept; dept
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); ctx.dropIntoConcept(concept.id); }}
       >
         <button className="tree-twisty" onClick={() => ctx.toggle(concept.id)} title={isCollapsed ? "Expand" : "Collapse"}>
-          {isCollapsed ? "▸" : "▾"}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
         {renaming ? (
           <InlineInput initial={concept.name} onCommit={(n) => { ctx.api.renameConcept(concept.id, n); ctx.setEdit(null); }} onCancel={() => ctx.setEdit(null)} />
         ) : (
           <button className="tree-leaf" onClick={() => ctx.toggle(concept.id)} title="Concept — a workspace item with one or more layouts">
-            ◈ {concept.name} <span style={{ color: TEXTD, fontSize: 10.5 }}>({layouts.length})</span>
+            <Categories size={16} /> {concept.name} <span style={{ color: TEXTD, fontSize: "0.75rem" }}>({layouts.length})</span>
           </button>
         )}
         {ctx.confirmId === concept.id ? (
           <span className="tree-confirm">
             Archive&nbsp;concept?
-            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveConcept(concept.id); ctx.setConfirmId(null); }}>✓</button>
-            <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}>✗</button>
+            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveConcept(concept.id); ctx.setConfirmId(null); }}><Checkmark size={16} /></button>
+            <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}><Close size={16} /></button>
           </span>
         ) : (
           <Menu
@@ -146,7 +148,7 @@ function ConceptNode({ ctx, concept, depth }: { ctx: Ctx; concept: Concept; dept
             <CellRow key={c.id} ctx={ctx} id={c.id} name={c.name} depth={depth + 1} />
           ))}
           {layouts.length === 0 ? (
-            <div className="tree-row" style={{ paddingLeft: 8 + (depth + 1) * 16, color: TEXTD, fontSize: 11 }}>
+            <div className="tree-row" style={{ paddingLeft: 8 + (depth + 1) * 16, color: TEXTD, fontSize: "0.75rem" }}>
               <span className="tree-twisty" /> no layouts — add one from ⋯
             </div>
           ) : null}
@@ -173,18 +175,18 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); ctx.dropIntoFolder(folder.id); }}
       >
         <button className="tree-twisty" onClick={() => ctx.toggle(folder.id)} title={isCollapsed ? "Expand" : "Collapse"}>
-          {isCollapsed ? "▸" : "▾"}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
         {renaming ? (
           <InlineInput initial={folder.name} onCommit={(n) => { ctx.api.renameFolder(folder.id, n); ctx.setEdit(null); }} onCancel={() => ctx.setEdit(null)} />
         ) : (
-          <button className="tree-leaf" onClick={() => ctx.toggle(folder.id)} title="Folder">🗀 {folder.name}</button>
+          <button className="tree-leaf" onClick={() => ctx.toggle(folder.id)} title="Folder"><FolderIcon size={16} /> {folder.name}</button>
         )}
         {ctx.confirmId === folder.id ? (
           <span className="tree-confirm">
             Archive&nbsp;+&nbsp;contents?
-            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveFolder(folder.id); ctx.setConfirmId(null); }}>✓</button>
-            <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}>✗</button>
+            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveFolder(folder.id); ctx.setConfirmId(null); }}><Checkmark size={16} /></button>
+            <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}><Close size={16} /></button>
           </span>
         ) : (
           <Menu
@@ -203,13 +205,13 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         <div>
           {ctx.edit?.kind === "newFolder" && ctx.edit.parentId === folder.id ? (
             <div className="tree-row" style={{ paddingLeft: 8 + (depth + 1) * 16 }}>
-              <span className="tree-twisty" /> 🗀{" "}
+              <span className="tree-twisty" /> <FolderIcon size={16} />{" "}
               <InlineInput initial="" placeholder="Folder name" onCommit={(n) => { ctx.api.createFolder(n, folder.id); ctx.setEdit(null); }} onCancel={() => ctx.setEdit(null)} />
             </div>
           ) : null}
           {ctx.edit?.kind === "newConcept" && ctx.edit.folderId === folder.id ? (
             <div className="tree-row" style={{ paddingLeft: 8 + (depth + 1) * 16 }}>
-              <span className="tree-twisty" /> ◈{" "}
+              <span className="tree-twisty" /> <Categories size={16} />{" "}
               <InlineInput initial="" placeholder="Concept name" onCommit={(n) => { ctx.api.createConcept(n, folder.id); ctx.setEdit(null); ctx.onOpenCell?.(); }} onCancel={() => ctx.setEdit(null)} />
             </div>
           ) : null}
@@ -276,15 +278,17 @@ export function Explorer({ api, onCollapse, onOpenCell }: { api: FlowPlanApi; on
   return (
     <div className="explorer">
       <div className="explorer-head">
-        <h2 style={{ margin: 0, fontSize: 14 }}>Workspace</h2>
-        {onCollapse ? <button className="btn sm" onClick={onCollapse} title="Close">◀</button> : null}
+        <h2 style={{ margin: 0, fontSize: "0.875rem" }}>Workspace</h2>
+        {onCollapse ? (
+          <Button kind="ghost" size="sm" hasIconOnly renderIcon={SidePanelClose} iconDescription="Close" onClick={onCollapse} />
+        ) : null}
       </div>
       <div className="explorer-actions">
-        <button className="btn sm" onClick={() => ctx.startNewFolder(null)}>＋ Folder</button>
-        <button className="btn sm" onClick={() => ctx.startNewConcept(null)}>＋ Concept</button>
-        <button className="btn sm" onClick={() => navigate("/archive")} title="Archived concepts, layouts & folders">
-          🗄 {api.archivedCells.length + api.archivedConcepts.length + api.archivedFolders.length || ""}
-        </button>
+        <Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => ctx.startNewFolder(null)}>Folder</Button>
+        <Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => ctx.startNewConcept(null)}>Concept</Button>
+        <Button kind="ghost" size="sm" renderIcon={Archive} onClick={() => navigate("/archive")} title="Archived concepts, layouts & folders">
+          {api.archivedCells.length + api.archivedConcepts.length + api.archivedFolders.length || ""}
+        </Button>
       </div>
       <div
         className={"explorer-tree" + (dropTarget === ROOT ? " drop" : "")}
@@ -294,13 +298,13 @@ export function Explorer({ api, onCollapse, onOpenCell }: { api: FlowPlanApi; on
       >
         {edit?.kind === "newFolder" && edit.parentId === null ? (
           <div className="tree-row">
-            <span className="tree-twisty" /> 🗀{" "}
+            <span className="tree-twisty" /> <FolderIcon size={16} />{" "}
             <InlineInput initial="" placeholder="Folder name" onCommit={(n) => { api.createFolder(n, null); setEdit(null); }} onCancel={() => setEdit(null)} />
           </div>
         ) : null}
         {edit?.kind === "newConcept" && edit.folderId === null ? (
           <div className="tree-row">
-            <span className="tree-twisty" /> ◈{" "}
+            <span className="tree-twisty" /> <Categories size={16} />{" "}
             <InlineInput initial="" placeholder="Concept name" onCommit={(n) => { api.createConcept(n, null); setEdit(null); onOpenCell?.(); }} onCancel={() => setEdit(null)} />
           </div>
         ) : null}
@@ -311,10 +315,10 @@ export function Explorer({ api, onCollapse, onOpenCell }: { api: FlowPlanApi; on
           <ConceptNode key={c.id} ctx={ctx} concept={c} depth={0} />
         ))}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>
-        A <strong>concept</strong> (◈) is a workspace item holding one or more <strong>layouts</strong> (▦). Drag a
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 8 }}>
+        A <strong>concept</strong> is a workspace item holding one or more <strong>layouts</strong>. Drag a
         layout onto a concept, or a concept/folder onto a folder (or empty space for the root). Archiving is
-        recoverable from the Archive (🗄).
+        recoverable from the Archive.
       </div>
     </div>
   );

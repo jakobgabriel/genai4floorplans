@@ -74,7 +74,7 @@ describe("Explorer", () => {
     const api = makeApi();
     const promptSpy = vi.spyOn(window, "prompt");
     render(<Explorer api={api} onCollapse={() => {}} />);
-    fireEvent.click(screen.getByText("＋ Folder"));
+    fireEvent.click(screen.getByRole("button", { name: "Folder" }));
     const input = screen.getByPlaceholderText("Folder name");
     fireEvent.change(input, { target: { value: "New line" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -85,7 +85,7 @@ describe("Explorer", () => {
   it("creates a root concept via an inline input", () => {
     const api = makeApi();
     render(<Explorer api={api} onCollapse={() => {}} />);
-    fireEvent.click(screen.getByText("＋ Concept"));
+    fireEvent.click(screen.getByRole("button", { name: "Concept" }));
     const input = screen.getByPlaceholderText("Concept name");
     fireEvent.change(input, { target: { value: "New concept" } });
     fireEvent.keyDown(input, { key: "Enter" });

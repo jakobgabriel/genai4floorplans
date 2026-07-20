@@ -1,6 +1,7 @@
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
-import { Field, HelpPopover } from "./ui";
+import { ClickableTile, NumberInput, Tile } from "@carbon/react";
+import { HelpPopover } from "./ui";
 import type { PanelProps } from "./panels";
 import { AMBER, RED, TEAL, TEXTD, scoreColor } from "./colors";
 
@@ -16,7 +17,7 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
   const cur = c.currency;
   const money = (n: number) => cur + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   const row = (k: string, v: string) => (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 3 }}>
       <span style={{ color: TEXTD }}>{k}</span>
       <span>{v}</span>
     </div>
@@ -26,11 +27,11 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       <div className="lab" style={{ marginBottom: 8 }}>
         Cost &amp; ROI
       </div>
-      <div className="imp" style={{ marginTop: 0 }}>
+      <Tile style={{ marginTop: 0 }}>
         <div className="lab">Operating cost per part</div>
         <div className="impVal">{money(c.costPerPart)}</div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>at {c.lineOut.toLocaleString()} parts/shift</div>
-      </div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>at {c.lineOut.toLocaleString()} parts/shift</div>
+      </Tile>
       {row("Labor / shift", money(c.laborPerShift))}
       {row("Transport / shift", money(c.transportPerShift))}
       {row("Energy / shift", money(c.energyPerShift))}
@@ -54,7 +55,7 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       {row("Cell", `${c.floorSpace.cell.toLocaleString()} ${c.floorSpace.unit}`)}
       {row("Material supply", `+${c.floorSpace.materialSupply.toLocaleString()} ${c.floorSpace.unit}`)}
       {c.floorSpace.reserved > 0 ? row("Reserved (spacer/aisle)", `+${c.floorSpace.reserved.toLocaleString()} ${c.floorSpace.unit}`) : null}
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginTop: 3, borderTop: "1px solid var(--cds-border-subtle-01)", paddingTop: 3 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginTop: 3, borderTop: "1px solid var(--cds-border-subtle-01)", paddingTop: 3 }}>
         <span style={{ color: TEXTD }}>Total footprint</span>
         <strong>{c.floorSpace.total.toLocaleString()} {c.floorSpace.unit}</strong>
       </div>
@@ -63,24 +64,22 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
         Assumptions
       </div>
       <div className="row2">
-        <Field label="Labor / hour">
-          <input
-            type="number"
-            value={cfg.laborCostPerHour}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "SET_COST_CONFIG", patch: { laborCostPerHour: +e.target.value } })}
-          />
-        </Field>
-        <Field label="Shifts / year">
-          <input
-            type="number"
-            value={cfg.annualShifts}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "SET_COST_CONFIG", patch: { annualShifts: +e.target.value } })}
-          />
-        </Field>
+        <NumberInput
+          id="cost-labor-hour"
+          label="Labor / hour"
+          value={cfg.laborCostPerHour}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_COST_CONFIG", patch: { laborCostPerHour: +value } })}
+        />
+        <NumberInput
+          id="cost-annual-shifts"
+          label="Shifts / year"
+          value={cfg.annualShifts}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_COST_CONFIG", patch: { annualShifts: +value } })}
+        />
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 6 }}>Set per-step equipment capex and automation capex in Configure.</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6 }}>Set per-step equipment capex and automation capex in Configure.</div>
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Automation ROI
@@ -88,12 +87,12 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       {c.automation.map((a) => {
         const col = a.paybackMonths == null ? TEXTD : a.paybackMonths <= 18 ? TEAL : a.paybackMonths <= 36 ? AMBER : RED;
         return (
-          <div key={a.id} className="card" style={{ cursor: "pointer" }} onClick={() => { setSel(a.id); setTab("inspect"); }}>
+          <ClickableTile key={a.id} onClick={() => { setSel(a.id); setTab("inspect"); }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-              <span style={{ fontSize: 12 }}>{a.name}</span>
-              <span style={{ fontSize: 11, color: scoreColor(a.verdict === "Automate" ? 80 : a.verdict === "Consider" ? 60 : 40) }}>{a.verdict}</span>
+              <span style={{ fontSize: "0.75rem" }}>{a.name}</span>
+              <span style={{ fontSize: "0.75rem", color: scoreColor(a.verdict === "Automate" ? 80 : a.verdict === "Consider" ? 60 : 40) }}>{a.verdict}</span>
             </div>
-            <div style={{ fontSize: 10.5, color: TEXTD }}>
+            <div style={{ fontSize: "0.75rem", color: TEXTD }}>
               {a.automationCapex > 0 ? (
                 <>
                   capex {cur}
@@ -105,10 +104,10 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
                 <span>set automation capex in Configure to see payback</span>
               )}
             </div>
-          </div>
+          </ClickableTile>
         );
       })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
         Payback = automation capex ÷ annual labor saved. Informational — cost isn't part of the composite grade.
       </div>
     </div>

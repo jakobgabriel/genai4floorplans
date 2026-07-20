@@ -3,6 +3,7 @@ import { ZONE_KINDS } from "@flowplan/core/model/types";
 import type { useLibrary } from "../store/library";
 import type { useSubflows } from "../store/subflows";
 import { navigate } from "../store/useHashRoute";
+import { Catalog, SidePanelClose } from "@carbon/icons-react";
 import { NODE_KINDS, NODE_DND_TYPE } from "./PaletteBar";
 import { Resizer } from "./Resizer";
 import { AMBER, TEAL, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
@@ -42,7 +43,7 @@ export function LibrarySidebar({ library, subflows, onApplyForm, collapsed, setC
       <div className="libside collapsed">
         <div className="rail">
           <button className="btn sm rail-btn" onClick={() => setCollapsed(false)} title="Show the library">
-            📚 Library
+            <Catalog size={16} /> Library
           </button>
         </div>
       </div>
@@ -54,7 +55,7 @@ export function LibrarySidebar({ library, subflows, onApplyForm, collapsed, setC
       <div className="libside" style={{ flexBasis: width, width }}>
         <div className="libside__head">
           <span className="lab">Library</span>
-          <button className="chip" title="Collapse the library" onClick={() => setCollapsed(true)}>◀</button>
+          <button className="chip" title="Collapse the library" onClick={() => setCollapsed(true)}><SidePanelClose size={16} /></button>
         </div>
         <div className="libside__scroll">
           {/* Station nodes — the core node-RED palette. */}
@@ -114,7 +115,7 @@ export function LibrarySidebar({ library, subflows, onApplyForm, collapsed, setC
               </div>
             ))
           )}
-          <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 10 }}>Drag any item onto the canvas.</div>
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 10 }}>Drag any item onto the canvas.</div>
         </div>
       </div>
       <Resizer edge="right" width={width} setWidth={setWidth} min={200} max={480} />

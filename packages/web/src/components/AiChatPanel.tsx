@@ -80,14 +80,14 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
           ⚙ Settings
         </button>
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 10, lineHeight: 1.5 }}>
         Ask, instruct, or set a goal. The AI proposes; every number is computed by FlowPlan's engine, not the model.
       </div>
 
       {chat.length > 0 ? (
         <div style={{ marginBottom: 8, maxHeight: 180, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
           {chat.map((m, i) => (
-            <div key={i} className={m.role === "ai" ? "ok" : "card"} style={{ cursor: "default", fontSize: 11.5, alignSelf: m.role === "user" ? "flex-end" : "stretch", maxWidth: "92%" }}>
+            <div key={i} className={m.role === "ai" ? "ok" : "card"} style={{ cursor: "default", fontSize: "0.75rem", alignSelf: m.role === "user" ? "flex-end" : "stretch", maxWidth: "92%" }}>
               {m.text}
             </div>
           ))}
@@ -136,13 +136,13 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
       {proposals.map((p) => (
         <div key={p.id} className="card" style={{ marginTop: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>{p.title}</span>
-            <span style={{ color: p.deltas.composite >= 0 ? TEAL : RED, fontSize: 12 }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{p.title}</span>
+            <span style={{ color: p.deltas.composite >= 0 ? TEAL : RED, fontSize: "0.75rem" }}>
               {p.deltas.composite >= 0 ? "+" : ""}
               {p.deltas.composite.toFixed(1)} pts
             </span>
           </div>
-          <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 6, lineHeight: 1.5 }}>{p.rationale}</div>
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6, lineHeight: 1.5 }}>{p.rationale}</div>
           <div style={{ marginBottom: 8 }}>
             <Delta label="flow" value={p.deltas.flowCost} />
             <Delta label="bal" value={p.deltas.balance} />
@@ -183,7 +183,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
           <input type="number" value={goal.budget} placeholder="none" onChange={(e) => setGoal({ ...goal, budget: e.target.value })} />
         </Field>
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: "0.75rem", marginBottom: 8 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <input type="checkbox" style={{ width: "auto" }} checked={goal.moves} onChange={(e) => setGoal({ ...goal, moves: e.target.checked })} /> moves
         </label>
@@ -220,9 +220,9 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
       </button>
       {goalRes ? (
         <div className="card" style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11.5, marginBottom: 6, color: goalRes.reached ? TEAL : AMBER }}>{goalRes.message}</div>
+          <div style={{ fontSize: "0.75rem", marginBottom: 6, color: goalRes.reached ? TEAL : AMBER }}>{goalRes.message}</div>
           {goalRes.steps.map((s, i) => (
-            <div key={i} style={{ fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+            <div key={i} style={{ fontSize: "0.75rem", display: "flex", justifyContent: "space-between" }}>
               <span>
                 {i + 1}. {s.action}
               </span>
@@ -290,7 +290,7 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
           </button>
         </>
       ) : (
-        <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>
           Vision needs an LLM provider (Claude or OpenAI) — add a key in ⚙ Settings to extract a model from a photo.
         </div>
       )}

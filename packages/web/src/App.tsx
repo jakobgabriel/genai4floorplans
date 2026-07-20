@@ -655,7 +655,7 @@ export function App() {
                   ⧉ Group
                 </button>
                 <span className="hsep" />
-                <span style={{ fontSize: 11, color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
+                <span style={{ fontSize: "0.75rem", color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
                 <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
                   Confidence
                 </button>
@@ -717,13 +717,13 @@ export function App() {
             <div className="pad">
               {(() => {
                 const s = model.stations.find((x) => x.id === selId);
-                return s ? <StationDoc station={s} /> : <div style={{ color: TEXTD, fontSize: 12 }}>Select a step on the canvas to read its full data sheet.</div>;
+                return s ? <StationDoc station={s} /> : <div style={{ color: TEXTD, fontSize: "0.75rem" }}>Select a step on the canvas to read its full data sheet.</div>;
               })()}
             </div>
           )}
           {tab === "schema" && <SchemaPanel />}
           {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost") && (
-            <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
+            <div className="pad" style={{ color: TEXTD, fontSize: "0.75rem" }}>
               Analysis moved to the <button className="chip on" style={{ display: "inline" }} onClick={() => setView("analysis")}>📊 Analysis</button> view.
             </div>
           )}

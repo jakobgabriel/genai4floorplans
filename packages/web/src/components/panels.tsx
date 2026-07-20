@@ -67,9 +67,9 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
         </div>
         <div>
           <div className="lab">Actual-state rating</div>
-          <div style={{ fontSize: 26, fontWeight: 600 }}>
+          <div style={{ fontSize: "1.75rem", fontWeight: 600 }}>
             {r.composite.toFixed(0)}
-            <span style={{ fontSize: 13, color: TEXTD }}>/100</span>
+            <span style={{ fontSize: "0.875rem", color: TEXTD }}>/100</span>
           </div>
         </div>
       </div>
@@ -100,7 +100,7 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
       </div>
       {r.pareto.slice(0, 5).map((p, i) => (
         <div key={i} style={{ marginBottom: 7 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
             <span>{p.from + " → " + p.to}</span>
             <span>{p.share.toFixed(0)}%</span>
           </div>
@@ -147,7 +147,7 @@ export function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; s
         <div
           key={p.id}
           className="issue"
-          style={{ borderLeftColor: p.severity === "block" ? RED : AMBER, marginBottom: 6, cursor: p.ref ? "pointer" : "default", fontSize: 11 }}
+          style={{ borderLeftColor: p.severity === "block" ? RED : AMBER, marginBottom: 6, cursor: p.ref ? "pointer" : "default", fontSize: "0.75rem" }}
           onClick={() => {
             if (p.ref && api.model.stations.some((s) => s.id === p.ref)) {
               setSel(p.ref);
@@ -202,17 +202,17 @@ export function ImprovementList({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-              <b style={{ fontSize: 12 }}>{imp.title}</b>
-              <span style={{ fontSize: 10.5, color: TEXTD, whiteSpace: "nowrap" }}>
+              <b style={{ fontSize: "0.75rem" }}>{imp.title}</b>
+              <span style={{ fontSize: "0.75rem", color: TEXTD, whiteSpace: "nowrap" }}>
                 {imp.confidence} conf.
               </span>
             </div>
-            <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
           </div>
         ))
       )}
 
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
         Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
       </div>
     </div>
@@ -240,12 +240,12 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
       </button>
       {open ? (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 8 }}>
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
             Re-weight the composite to match your priorities. Values are normalized to 100%; the grade updates live.
           </div>
           {WEIGHT_LABELS.map(([key, label]) => (
             <div key={key} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
                 <span>{label}</span>
                 <span style={{ color: TEAL }}>{(w[key] * 100).toFixed(0)}%</span>
               </div>
@@ -283,9 +283,9 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <div className="imp" style={{ marginTop: 0 }}>
         <div className="lab">Line output (constrained by bottleneck)</div>
         <div className="impVal">
-          {bal.lineOut.toLocaleString()} <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>parts/shift</span>
+          {bal.lineOut.toLocaleString()} <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>parts/shift</span>
         </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
           Takt ≈ {bal.takt} s/part · balance score {bal.score}/100
         </div>
       </div>
@@ -307,7 +307,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
         const col = isBn ? RED : x.util >= 85 ? AMBER : TEAL;
         return (
           <div key={x.id} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
               <span>{x.name + (isBn ? " ◀ bottleneck" : "")}</span>
               <span style={{ color: col }}>{x.rate.toLocaleString() + "/sh · " + x.util + "%"}</span>
             </div>
@@ -317,7 +317,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
           </div>
         );
       })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
         Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
         steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
       </div>
@@ -350,7 +350,7 @@ function GuardrailSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (
           <div
             key={f.id}
             className="issue"
-            style={{ borderLeftColor: f.severity === "error" ? RED : AMBER, marginBottom: 6, cursor: f.stationId ? "pointer" : "default", fontSize: 11 }}
+            style={{ borderLeftColor: f.severity === "error" ? RED : AMBER, marginBottom: 6, cursor: f.stationId ? "pointer" : "default", fontSize: "0.75rem" }}
             onClick={() => { if (f.stationId) { setSel(f.stationId); setTab("inspect"); } }}
           >
             {f.message}
@@ -377,7 +377,7 @@ function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) =>
         Placement freedom
         <HelpPopover text={FREEDOM_HELP} />
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10.5, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: "0.75rem", marginBottom: 8 }}>
         {(["free", "swappable", "exclusive", "compulsory"] as FreedomFinding[]).map((k) =>
           fr.counts[k] > 0 ? (
             <span key={k} style={{ color: FREEDOM_COL[k] }}>
@@ -395,14 +395,14 @@ function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) =>
               </td>
               <td>
                 <div>{e.name}</div>
-                <div style={{ fontSize: 10, color: TEXTD }}>{e.reason}</div>
+                <div style={{ fontSize: "0.75rem", color: TEXTD }}>{e.reason}</div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       {fr.counts.free > 0 ? (
-        <div style={{ fontSize: 10.5, color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
+        <div style={{ fontSize: "0.75rem", color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
           {fr.counts.free} free operation{fr.counts.free === 1 ? "" : "s"} can fill an under-loaded station →
         </div>
       ) : null}
@@ -431,7 +431,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
       </div>
 
       {analysis.decomposedCount === 0 ? (
-        <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.6 }}>
           No step has a cycle breakdown yet. Select a step → Inspect → <b>Decompose</b> to split its
           cycle into value-add, handling, walk, wait and setup. The line ratio and waste backlog
           appear once at least one step is split.
@@ -442,9 +442,9 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
             <div className="lab">Value-add ratio{analysis.complete ? "" : " (decomposed steps only)"}</div>
             <div className="impVal">
               {analysis.lineValueAddPct}
-              <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>%</span>
+              <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>%</span>
             </div>
-            <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
               {analysis.lineValueAddSec}s value-add · {analysis.lineNonValueAddSec}s waste ·{" "}
               {analysis.decomposedCount}/{analysis.totalCount} steps split
             </div>
@@ -455,7 +455,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
           <div className="legend">
             {CYCLE_KEYS.map((k) => (
               <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, display: "inline-block" }} />
+                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 0, display: "inline-block" }} />
                 {CYCLE_LABELS[k]}
               </span>
             ))}
@@ -479,7 +479,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
               </div>
               {analysis.waste.slice(0, 6).map((wst, i) => (
                 <div key={wst.stationId + wst.key + i} style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => open(wst.stationId)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
                     <span>
                       {wst.stationName} · <span style={{ color: CYCLE_COL[wst.key] }}>{wst.label.toLowerCase()}</span>
                     </span>
@@ -512,7 +512,7 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 6 }}>
         {path.length === 0 ? (
-          <span style={{ fontSize: 11, color: TEXTD }}>—</span>
+          <span style={{ fontSize: "0.75rem", color: TEXTD }}>—</span>
         ) : (
           path.map((id, i) => (
             <span key={id} style={{ display: "inline-flex", alignItems: "center" }}>
@@ -524,7 +524,7 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
           ))
         )}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
 
       {bal.syncWaits.length > 0 ? (
         <>
@@ -537,7 +537,7 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
                 {sw.mergeName}: paced by {sw.bindingName} at {sw.bindingRate.toLocaleString()}/sh
               </div>
               {sw.waiters.map((w) => (
-                <div key={w.id} style={{ fontSize: 11 }}>
+                <div key={w.id} style={{ fontSize: "0.75rem" }}>
                   · {w.name} idles ~{w.idle.toLocaleString()}/sh — add a ≈{w.buffer.toLocaleString()}-part buffer to decouple.
                 </div>
               ))}
@@ -560,15 +560,15 @@ function YieldSection({ api }: { api: FlowPlanApi }) {
       <div className="imp" style={{ marginTop: 0 }}>
         <div className="lab">Rolled throughput yield</div>
         <div className="impVal">
-          {y.rolledYield}% <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>good parts</span>
+          {y.rolledYield}% <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>good parts</span>
         </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
       </div>
       {withScrap.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
       ) : (
         withScrap.map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 4 }}>
             <span>{s.name}</span>
             <span style={{ color: RED }}>
               {Math.round(s.scrapRate * 100)}% · {Math.round(s.scrapUnits).toLocaleString()}/sh
@@ -576,7 +576,7 @@ function YieldSection({ api }: { api: FlowPlanApi }) {
           </div>
         ))
       )}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
         Rolled yield = ∏(1 − scrap rate) over process steps. Informational — it doesn't change the
         composite grade.
       </div>
@@ -610,10 +610,10 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
         </button>
       </div>
       {scenarios.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Save the current layout as a named variant to compare alternatives.</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD }}>Save the current layout as a named variant to compare alternatives.</div>
       ) : (
         scenarios.map((s) => (
-          <div key={s.name + tick} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 11.5 }}>
+          <div key={s.name + tick} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: "0.75rem" }}>
             <button className="btn sm" style={{ flex: 1, textAlign: "left" }} onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}>
               {s.name}
             </button>
@@ -661,12 +661,12 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
       <button className={"btn sm" + (mode === "nogo" ? " on" : "")} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
         {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a blocking area"}
       </button>
-      <div style={{ fontSize: 10.5, color: TEXTD, margin: "6px 0" }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, margin: "6px 0" }}>
         Drag a rectangle for a blocking area, or drop a Spacer / Aisle / Wall / Column / ESD from the library palette.
         Blocking, wall and column obstruct placement; spacer, aisle and ESD reserve floor space.
       </div>
       {(api.model.noGoZones ?? []).map((z, i) => (
-        <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, fontSize: 11.5 }}>
+        <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, fontSize: "0.75rem" }}>
           <select
             value={z.kind ?? "blocking"}
             onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { kind: e.target.value as ZoneKind } })}
@@ -704,7 +704,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
       <div className="lab" style={{ marginBottom: 8 }}>
         Validation
       </div>
-      {v.issues.length === 0 ? <div style={{ fontSize: 11.5, color: TEXTD }}>No dead ends, orphans, or unreachable steps.</div> : null}
+      {v.issues.length === 0 ? <div style={{ fontSize: "0.75rem", color: TEXTD }}>No dead ends, orphans, or unreachable steps.</div> : null}
       {v.issues.map((it, i) => (
         <div
           key={i}
@@ -734,7 +734,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
           </button>
         ))}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD }}>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD }}>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</div>
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Add a step
@@ -774,12 +774,12 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
         return (
           <div key={i} className="card">
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11.5 }}>{l.from + " → " + l.to}</span>
+              <span style={{ fontSize: "0.75rem" }}>{l.from + " → " + l.to}</span>
               <span className="pill" style={{ background: "rgba(255,255,255,.05)", color: col }}>
                 {l.kind}
               </span>
             </div>
-            <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 3 }}>via {l.transport}</div>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 3 }}>via {l.transport}</div>
           </div>
         );
       })}
@@ -794,19 +794,19 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
           return (
             <div key={s.id} className="card" style={{ cursor: "pointer" }} onClick={() => { setSel(s.id); setTab("inspect"); }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>{s.name}</span>
-                <span style={{ color: col, fontSize: 12 }}>{ap.verdict + " · " + ap.pct.toFixed(0)}</span>
+                <span style={{ fontSize: "0.75rem" }}>{s.name}</span>
+                <span style={{ color: col, fontSize: "0.75rem" }}>{ap.verdict + " · " + ap.pct.toFixed(0)}</span>
               </div>
               <div className="bar">
                 <div style={{ width: ap.pct + "%", background: col }} />
               </div>
-              <div style={{ fontSize: 10, color: TEXTD, marginTop: 4 }}>
+              <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
                 currently {s.auto} · {ap.src === "override" ? "manual override" : "heuristic"}
               </div>
             </div>
           );
         })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
         Heuristic weighs type, ergonomics, cycle time, changeover, volume, labor — an opinion, not a
         validated ROI model. Override per step in Configure.
       </div>
@@ -844,7 +844,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
                   type="button"
                   onClick={() => toggle(dx, dy)}
                   title={`cell ${dx},${dy}`}
-                  style={{ width: 16, height: 16, padding: 0, borderRadius: 3, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
+                  style={{ width: 16, height: 16, padding: 0, borderRadius: 0, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
                 />
               );
             }),
@@ -868,7 +868,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   if (!s) {
     return (
       <div className="pad">
-        <div style={{ color: TEXTD, fontSize: 12 }}>
+        <div style={{ color: TEXTD, fontSize: "0.75rem" }}>
           Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add
           a step to create new ones.
         </div>
@@ -1091,10 +1091,10 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
       <div className="lab" style={{ margin: "12px 0 6px" }}>
         Connections
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 6 }}>Outgoing flows from this step:</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6 }}>Outgoing flows from this step:</div>
       {outFlows.map((f, i) => (
         <div key={i} className="card" style={{ padding: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", marginBottom: 6 }}>
             <span>→ {f.to}</span>
             <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}>
               ×
@@ -1151,7 +1151,7 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
         >
           Decompose cycle
         </button>
-        <span style={{ fontSize: 10.5, color: TEXTD, marginLeft: 8 }}>
+        <span style={{ fontSize: "0.75rem", color: TEXTD, marginLeft: 8 }}>
           split {s.cycleTimeSec}s into value-add & waste
         </span>
       </div>
@@ -1183,8 +1183,8 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
 
       {CYCLE_KEYS.map((k) => (
         <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, flex: "0 0 auto" }} />
-          <span style={{ fontSize: 11, flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
+          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 0, flex: "0 0 auto" }} />
+          <span style={{ fontSize: "0.75rem", flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
           <input
             type="number"
             min={0}
@@ -1196,7 +1196,7 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
         </div>
       ))}
 
-      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: "0.75rem" }}>
         <span>Total cycle</span>
         <span>
           <b>{total}s</b> <span style={{ color: vaPct >= 60 ? TEAL : vaPct >= 30 ? AMBER : RED }}>· {vaPct}% value-add</span>
@@ -1235,11 +1235,11 @@ export function SchemaPanel() {
       <div className="lab" style={{ marginBottom: 8 }}>
         Data model
       </div>
-      <div style={{ fontSize: 11.5, color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
         The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields
         fill with defaults on import, and older files are migrated forward automatically.
       </div>
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>root</code>
       </div>
       {tbl([
@@ -1254,7 +1254,7 @@ export function SchemaPanel() {
         ["flows", "array", "material movements"],
         ["noGoZones", "array", "blocked rects {x,y,w,h}"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>station</code>
       </div>
       {tbl([
@@ -1286,7 +1286,7 @@ export function SchemaPanel() {
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>flow</code>
       </div>
       {tbl([
@@ -1300,7 +1300,7 @@ export function SchemaPanel() {
         ["unitsPerAssembly", "int?", "inputs per assembled unit"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>
         Flow cost = Σ(volume × rectilinear-distance × unitCost). Chaining reads auto on both ends +
         transport: two auto steps with conveyor/agv = chained; with a manual handoff = auto-island.
       </div>
