@@ -33,12 +33,29 @@ const toV4: Migration = (m) => ({ ...m, schemaVersion: 4 });
 // Default to 0 / standard assumptions, so nothing in the rating changes.
 const toV5: Migration = (m) => ({ ...m, schemaVersion: 5 });
 
+// version 5 -> 6: optional cycle-time decomposition (Station.cycle). Absent on
+// every existing station, so effectiveCycleSec falls back to cycleTimeSec and
+// balance/rating numbers are unchanged.
+const toV6: Migration = (m) => ({ ...m, schemaVersion: 6 });
+
+// version 6 -> 7: products, volume scenarios and volumeMode. volumeMode is
+// absent (⇒ "explicit"), so stored flow volumes stay authoritative and nothing
+// is re-derived on load.
+const toV7: Migration = (m) => ({ ...m, schemaVersion: 7 });
+
+// version 7 -> 8: workload (WorkElement) and mixed-model variant modes. Both
+// absent on every existing model, so nothing is balanced differently on load.
+const toV8: Migration = (m) => ({ ...m, schemaVersion: 8 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
   2: toV3,
   3: toV4,
   4: toV5,
+  5: toV6,
+  6: toV7,
+  7: toV8,
 };
 
 export function migrate(raw: unknown): Model {

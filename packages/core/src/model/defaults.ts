@@ -1,5 +1,5 @@
 import type { Flow, Model, Station } from "./types";
-import { DEFAULT_SHIFT_HOURS, SCHEMA_VERSION } from "./types";
+import { DEFAULT_SHIFT_HOURS, SCHEMA_VERSION, sumCycle } from "./types";
 
 // Field defaults used both when importing partial JSON and when creating new
 // stations/flows in-app. Keeps a single source of truth for "what a complete
@@ -43,8 +43,18 @@ export const FLOW_DEFAULTS: Omit<Flow, "from" | "to"> = {
   notes: "",
 };
 
+/** When a station carries a cycle breakdown, the breakdown is authoritative and
+ *  cycleTimeSec mirrors its sum. Keeping the legacy scalar in sync means every
+ *  existing reader (tooltips, CSV export, AI layout signature) stays correct
+ *  without having to know about decomposition. */
+export function syncCycleTime(s: Station): Station {
+  if (!s.cycle) return s;
+  const total = +sumCycle(s.cycle).toFixed(3);
+  return s.cycleTimeSec === total ? s : { ...s, cycleTimeSec: total };
+}
+
 export function normalizeStation(s: Partial<Station> & { id: string }): Station {
-  return { ...STATION_DEFAULTS, ...s };
+  return syncCycleTime({ ...STATION_DEFAULTS, ...s });
 }
 
 export function normalizeFlow(f: Partial<Flow> & { from: string; to: string }): Flow {
@@ -66,5 +76,8 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     noGoZones: Array.isArray(o.noGoZones) ? o.noGoZones : [],
     stations: stations.map(normalizeStation),
     flows: flows.map(normalizeFlow),
+    conceptKind: typeof o.conceptKind === "string" ? o.conceptKind : undefined,
+    workElements: Array.isArray(o.workElements) ? o.workElements : undefined,
+    variantModes: Array.isArray(o.variantModes) ? o.variantModes : undefined,
   };
 }

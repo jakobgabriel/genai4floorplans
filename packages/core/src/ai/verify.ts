@@ -1,4 +1,5 @@
 import type { Model } from "../model/types";
+import { layoutSignature } from "../model/signature";
 import { buildRating, type Rating } from "../engine/rating";
 import { validateFlow } from "../engine/validate";
 import type { KpiDeltas, Proposal } from "./types";
@@ -21,17 +22,13 @@ export function scoreDeltas(before: Rating, after: Rating): KpiDeltas {
   };
 }
 
-/** Stable signature of a layout (positions + the fields that affect the rating). */
-export function layoutSignature(m: Model): string {
-  return m.stations
-    .map((s) =>
-      [s.id, s.x, s.y, s.w, s.h, s.role, s.auto, s.operators, s.cycleTimeSec, s.fixed, s.parallelUnits ?? 1, s.splitMode ?? "distribute", s.mergeMode ?? "sum"].join(":"),
-    )
-    .sort()
-    .join("|") +
-    "#" +
-    m.flows.map((f) => [f.from, f.to, f.transport, f.volume, f.share ?? "", f.unitsPerAssembly ?? 1].join(":")).sort().join("|");
-}
+/**
+ * Stable signature of a layout (positions + the fields that affect the rating).
+ * Moved to `model/signature.ts` so the optimizer can use it for staleness
+ * detection without ai/ → engine/ layering inversion. Re-exported here because
+ * this was its published home.
+ */
+export { layoutSignature };
 
 export interface ProposalDraft {
   strategy: string;

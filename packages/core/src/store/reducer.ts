@@ -1,8 +1,9 @@
-import type { CostConfig, Flow, Model, NoGoZone, RatingWeights, Station } from "../model/types";
+import type { CostConfig, CycleBreakdown, Flow, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
-import { normalizeFlow, STATION_DEFAULTS } from "../model/defaults";
+import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
 import { cellTemplate, type CellForm } from "../engine/templates";
+import { applyProposalItems, type ProposalItem } from "../engine/proposal";
 
 export type ModelAction =
   | { type: "SET_MODEL"; model: Model }
@@ -13,6 +14,10 @@ export type ModelAction =
   | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
+  /** Set or clear a station's cycle decomposition (undefined = back to opaque). */
+  | { type: "SET_CYCLE_BREAKDOWN"; id: string; cycle: CycleBreakdown | undefined }
+  /** Edit one component; seeds the breakdown from cycleTimeSec if absent. */
+  | { type: "PATCH_CYCLE_BREAKDOWN"; id: string; patch: Partial<CycleBreakdown> }
   | { type: "MOVE_STATION"; id: string; x: number; y: number }
   | { type: "RENAME_STATION"; oldId: string; newId: string }
   | { type: "DELETE_STATION"; id: string }
@@ -23,7 +28,23 @@ export type ModelAction =
   | { type: "UPDATE_NOGO"; index: number; patch: Partial<NoGoZone> }
   | { type: "REMOVE_NOGO"; index: number }
   | { type: "APPLY_TEMPLATE"; form: CellForm }
-  | { type: "ADOPT_STATIONS"; stations: Station[] };
+  // ---- Workload (spec §11). The product-free input: what must be done, ----
+  // ---- independent of what is made. `analyseWorkload` has consumed these ----
+  // ---- since schema v8; until now nothing could write them. ----
+  /** Replace the whole set in one commit — one undo step for "derive from stations". */
+  | { type: "SET_WORK_ELEMENTS"; elements: WorkElement[] }
+  | { type: "ADD_WORK_ELEMENT"; element: WorkElement }
+  | { type: "UPDATE_WORK_ELEMENT"; id: string; patch: Partial<WorkElement> }
+  | { type: "DELETE_WORK_ELEMENT"; id: string }
+  | { type: "ADD_VARIANT_MODE"; mode: VariantMode }
+  | { type: "UPDATE_VARIANT_MODE"; id: string; patch: Partial<VariantMode> }
+  | { type: "DELETE_VARIANT_MODE"; id: string }
+  /**
+   * Accept some or all items of a solver proposal (spec §4). Replaces the old
+   * ADOPT_STATIONS, which took a finished station array and overwrote the
+   * user's placements wholesale.
+   */
+  | { type: "ACCEPT_PROPOSAL"; items: ProposalItem[]; itemIds: string[] };
 
 function clampStations(model: Model): Station[] {
   return model.stations.map((s) => {
@@ -63,7 +84,29 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     case "UPDATE_STATION":
       return {
         ...model,
-        stations: model.stations.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
+        // syncCycleTime keeps cycleTimeSec equal to the breakdown's sum whenever
+        // a decomposition is present, so the two can never drift apart.
+        stations: model.stations.map((s) => (s.id === action.id ? syncCycleTime({ ...s, ...action.patch }) : s)),
+      };
+
+    case "SET_CYCLE_BREAKDOWN":
+      return {
+        ...model,
+        stations: model.stations.map((s) =>
+          s.id === action.id
+            ? syncCycleTime({ ...s, cycle: action.cycle ? { ...action.cycle } : undefined })
+            : s,
+        ),
+      };
+
+    case "PATCH_CYCLE_BREAKDOWN":
+      return {
+        ...model,
+        stations: model.stations.map((s) => {
+          if (s.id !== action.id) return s;
+          const base = s.cycle ?? { valueAddSec: s.cycleTimeSec, handlingSec: 0, walkSec: 0, waitSec: 0, setupSec: 0 };
+          return syncCycleTime({ ...s, cycle: { ...base, ...action.patch } });
+        }),
       };
 
     case "MOVE_STATION": {
@@ -151,8 +194,60 @@ export function modelReducer(model: Model, action: ModelAction): Model {
       };
     }
 
-    case "ADOPT_STATIONS":
-      return { ...model, stations: action.stations.map((s) => ({ ...s })) };
+    // Spec §4 — the only path from a solver result into the model. Accepting a
+    // subset is the point: `itemIds` is what the user ticked, never "all of it
+    // because the solver said so". Pinned stations are filtered in
+    // applyProposalItems, not here.
+    case "ACCEPT_PROPOSAL":
+      return { ...model, stations: applyProposalItems(model, action.items, action.itemIds) };
+
+    case "SET_WORK_ELEMENTS":
+      return { ...model, workElements: action.elements };
+
+    case "ADD_WORK_ELEMENT":
+      return { ...model, workElements: [...(model.workElements ?? []), action.element] };
+
+    case "UPDATE_WORK_ELEMENT":
+      return {
+        ...model,
+        workElements: (model.workElements ?? []).map((e) => (e.id === action.id ? { ...e, ...action.patch } : e)),
+      };
+
+    // Deleting an element must delete every reference to it too. A dangling
+    // predecessor makes precedenceOrder return null (read as "cycle") and a
+    // dangling zoning constraint silently over-constrains the balancer — both
+    // present as the balancer being broken rather than the model being stale.
+    case "DELETE_WORK_ELEMENT": {
+      const drop = (ids: string[] | undefined) => (ids ? ids.filter((x) => x !== action.id) : ids);
+      return {
+        ...model,
+        workElements: (model.workElements ?? [])
+          .filter((e) => e.id !== action.id)
+          .map((e) => ({
+            ...e,
+            predecessors: e.predecessors.filter((p) => p !== action.id),
+            mustBeSameStationAs: drop(e.mustBeSameStationAs),
+            mustNotBeSameStationAs: drop(e.mustNotBeSameStationAs),
+          })),
+        variantModes: model.variantModes?.map((m) => {
+          if (!(action.id in m.elementOverrides)) return m;
+          const { [action.id]: _gone, ...rest } = m.elementOverrides;
+          return { ...m, elementOverrides: rest };
+        }),
+      };
+    }
+
+    case "ADD_VARIANT_MODE":
+      return { ...model, variantModes: [...(model.variantModes ?? []), action.mode] };
+
+    case "UPDATE_VARIANT_MODE":
+      return {
+        ...model,
+        variantModes: (model.variantModes ?? []).map((m) => (m.id === action.id ? { ...m, ...action.patch } : m)),
+      };
+
+    case "DELETE_VARIANT_MODE":
+      return { ...model, variantModes: (model.variantModes ?? []).filter((m) => m.id !== action.id) };
 
     default:
       return model;

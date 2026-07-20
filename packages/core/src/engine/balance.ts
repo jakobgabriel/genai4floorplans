@@ -1,6 +1,7 @@
-import type { Flow, Station } from "../model/types";
-import { DEFAULT_SHIFT_HOURS } from "../model/types";
+import type { CycleBreakdown, Flow, Station } from "../model/types";
+import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS } from "../model/types";
 import { topoOrder } from "./dag";
+import { CYCLE_LABELS, effectiveCycleSec } from "./cycle";
 
 export interface BalanceStep {
   id: string;
@@ -49,9 +50,10 @@ function shiftSeconds(hours: number): number {
 // bound). Multiply by parallelUnits for the step's full capacity (see capacityOf).
 export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS): number {
   const hours = s.shiftHours ?? shiftHours;
+  const cycleSec = effectiveCycleSec(s);
   const byCycle =
-    s.cycleTimeSec > 0
-      ? Math.floor((3600 / s.cycleTimeSec) * hours * Math.max(1, s.operators))
+    cycleSec > 0
+      ? Math.floor((3600 / cycleSec) * hours * Math.max(1, s.operators))
       : Infinity;
   const cap = s.capacityPerShift > 0 ? s.capacityPerShift : Infinity;
   const r = Math.min(byCycle, cap);
@@ -90,7 +92,27 @@ export function bottleneckAdvice(bal: BalanceResult, stations: Station[]): strin
     tips.push(`Parallelize: another identical lane (×${units + 1}) would lift this step to ~${withLane.toLocaleString()}/shift.`);
   }
   if (st && st.changeoverMin > 30) tips.push(`Reduce changeover (${st.changeoverMin} min) with SMED — it eats into available run time.`);
-  if (st && st.cycleTimeSec > 0) tips.push(`Shorten cycle time (${st.cycleTimeSec}s) via tooling/automation to raise the ceiling.`);
+  if (st) {
+    const cyc = effectiveCycleSec(st);
+    if (st.cycle) {
+      // Decomposed: name the largest non-value-add class instead of the vague
+      // "shorten cycle time" — that is the whole point of decomposing.
+      const nva = CYCLE_KEYS.filter((k) => k !== "valueAddSec")
+        .map((k) => ({ k, sec: (st.cycle as CycleBreakdown)[k] }))
+        .filter((x) => x.sec > 0)
+        .sort((a, b) => b.sec - a.sec)[0];
+      if (nva) {
+        const pct = cyc > 0 ? Math.round((nva.sec / cyc) * 100) : 0;
+        tips.push(
+          `Cycle is ${cyc}s, of which ${nva.sec}s (${pct}%) is ${CYCLE_LABELS[nva.k].toLowerCase()} — remove that before buying capacity.`,
+        );
+      } else {
+        tips.push(`Cycle is ${cyc}s and fully value-add — raising this ceiling needs process change, not waste removal.`);
+      }
+    } else if (cyc > 0) {
+      tips.push(`Shorten cycle time (${cyc}s) via tooling/automation to raise the ceiling.`);
+    }
+  }
   const secondSlowest = bal.steps
     .filter((s) => s.id !== bn.id && s.rate > 0)
     .sort((a, b) => a.rate - b.rate)[0];
@@ -180,7 +202,7 @@ export function balanceAnalysis(
     const cap = capacity[s.id];
     const t = T[s.id] ?? 0;
     const rate = isFinite(cap) ? Math.round(cap) : 0;
-    return { id: s.id, name: s.name, cycle: s.cycleTimeSec, units: Math.max(1, s.parallelUnits ?? 1), rate, util: rate > 0 ? Math.round((t / cap) * 100) : 0 };
+    return { id: s.id, name: s.name, cycle: effectiveCycleSec(s), units: Math.max(1, s.parallelUnits ?? 1), rate, util: rate > 0 ? Math.round((t / cap) * 100) : 0 };
   });
   const finite = steps.filter((x) => x.rate > 0);
   const maxRate = finite.length ? Math.max(...finite.map((x) => x.rate)) : 0;
@@ -199,7 +221,7 @@ export function balanceAnalysis(
   const parent: Record<string, string | null> = {};
   order.forEach((id) => {
     const s = byId[id];
-    const cyc = s?.role === "process" ? s.cycleTimeSec : 0;
+    const cyc = s?.role === "process" ? effectiveCycleSec(s) : 0;
     let best = -Infinity;
     let par: string | null = null;
     inFlows[id].forEach((f) => {
