@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { Tile } from "@carbon/react";
 import { cycleAnalysis } from "@flowplan/core/engine/cycle";
+import { isFlowFunction } from "@flowplan/core/model/types";
 import { classifyFreedom, type FreedomFinding } from "@flowplan/core/engine/freedom";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { YamazumiChart, BarChart } from "./charts";
@@ -98,6 +99,12 @@ export function AnalysisDashboard(props: PanelProps) {
   // The heaviest flows (volume × rectilinear distance) are where re-placing
   // stations saves the most; all from the engine's existing flow detail.
   const nameOf = (id: string) => model.stations.find((s) => s.id === id)?.name ?? id;
+
+  // Flow functions in the cell — buffers/stores that decouple the flow and hold
+  // WIP without being work steps. Surfaced so a real material flow reads honestly.
+  const buffers = model.stations.filter((s) => s.role === "process" && isFlowFunction(s));
+  const totalWip = buffers.reduce((a, s) => a + (s.bufferCapacity ?? 0), 0);
+
   const flowBars = [...(rating.actual.flowDetail ?? [])]
     .filter((f) => f.travel > 0)
     .sort((a, b) => b.travel - a.travel)
@@ -152,6 +159,9 @@ export function AnalysisDashboard(props: PanelProps) {
             <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> cell·moves/shift</span>
             <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Placement</span><span className="bi-flowkpi__val" style={{ color: scoreColor(rating.scores.placement) }}>{rating.scores.placement.toFixed(0)}</span> / 100</span>
             <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Flow cost</span><span className="bi-flowkpi__val">{Math.round(rating.actual.flowCost).toLocaleString()}</span></span>
+            {buffers.length > 0 ? (
+              <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Buffers / WIP</span><span className="bi-flowkpi__val" style={{ color: TEAL }}>{buffers.length}</span> · {totalWip.toLocaleString()} pcs</span>
+            ) : null}
           </div>
           {flowBars.length ? (
             <>

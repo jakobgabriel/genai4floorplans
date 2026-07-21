@@ -1,5 +1,5 @@
 import type { CycleBreakdown, CycleKey, Station } from "../model/types";
-import { CYCLE_KEYS, sumCycle } from "../model/types";
+import { CYCLE_KEYS, sumCycle, isFlowFunction } from "../model/types";
 
 // Cycle-time decomposition (spec: lifecycle case 3).
 //
@@ -99,7 +99,9 @@ function segmentsOf(c: CycleBreakdown): CycleSegment[] {
  * taktPct and the over-takt flag for a Yamazumi chart.
  */
 export function cycleAnalysis(stations: Station[], takt?: number): CycleAnalysis {
-  const proc = stations.filter((s) => s.role === "process");
+  // Flow functions (buffers/stores) have no work cycle — they never appear as
+  // Yamazumi bars, only real work steps carry cycle time.
+  const proc = stations.filter((s) => s.role === "process" && !isFlowFunction(s));
   const hasTakt = takt != null && takt > 0;
 
   const rows: StationCycle[] = proc.map((s) => {
