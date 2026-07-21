@@ -85,14 +85,40 @@ describe("generateCandidates", () => {
     expect(cell?.metrics.valueAddPct).toBeLessThan(100);
   });
 
-  it("balances elements into stations rather than mapping them 1:1", () => {
-    // Four steps, 140s of content. At 250k/yr over 460 shifts the takt is wide
-    // enough that the balancer must merge some of them.
+  it("maps each defined process step to its own station (1:1)", () => {
+    // The guided planner lets the user enumerate discrete steps; those exact
+    // steps must survive into the concept, not be merged by a balancer.
     const cell = cands.find((c) => c.concept === "cell");
     const procs = cell?.model.stations.filter((s) => s.role === "process") ?? [];
-    expect(procs.length).toBeLessThan(brief().steps.length);
-    // Every station carries the capabilities of the work it absorbed.
+    expect(procs.length).toBe(brief().steps.length);
+    // Every station carries the capability of the step it represents.
     expect(procs.flatMap((s) => s.provides ?? []).length).toBeGreaterThan(0);
+  });
+
+  it("keeps every step even at low volume where a wide takt would merge them", () => {
+    // 6000/yr over 460 shifts ≈ 13/shift ⇒ a ~2200s takt: a balancer would fold
+    // all five steps into one station. The guided flow must still show five.
+    const steps = [
+      { name: "Blank", cycleTimeSec: 15 },
+      { name: "Press", cycleTimeSec: 35 },
+      { name: "Weld", cycleTimeSec: 60 },
+      { name: "Leak test", cycleTimeSec: 25 },
+      { name: "Pack", cycleTimeSec: 20 },
+    ];
+    const low = generateCandidates(brief({ annualVolume: 6000, steps }));
+    low.forEach((c) => {
+      const procs = c.model.stations.filter((s) => s.role === "process");
+      expect(procs.length, c.id).toBe(steps.length);
+    });
+  });
+
+  it("reflects an added step as an added station", () => {
+    const five = generateCandidates(brief()).find((c) => c.concept === "cell");
+    const six = generateCandidates(brief({ steps: brief().steps.concat([{ name: "Pack", cycleTimeSec: 15 }]) })).find(
+      (c) => c.concept === "cell",
+    );
+    const count = (c: typeof five) => (c?.model.stations.filter((s) => s.role === "process") ?? []).length;
+    expect(count(six)).toBe(count(five) + 1);
   });
 
   it("applies each concept's cycle factor to total work content", () => {

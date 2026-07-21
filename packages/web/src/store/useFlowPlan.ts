@@ -58,7 +58,7 @@ export interface FlowPlanApi {
   // ---- concepts (the workspace item: a concept holds several layouts) ----
   concepts: Concept[];
   /** Create a concept in a folder, with an initial layout, and open it. */
-  createConcept: (name: string, folderId?: string | null, model?: Model) => void;
+  createConcept: (name: string, folderId?: string | null, model?: Model) => string;
   renameConcept: (id: string, name: string) => void;
   /** Move a concept (and its layouts) into another folder. */
   moveConcept: (id: string, folderId: string | null) => void;
@@ -220,11 +220,11 @@ export function useFlowPlan(): FlowPlanApi {
   );
 
   // ---- concepts -----------------------------------------------------------
-  const createConcept = useCallback((name: string, folderId: string | null = null, m?: Model) => {
+  const createConcept = useCallback((name: string, folderId: string | null = null, m?: Model): string => {
+    const position = ws.concepts.filter((c) => c.folderId === folderId).length;
+    const concept = makeConcept(name, folderId, position);
+    const cell = makeCell("Layout 1", m ?? blankModel(), folderId, concept.id);
     setWs((prev) => {
-      const position = prev.concepts.filter((c) => c.folderId === folderId).length;
-      const concept = makeConcept(name, folderId, position);
-      const cell = makeCell("Layout 1", m ?? blankModel(), folderId, concept.id);
       const next: Workspace = {
         ...prev,
         cells: persistActive(prev).concat([cell]),
@@ -232,10 +232,11 @@ export function useFlowPlan(): FlowPlanApi {
         activeId: cell.id,
       };
       saveWorkspace(next);
-      dispatch({ kind: "reset", model: cell.model });
       return next;
     });
-  }, [persistActive]);
+    dispatch({ kind: "reset", model: cell.model });
+    return cell.id;
+  }, [ws, persistActive]);
 
   const renameConcept = useCallback((id: string, name: string) => {
     setWs((prev) => {

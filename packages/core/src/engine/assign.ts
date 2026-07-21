@@ -273,3 +273,78 @@ export function assignStations(
     issues,
   };
 }
+
+/**
+ * One-to-one assignment: every work element becomes its own station, in the
+ * order given. This is the mapping the guided planner uses — the user defines
+ * discrete process steps and expects to see exactly those steps carried through
+ * to the concept and the layout, not a balancer's merged subset. Takt still
+ * drives operator manning and (via the caller) parallel lanes, so a station is
+ * sized honestly; only the *merging* of distinct steps is suppressed.
+ */
+export function assignOnePerElement(
+  elements: WorkElement[],
+  taktSec: number,
+  variantModes?: VariantMode[],
+): AssignmentResult {
+  if (elements.length === 0) {
+    return {
+      stations: [],
+      taktSec: Math.max(0, taktSec),
+      theoreticalMin: 0,
+      optimalityGapPct: 0,
+      balanceLossPct: 0,
+      totalOperators: 0,
+      method: "heuristic-rpw",
+      confidence: "low",
+      unassigned: [],
+      issues: [],
+    };
+  }
+
+  const modes = modesOf(variantModes);
+  const shares = modes.map((m) => Math.max(0, m.share));
+  const shareSum = shares.reduce((a, b) => a + b, 0) || 1;
+  const timeOf = (el: WorkElement) => {
+    const per = modes.map((m) => el.time.seconds * multiplierFor(m, el.id));
+    return { worst: Math.max(...per), weighted: per.reduce((a, sec, i) => a + sec * (shares[i] / shareSum), 0) };
+  };
+
+  const times = elements.map(timeOf);
+  const totalWorst = times.reduce((a, t) => a + t.worst, 0);
+  const theoreticalMin = taktSec > 0 ? Math.ceil(totalWorst / taktSec) : elements.length;
+  const maxCycle = times.reduce((a, t) => Math.max(a, t.worst), 0);
+
+  const out: AssignedStation[] = elements.map((el, i) => {
+    const t = times[i];
+    const attended = t.weighted * Math.max(0, Math.min(1, el.attendedFraction ?? 1));
+    return {
+      id: "st" + (i + 1),
+      sequence: i + 1,
+      elementIds: [el.id],
+      cycleTimeSec: +t.worst.toFixed(2),
+      weightedCycleSec: +t.weighted.toFixed(2),
+      attendedSec: +attended.toFixed(2),
+      operators: taktSec > 0 ? Math.max(attended > 0 ? 1 : 0, Math.ceil(attended / taktSec - 1e-9)) : attended > 0 ? 1 : 0,
+      utilizationPct: taktSec > 0 ? +((t.worst / taktSec) * 100).toFixed(1) : 0,
+      isBottleneck: Math.abs(t.worst - maxCycle) < 1e-9 && maxCycle > 0,
+      idleSec: taktSec > 0 ? +Math.max(0, taktSec - t.worst).toFixed(2) : 0,
+      capabilityIds: el.capabilityId ? [el.capabilityId] : [],
+    };
+  });
+
+  const stationTime = out.length * taktSec;
+  const idle = out.reduce((a, s) => a + s.idleSec, 0);
+  return {
+    stations: out,
+    taktSec: +Math.max(0, taktSec).toFixed(2),
+    theoreticalMin,
+    optimalityGapPct: theoreticalMin > 0 ? +(((out.length - theoreticalMin) / theoreticalMin) * 100).toFixed(1) : 0,
+    balanceLossPct: stationTime > 0 ? +((idle / stationTime) * 100).toFixed(1) : 0,
+    totalOperators: out.reduce((a, s) => a + s.operators, 0),
+    method: "heuristic-rpw",
+    confidence: weakestConfidence(elements.map((e) => e.time.confidence)),
+    unassigned: [],
+    issues: [],
+  };
+}

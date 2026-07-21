@@ -194,8 +194,11 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
   const input = io("in", "Incoming", "input", entry);
   const output = io("out", "Shipping", "output", exitAt);
 
-  // The stations are BALANCED from the work elements, not mapped 1:1 from the
-  // planner's step list. How many stations exist is an output of the balancer.
+  // Each defined process step maps to exactly ONE station — the guided planner
+  // lets the user enumerate discrete steps, and they must see those same steps
+  // carried through to the concept and the layout (not a balancer's merged
+  // subset). Takt still drives manning and parallel lanes, so a slow step is
+  // sized honestly; only the merging of distinct steps is suppressed.
   // Each step carries whatever the planner overrode; the rest is inferred.
   const rawSteps: RawStep[] = brief.steps.map((st) => ({
     name: st.name,
@@ -222,13 +225,16 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
       capexPerStation: p.capexPerStation,
       energyKw: p.energyKw,
       changeoverMin: p.changeoverMin,
+      oneStationPerStep: true,
+      auto: p.auto,
+      operatorsPerStation: p.operatorsPerStation,
     },
   );
   const procs = built.stations;
 
-  // Place the balanced stations on the form's path. The topology was solved for
-  // the number of steps the planner gave; the balancer may have produced fewer,
-  // so re-solve for the actual station count.
+  // Place the stations on the form's path. With one station per step the count
+  // equals the planner's step list, but re-solving keeps this robust if a step
+  // ever drops out (e.g. an empty name).
   const placed = cellTopology(form, procs.length, { gridW: grid.gridW - END_MARGIN * 2, gridH: grid.gridH });
   procs.forEach((st, i) => {
     const slot = placed.slots[i];

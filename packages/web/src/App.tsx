@@ -19,7 +19,7 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
 import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
-import { ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
+import { ArrowLeft, ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -150,9 +150,14 @@ export function App() {
     { name: "Pack", cycleTimeSec: 20 },
   ]);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  // Which candidate has already been loaded into the workspace, so advancing
-  // to Refine twice does not create duplicate cells.
-  const loadedCandidate = useRef<string | null>(null);
+  // The workspace cell this guided session materialised its concept into. On
+  // re-entry (the user went back, changed steps, and came forward again) we
+  // update THIS cell in place rather than spawning a duplicate — so an added or
+  // removed step is reflected without cluttering the workspace.
+  const guidedCell = useRef<string | null>(null);
+  // Signature of what was last materialised, so re-entering Concepts without any
+  // change keeps the user's editor edits instead of overwriting them.
+  const guidedSig = useRef<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -583,6 +588,14 @@ export function App() {
 
   const editorToolbar = (
     <div className="editorbar">
+      {reached.includes("concepts") ? (
+        <>
+          <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => goTo("concepts")} title="Back to the concept comparison to change steps or pick another option">
+            Concepts
+          </Button>
+          <span className="hsep" />
+        </>
+      ) : null}
       <HeaderKpis api={api} />
       <div className="spacer" />
       <Button size="sm" kind="primary" onClick={() => goTo("summary")}>
@@ -778,15 +791,30 @@ export function App() {
       </Button>
       <Button
         onClick={() => {
-          // Leaving Concepts creates a new workspace Concept from the chosen
-          // candidate (its first layout), so the guided flow yields a concept.
-          if (step === "concepts" && picked && loadedCandidate.current !== picked.id) {
-            api.createConcept(picked.model.name, null, picked.model);
-            loadedCandidate.current = picked.id;
+          // Leaving Concepts materialises the chosen candidate into the
+          // workspace. If this guided session already created a concept, update
+          // it in place (so changed steps flow through); otherwise create one.
+          if (step === "concepts" && picked) {
+            const sig = `${picked.id}|${picked.model.stations.length}|${Math.round(
+              picked.model.stations.reduce((a, s) => a + s.cycleTimeSec, 0),
+            )}`;
+            const exists = guidedCell.current && api.cells.some((c) => c.id === guidedCell.current);
+            if (!exists) {
+              guidedCell.current = api.createConcept(picked.model.name, null, picked.model);
+              toast(`Created concept ${picked.conceptLabel} (${picked.form}-form).`);
+            } else if (sig !== guidedSig.current) {
+              // Steps or the chosen concept changed — refresh the layout in place.
+              api.switchCell(guidedCell.current!);
+              api.reset(picked.model);
+              toast(`Updated concept to ${picked.conceptLabel} (${picked.form}-form).`);
+            } else {
+              // Nothing changed — keep the user's edits, just open the editor.
+              api.switchCell(guidedCell.current!);
+            }
+            guidedSig.current = sig;
             setSel(null);
             setView("actual");
             setTab("inspect");
-            toast(`Created concept ${picked.conceptLabel} (${picked.form}-form).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
         }}
