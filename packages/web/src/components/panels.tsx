@@ -810,6 +810,33 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
         </>
       ) : null}
 
+      {/* Capability coverage — Gate 1 (audit C-01): can this workload be produced
+          on this line's resources? Direct, via a substitution, or a blocker. */}
+      {!api.coverage.empty ? (
+        <>
+          <div className="lab" style={{ margin: "16px 0 8px" }}>
+            Capability coverage (Gate 1)
+          </div>
+          <InlineNotification
+            kind={api.coverage.gate1Pass ? "success" : "error"}
+            lowContrast
+            hideCloseButton
+            title={api.coverage.gate1Pass
+              ? `All ${api.coverage.required.length} required capabilities are covered${api.coverage.alternative > 0 ? ` (${api.coverage.alternative} via a substitute)` : ""}.`
+              : `${api.coverage.missing} capability(ies) not provided — the line cannot make this workload as-is.`}
+            style={{ marginBottom: 8, maxWidth: "none" }}
+          />
+          {api.coverage.required.map((c) => (
+            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", padding: "2px 0", color: TEXTD }}>
+              <span style={{ color: c.status === "missing" ? RED : "var(--cds-text-primary)" }}>{c.name}</span>
+              <span style={{ color: c.status === "covered" ? TEAL : c.status === "alternative" ? AMBER : RED }}>
+                {c.status === "covered" ? "provided" : c.status === "alternative" ? `via ${c.viaName}` : "MISSING"}
+              </span>
+            </div>
+          ))}
+        </>
+      ) : null}
+
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Draw connections
       </div>

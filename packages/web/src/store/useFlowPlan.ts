@@ -5,6 +5,7 @@ import { historyReducer, initHistory } from "./history";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { validateFlow } from "@flowplan/core/engine/validate";
 import { layoutRealism } from "@flowplan/core/engine/envelope";
+import { capabilityCoverage } from "@flowplan/core/engine/coverage";
 import { chainRating } from "@flowplan/core/engine/automation";
 import { blankModel } from "@flowplan/core/model/sample";
 import {
@@ -38,6 +39,7 @@ export interface FlowPlanApi {
   rating: ReturnType<typeof buildRating>;
   validation: ReturnType<typeof validateFlow>;
   realism: ReturnType<typeof layoutRealism>;
+  coverage: ReturnType<typeof capabilityCoverage>;
   chain: ReturnType<typeof chainRating>;
   commit: (action: ModelAction) => void;
   live: (action: ModelAction) => void;
@@ -142,6 +144,7 @@ export function useFlowPlan(): FlowPlanApi {
   const rating = useMemo(() => buildRating(model), [model]);
   const validation = useMemo(() => validateFlow(model.stations, model.flows), [model]);
   const realism = useMemo(() => layoutRealism(model), [model]);
+  const coverage = useMemo(() => capabilityCoverage(model), [model]);
   const chain = useMemo(() => chainRating(model.stations, model.flows), [model]);
 
   const commit = useCallback((action: ModelAction) => dispatch({ kind: "commit", action }), []);
@@ -460,6 +463,7 @@ export function useFlowPlan(): FlowPlanApi {
     rating,
     validation,
     realism,
+    coverage,
     chain,
     commit,
     live,

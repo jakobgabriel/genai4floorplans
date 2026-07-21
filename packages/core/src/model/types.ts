@@ -2,6 +2,8 @@
 // The whole layout is a single Model object; Export produces exactly this and
 // Import fills missing fields with defaults (see model/defaults.ts).
 
+import type { Capability } from "./capabilities";
+
 export type Role = "input" | "process" | "output";
 export type StationType = "machine" | "manual" | "quality" | "store" | "buffer";
 export type AutoState = "manual" | "semi" | "auto";
@@ -428,6 +430,9 @@ export interface Model {
    *  footprint leaves the polygon is flagged and the optimiser won't move one
    *  out. Absent ⇒ the full grid rectangle is usable. */
   floorPolygon?: Array<[number, number]>;
+  /** Governed capability catalog for this cell (spec §12, audit C-01). Absent ⇒
+   *  the seeded DEFAULT_CAPABILITIES are used, so coverage works offline. */
+  capabilities?: Capability[];
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
