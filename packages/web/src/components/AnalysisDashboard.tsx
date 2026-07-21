@@ -9,6 +9,7 @@ import { DagView } from "./DagView";
 import { OpenPointsSection, ImprovementList, type PanelProps } from "./panels";
 import { AMBER, CYCLE_COL, PURPLE, RED, TEAL, TEXTD, scoreColor } from "./colors";
 import { HelpPopover } from "./ui";
+import type { GateStatus, TestfitResult } from "@flowplan/core/engine/testfit";
 
 // The Analysis "Overview" as a real business-analytics dashboard: a KPI band,
 // then the Yamazumi front-and-centre (large, vertical), a cost/balance row, the
@@ -24,6 +25,43 @@ const CYCLE_LABEL: Record<keyof typeof CYCLE_COL, string> = {
   waitSec: "Wait",
   setupSec: "Setup",
 };
+
+const GATE_COL: Record<GateStatus, string> = { pass: TEAL, warn: AMBER, block: RED, skipped: TEXTD };
+const GATE_MARK: Record<GateStatus, string> = { pass: "✓", warn: "!", block: "✗", skipped: "–" };
+
+// The feasibility go/no-go (audit C-04, spec §20) — read BEFORE the rating,
+// because a layout that cannot make the portfolio at all should not be graded
+// or optimised. It names the single binding constraint (what to fix first) and
+// shows every gate's verdict as a chip.
+function FeasibilityBanner({ fit }: { fit: TestfitResult }) {
+  if (fit.verdict === "insufficient-data") return null;
+  const infeasible = fit.verdict === "infeasible";
+  const color = infeasible ? RED : TEAL;
+  return (
+    <Tile className="bi-feas" style={{ borderLeft: `4px solid ${color}` }}>
+      <div className="bi-feas__head">
+        <span className="bi-feas__verdict" style={{ color }}>
+          {infeasible ? "✗ Not feasible" : "✓ Feasible"}
+        </span>
+        {fit.bindingConstraint ? (
+          <span className="bi-feas__binding">
+            Binding constraint: <strong>{fit.bindingConstraint.msg}</strong>
+          </span>
+        ) : (
+          <span className="bi-feas__binding" style={{ color: TEXTD }}>Every assessable gate clears — the line can make this portfolio.</span>
+        )}
+        <HelpPopover text="Testfit checks whether this line can make the portfolio at all, separately from how good the layout is. Gates run in triage order — capability, takt, work-content balance, capacity, then layout realism — and the first blocking one is the binding constraint to fix first." />
+      </div>
+      <div className="bi-feas__gates">
+        {fit.gates.map((g) => (
+          <span key={g.id} className="bi-feas__chip" style={{ color: GATE_COL[g.status], borderColor: GATE_COL[g.status] }} title={g.summary}>
+            <span className="bi-feas__mark">{GATE_MARK[g.status]}</span> {g.label}
+          </span>
+        ))}
+      </div>
+    </Tile>
+  );
+}
 
 function KpiTile({ label, value, sub, color, help }: { label: string; value: string; sub?: string; color?: string; help?: string }) {
   return (
@@ -120,6 +158,10 @@ export function AnalysisDashboard(props: PanelProps) {
     // key optimisation signal beside it, and the least glance-critical panels
     // (structure, backlog) sit at the bottom.
     <div className="bi">
+      {/* ── feasibility go/no-go, above the rating (§20): can this line make the
+             portfolio at all, and what's the binding constraint? ── */}
+      <FeasibilityBanner fit={api.feasibility} />
+
       {/* ── top bar of the F: hero grade + headline KPIs ── */}
       <div className="bi__topbar">
         <Tile className="bi-hero">
