@@ -49,6 +49,7 @@ import type { ZoneKind } from "@flowplan/core/model/types";
 import { CostPanel } from "./components/CostPanel";
 import { DataSheetPanel } from "./components/DataSheetPanel";
 import { CapacityPanel } from "./components/CapacityPanel";
+import { PortfolioMatrixPanel } from "./components/PortfolioMatrixPanel";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
@@ -83,6 +84,7 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "datasheet", label: "Data sheet" },
   { tab: "capacity", label: "Capacity" },
   { tab: "cost", label: "Cost" },
+  { tab: "portfolio", label: "Portfolio" },
   { tab: "auto", label: "Automation" },
   // AI Chat is hidden for now (audit B-03). Before re-enabling it, its apply path
   // must route through the governed placement-Proposal flow (makePlacementProposal
@@ -609,6 +611,10 @@ export function App() {
         {analysisTab === "rating" ? (
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <AnalysisDashboard {...analysisPanelProps} />
+          </div>
+        ) : analysisTab === "portfolio" ? (
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <PortfolioMatrixPanel {...analysisPanelProps} />
           </div>
         ) : (
           <div style={{ maxWidth: 760, margin: "0 auto" }}>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Button,
   InlineNotification,
+  MultiSelect,
   NumberInput,
   Select,
   SelectItem,
@@ -14,6 +15,7 @@ import {
 import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
+import { catalogFor } from "@flowplan/core/model/capabilities";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, attendedFractionOf, availabilityOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
@@ -38,7 +40,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload" | "datasheet" | "capacity" | "doc";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload" | "datasheet" | "capacity" | "portfolio" | "doc";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -1167,6 +1169,26 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
             <NumberInput id="cfg-mtbf" label={<span className="field-lab-row">MTBF (h)<HelpPopover text="Mean time between failures. With MTTR it derives availability = MTBF ÷ (MTBF + MTTR)." /></span>} allowEmpty min={0} value={s.mtbfHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mtbfHours: value === "" ? undefined : Math.max(0, +value) })} />
             <NumberInput id="cfg-mttr" label={<span className="field-lab-row">MTTR (h)<HelpPopover text="Mean time to repair. With MTBF it derives the availability used to scale effective capacity." /></span>} allowEmpty min={0} value={s.mttrHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mttrHours: value === "" ? undefined : Math.max(0, +value) })} />
           </div>
+          {/* Capabilities this station provides (audit C-01/C-11) — the line's
+              supply side of the part-number feasibility matrix. */}
+          {(() => {
+            const items = catalogFor(api.model).map((c) => ({ id: c.id, label: c.name }));
+            const selected = items.filter((i) => (s.provides ?? []).includes(i.id));
+            return (
+              <div style={{ marginTop: 8 }}>
+                <MultiSelect
+                  id="cfg-provides"
+                  size="sm"
+                  titleText={<span className="field-lab-row">Provides (capabilities)<HelpPopover text="Capabilities this resource provides. This is the line's supply side of the Portfolio part-number feasibility matrix (Gate 1) — a part is runnable when every capability it needs is provided here or via a catalogued alternative." /></span>}
+                  label={selected.length ? `${selected.length} capability(ies)` : "Select capabilities"}
+                  items={items}
+                  itemToString={(i: { id: string; label: string } | null) => (i ? i.label : "")}
+                  selectedItems={selected}
+                  onChange={({ selectedItems }: { selectedItems: { id: string; label: string }[] }) => up({ provides: selectedItems.length ? selectedItems.map((i) => i.id) : undefined })}
+                />
+              </div>
+            );
+          })()}
         </>
       ) : null}
       <div style={{ marginTop: 8, marginBottom: 8 }}>
