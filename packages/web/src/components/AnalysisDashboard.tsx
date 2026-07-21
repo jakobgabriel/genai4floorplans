@@ -212,7 +212,7 @@ export function AnalysisDashboard(props: PanelProps) {
           wide
         >
           <div className="bi-scroll">
-            <DagView model={model} chain={api.chain} selId={props.selId} onSelect={openStation} criticalPath={rating.balance.criticalPath} />
+            <DagView model={model} chain={api.chain} selId={props.selId} onSelect={openStation} criticalPath={rating.balance.criticalPath} balance={rating.balance} />
           </div>
         </ChartCard>
 
