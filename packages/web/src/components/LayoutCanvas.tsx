@@ -32,6 +32,13 @@ function stubDir(side: Side): { dx: number; dy: number } {
 
 export type CanvasMode = "select" | "flow" | "nogo" | "group";
 
+/** Which edges a resize grip moves — the eight corner/edge handles of a zone. */
+type Grip = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+const GRIP_CURSOR: Record<Grip, string> = {
+  nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
+  n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
+};
+
 interface Props {
   model: Model;
   stations: Station[];
@@ -95,8 +102,8 @@ export function LayoutCanvas(props: Props) {
     pan: boolean;
     nogo: { x: number; y: number } | null;
     wireFrom: string | null;
-    /** Moving or resizing an existing zone: its index, the grab offset and the original rect. */
-    zone: { index: number; mode: "move" | "resize"; grabX: number; grabY: number; orig: NoGoZone } | null;
+    /** Moving or resizing an existing zone: its index, the grip (for resize), the grab offset and the original rect. */
+    zone: { index: number; mode: "move" | "resize"; grip?: Grip; grabX: number; grabY: number; orig: NoGoZone } | null;
   }>({
     id: null,
     pan: false,
@@ -105,6 +112,7 @@ export function LayoutCanvas(props: Props) {
     zone: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  const [hoverZone, setHoverZone] = useState<number | null>(null);
   const [wireEnd, setWireEnd] = useState<{ from: string; x: number; y: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
@@ -149,10 +157,20 @@ export function LayoutCanvas(props: Props) {
           const ny = Math.max(0, Math.min(model.gridH - o.h, Math.round(o.y + (g.y - d.zone.grabY))));
           props.onUpdateNoGo(d.zone.index, { x: nx, y: ny });
         } else {
-          const nw = Math.max(1, Math.min(model.gridW - o.x, Math.round(g.x - o.x)));
-          const nh = Math.max(1, Math.min(model.gridH - o.y, Math.round(g.y - o.y)));
-          console.log("RESIZE g=", g.x.toFixed(1), g.y.toFixed(1), "o=", o.x, o.y, "->", nw, nh);
-          props.onUpdateNoGo(d.zone.index, { w: nw, h: nh });
+          // Resize from whichever grip was grabbed: a west/north grip drags the
+          // left/top edge (moving x/y), an east/south grip drags the right/bottom
+          // edge. Corners move two edges. Always ≥1 cell and inside the grid.
+          const grip = d.zone.grip ?? "se";
+          const gx = Math.round(g.x);
+          const gy = Math.round(g.y);
+          const right = o.x + o.w;
+          const bottom = o.y + o.h;
+          const patch: Partial<NoGoZone> = {};
+          if (grip.includes("w")) { const nx = Math.max(0, Math.min(right - 1, gx)); patch.x = nx; patch.w = right - nx; }
+          if (grip.includes("e")) { patch.w = Math.max(1, Math.min(model.gridW - o.x, gx - o.x)); }
+          if (grip.includes("n")) { const ny = Math.max(0, Math.min(bottom - 1, gy)); patch.y = ny; patch.h = bottom - ny; }
+          if (grip.includes("s")) { patch.h = Math.max(1, Math.min(model.gridH - o.y, gy - o.y)); }
+          props.onUpdateNoGo(d.zone.index, patch);
         }
         return;
       }
@@ -253,7 +271,7 @@ export function LayoutCanvas(props: Props) {
   }
 
   // Start moving or resizing an existing zone.
-  function onZoneDown(e: React.PointerEvent, index: number, zoneMode: "move" | "resize") {
+  function onZoneDown(e: React.PointerEvent, index: number, zoneMode: "move" | "resize", grip?: Grip) {
     if (!interactive || mode === "nogo" || mode === "group" || mode === "flow") return;
     e.stopPropagation();
     const z = (model.noGoZones ?? [])[index];
@@ -262,7 +280,7 @@ export function LayoutCanvas(props: Props) {
     props.onSelectZone?.(index);
     props.onMoveStart?.(); // checkpoint once, so the whole drag is one undo step
     const g = toGrid(e.clientX, e.clientY);
-    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: { index, mode: zoneMode, grabX: g.x, grabY: g.y, orig: { ...z } } };
+    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: { index, mode: zoneMode, grip, grabX: g.x, grabY: g.y, orig: { ...z } } };
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -353,8 +371,27 @@ export function LayoutCanvas(props: Props) {
           const zw = z.w * cell;
           const zh = z.h * cell;
           const draggable = interactive && mode === "select";
+          // Handles appear on hover as well as when selected, so a zone can be
+          // grabbed and stretched directly — no click-to-select step first.
+          const showHandles = draggable && (zsel || hoverZone === i);
+          // Eight grips: four corners + four edge midpoints. Each is placed at its
+          // position on the rect and carries the cursor + edges it drags.
+          const grips: { grip: Grip; gx: number; gy: number }[] = [
+            { grip: "nw", gx: zx, gy: zy },
+            { grip: "n", gx: zx + zw / 2, gy: zy },
+            { grip: "ne", gx: zx + zw, gy: zy },
+            { grip: "e", gx: zx + zw, gy: zy + zh / 2 },
+            { grip: "se", gx: zx + zw, gy: zy + zh },
+            { grip: "s", gx: zx + zw / 2, gy: zy + zh },
+            { grip: "sw", gx: zx, gy: zy + zh },
+            { grip: "w", gx: zx, gy: zy + zh / 2 },
+          ];
           return (
-            <g key={"z" + i}>
+            <g
+              key={"z" + i}
+              onPointerEnter={draggable ? () => setHoverZone(i) : undefined}
+              onPointerLeave={draggable ? () => setHoverZone((h) => (h === i ? null : h)) : undefined}
+            >
               <rect
                 x={zx} y={zy} width={zw} height={zh}
                 fill={st.fill} opacity={solid ? 0.28 : 0.08}
@@ -365,15 +402,20 @@ export function LayoutCanvas(props: Props) {
               <text x={zx + 4} y={zy + 12} fill={st.stroke} fontSize={9} style={{ pointerEvents: "none" }}>
                 {z.label || st.label}
               </text>
-              {/* Resize handle at the bottom-right corner of the selected zone. */}
-              {zsel && draggable ? (
-                <rect
-                  x={zx + zw - 5} y={zy + zh - 5} width={10} height={10}
-                  fill={st.stroke} stroke="var(--cds-background)" strokeWidth={1}
-                  style={{ cursor: "nwse-resize" }}
-                  onPointerDown={(e) => onZoneDown(e, i, "resize")}
-                />
-              ) : null}
+              {/* Resize grips on every corner and edge, so the zone can be
+                  stretched or squeezed from any side directly. */}
+              {showHandles
+                ? grips.map((h) => (
+                    <rect
+                      key={h.grip}
+                      x={h.gx - 5} y={h.gy - 5} width={10} height={10}
+                      rx={1}
+                      fill={st.stroke} stroke="var(--cds-background)" strokeWidth={1}
+                      style={{ cursor: GRIP_CURSOR[h.grip] }}
+                      onPointerDown={(e) => onZoneDown(e, i, "resize", h.grip)}
+                    />
+                  ))
+                : null}
             </g>
           );
         })}
