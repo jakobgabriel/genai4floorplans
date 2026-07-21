@@ -9,3 +9,10 @@ coverage
 .env
 .env.*
 !.env.example
+
+# Documentation (standalone Docusaurus site: its own deps, build output, cache,
+# and the TypeDoc-generated API markdown)
+docs-site/node_modules
+docs-site/build
+docs-site/.docusaurus
+docs/engine-api

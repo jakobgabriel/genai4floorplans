@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": ["../packages/core/src"],
+  "entryPointStrategy": "expand",
+  "exclude": ["**/*.test.ts", "**/parked/**"],
+  "tsconfig": "../packages/core/tsconfig.json",
+  "out": "../docs/engine-api",
+  "name": "FlowPlan Engine API",
+  "readme": "none",
+  "githubPages": false,
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "entryFileName": "index",
+  "mergeReadme": false
+}
