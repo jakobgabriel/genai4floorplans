@@ -1,6 +1,6 @@
 import type { Flow, Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
-import { hasCollision, clearanceBlocked } from "./geometry";
+import { hasCollision, clearanceBlocked, footprintInPolygon } from "./geometry";
 
 /** A station footprint fits entirely inside the grid (audit C-05). Swapping the
  *  positions of two differently sized stations can push the larger one off the
@@ -10,7 +10,7 @@ function withinGrid(s: Pick<Station, "x" | "y" | "w" | "h">, grid: Grid): boolea
   return s.x >= 0 && s.y >= 0 && s.x + s.w <= grid.gridW && s.y + s.h <= grid.gridH;
 }
 
-type Grid = Pick<Model, "gridW" | "gridH"> & { noGoZones?: Model["noGoZones"] };
+type Grid = Pick<Model, "gridW" | "gridH"> & { noGoZones?: Model["noGoZones"]; floorPolygon?: Model["floorPolygon"] };
 
 export interface OptimizeOptions {
   /** Reject candidate swaps that would overlap a station or no-go zone. */
@@ -61,6 +61,9 @@ function greedyPass(
         // station taking a smaller one's edge slot would otherwise leave the
         // floor (audit C-05).
         if (!withinGrid(trial[i], grid) || !withinGrid(trial[j], grid)) continue;
+        // Reject a swap that moves a station off the usable floor polygon
+        // (audit C-03 inc2). Only runs when an envelope is declared.
+        if (grid.floorPolygon && grid.floorPolygon.length >= 3 && (!footprintInPolygon(trial[i], grid.floorPolygon) || !footprintInPolygon(trial[j], grid.floorPolygon))) continue;
         if (avoidCollisions) {
           const others = trial.filter((_, k) => k !== i && k !== j);
           if (

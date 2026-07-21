@@ -658,6 +658,7 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
 }
 
 function LayoutSettings({ api }: { api: FlowPlanApi }) {
+  const { toast } = useToast();
   const m = api.model;
   return (
     <div>
@@ -676,6 +677,37 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
           station too heavy for the slab. 0/blank ⇒ the check is skipped. */}
       <div style={{ marginTop: 8 }}>
         <NumberInput id="ls-floorload" label="Floor load capacity (kg/m²)" helperText="Slab capacity. A station whose weight ÷ footprint exceeds this is flagged in Flow ▸ Layout realism. 0 = not checked." min={0} value={m.floorLoadKgPerM2 ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_FLOOR_LOAD", floorLoadKgPerM2: +value > 0 ? +value : undefined })} />
+      </div>
+      {/* Floor envelope polygon (audit C-03 inc2). "Fit" seeds it to the current
+          layout's bounding box; then it can be reshaped by editing the model JSON
+          (a full on-canvas polygon editor is a later increment). Stations off the
+          floor are flagged and the optimiser keeps them inside it. */}
+      <div style={{ marginTop: 12 }}>
+        <div className="lab" style={{ marginBottom: 6 }}>Floor envelope</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Button
+            kind="tertiary"
+            size="sm"
+            onClick={() => {
+              const ss = m.stations.filter((s) => s.w > 0 && s.h > 0);
+              if (ss.length === 0) { toast("Add stations first", "err"); return; }
+              const minX = Math.max(0, Math.min(...ss.map((s) => s.x)) - 1);
+              const minY = Math.max(0, Math.min(...ss.map((s) => s.y)) - 1);
+              const maxX = Math.min(m.gridW, Math.max(...ss.map((s) => s.x + s.w)) + 1);
+              const maxY = Math.min(m.gridH, Math.max(...ss.map((s) => s.y + s.h)) + 1);
+              api.commit({ type: "SET_FLOOR_POLYGON", floorPolygon: [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]] });
+              toast("Floor fitted to layout");
+            }}
+          >
+            Fit floor to layout
+          </Button>
+          <Button kind="ghost" size="sm" disabled={!m.floorPolygon} onClick={() => { api.commit({ type: "SET_FLOOR_POLYGON", floorPolygon: undefined }); toast("Floor envelope cleared"); }}>
+            Clear
+          </Button>
+        </div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
+          {m.floorPolygon ? `${m.floorPolygon.length}-point envelope. Stations leaving it are flagged in Flow ▸ Layout realism.` : "No envelope — the full grid is usable floor."}
+        </div>
       </div>
     </div>
   );

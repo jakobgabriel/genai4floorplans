@@ -1,6 +1,6 @@
 import type { Model, Station } from "../model/types";
 import { isBlockingZone, CELL_AREA_M2 } from "../model/types";
-import { clearanceBlocked } from "./geometry";
+import { clearanceBlocked, footprintInPolygon } from "./geometry";
 
 // Layout realism (audit C-03): the checks that decide whether a layout is
 // buildable, not just cheap to flow through. A grid packer with no clearance,
@@ -8,7 +8,7 @@ import { clearanceBlocked } from "./geometry";
 // work in. These run continuously and render in place (spec §3 Law 3: invalid
 // states are permitted and visible), never blocking the edit.
 
-export type RealismKind = "clearance" | "floor-load" | "egress";
+export type RealismKind = "clearance" | "floor-load" | "egress" | "envelope";
 
 export interface RealismIssue {
   sev: "err" | "warn";
@@ -35,6 +35,8 @@ export interface LayoutRealism {
   overloaded: FloorLoad[];
   /** Process stations with no free path out to the floor boundary. */
   enclosed: string[];
+  /** Stations whose footprint leaves the usable floor polygon (C-03 inc2). */
+  offFloor: string[];
 }
 
 /** Cells a station's solid footprint occupies (integer grid). */
@@ -57,6 +59,18 @@ export function layoutRealism(model: Model): LayoutRealism {
   const clearanceConflicts: Array<[string, string]> = [];
   const overloaded: FloorLoad[] = [];
   const enclosed: string[] = [];
+  const offFloor: string[] = [];
+
+  // --- 0. Envelope: every station must sit on the usable floor polygon.
+  const poly = model.floorPolygon;
+  if (poly && poly.length >= 3) {
+    stations.forEach((s) => {
+      if (!footprintInPolygon(s, poly)) {
+        offFloor.push(s.id);
+        issues.push({ sev: "err", id: s.id, kind: "envelope", msg: `${s.name} sits off the usable floor — its footprint leaves the envelope.` });
+      }
+    });
+  }
 
   // --- 1. Clearance: no machine body inside another's keep-clear access zone.
   for (let i = 0; i < stations.length; i++) {
@@ -146,5 +160,6 @@ export function layoutRealism(model: Model): LayoutRealism {
     clearanceConflicts,
     overloaded,
     enclosed,
+    offFloor,
   };
 }

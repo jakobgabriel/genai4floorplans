@@ -198,6 +198,7 @@ export function App() {
       ...r.clearanceConflicts.flat(),
       ...r.overloaded.map((o) => o.id),
       ...r.enclosed,
+      ...r.offFloor,
     ]));
   }, [api.realism]);
 

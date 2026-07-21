@@ -128,6 +128,34 @@ export function clearanceBlocked(
   return rectsOverlap(clearanceRect(a), footprintRect(b)) || rectsOverlap(clearanceRect(b), footprintRect(a));
 }
 
+/** Point-in-polygon test (ray casting) for a closed polygon of grid points
+ *  (audit C-03 inc2). Points on the boundary count as inside. */
+export function pointInPolygon(px: number, py: number, poly: Array<[number, number]>): boolean {
+  if (poly.length < 3) return true;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    const intersects = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+/** True when a station footprint lies entirely inside the floor polygon (all
+ *  four corners), so the machine sits on usable floor (audit C-03 inc2). An
+ *  empty/degenerate polygon means "no envelope declared" → always inside. */
+export function footprintInPolygon(s: Pick<Station, "x" | "y" | "w" | "h">, poly: Array<[number, number]>): boolean {
+  if (!poly || poly.length < 3) return true;
+  const corners: Array<[number, number]> = [
+    [s.x + 0.5, s.y + 0.5],
+    [s.x + s.w - 0.5, s.y + 0.5],
+    [s.x + 0.5, s.y + s.h - 0.5],
+    [s.x + s.w - 0.5, s.y + s.h - 0.5],
+  ];
+  return corners.every(([cx, cy]) => pointInPolygon(cx, cy, poly));
+}
+
 /** Clamp a station footprint to stay inside the grid. */
 export function clampToGrid(s: Pick<Station, "w" | "h">, x: number, y: number, gridW: number, gridH: number): Point {
   return {

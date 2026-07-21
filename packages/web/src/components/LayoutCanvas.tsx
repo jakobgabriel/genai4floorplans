@@ -457,6 +457,19 @@ export function LayoutCanvas(props: Props) {
           );
         })}
 
+        {/* Usable floor outline (audit C-03 inc2) — stations must sit inside it. */}
+        {model.floorPolygon && model.floorPolygon.length >= 3 ? (
+          <polygon
+            points={model.floorPolygon.map(([px, py]) => `${PAD + px * cell},${PAD + py * cell}`).join(" ")}
+            fill="none"
+            stroke={TEAL}
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
+            opacity={0.6}
+            pointerEvents="none"
+          />
+        ) : null}
+
         {(model.noGoZones ?? []).map((z, i) => {
           const st = ZONE_STYLE[z.kind ?? "blocking"];
           const solid = (z.kind === "wall" || z.kind === "column");

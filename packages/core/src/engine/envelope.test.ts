@@ -92,3 +92,44 @@ describe("optimizer respects access clearance (audit C-03)", () => {
     expect(r.clearanceConflicts).toEqual([]);
   });
 });
+
+import { pointInPolygon, footprintInPolygon } from "./geometry";
+
+describe("floor polygon envelope (audit C-03 inc2)", () => {
+  const L = [[0, 0], [10, 0], [10, 4], [4, 4], [4, 10], [0, 10]] as Array<[number, number]>;
+  it("point-in-polygon: inside vs in the cut-out corner", () => {
+    expect(pointInPolygon(2, 2, L)).toBe(true);
+    expect(pointInPolygon(8, 8, L)).toBe(false); // the removed corner
+  });
+  it("footprintInPolygon: a station straddling the cut-out is outside", () => {
+    expect(footprintInPolygon({ x: 1, y: 1, w: 2, h: 2 }, L)).toBe(true);
+    expect(footprintInPolygon({ x: 6, y: 6, w: 2, h: 2 }, L)).toBe(false);
+    // no polygon ⇒ always inside
+    expect(footprintInPolygon({ x: 6, y: 6, w: 2, h: 2 }, [])).toBe(true);
+  });
+  it("layoutRealism flags a station off the usable floor", () => {
+    const s1 = st("a", 1, 1);
+    const s2 = st("b", 6, 6); // in the cut-out corner
+    const r = layoutRealism(model([s1, s2], { gridW: 12, gridH: 12, floorPolygon: L }));
+    expect(r.offFloor).toContain("b");
+    expect(r.offFloor).not.toContain("a");
+    expect(r.ok).toBe(false);
+  });
+  it("no envelope ⇒ no off-floor flags", () => {
+    const r = layoutRealism(model([st("a", 1, 1), st("b", 6, 6)]));
+    expect(r.offFloor).toEqual([]);
+  });
+});
+
+describe("optimizer respects the floor polygon (audit C-03 inc2)", () => {
+  it("never moves a station off the usable floor", () => {
+    // Floor excludes the right third; a flow pulls b rightward.
+    const poly = [[0, 0], [8, 0], [8, 8], [0, 8]] as Array<[number, number]>;
+    const grid = { gridW: 14, gridH: 8, noGoZones: [], floorPolygon: poly };
+    const a = st("a", 1, 3, { w: 2, h: 2 });
+    const b = st("b", 5, 3, { w: 2, h: 2 });
+    const flows = [{ from: "a", to: "b", volume: 1000, unitCost: 1, transport: "manual" as const, partWeightKg: 1, notes: "" }];
+    const out = optimize([a, b], flows, grid);
+    for (const s of out) expect(footprintInPolygon(s, poly)).toBe(true);
+  });
+});

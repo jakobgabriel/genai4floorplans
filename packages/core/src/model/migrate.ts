@@ -76,6 +76,10 @@ const toV13: Migration = (m) => ({ ...m, schemaVersion: 13 });
 // existing model (⇒ checks skipped), so nothing changes on load.
 const toV14: Migration = (m) => ({ ...m, schemaVersion: 14 });
 
+// version 14 -> 15: envelope polygon + obstacle movable/moveCost (audit C-03
+// inc2). All absent on existing models (⇒ full-grid floor, fixed obstacles).
+const toV15: Migration = (m) => ({ ...m, schemaVersion: 15 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -91,6 +95,7 @@ const MIGRATIONS: Record<number, Migration> = {
   11: toV12,
   12: toV13,
   13: toV14,
+  14: toV15,
 };
 
 export function migrate(raw: unknown): Model {

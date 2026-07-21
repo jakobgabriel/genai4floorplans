@@ -202,6 +202,11 @@ export interface NoGoZone {
   label?: string;
   /** What kind of reserved/blocked space this is. Absent ⇒ "blocking". */
   kind?: ZoneKind;
+  /** Envelope obstacle attributes (spec §14, audit C-03 inc2). `movable` marks
+   *  an obstacle that could be relocated at a cost; `moveCost` is that cost in
+   *  cost units. Absent ⇒ a fixed obstacle (a column, a wall). */
+  movable?: boolean;
+  moveCost?: number;
 }
 
 /** A documentation annotation (Node-RED "group"): a labelled, commented box drawn
@@ -418,6 +423,11 @@ export interface Model {
    *  that every station keeps a walkable path to the floor boundary. Absent ⇒
    *  DEFAULT_AISLE_WIDTH is used only when a clearance/egress check runs. */
   aisleWidth?: number;
+  /** Usable floor outline as a closed polygon of grid points (spec §14 envelope,
+   *  audit C-03 inc2). Lets the floor be a non-rectangular shape: a station whose
+   *  footprint leaves the polygon is flagged and the optimiser won't move one
+   *  out. Absent ⇒ the full grid rectangle is usable. */
+  floorPolygon?: Array<[number, number]>;
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -451,7 +461,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */
