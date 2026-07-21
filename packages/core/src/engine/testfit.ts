@@ -7,7 +7,7 @@ import { capabilityCoverage } from "./coverage";
 import { portfolioMatrix, portfolioCapacity } from "./portfolio";
 import { customerTaktSec } from "./takt";
 import { balanceAnalysis } from "./balance";
-import { analyseWorkload } from "./workload";
+import { gate4Balance } from "./gate4";
 
 // Testfit — the feasibility service (spec §20, audit C-04). It answers ONE
 // question, deliberately kept separate from optimization: *can this line make
@@ -146,40 +146,20 @@ export function testfit(model: Model, catalog: Capability[] = catalogFor(model))
     }
   }
 
-  // --- Work-content balance: an element whose own worst-case time exceeds takt
-  // can never fit a single station at any balance — it must be split, automated
-  // or paralleled. This is upstream of the station bottleneck (it can fail before
-  // any station exists). Needs work elements and a takt.
+  // --- Work-content balance (§18 Gate 4): can the workload be balanced onto the
+  // line's station count? Fails on an indivisible over-takt element, or when the
+  // line has fewer stations than the theoretical minimum. Needs a workload + takt.
   {
-    const takt = customerTaktSec(model);
-    const elements = model.workElements ?? [];
-    if (elements.length === 0 || takt <= 0) {
-      gates.balance = {
-        id: "balance",
-        label: LABELS.balance,
-        status: "skipped",
-        summary: elements.length === 0 ? "No work elements — nothing to balance." : "No demand modelled — no takt to balance against.",
-        detail: [],
-      };
+    const g4 = gate4Balance(model);
+    if (!g4.hasData) {
+      gates.balance = { id: "balance", label: LABELS.balance, status: "skipped", summary: g4.note, detail: [] };
+    } else if (g4.feasible) {
+      gates.balance = { id: "balance", label: LABELS.balance, status: "pass", summary: g4.note, detail: [] };
     } else {
-      const wl = analyseWorkload(elements, model.variantModes, takt);
-      if (wl.overTaktElements.length === 0) {
-        gates.balance = {
-          id: "balance",
-          label: LABELS.balance,
-          status: "pass",
-          summary: `Every work element fits under the ${takt}s takt — the content is divisible into takt-feasible stations.`,
-          detail: [],
-        };
-      } else {
-        gates.balance = {
-          id: "balance",
-          label: LABELS.balance,
-          status: "block",
-          summary: `${wl.overTaktElements.length} work element${wl.overTaktElements.length === 1 ? "" : "s"} exceed the ${takt}s takt alone — they cannot fit one station and must be split, automated or paralleled.`,
-          detail: wl.overTaktElements.map((e) => `${e.name}: ${e.maxSec}s worst-case vs ${takt}s takt`),
-        };
-      }
+      const detail = g4.overTakt.length > 0
+        ? g4.overTakt.map((e) => `${e.name}: ${e.maxSec}s worst-case vs ${g4.taktSec}s takt`)
+        : [`Minimum stations needed: ${g4.minStations}`, `Stations on the line: ${g4.availableStations}`];
+      gates.balance = { id: "balance", label: LABELS.balance, status: "block", summary: g4.note, detail };
     }
   }
 
