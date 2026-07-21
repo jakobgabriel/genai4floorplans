@@ -822,7 +822,7 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} useCase={useCase} /> : null}
+      {step === "summary" ? <SummaryStep picked={picked} useCase={useCase} candidates={candidates} onRefine={() => goTo("refine")} /> : null}
 
       {step !== "refine" ? stepNav : null}
 

@@ -124,6 +124,49 @@ describe("S — serpentine, alternating rows", () => {
   });
 });
 
+describe("W — double-U, folds into vertical legs", () => {
+  const l = cellTopology("W", 12, GRID);
+
+  it("uses four vertical legs for a long process", () => {
+    expect(l.legs).toBe(4);
+    expect([...new Set(l.slots.map((s) => s.x))]).toHaveLength(4);
+  });
+
+  it("folds down then up between legs, never jumping the full height", () => {
+    const span = Math.max(...l.slots.map((s) => s.y)) - Math.min(...l.slots.map((s) => s.y));
+    for (let i = 1; i < l.slots.length; i++) {
+      expect(Math.abs(l.slots[i].y - l.slots[i - 1].y)).toBeLessThanOrEqual(span);
+    }
+  });
+
+  it("brings both ends to the front (top) for one-side access", () => {
+    expect(l.entry.y).toBeLessThanOrEqual(l.slots[0].y);
+    expect(l.exit.y).toBeLessThanOrEqual(Math.min(...l.slots.map((s) => s.y)) + 1);
+  });
+
+  it("places every station on a distinct cell (no overlaps)", () => {
+    expect(new Set(l.slots.map((s) => `${s.x},${s.y}`)).size).toBe(l.slots.length);
+  });
+});
+
+describe("O — a closed loop / racetrack", () => {
+  const l = cellTopology("O", 10, GRID);
+
+  it("rings the stations around a rectangle (all four sides used)", () => {
+    const xs = new Set(l.slots.map((s) => s.x));
+    const ys = new Set(l.slots.map((s) => s.y));
+    expect(xs.size).toBeGreaterThan(1);
+    expect(ys.size).toBeGreaterThan(1);
+    expect(new Set(l.slots.map((s) => `${s.x},${s.y}`)).size).toBe(l.slots.length);
+  });
+
+  it("enters and leaves at the same open mouth — the defining loop property", () => {
+    // Near-zero gap between entry and exit is what makes it a loop, not a line.
+    expect(entryExitDistance(l)).toBeLessThanOrEqual(entryExitDistance(cellTopology("U", 10, GRID)));
+    expect(l.entryExitAdjacent).toBe(true);
+  });
+});
+
 describe("the legacy APPLY_TEMPLATE path serpentines too", () => {
   it("reverses the second row for S", () => {
     const s = cellTemplate("S", 6, GRID);

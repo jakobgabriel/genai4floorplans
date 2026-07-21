@@ -107,72 +107,84 @@ export function AnalysisDashboard(props: PanelProps) {
   const cycleLegend = <Legend items={(Object.keys(CYCLE_COL) as (keyof typeof CYCLE_COL)[]).map((k) => ({ color: CYCLE_COL[k], label: CYCLE_LABEL[k] }))} />;
 
   return (
+    // F-pattern: the eye lands top-left and sweeps right, then down the left
+    // edge. So the hero grade anchors top-left, the headline KPIs run across the
+    // top bar, the primary chart (Yamazumi) leads the tall left column with the
+    // key optimisation signal beside it, and the least glance-critical panels
+    // (structure, backlog) sit at the bottom.
     <div className="bi">
-      {/* KPI band — the headline numbers, one glance. */}
-      <div className="bi-kpis">
-        <KpiTile label="Rating" value={`${rating.letter} · ${rating.composite.toFixed(0)}`} sub="composite / 100" color={scoreColor(rating.composite)} help="Weighted composite of the seven KPIs. A≥90 … E<60." />
-        <KpiTile label="Output / shift" value={rating.balance.lineOut.toLocaleString()} sub={`takt ${takt > 0 ? takt.toFixed(1) + "s" : "—"}`} help="Line throughput per shift, gated by the slowest step." />
-        <KpiTile label="Bottleneck" value={bottleneck ? bottleneck.name : "—"} sub={bottleneck ? `${bottleneck.cycle.toFixed(1)}s${overTakt > 0 ? ` · +${overTakt.toFixed(1)}s over takt` : ""}` : "no steps"} color={overTakt > 0 ? RED : undefined} help="The step that sets the line rate. Above takt cannot meet demand without more work or a lane." />
-        <KpiTile label="Line balance" value={rating.scores.balance.toFixed(0)} sub="score / 100" color={scoreColor(rating.scores.balance)} help="How evenly work is spread across the stations." />
-        <KpiTile label="Value-add ratio" value={cycle.lineValueAddPct != null ? cycle.lineValueAddPct + "%" : "—"} sub={cycle.lineValueAddPct != null ? `${cycle.decomposedCount}/${cycle.totalCount} decomposed` : "decompose cycles"} color={cycle.lineValueAddPct != null ? scoreColor(cycle.lineValueAddPct) : undefined} help="Share of decomposed cycle time that adds value." />
-        <KpiTile label="Cost / part" value={money(cost.costPerPart)} sub={`LDC ${money(cost.ldcPerPart)} · MDC ${money(cost.mdcPerPart)}`} help="Operating cost per part at the current line output." />
+      {/* ── top bar of the F: hero grade + headline KPIs ── */}
+      <div className="bi__topbar">
+        <Tile className="bi-hero">
+          <div className="bi-hero__lab">Layout rating</div>
+          <div className="bi-hero__grade" style={{ color: scoreColor(rating.composite) }}>{rating.letter}</div>
+          <div className="bi-hero__score">{rating.composite.toFixed(0)}<span> / 100</span></div>
+          <div className="bi-hero__sub">weighted composite of 7 KPIs · A≥90 … E&lt;60</div>
+        </Tile>
+        <div className="bi-kpis">
+          <KpiTile label="Output / shift" value={rating.balance.lineOut.toLocaleString()} sub={`takt ${takt > 0 ? takt.toFixed(1) + "s" : "—"}`} help="Line throughput per shift, gated by the slowest step." />
+          <KpiTile label="Bottleneck" value={bottleneck ? bottleneck.name : "—"} sub={bottleneck ? `${bottleneck.cycle.toFixed(1)}s${overTakt > 0 ? ` · +${overTakt.toFixed(1)}s over takt` : ""}` : "no steps"} color={overTakt > 0 ? RED : undefined} help="The step that sets the line rate. Above takt cannot meet demand without more work or a lane." />
+          <KpiTile label="Line balance" value={rating.scores.balance.toFixed(0)} sub="score / 100" color={scoreColor(rating.scores.balance)} help="How evenly work is spread across the stations." />
+          <KpiTile label="Value-add ratio" value={cycle.lineValueAddPct != null ? cycle.lineValueAddPct + "%" : "—"} sub={cycle.lineValueAddPct != null ? `${cycle.decomposedCount}/${cycle.totalCount} decomposed` : "decompose cycles"} color={cycle.lineValueAddPct != null ? scoreColor(cycle.lineValueAddPct) : undefined} help="Share of decomposed cycle time that adds value." />
+          <KpiTile label="Cost / part" value={money(cost.costPerPart)} sub={`LDC ${money(cost.ldcPerPart)} · MDC ${money(cost.mdcPerPart)}`} help="Operating cost per part at the current line output." />
+        </div>
       </div>
 
-      {/* Yamazumi — large, vertical, front and centre. */}
-      <div className="bi-row">
-        <ChartCard title="Yamazumi — cycle time by station" help="Per-station cycle stacked by value-add and waste, against takt. Bars over the takt line cannot meet demand." legend={cycleLegend} wide>
-          {cycle.stations.length > 0 ? (
-            <div className="bi-scroll">
-              <YamazumiChart rows={cycle.stations} takt={takt > 0 ? takt : undefined} onSelect={openStation} />
+      {/* ── vertical stroke of the F: primary chart leads the left column, the
+             optimisation signal + cost detail flank it on the right ── */}
+      <div className="bi__fbody">
+        <div className="bi__col bi__col--main">
+          <ChartCard title="Yamazumi — cycle time by station" help="Per-station cycle stacked by value-add and waste, against takt. Bars over the takt line cannot meet demand." legend={cycleLegend}>
+            {cycle.stations.length > 0 ? (
+              <div className="bi-scroll">
+                <YamazumiChart rows={cycle.stations} takt={takt > 0 ? takt : undefined} onSelect={openStation} />
+              </div>
+            ) : (
+              <p className="bi-empty">Add process steps to see the balance.</p>
+            )}
+            {cycle.decomposedCount < cycle.totalCount ? (
+              <p className="bi-note">{cycle.totalCount - cycle.decomposedCount} of {cycle.totalCount} steps are not decomposed — hatched columns carry only a total. Split their cycle in Configure to see value-add vs waste.</p>
+            ) : null}
+          </ChartCard>
+
+          <ChartCard title="Cost per part — labour vs machine" help="LDC = labour-dependent (operator time). MDC = machine-dependent (energy + transport). Together they make the operating cost per part.">
+            <SplitBar parts={[{ label: `LDC ${money(cost.ldcPerPart)}`, value: cost.ldcPerPart, color: TEAL }, { label: `MDC ${money(cost.mdcPerPart)}`, value: cost.mdcPerPart, color: AMBER }]} />
+            <div className="bi-note">Total operating {money(cost.costPerPart)}/part · opex {money(cost.opexPerShift)}/shift · capex {money(cost.capexTotal)}.</div>
+          </ChartCard>
+        </div>
+
+        <div className="bi__col bi__col--side">
+          <ChartCard title="Material flow & distance" help="Layout optimisation minimises material travel. Total travel = Σ(volume × rectilinear distance). The heaviest flows are where re-placing stations saves the most; distance is in grid cells (× volume/shift).">
+            <div className="bi-flowkpis">
+              <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> cell·moves/shift</span>
+              <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Placement</span><span className="bi-flowkpi__val" style={{ color: scoreColor(rating.scores.placement) }}>{rating.scores.placement.toFixed(0)}</span> / 100</span>
+              <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Flow cost</span><span className="bi-flowkpi__val">{Math.round(rating.actual.flowCost).toLocaleString()}</span></span>
             </div>
-          ) : (
-            <p className="bi-empty">Add process steps to see the balance.</p>
-          )}
-          {cycle.decomposedCount < cycle.totalCount ? (
-            <p className="bi-note">{cycle.totalCount - cycle.decomposedCount} of {cycle.totalCount} steps are not decomposed — hatched columns carry only a total. Split their cycle in Configure to see value-add vs waste.</p>
-          ) : null}
-        </ChartCard>
+            {flowBars.length ? (
+              <>
+                <div className="bi-card__sublab">Heaviest flows — distance × volume</div>
+                <div className="bi-scroll"><BarChart bars={flowBars} /></div>
+              </>
+            ) : (
+              <p className="bi-empty">No inter-station material flows yet.</p>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Floor space" help="Cell = the area the stations occupy. Material supply = bins + replenishment, routinely forgotten and worth about a third more.">
+            <SplitBar
+              parts={[
+                { label: `Cell ${cost.floorSpace.cell.toLocaleString()}`, value: cost.floorSpace.cell, color: TEAL },
+                { label: `Supply +${cost.floorSpace.materialSupply.toLocaleString()}`, value: cost.floorSpace.materialSupply, color: AMBER },
+                ...(cost.floorSpace.reserved > 0 ? [{ label: `Reserved +${cost.floorSpace.reserved.toLocaleString()}`, value: cost.floorSpace.reserved, color: PURPLE }] : []),
+              ]}
+            />
+            <div className="bi-note">Total footprint {cost.floorSpace.total.toLocaleString()} {cost.floorSpace.unit}.</div>
+          </ChartCard>
+        </div>
       </div>
 
-      {/* Cost split + operating breakdown. */}
-      <div className="bi-row bi-row--2">
-        <ChartCard title="Cost per part — labour vs machine" help="LDC = labour-dependent (operator time). MDC = machine-dependent (energy + transport). Together they make the operating cost per part.">
-          <SplitBar parts={[{ label: `LDC ${money(cost.ldcPerPart)}`, value: cost.ldcPerPart, color: TEAL }, { label: `MDC ${money(cost.mdcPerPart)}`, value: cost.mdcPerPart, color: AMBER }]} />
-          <div className="bi-note">Total operating {money(cost.costPerPart)}/part · opex {money(cost.opexPerShift)}/shift · capex {money(cost.capexTotal)}.</div>
-        </ChartCard>
-        <ChartCard title="Floor space" help="Cell = the area the stations occupy. Material supply = bins + replenishment, routinely forgotten and worth about a third more.">
-          <SplitBar
-            parts={[
-              { label: `Cell ${cost.floorSpace.cell.toLocaleString()}`, value: cost.floorSpace.cell, color: TEAL },
-              { label: `Supply +${cost.floorSpace.materialSupply.toLocaleString()}`, value: cost.floorSpace.materialSupply, color: AMBER },
-              ...(cost.floorSpace.reserved > 0 ? [{ label: `Reserved +${cost.floorSpace.reserved.toLocaleString()}`, value: cost.floorSpace.reserved, color: PURPLE }] : []),
-            ]}
-          />
-          <div className="bi-note">Total footprint {cost.floorSpace.total.toLocaleString()} {cost.floorSpace.unit}.</div>
-        </ChartCard>
-      </div>
-
-      {/* Material flow & distance — the core of layout optimisation. */}
-      <div className="bi-row">
-        <ChartCard title="Material flow & distance" help="Layout optimisation minimises material travel. Total travel = Σ(volume × rectilinear distance). The heaviest flows are where re-placing stations saves the most; distance is in grid cells (× volume/shift).">
-          <div className="bi-flowkpis">
-            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> cell·moves/shift</span>
-            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Placement</span><span className="bi-flowkpi__val" style={{ color: scoreColor(rating.scores.placement) }}>{rating.scores.placement.toFixed(0)}</span> / 100</span>
-            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Flow cost</span><span className="bi-flowkpi__val">{Math.round(rating.actual.flowCost).toLocaleString()}</span></span>
-          </div>
-          {flowBars.length ? (
-            <>
-              <div className="bi-card__sublab">Heaviest flows — distance × volume</div>
-              <div className="bi-scroll"><BarChart bars={flowBars} /></div>
-            </>
-          ) : (
-            <p className="bi-empty">No inter-station material flows yet.</p>
-          )}
-        </ChartCard>
-      </div>
-
-      {/* Precedence graph + freedom finding. */}
-      <div className="bi-row">
+      {/* ── bottom of the F: least glance-critical — structure & actions ── */}
+      <div className="bi__bottom">
         <ChartCard
           title="Precedence graph"
           help="The real ordering constraints between operations. Columns are process layers; free/swappable operations are the balancing slack the tool exists to surface."
@@ -196,10 +208,7 @@ export function AnalysisDashboard(props: PanelProps) {
             <DagView model={model} chain={api.chain} selId={props.selId} onSelect={openStation} criticalPath={rating.balance.criticalPath} />
           </div>
         </ChartCard>
-      </div>
 
-      {/* Actionable backlog. */}
-      <div className="bi-row">
         <Tile className="bi-card bi-card--wide">
           <OpenPointsSection api={api} setSel={setSel} setTab={setTab} />
           <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />

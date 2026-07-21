@@ -136,7 +136,11 @@ describe("planner — guided flow", () => {
     // The editor has a forward exit, not just an entrance.
     fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
     expect(screen.getByText("This is a starting point, not a plan")).toBeTruthy();
-    expect(screen.getByText("Loaded cost/part")).toBeTruthy();
+    // The decision one-pager: the headline figure, the head-to-head, and the
+    // forward action to keep working the layout.
+    expect(screen.getByText("Loaded cost / part")).toBeTruthy();
+    expect(screen.getByText(/Why this concept/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Refine the layout" })).toBeTruthy();
   });
 
   it("Back from the first step returns to the use case picker", () => {

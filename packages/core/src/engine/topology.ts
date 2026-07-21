@@ -1,7 +1,7 @@
 import type { Model } from "../model/types";
 // Declared here rather than imported from ./templates, which now wraps this
 // module — importing back would be circular.
-export type CellForm = "I" | "U" | "L" | "S";
+export type CellForm = "I" | "U" | "L" | "S" | "W" | "O";
 export interface Slot {
   x: number;
   y: number;
@@ -27,6 +27,12 @@ export interface Slot {
 //   S  serpentine in ──▶ ▪ ▪ ▪ ┐                  alternating rows
 //                       ┌ ▪ ▪ ▪ ┘
 //                       └ ▪ ▪ ▪ ──▶ out
+//   W  double-U   in ▪ ┐ ▪ ┐ ▪                    an even number of vertical
+//                     ▪ │ ▪ │ ▪ out               legs folding down/up, so a long
+//                     ▪ ┘ ▪ ┘ ▪                   process packs in with front access
+//   O  loop        in ──▶ ▪ ▪ ▪ ┐                 a closed racetrack: material
+//                        ▪       ▪                enters and leaves the same open
+//                    out ◀── ▪ ▪ ┘                corner, circulating past each once
 
 export interface TopologyLayout {
   /** Process-station slots, in flow order. */
@@ -136,6 +142,64 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
       exit: hN > 0 ? { x: clamp(last.x + GAP, 0, right), y: bottom } : { x: clamp(last.x + GAP, 0, right), y: last.y },
       legs: 2,
       entryExitAdjacent: false,
+    };
+  }
+
+  if (form === "W") {
+    // Double-U / multi-fold: an even number of vertical legs (2 or 4) folding
+    // down-then-up, so a long process packs into a compact block with load,
+    // unload and every station reachable from the front. Distinct from the U
+    // (only 2 legs) and from the S (which runs horizontally, ends opposite).
+    const legs = n >= 8 ? 4 : 2;
+    const xs = spread(left + GAP, right - GAP, legs);
+    const perLeg = Math.ceil(n / legs);
+    const down = spread(top + H, bottom, perLeg); // top → bottom
+    const slots: Slot[] = [];
+    for (let l = 0; l < legs && slots.length < n; l++) {
+      // Fold: even legs run down, odd legs run back up.
+      const col = l % 2 === 0 ? down : down.slice().reverse();
+      for (let i = 0; i < perLeg && slots.length < n; i++) slots.push({ x: xs[l], y: col[i] });
+    }
+    // Even leg count ⇒ the last leg ends at the top, so both ends face the front.
+    return {
+      slots,
+      entry: { x: xs[0], y: clamp(top - 1, 0, bottom) },
+      exit: { x: xs[legs - 1], y: clamp(top - 1, 0, bottom) },
+      legs,
+      entryExitAdjacent: legs === 2,
+    };
+  }
+
+  if (form === "O") {
+    // Closed loop / racetrack: stations ring a rectangle and material enters and
+    // leaves at the same open corner, circulating past each once. Suits carriers
+    // or AGVs that must return to the start.
+    const x0 = left + GAP;
+    const x1 = Math.max(x0 + W, right - GAP);
+    const y0 = top;
+    const y1 = Math.max(y0 + H, bottom);
+    const wSide = Math.max(1, x1 - x0);
+    const hSide = Math.max(1, y1 - y0);
+    const perim = 2 * (wSide + hSide);
+    const slots: Slot[] = [];
+    for (let i = 0; i < n; i++) {
+      // Walk clockwise from just above the bottom-left; the +0.5 offset keeps a
+      // station off the open corner where material enters and leaves.
+      const d = ((i + 0.5) / n) * perim;
+      let x: number;
+      let y: number;
+      if (d < hSide) { x = x0; y = Math.round(y1 - d); }
+      else if (d < hSide + wSide) { x = Math.round(x0 + (d - hSide)); y = y0; }
+      else if (d < 2 * hSide + wSide) { x = x1; y = Math.round(y0 + (d - hSide - wSide)); }
+      else { x = Math.round(x1 - (d - 2 * hSide - wSide)); y = y1; }
+      slots.push({ x: clamp(x, 0, right), y: clamp(y, 0, bottom) });
+    }
+    return {
+      slots,
+      entry: { x: clamp(x0 - GAP, 0, right), y: y1 },
+      exit: { x: clamp(x0 - GAP, 0, right), y: clamp(y1 - H, 0, bottom) },
+      legs: 4,
+      entryExitAdjacent: true,
     };
   }
 

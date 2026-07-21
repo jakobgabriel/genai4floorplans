@@ -88,7 +88,7 @@ function optimizerFloor(model: Model): Model {
 }
 
 function bestCellForm(model: Model): { model: Model; form: CellForm } | null {
-  const forms: CellForm[] = ["I", "U", "L", "S"];
+  const forms: CellForm[] = ["I", "U", "L", "S", "W", "O"];
   let best: Model | null = null;
   let bestForm: CellForm = "I";
   let bestCost = Infinity;

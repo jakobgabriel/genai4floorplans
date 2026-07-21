@@ -2,7 +2,7 @@ import type { CostConfig, CycleBreakdown, Demand, Flow, Model, NoGoZone, RatingW
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
-import { cellTemplate, type CellForm } from "../engine/templates";
+import { applyForm, type CellForm } from "../engine/templates";
 import { applyProposalItems, type ProposalItem } from "../engine/proposal";
 
 export type ModelAction =
@@ -190,24 +190,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     case "REMOVE_NOGO":
       return { ...model, noGoZones: model.noGoZones.filter((_, i) => i !== action.index) };
 
-    case "APPLY_TEMPLATE": {
-      const movable = model.stations.filter((s) => s.role === "process" && !s.fixed);
-      const slots = cellTemplate(action.form, movable.length, model);
-      let k = 0;
-      return {
-        ...model,
-        stations: model.stations.map((s) => {
-          if (s.role === "process" && !s.fixed) {
-            const sl = slots[k++];
-            if (sl) {
-              const { x, y } = clampToGrid(s, sl.x, sl.y, model.gridW, model.gridH);
-              return { ...s, x, y };
-            }
-          }
-          return s;
-        }),
-      };
-    }
+    case "APPLY_TEMPLATE":
+      // Movable I/O reshape with the form (see applyForm); pinned areas stay put.
+      return { ...model, stations: applyForm(model, action.form) };
 
     // Spec §4 — the only path from a solver result into the model. Accepting a
     // subset is the point: `itemIds` is what the user ticked, never "all of it

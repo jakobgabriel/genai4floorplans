@@ -131,7 +131,7 @@ export interface CandidateFilters {
 
 // ---- model construction ---------------------------------------------------
 
-/** Columns reserved at each end for the fixed incoming/shipping areas. */
+/** Columns reserved at each end for the incoming/shipping areas. */
 const END_MARGIN = 5;
 
 function gridFor(n: number): { gridW: number; gridH: number } {
@@ -174,7 +174,12 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
       y: at.y,
       w: 3,
       h: 2,
-      fixed: true,
+      // A GENERATED layout is a starting point, not a constraint: the generator
+      // cannot know which areas are truly anchored, so it pins nothing. Movable
+      // incoming/shipping let the optimiser (and the planner) reshape the cell —
+      // I/O reflow with the form, which is where the biggest shape gains come
+      // from. A real fixed dock is set by the planner afterwards.
+      fixed: false,
       operators: 0,
       cycleTimeSec: 0,
       capacityPerShift: Math.max(1000, Math.ceil(perShiftTarget * 2)),
