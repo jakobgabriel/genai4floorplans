@@ -537,7 +537,13 @@ export function LayoutCanvas(props: Props) {
         {stations.map((s) => {
           const seld = selId === s.id;
           const picked = props.flowFirst === s.id;
-          const colliding = draggingId === s.id && dragCollide;
+          // A station conflicts when it overlaps a HARD zone (wall / blocking /
+          // column) — hasCollision already ignores soft areas (ESD, aisle,
+          // spacer), where a machine may sit. Persistent and derived from the
+          // positions, so it shows whether the station was moved onto the zone
+          // OR the zone was moved onto the station.
+          const zoneConflict = hasCollision(s, s.x, s.y, [], model.noGoZones ?? []);
+          const colliding = (draggingId === s.id && dragCollide) || zoneConflict;
           const onCpNode = cpNodes.has(s.id);
           const units = Math.max(1, s.parallelUnits ?? 1);
           const assemble = (s.mergeMode ?? "sum") === "assemble" && flows.filter((f) => f.to === s.id).length > 1;
