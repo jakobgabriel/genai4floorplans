@@ -1,4 +1,4 @@
-import type { CycleBreakdown, CycleKey, Station } from "../model/types";
+import type { CycleBreakdown, CycleKey, Station, WorkClass } from "../model/types";
 import { CYCLE_KEYS, sumCycle, isFlowFunction, partsPerCycleOf } from "../model/types";
 
 // Cycle-time decomposition (spec: lifecycle case 3).
@@ -30,6 +30,25 @@ export const CYCLE_LABELS: Record<CycleKey, string> = {
 /** Only valueAddSec adds value; the rest is waste by definition. */
 export function isValueAdd(key: CycleKey): boolean {
   return key === "valueAddSec";
+}
+
+/** Reconcile the 5-bucket CycleBreakdown with the WorkElement VA/NNVA/NVA
+ *  taxonomy (audit A-06 / contradiction #3), so the Yamazumi and the workload
+ *  analysis speak one lean vocabulary instead of two. Handling and setup are
+ *  *necessary* non-value-add (NNVA); walking and waiting are pure waste (NVA).
+ *  VA% is unchanged — only valueAdd is VA — but the non-VA time now carries the
+ *  necessary/waste distinction the flat "everything else is waste" view lost. */
+export const CYCLE_KEY_CLASS: Record<CycleKey, WorkClass> = {
+  valueAddSec: "VA",
+  handlingSec: "NNVA",
+  setupSec: "NNVA",
+  walkSec: "NVA",
+  waitSec: "NVA",
+};
+
+/** VA / NNVA / NVA class of a cycle bucket (audit A-06). */
+export function cycleKeyClass(key: CycleKey): WorkClass {
+  return CYCLE_KEY_CLASS[key];
 }
 
 export interface CycleSegment {

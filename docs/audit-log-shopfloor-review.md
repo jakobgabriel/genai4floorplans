@@ -8,9 +8,43 @@
 
 ---
 
+## 0b. Umsetzungsstand (Nachtrag, Stand HEAD dieses Branches)
+
+> Die unten in Abschnitt A–D dokumentierten Befunde wurden nach der Erstprüfung im
+> selben Branch **abgearbeitet**. Dieser Nachtrag hält fest, was behoben ist. Der
+> ursprüngliche Befundtext bleibt zur Nachvollziehbarkeit unverändert stehen.
+
+| Befund | Titel | Status | Umsetzung |
+|---|---|---|---|
+| **A-01** | Takt aus Ist-Ausstoß | ✅ behoben | `engine/takt.ts` (`customerTaktSec`), `balance.ts` liefert Kundentakt + `lineCycleSec`; UI trennt Takt/Line-pace |
+| **A-02** | Operatoren × Maschinendurchsatz | ✅ behoben | `operatorPaceLanes` — Operatoren skalieren nur `manual`; Maschinen über `parallelUnits` |
+| **A-03** | Placement = Flow-Kopie | ✅ behoben | `placementScore` (Kompaktheit), eigenständig |
+| **A-04** | Congestion inert | ✅ behoben | share-of-travel, Floor-Fallback entfernt |
+| **A-05** | Yield/Rüsten ohne Wirkung | ✅ teilweise | Yield propagiert (Gutteile); Rüst-Kapazitätsverlust braucht Losgröße/EPEI → Roadmap |
+| **A-06** | Zwei Engines / Semantik | ✅ teilweise | Gefährlicher Teil via A-02 behoben; VA/NNVA/NVA-Brücke (`CYCLE_KEY_CLASS`); volle Single-Source-Ableitung bleibt Architektur-Roadmap |
+| **A-07** | Zoning/Pinning-Guards | ✅ behoben | atomares Gruppen-Placement, Takt-/Negativ-Guard, `fixedStationId`, Kontradiktions-Report |
+| **B-01** | CI Prisma | ✅ behoben | `pretest`-Hook |
+| **B-02** | Balancer im Editor | ✅ behoben | `balanceWorkloadIntoCell`, „Balance into stations"-Aktion |
+| **B-03** | AI-Panel-Governance | ✅ dokumentiert | Gating-Kommentar; Aktivierung erst über Proposal-Weg |
+| **B-04** | Variantenmodi read-only | ✅ behoben | Modus-Editor inkl. `elementOverrides` |
+| **B-05** | 7 Wastes tot | ✅ behoben | `wastePareto` + Panel-Anzeige |
+| **C-05** | Optimizer footprint/Grid | ✅ behoben | Grid-Grenzprüfung im Swap |
+| **C-06** | Konzept-Scoring Tiebreak | ✅ behoben | Lean-Default-Tiebreak; Primärvergleich bleibt kostenbasiert (`generate.ts`) |
+| **C-08** | Fläche/Tooling ohne Kosten | ✅ behoben | Flächen- + Instandhaltungs-Opex, Payback nettiert |
+| C-01/02/03/04/09/10/11/12/13 | Katalog, Layout-Polygon, Testfit, Verteilungen, Snapshots, Portfolio-UI, Pattern-Library | 🔵 offen (Roadmap) | Greenfield-Features; bewusst nicht in dieser Iteration — Umfang je Wochen; Halbausbau widerspräche §4/§5 |
+| **D-01** | Doku veraltet | ✅ dieser Nachtrag | Status hier dokumentiert |
+
+**Test-/Typecheck-Stand nach Umsetzung:** `npm run typecheck` grün (core+web+server); `npm test` **462 grün / 2 skipped** (frischer Checkout ohne Handgriff dank B-01). Golden-Fixtures bewusst aktualisiert, wo eine Kennzahl korrigiert wurde; jeder Fix ist durch neue Tests abgesichert.
+
+**Aktualisiertes Votum:** Die fachlichen **Rechenkern-Blocker (A-01…A-05, A-07) sind geschlossen**; Takt, Kapazität und die 7 KPIs rechnen jetzt fachlich korrekt und sind test-verankert. Für eine **uneingeschränkte** Vollabnahme verbleiben die Greenfield-Lücken der C-Roadmap (v. a. Layout-Realismus C-03: Clearance/Egress/Floor-Load, sowie Katalog/Testfit) — bis dahin muss das Werkzeug seine Grenze bei „baubaren" Layouts ausweisen (siehe F-5). Für den Einsatz als **rechnerisch belastbares Planungs- und Konzeptvergleichs-Werkzeug** ist die Basis nunmehr abnahmefähig.
+
+---
+
 ## 0. Freigabe-Votum
 
 > **Status: KEINE uneingeschränkte Freigabe. Bedingte Freigabe nur für den Einsatz als qualitatives Screening-/Diskussionswerkzeug.**
+>
+> *(Nachtrag 0b: Die A-/B-Blocker dieses Votums sind inzwischen behoben — siehe Umsetzungsstand oben. Der folgende Text ist der Erstbefund.)*
 
 FlowPlan ist als Interaktions- und Struktur­werkzeug bemerkenswert weit: echte Zellform-Geometrie (I/U/L/S/W/O), ein reales Yamazumi-Panel, DAG-fähige Durchsatz-/Engpassrechnung, ein governter Proposal-Mechanismus (Ghost-Preview, Per-Item-Annahme, Stale-Erkennung, Pin-Schutz), Undo/Redo und ein Workload-Editor mit VA/NNVA/NVA. Das ist eine tragfähige Basis.
 

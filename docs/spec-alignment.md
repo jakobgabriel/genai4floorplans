@@ -1,5 +1,14 @@
 # Line Planner — alignment status
 
+> **⚠ Teilweise überholt — siehe [`docs/audit-log-shopfloor-review.md`](audit-log-shopfloor-review.md).**
+> Ein fachliches Abnahme-Audit (2026-07) hat mehrere Aussagen dieses Dokuments als
+> veraltet nachgewiesen und die zugehörigen Punkte behoben. Insbesondere:
+> - „kein Yamazumi-Artefakt" ist **falsch** — `YamazumiChart` existiert und ist erreichbar.
+> - „space … no" (Kostenmodell) ist **überholt** — Flächen- **und** Instandhaltungskosten sind gebaut.
+> - der behauptete TS-Fehler in `parked/portfolioModel.ts` existiert **nicht mehr**.
+> - der Balancer ist inzwischen aus dem Editor erreichbar (`balanceWorkloadIntoCell`), die 7 Wastes werden ausgewertet, Takt/Kapazität/KPIs sind fachlich korrigiert.
+> Der Umsetzungsstand steht im Audit-Log, Abschnitt 0b. Die untenstehenden Zeilen sind der historische Stand.
+
 Where FlowPlan stands against [`docs/line-planner-spec.md`](line-planner-spec.md),
 honestly. Two columns matter: what exists, and what is claimed but not built.
 
