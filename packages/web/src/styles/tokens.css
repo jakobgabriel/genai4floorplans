@@ -1457,9 +1457,75 @@ input.est-field {
   flex-direction: column;
   gap: var(--sp-05);
 }
+/* F-pattern — top bar: the hero grade anchors top-left, KPIs sweep right. */
+.bi__topbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.1fr) 3fr;
+  gap: var(--sp-03);
+  align-items: stretch;
+}
+/* F-pattern — vertical stroke: primary column (2fr) leads, supporting (1fr). */
+.bi__fbody {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--sp-05);
+  align-items: start;
+}
+.bi__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-05);
+  min-width: 0; /* let the scrollable Yamazumi shrink inside the grid track */
+}
+.bi__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-05);
+}
+@media (max-width: 62rem) {
+  .bi__topbar,
+  .bi__fbody {
+    grid-template-columns: 1fr;
+  }
+}
+/* The hero grade — the single most important figure, top-left. */
+.bi-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-05);
+}
+.bi-hero__lab {
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.bi-hero__grade {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 3.5rem;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: var(--sp-03);
+}
+.bi-hero__score {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 1.25rem;
+  margin-top: var(--sp-02);
+}
+.bi-hero__score span {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+}
+.bi-hero__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-03);
+  line-height: 1.4;
+}
 .bi-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--sp-03);
 }
 .bi-kpi {
