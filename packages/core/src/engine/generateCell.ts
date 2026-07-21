@@ -109,6 +109,8 @@ export function stationsFromAssignment(
       : els.some((e) => e.ergonomicLoad === "medium")
         ? "med"
         : "low";
+    // A station inherits the worst scrap of the work it absorbed.
+    const scrap = els.reduce((m, e) => Math.max(m, e.scrapRate ?? 0), 0);
 
     return normalizeStation({
       id: st.id,
@@ -130,6 +132,7 @@ export function stationsFromAssignment(
       capex: opts.capexPerStation ?? 0,
       automationCapex: Math.round((opts.capexPerStation ?? 0) * 0.6),
       energyKw: opts.energyKw ?? 0,
+      scrapRate: scrap > 0 ? scrap : undefined,
       utilities: attended > 0.8 ? ["power"] : ["power", "air"],
       notes: `Generated from ${els.length} work element(s)`,
     });

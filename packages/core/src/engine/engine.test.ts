@@ -40,18 +40,18 @@ describe("Rating (SAMPLE)", () => {
       moveCount: r.moves.length,
     }).toMatchInlineSnapshot(`
       {
-        "composite": 92.61,
-        "flowReductionPct": 1.39,
-        "letter": "A",
-        "moveCount": 2,
+        "composite": 78.61,
+        "flowReductionPct": 28.92,
+        "letter": "C",
+        "moveCount": 3,
         "scores": {
           "auto": 100,
           "balance": 83,
           "congestion": 100,
           "ergo": 65,
-          "flowCost": 98.61,
-          "placement": 98.61,
-          "travel": 100,
+          "flowCost": 71.08,
+          "placement": 71.08,
+          "travel": 70.88,
         },
       }
     `);

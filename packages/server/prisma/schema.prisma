@@ -44,13 +44,44 @@ model User {
 }
 
 model Team {
-  id          String             @id @default(cuid())
-  name        String
-  createdAt   DateTime           @default(now())
-  memberships Membership[]
-  workspaces  Workspace[]
-  aiCreds     TeamAiCredential[]
-  aiUsage     AiUsageLog[]
+  id            String             @id @default(cuid())
+  name          String
+  createdAt     DateTime           @default(now())
+  memberships   Membership[]
+  workspaces    Workspace[]
+  aiCreds       TeamAiCredential[]
+  aiUsage       AiUsageLog[]
+  libraryEntries LibraryEntry[]
+  subflows      Subflow[]
+}
+
+// Process library. A LibraryEntry is a standard building block (the client's
+// ProcessCatalogEntry, stored as JSON). teamId null = the GLOBAL seed catalog
+// shared by everyone; teamId set = a team's own custom entry. This matches the
+// locked "global catalog + per-team customs" model.
+model LibraryEntry {
+  id        String   @id @default(cuid())
+  teamId    String? // null = global catalog
+  entry     Json // the full ProcessCatalogEntry payload
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+// A grouped/subflow element (node-RED subflow): member stations + internal flows,
+// stored as JSON. Team-scoped and reusable across the team's workspaces.
+model Subflow {
+  id        String   @id @default(cuid())
+  teamId    String
+  name      String
+  data      Json // { stations, flows, w, h, category }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
 }
 
 model Membership {
@@ -92,6 +123,7 @@ model Folder {
   parentId    String? // null = top-level
   name        String
   position    Int        @default(0)
+  archived    Boolean    @default(false) // soft-deleted, recoverable from the Archive
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -114,6 +146,7 @@ model Concept {
   folderId    String? // null = workspace root
   name        String
   position    Int       @default(0)
+  archived    Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -133,6 +166,7 @@ model Cell {
   schemaVersion Int // denormalized copy of model.schemaVersion
   model         Json // the full Model object (JSONB)
   position      Int       @default(0) // order among siblings in the concept
+  archived      Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

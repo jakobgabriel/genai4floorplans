@@ -1,4 +1,17 @@
 import { useMemo, useState } from "react";
+import {
+  Button,
+  InlineNotification,
+  NumberInput,
+  Select,
+  SelectItem,
+  Slider,
+  Tag,
+  TextArea,
+  TextInput,
+  Tile,
+} from "@carbon/react";
+import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
@@ -14,8 +27,8 @@ import { guardrailCheck } from "@flowplan/core/engine/guardrails";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
-import { Field, HelpPopover, useToast } from "./ui";
+import { AMBER, CYCLE_COL, LINE, PURPLE, RED, TEAL, TEALD, TEXTD, scoreColor } from "./colors";
+import { HelpPopover, useToast } from "./ui";
 import { QualitySelect } from "./confidence";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
@@ -32,7 +45,7 @@ export interface PanelProps {
   selId: string | null;
   setSel: (id: string | null) => void;
   setTab: (t: Tab) => void;
-  setView: (v: "actual" | "improved" | "split") => void;
+  setView: (v: "actual" | "split") => void;
   mode: CanvasMode;
   setMode: (m: CanvasMode) => void;
 }
@@ -61,18 +74,30 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
   ];
   return (
     <div className="pad">
-      <div className="grade">
-        <div className="gradeBox" style={{ border: "2px solid " + letterCol, color: letterCol }}>
+      <Tile style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+        <div
+          style={{
+            width: "3.5rem",
+            height: "3.5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.75rem",
+            fontWeight: 300,
+            border: "2px solid " + letterCol,
+            color: letterCol,
+          }}
+        >
           {r.letter}
         </div>
         <div>
           <div className="lab">Actual-state rating</div>
-          <div style={{ fontSize: 26, fontWeight: 600 }}>
+          <div style={{ fontSize: "1.75rem", fontWeight: 400 }}>
             {r.composite.toFixed(0)}
-            <span style={{ fontSize: 13, color: TEXTD }}>/100</span>
+            <span style={{ fontSize: "0.875rem", color: TEXTD }}>/100</span>
           </div>
         </div>
-      </div>
+      </Tile>
       {kpis.map(([lbl, val, sc], i) => {
         const col = scoreColor(sc);
         return (
@@ -100,7 +125,7 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
       </div>
       {r.pareto.slice(0, 5).map((p, i) => (
         <div key={i} style={{ marginBottom: 7 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
             <span>{p.from + " → " + p.to}</span>
             <span>{p.share.toFixed(0)}%</span>
           </div>
@@ -144,19 +169,20 @@ export function OpenPointsSection({ api, setSel, setTab }: { api: FlowPlanApi; s
         <HelpPopover text="Generated from the estimated numbers in the model, not typed. Each is an input to secure before investment release, because investment follows these figures." />
       </div>
       {points.map((p) => (
-        <div
+        <InlineNotification
           key={p.id}
-          className="issue"
-          style={{ borderLeftColor: p.severity === "block" ? RED : AMBER, marginBottom: 6, cursor: p.ref ? "pointer" : "default", fontSize: 11 }}
+          kind={p.severity === "block" ? "error" : "warning"}
+          lowContrast
+          hideCloseButton
+          title={p.text}
+          style={{ marginBottom: 6, cursor: p.ref ? "pointer" : "default", maxWidth: "none" }}
           onClick={() => {
             if (p.ref && api.model.stations.some((s) => s.id === p.ref)) {
               setSel(p.ref);
               setTab("inspect");
             }
           }}
-        >
-          {p.text}
-        </div>
+        />
       ))}
     </div>
   );
@@ -171,7 +197,7 @@ export function ImprovementList({
   api: FlowPlanApi;
   setSel: (id: string | null) => void;
   setTab: (t: Tab) => void;
-  setView: (v: "actual" | "improved" | "split") => void;
+  setView: (v: "actual" | "split") => void;
 }) {
   const report = useMemo(() => findImprovements(api.model), [api.model]);
 
@@ -183,18 +209,16 @@ export function ImprovementList({
       </div>
 
       {report.exhausted ? (
-        <div className="ok" style={{ lineHeight: 1.5 }}>
-          <b>No headroom found.</b>
+        <InlineNotification kind="success" lowContrast hideCloseButton title="No headroom found." style={{ maxWidth: "none" }}>
           <div style={{ marginTop: 4, color: TEXTD }}>{report.why}</div>
-        </div>
+        </InlineNotification>
       ) : (
         report.improvements.slice(0, 6).map((imp: Improvement, i: number) => (
-          <div
+          <Tile
             key={imp.kind + i}
-            className="card"
-            style={{ borderLeft: "3px solid " + IMPROVEMENT_COLOR[imp.kind], cursor: imp.targetIds.length ? "pointer" : "default" }}
+            style={{ borderLeft: "3px solid " + IMPROVEMENT_COLOR[imp.kind], cursor: imp.targetIds.length ? "pointer" : "default", marginBottom: 8 }}
             onClick={() => {
-              if (imp.kind === "relayout") setView("improved");
+              if (imp.kind === "relayout") setView("split");
               else if (imp.targetIds[0]) {
                 setSel(imp.targetIds[0]);
                 setTab("inspect");
@@ -202,17 +226,17 @@ export function ImprovementList({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-              <b style={{ fontSize: 12 }}>{imp.title}</b>
-              <span style={{ fontSize: 10.5, color: TEXTD, whiteSpace: "nowrap" }}>
+              <b style={{ fontSize: "0.75rem" }}>{imp.title}</b>
+              <span style={{ fontSize: "0.75rem", color: TEXTD, whiteSpace: "nowrap" }}>
                 {imp.confidence} conf.
               </span>
             </div>
-            <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
-          </div>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
+          </Tile>
         ))
       )}
 
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
         Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
       </div>
     </div>
@@ -235,35 +259,36 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
   const w = normalizeWeights(api.model.weights ?? WEIGHTS);
   return (
     <div style={{ marginTop: 14 }}>
-      <button className="btn sm" style={{ width: "100%" }} onClick={() => setOpen((o) => !o)}>
+      <Button kind="tertiary" size="sm" style={{ width: "100%", maxWidth: "none" }} onClick={() => setOpen((o) => !o)}>
         {open ? "▾" : "▸"} Adjust KPI weights{custom ? " (custom)" : ""}
-      </button>
+      </Button>
       {open ? (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 8 }}>
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
             Re-weight the composite to match your priorities. Values are normalized to 100%; the grade updates live.
           </div>
           {WEIGHT_LABELS.map(([key, label]) => (
-            <div key={key} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                <span>{label}</span>
-                <span style={{ color: TEAL }}>{(w[key] * 100).toFixed(0)}%</span>
-              </div>
-              <input
-                type="range"
+            <div key={key} style={{ marginBottom: 8 }} onPointerDown={api.checkpoint}>
+              <Slider
+                labelText={
+                  <span style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                    <span>{label}</span>
+                    <span style={{ color: TEAL }}>{(w[key] * 100).toFixed(0)}%</span>
+                  </span>
+                }
+                hideTextInput
                 min={0}
                 max={0.5}
                 step={0.01}
                 value={w[key]}
-                onPointerDown={api.checkpoint}
-                onChange={(e) => api.live({ type: "SET_WEIGHTS", weights: { ...w, [key]: +e.target.value } })}
+                onChange={({ value }) => api.live({ type: "SET_WEIGHTS", weights: { ...w, [key]: value } })}
               />
             </div>
           ))}
           {custom ? (
-            <button className="btn sm" style={{ width: "100%" }} onClick={() => api.commit({ type: "SET_WEIGHTS", weights: undefined })}>
+            <Button kind="tertiary" size="sm" style={{ width: "100%", maxWidth: "none" }} onClick={() => api.commit({ type: "SET_WEIGHTS", weights: undefined })}>
               Reset to defaults
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : null}
@@ -283,21 +308,20 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       <div className="imp" style={{ marginTop: 0 }}>
         <div className="lab">Line output (constrained by bottleneck)</div>
         <div className="impVal">
-          {bal.lineOut.toLocaleString()} <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>parts/shift</span>
+          {bal.lineOut.toLocaleString()} <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>parts/shift</span>
         </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
           Takt ≈ {bal.takt} s/part · balance score {bal.score}/100
         </div>
       </div>
       {advice.length > 0 ? (
-        <div className="issue" style={{ borderLeftColor: RED, cursor: bal.bottleneck ? "pointer" : "default" }} onClick={() => bal.bottleneck && (setSel(bal.bottleneck.id), setTab("inspect"))}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>How to lift the constraint</div>
+        <InlineNotification kind="error" lowContrast hideCloseButton title="How to lift the constraint" style={{ cursor: bal.bottleneck ? "pointer" : "default", maxWidth: "none" }} onClick={() => bal.bottleneck && (setSel(bal.bottleneck.id), setTab("inspect"))}>
           {advice.map((t, i) => (
             <div key={i} style={{ marginBottom: 3 }}>
               · {t}
             </div>
           ))}
-        </div>
+        </InlineNotification>
       ) : null}
       <div className="lab" style={{ margin: "14px 0 8px" }}>
         Throughput per step (util % vs line)
@@ -307,7 +331,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
         const col = isBn ? RED : x.util >= 85 ? AMBER : TEAL;
         return (
           <div key={x.id} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
               <span>{x.name + (isBn ? " ◀ bottleneck" : "")}</span>
               <span style={{ color: col }}>{x.rate.toLocaleString() + "/sh · " + x.util + "%"}</span>
             </div>
@@ -317,7 +341,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
           </div>
         );
       })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
         Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
         steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
       </div>
@@ -344,17 +368,18 @@ function GuardrailSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (
         <HelpPopover text="The cell's interface contract (blueprint §10). The separation is the guardrail: a reject must not be able to leave on the good-part route, ensured by geometry. NOK = red, RWK = amber dashed on the canvas." />
       </div>
       {findings.length === 0 ? (
-        <div className="ok">Good and reject paths are spatially separated — a mix-up is impossible by design.</div>
+        <InlineNotification kind="success" lowContrast hideCloseButton title="Good and reject paths are spatially separated — a mix-up is impossible by design." style={{ maxWidth: "none" }} />
       ) : (
         findings.map((f) => (
-          <div
+          <InlineNotification
             key={f.id}
-            className="issue"
-            style={{ borderLeftColor: f.severity === "error" ? RED : AMBER, marginBottom: 6, cursor: f.stationId ? "pointer" : "default", fontSize: 11 }}
+            kind={f.severity === "error" ? "error" : "warning"}
+            lowContrast
+            hideCloseButton
+            title={f.message}
+            style={{ marginBottom: 6, cursor: f.stationId ? "pointer" : "default", maxWidth: "none" }}
             onClick={() => { if (f.stationId) { setSel(f.stationId); setTab("inspect"); } }}
-          >
-            {f.message}
-          </div>
+          />
         ))
       )}
     </div>
@@ -364,7 +389,7 @@ function GuardrailSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (
 // Freedom-finding (blueprint §4.8). A linear routing implies an order that
 // mostly does not exist; this surfaces which operations the balancer may move to
 // fill an under-loaded station. Only meaningful once a workload is present.
-const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: "#a582c9", compulsory: TEXTD };
+const FREEDOM_COL: Record<FreedomFinding, string> = { free: TEAL, swappable: AMBER, exclusive: PURPLE, compulsory: TEXTD };
 const FREEDOM_HELP =
   "A numbered routing implies a compulsory sequence that mostly does not exist. free = depends only on an early step, place it anywhere with slack (this is the balancing gain to look for). swappable = shares a predecessor with a sibling, either order works. exclusive = never runs in the same mode as another op, so they can share a station. compulsory = genuine physical precedence.";
 function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) => void }) {
@@ -377,7 +402,7 @@ function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) =>
         Placement freedom
         <HelpPopover text={FREEDOM_HELP} />
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10.5, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: "0.75rem", marginBottom: 8 }}>
         {(["free", "swappable", "exclusive", "compulsory"] as FreedomFinding[]).map((k) =>
           fr.counts[k] > 0 ? (
             <span key={k} style={{ color: FREEDOM_COL[k] }}>
@@ -395,14 +420,14 @@ function FreedomSection({ api, setTab }: { api: FlowPlanApi; setTab: (t: Tab) =>
               </td>
               <td>
                 <div>{e.name}</div>
-                <div style={{ fontSize: 10, color: TEXTD }}>{e.reason}</div>
+                <div style={{ fontSize: "0.75rem", color: TEXTD }}>{e.reason}</div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       {fr.counts.free > 0 ? (
-        <div style={{ fontSize: 10.5, color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
+        <div style={{ fontSize: "0.75rem", color: TEAL, marginTop: 4, cursor: "pointer" }} onClick={() => setTab("workload")}>
           {fr.counts.free} free operation{fr.counts.free === 1 ? "" : "s"} can fill an under-loaded station →
         </div>
       ) : null}
@@ -431,7 +456,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
       </div>
 
       {analysis.decomposedCount === 0 ? (
-        <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.6 }}>
           No step has a cycle breakdown yet. Select a step → Inspect → <b>Decompose</b> to split its
           cycle into value-add, handling, walk, wait and setup. The line ratio and waste backlog
           appear once at least one step is split.
@@ -442,9 +467,9 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
             <div className="lab">Value-add ratio{analysis.complete ? "" : " (decomposed steps only)"}</div>
             <div className="impVal">
               {analysis.lineValueAddPct}
-              <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>%</span>
+              <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>%</span>
             </div>
-            <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
               {analysis.lineValueAddSec}s value-add · {analysis.lineNonValueAddSec}s waste ·{" "}
               {analysis.decomposedCount}/{analysis.totalCount} steps split
             </div>
@@ -455,21 +480,20 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
           <div className="legend">
             {CYCLE_KEYS.map((k) => (
               <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, display: "inline-block" }} />
+                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 0, display: "inline-block" }} />
                 {CYCLE_LABELS[k]}
               </span>
             ))}
           </div>
 
           {tips.length > 0 ? (
-            <div className="issue" style={{ borderLeftColor: AMBER, marginTop: 12, cursor: "default" }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Where the waste is</div>
+            <InlineNotification kind="warning" lowContrast hideCloseButton title="Where the waste is" style={{ marginTop: 12, maxWidth: "none" }}>
               {tips.map((t, i) => (
                 <div key={i} style={{ marginBottom: 3 }}>
                   · {t}
                 </div>
               ))}
-            </div>
+            </InlineNotification>
           ) : null}
 
           {analysis.waste.length > 0 ? (
@@ -479,7 +503,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
               </div>
               {analysis.waste.slice(0, 6).map((wst, i) => (
                 <div key={wst.stationId + wst.key + i} style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => open(wst.stationId)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
                     <span>
                       {wst.stationName} · <span style={{ color: CYCLE_COL[wst.key] }}>{wst.label.toLowerCase()}</span>
                     </span>
@@ -512,19 +536,19 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 6 }}>
         {path.length === 0 ? (
-          <span style={{ fontSize: 11, color: TEXTD }}>—</span>
+          <span style={{ fontSize: "0.75rem", color: TEXTD }}>—</span>
         ) : (
           path.map((id, i) => (
             <span key={id} style={{ display: "inline-flex", alignItems: "center" }}>
-              <span className="pill" style={{ background: "rgba(43,182,168,.12)", color: TEAL, cursor: "pointer" }} onClick={() => { setSel(id); setTab("inspect"); }}>
+              <Tag type="teal" style={{ cursor: "pointer" }} onClick={() => { setSel(id); setTab("inspect"); }}>
                 {byId[id]}
-              </span>
+              </Tag>
               {i < path.length - 1 ? <span style={{ color: TEXTD, margin: "0 2px" }}>→</span> : null}
             </span>
           ))
         )}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
 
       {bal.syncWaits.length > 0 ? (
         <>
@@ -532,16 +556,21 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
             Merge synchronization
           </div>
           {bal.syncWaits.map((sw) => (
-            <div key={sw.mergeId} className="issue" style={{ borderLeftColor: AMBER, background: "rgba(224,164,88,.08)", cursor: "pointer" }} onClick={() => { setSel(sw.mergeId); setTab("inspect"); }}>
-              <div style={{ fontWeight: 600, marginBottom: 3 }}>
-                {sw.mergeName}: paced by {sw.bindingName} at {sw.bindingRate.toLocaleString()}/sh
-              </div>
+            <InlineNotification
+              key={sw.mergeId}
+              kind="warning"
+              lowContrast
+              hideCloseButton
+              title={`${sw.mergeName}: paced by ${sw.bindingName} at ${sw.bindingRate.toLocaleString()}/sh`}
+              style={{ cursor: "pointer", maxWidth: "none" }}
+              onClick={() => { setSel(sw.mergeId); setTab("inspect"); }}
+            >
               {sw.waiters.map((w) => (
-                <div key={w.id} style={{ fontSize: 11 }}>
+                <div key={w.id} style={{ fontSize: "0.75rem" }}>
                   · {w.name} idles ~{w.idle.toLocaleString()}/sh — add a ≈{w.buffer.toLocaleString()}-part buffer to decouple.
                 </div>
               ))}
-            </div>
+            </InlineNotification>
           ))}
         </>
       ) : null}
@@ -560,15 +589,15 @@ function YieldSection({ api }: { api: FlowPlanApi }) {
       <div className="imp" style={{ marginTop: 0 }}>
         <div className="lab">Rolled throughput yield</div>
         <div className="impVal">
-          {y.rolledYield}% <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>good parts</span>
+          {y.rolledYield}% <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>good parts</span>
         </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
       </div>
       {withScrap.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
       ) : (
         withScrap.map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 4 }}>
             <span>{s.name}</span>
             <span style={{ color: RED }}>
               {Math.round(s.scrapRate * 100)}% · {Math.round(s.scrapUnits).toLocaleString()}/sh
@@ -576,7 +605,7 @@ function YieldSection({ api }: { api: FlowPlanApi }) {
           </div>
         ))
       )}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
         Rolled yield = ∏(1 − scrap rate) over process steps. Informational — it doesn't change the
         composite grade.
       </div>
@@ -594,10 +623,11 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Scenarios (compare variants)
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input placeholder="name this variant…" value={name} onChange={(e) => setName(e.target.value)} />
-        <button
-          className="btn sm"
+      <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-end" }}>
+        <TextInput id="scenario-name" labelText="" hideLabel placeholder="name this variant…" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button
+          kind="tertiary"
+          size="sm"
           onClick={() => {
             const n = name.trim() || api.model.name || "Variant";
             saveScenario(n, api.model);
@@ -607,19 +637,19 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
           }}
         >
           Save
-        </button>
+        </Button>
       </div>
       {scenarios.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Save the current layout as a named variant to compare alternatives.</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD }}>Save the current layout as a named variant to compare alternatives.</div>
       ) : (
         scenarios.map((s) => (
-          <div key={s.name + tick} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 11.5 }}>
-            <button className="btn sm" style={{ flex: 1, textAlign: "left" }} onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}>
+          <div key={s.name + tick} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: "0.75rem" }}>
+            <Button kind="tertiary" size="sm" style={{ flex: 1, maxWidth: "none", justifyContent: "flex-start" }} onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}>
               {s.name}
-            </button>
-            <button className="btn sm" style={{ borderColor: RED, color: RED, marginLeft: 6 }} onClick={() => { deleteScenario(s.name); setTick((t) => t + 1); }}>
-              ×
-            </button>
+            </Button>
+            <Button kind="danger--tertiary" size="sm" aria-label={"Delete " + s.name} style={{ marginLeft: 6 }} onClick={() => { deleteScenario(s.name); setTick((t) => t + 1); }}>
+              <TrashCan />
+            </Button>
           </div>
         ))
       )}
@@ -634,20 +664,14 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Layout settings
       </div>
-      <Field label="Cell name">
-        <input value={m.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_NAME", name: e.target.value })} />
-      </Field>
-      <div className="row2">
-        <Field label="Grid width" help="Stations are re-clamped inside the grid when you shrink it.">
-          <input type="number" value={m.gridW} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_GRID", gridW: +e.target.value, gridH: m.gridH })} />
-        </Field>
-        <Field label="Grid height">
-          <input type="number" value={m.gridH} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_GRID", gridW: m.gridW, gridH: +e.target.value })} />
-        </Field>
+      <TextInput id="ls-name" labelText="Cell name" value={m.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_NAME", name: e.target.value })} />
+      <div className="row2" style={{ marginTop: 8 }}>
+        <NumberInput id="ls-gridw" label="Grid width" helperText="Stations are re-clamped inside the grid when you shrink it." value={m.gridW} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_GRID", gridW: +value, gridH: m.gridH })} />
+        <NumberInput id="ls-gridh" label="Grid height" value={m.gridH} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_GRID", gridW: m.gridW, gridH: +value })} />
       </div>
-      <Field label="Shift length (hours)" help="Used by the balance model for throughput. Stations can override this individually in Configure.">
-        <input type="number" value={m.shiftHours ?? 8} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: +e.target.value })} />
-      </Field>
+      <div style={{ marginTop: 8 }}>
+        <NumberInput id="ls-shift" label="Shift length (hours)" helperText="Used by the balance model for throughput. Stations can override this individually in Configure." value={m.shiftHours ?? 8} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: +value })} />
+      </div>
     </div>
   );
 }
@@ -658,34 +682,42 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Zones — reserved &amp; blocked space
       </div>
-      <button className={"btn sm" + (mode === "nogo" ? " on" : "")} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
+      <Button kind={mode === "nogo" ? "primary" : "tertiary"} size="sm" onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
         {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a blocking area"}
-      </button>
-      <div style={{ fontSize: 10.5, color: TEXTD, margin: "6px 0" }}>
+      </Button>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, margin: "6px 0" }}>
         Drag a rectangle for a blocking area, or drop a Spacer / Aisle / Wall / Column / ESD from the library palette.
         Blocking, wall and column obstruct placement; spacer, aisle and ESD reserve floor space.
       </div>
       {(api.model.noGoZones ?? []).map((z, i) => (
-        <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, fontSize: 11.5 }}>
-          <select
-            value={z.kind ?? "blocking"}
-            onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { kind: e.target.value as ZoneKind } })}
-            style={{ flex: "0 0 auto" }}
-            aria-label={`Zone ${i + 1} kind`}
-          >
-            {ZONE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-          <input
-            value={z.label ?? ""}
-            placeholder="label"
-            onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { label: e.target.value || undefined } })}
-            style={{ flex: "1 1 auto", minWidth: 0 }}
-            aria-label={`Zone ${i + 1} label`}
-          />
+        <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6, fontSize: "0.75rem" }}>
+          <div style={{ flex: "0 0 auto" }}>
+            <Select
+              id={`nogo-kind-${i}`}
+              labelText={`Zone ${i + 1} kind`}
+              hideLabel
+              size="sm"
+              value={z.kind ?? "blocking"}
+              onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { kind: e.target.value as ZoneKind } })}
+            >
+              {ZONE_KINDS.map((k) => <SelectItem key={k} value={k} text={k} />)}
+            </Select>
+          </div>
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            <TextInput
+              id={`nogo-label-${i}`}
+              labelText={`Zone ${i + 1} label`}
+              hideLabel
+              size="sm"
+              value={z.label ?? ""}
+              placeholder="label"
+              onChange={(e) => api.commit({ type: "UPDATE_NOGO", index: i, patch: { label: e.target.value || undefined } })}
+            />
+          </div>
           <span style={{ color: TEXTD, whiteSpace: "nowrap" }}>{z.w}×{z.h}</span>
-          <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}>
-            ×
-          </button>
+          <Button kind="danger--tertiary" size="sm" aria-label={`Remove zone ${i + 1}`} onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}>
+            <TrashCan />
+          </Button>
         </div>
       ))}
     </div>
@@ -698,50 +730,54 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
   const errCount = v.issues.filter((i) => i.sev === "err").length;
   return (
     <div className="pad">
-      <div className={v.valid ? "ok" : "issue"} style={{ marginBottom: 12, cursor: "default" }}>
-        {v.valid ? "Process flow is valid — every step connects input→output." : errCount + " blocking issue(s) found."}
-      </div>
+      <InlineNotification
+        kind={v.valid ? "success" : "error"}
+        lowContrast
+        hideCloseButton
+        title={v.valid ? "Process flow is valid — every step connects input→output." : errCount + " blocking issue(s) found."}
+        style={{ marginBottom: 12, maxWidth: "none" }}
+      />
       <div className="lab" style={{ marginBottom: 8 }}>
         Validation
       </div>
-      {v.issues.length === 0 ? <div style={{ fontSize: 11.5, color: TEXTD }}>No dead ends, orphans, or unreachable steps.</div> : null}
+      {v.issues.length === 0 ? <div style={{ fontSize: "0.75rem", color: TEXTD }}>No dead ends, orphans, or unreachable steps.</div> : null}
       {v.issues.map((it, i) => (
-        <div
+        <InlineNotification
           key={i}
-          className="issue"
-          style={{ borderLeftColor: it.sev === "err" ? RED : AMBER, background: it.sev === "err" ? "rgba(217,107,91,.08)" : "rgba(224,164,88,.08)" }}
+          kind={it.sev === "err" ? "error" : "warning"}
+          lowContrast
+          hideCloseButton
+          title={it.msg}
+          style={{ cursor: it.id ? "pointer" : "default", maxWidth: "none" }}
           onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
-        >
-          <span style={{ color: it.sev === "err" ? RED : AMBER }}>{it.sev === "err" ? "● " : "▲ "}</span>
-          {it.msg}
-        </div>
+        />
       ))}
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Draw connections
       </div>
-      <button className={"btn sm" + (mode === "flow" ? " on" : "")} onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
+      <Button kind={mode === "flow" ? "primary" : "tertiary"} size="sm" onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
         {mode === "flow" ? "Picking… tap source then target" : "Draw a flow on the canvas"}
-      </button>
+      </Button>
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Cell form templates
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
         {(["I", "U", "L", "S"] as CellForm[]).map((fm) => (
-          <button key={fm} className="btn sm" onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(fm + "-shape applied"); }}>
+          <Button key={fm} kind="tertiary" size="sm" onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(fm + "-shape applied"); }}>
             {fm}-shape
-          </button>
+          </Button>
         ))}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD }}>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD }}>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</div>
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Add a step
       </div>
-      <button
-        className="btn"
-        style={{ width: "100%" }}
+      <Button
+        kind="tertiary"
+        style={{ width: "100%", maxWidth: "none" }}
         onClick={() => {
           const ns = makeStation(api.model);
           api.commit({ type: "ADD_STATION", station: ns });
@@ -750,7 +786,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
         }}
       >
         + Add process step
-      </button>
+      </Button>
 
       <LayoutSettings api={api} />
       <NoGoSection api={api} mode={mode} setMode={setMode} />
@@ -766,21 +802,25 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
       <div className="lab" style={{ marginBottom: 8 }}>
         Automation chaining
       </div>
-      <div className={chain.islands > 0 ? "issue" : "ok"} style={{ marginBottom: 12, cursor: "default", borderLeftColor: chain.islands > 0 ? AMBER : TEAL, background: chain.islands > 0 ? "rgba(224,164,88,.08)" : "rgba(43,182,168,.08)" }}>
-        {chain.islands > 0 ? chain.islands + " auto-island(s): two automated steps joined by a manual handoff — prime to chain." : "No broken automation chains detected."}
-      </div>
+      <InlineNotification
+        kind={chain.islands > 0 ? "warning" : "success"}
+        lowContrast
+        hideCloseButton
+        title={chain.islands > 0 ? chain.islands + " auto-island(s): two automated steps joined by a manual handoff — prime to chain." : "No broken automation chains detected."}
+        style={{ marginBottom: 12, maxWidth: "none" }}
+      />
       {chain.links.map((l, i) => {
         const col = l.kind === "auto-island" ? RED : l.kind === "chained-auto" ? TEAL : l.kind === "mixed" ? AMBER : TEXTD;
         return (
-          <div key={i} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11.5 }}>{l.from + " → " + l.to}</span>
-              <span className="pill" style={{ background: "rgba(255,255,255,.05)", color: col }}>
+          <Tile key={i} style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem" }}>{l.from + " → " + l.to}</span>
+              <Tag type="gray" style={{ color: col }}>
                 {l.kind}
-              </span>
+              </Tag>
             </div>
-            <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 3 }}>via {l.transport}</div>
-          </div>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 3 }}>via {l.transport}</div>
+          </Tile>
         );
       })}
       <div className="lab" style={{ margin: "16px 0 8px" }}>
@@ -792,21 +832,21 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
           const ap = autoPotential(s);
           const col = scoreColor(ap.pct);
           return (
-            <div key={s.id} className="card" style={{ cursor: "pointer" }} onClick={() => { setSel(s.id); setTab("inspect"); }}>
+            <Tile key={s.id} style={{ cursor: "pointer", marginBottom: 8 }} onClick={() => { setSel(s.id); setTab("inspect"); }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>{s.name}</span>
-                <span style={{ color: col, fontSize: 12 }}>{ap.verdict + " · " + ap.pct.toFixed(0)}</span>
+                <span style={{ fontSize: "0.75rem" }}>{s.name}</span>
+                <span style={{ color: col, fontSize: "0.75rem" }}>{ap.verdict + " · " + ap.pct.toFixed(0)}</span>
               </div>
               <div className="bar">
                 <div style={{ width: ap.pct + "%", background: col }} />
               </div>
-              <div style={{ fontSize: 10, color: TEXTD, marginTop: 4 }}>
+              <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
                 currently {s.auto} · {ap.src === "override" ? "manual override" : "heuristic"}
               </div>
-            </div>
+            </Tile>
           );
         })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
         Heuristic weighs type, ergonomics, cycle time, changeover, volume, labor — an opinion, not a
         validated ROI model. Override per step in Configure.
       </div>
@@ -844,15 +884,15 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
                   type="button"
                   onClick={() => toggle(dx, dy)}
                   title={`cell ${dx},${dy}`}
-                  style={{ width: 16, height: 16, padding: 0, borderRadius: 3, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
+                  style={{ width: 16, height: 16, padding: 0, borderRadius: 0, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
                 />
               );
             }),
           )}
         </div>
-        <button className="btn sm" type="button" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
+        <Button kind="tertiary" size="sm" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
           Fill (rect)
-        </button>
+        </Button>
       </div>
     </label>
   );
@@ -868,7 +908,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   if (!s) {
     return (
       <div className="pad">
-        <div style={{ color: TEXTD, fontSize: 12 }}>
+        <div style={{ color: TEXTD, fontSize: "0.75rem" }}>
           Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add
           a step to create new ones.
         </div>
@@ -890,244 +930,226 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
     <div className="pad">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div className="lab">Configure · {s.id}</div>
-        <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}>
+        <Button kind="danger--tertiary" size="sm" onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}>
           Delete
-        </button>
+        </Button>
       </div>
       {/* Essentials — the handful of fields a first pass needs. Everything else
           is one click away under Advanced, so this is no longer the app's
           densest screen. */}
-      <Field label="Name">
-        <input value={s.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { name: e.target.value } })} />
-      </Field>
-      <div className="row2">
-        <Field label="Role (I/O flexible)">
-          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
-            {ROLES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Type">
-          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
-            {STATION_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
+      <TextInput id="cfg-name" labelText="Name" value={s.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { name: e.target.value } })} />
+      <div className="row2" style={{ marginTop: 8 }}>
+        <Select id="cfg-role" labelText="Role (I/O flexible)" value={s.role} onChange={(e) => up({ role: e.target.value })}>
+          {ROLES.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
+        <Select id="cfg-type" labelText="Type" value={s.type} onChange={(e) => up({ type: e.target.value })}>
+          {STATION_TYPES.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
       </div>
-      <div className="row2">
-        <Field label="Cycle time (s)" aside={qAside("cycleTimeSec")} help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
-          <input className={estClass("cycleTimeSec")} type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
-        </Field>
-        <Field label="Operators">
-          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("cycleTimeSec")}</div>
+          <NumberInput
+            id="cfg-cycle"
+            className={estClass("cycleTimeSec")}
+            label={
+              <span>
+                Cycle time (s)
+                {s.cycle ? <HelpPopover text="Derived from the breakdown below — edit the components to change it." /> : null}
+              </span>
+            }
+            value={s.cycleTimeSec}
+            disabled={!!s.cycle}
+            onFocus={api.checkpoint}
+            onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +value } })}
+          />
+        </div>
+        <NumberInput id="cfg-operators" label="Operators" value={s.operators} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +value } })} />
       </div>
-      <Field label="Fixed / anchored">
-        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
+      <div style={{ marginTop: 8, marginBottom: 8 }}>
+        <div className="field"><span>Fixed / anchored</span></div>
+        <Button kind={s.fixed ? "primary" : "tertiary"} style={{ width: "100%", maxWidth: "none" }} onClick={() => up({ fixed: !s.fixed })}>
           {s.fixed ? "FIXED — won't be moved" : "Movable"}
-        </button>
-      </Field>
+        </Button>
+      </div>
 
-      <button
-        className="btn sm"
-        style={{ width: "100%", justifyContent: "center", margin: "6px 0 4px" }}
+      <Button
+        kind="tertiary"
+        size="sm"
+        style={{ width: "100%", maxWidth: "none", justifyContent: "center", margin: "6px 0 4px" }}
         aria-expanded={showAdv}
         onClick={() => setShowAdv((v) => !v)}
       >
         {showAdv ? "▾ Hide advanced" : "▸ Advanced settings"}
-      </button>
+      </Button>
 
       {showAdv ? (
       <>
-      <Field label="Station id (rename)" help="Renaming rewrites every flow that references this station.">
-        <div style={{ display: "flex", gap: 6 }}>
-          <input placeholder={s.id} value={renameVal} onChange={(e) => setRenameVal(e.target.value)} />
-          <button
-            className="btn sm"
-            onClick={() => {
-              const nid = renameVal.trim();
-              if (!nid) return;
-              if (m.stations.some((x) => x.id === nid)) { toast("That id is already taken", "err"); return; }
-              api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
-              setSel(nid);
-              setRenameVal("");
-            }}
-          >
-            Rename
-          </button>
+      <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}>
+          <TextInput id="cfg-rename" labelText={<span className="field-lab-row">Station id (rename)<HelpPopover text="Renaming rewrites every flow that references this station." /></span>} placeholder={s.id} value={renameVal} onChange={(e) => setRenameVal(e.target.value)} />
         </div>
-      </Field>
-      <div className="row2">
-        <Field label="Width">
-          <input type="number" value={s.w} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +e.target.value) } })} />
-        </Field>
-        <Field label="Height">
-          <input type="number" value={s.h} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +e.target.value) } })} />
-        </Field>
+        <Button
+          kind="tertiary"
+          size="sm"
+          onClick={() => {
+            const nid = renameVal.trim();
+            if (!nid) return;
+            if (m.stations.some((x) => x.id === nid)) { toast("That id is already taken", "err"); return; }
+            api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
+            setSel(nid);
+            setRenameVal("");
+          }}
+        >
+          Rename
+        </Button>
+      </div>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <NumberInput id="cfg-w" label="Width" value={s.w} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +value) } })} />
+        <NumberInput id="cfg-h" label="Height" value={s.h} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +value) } })} />
       </div>
       <CellShapeEditor api={api} station={s} />
-      <div className="row2">
-        <Field label="IN port" help="Edge where material enters; flows route to this port.">
-          <select value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="OUT port" help="Edge where material exits.">
-          <select value={s.outSide ?? "right"} onChange={(e) => up({ outSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <Select id="cfg-inside" labelText={<span className="field-lab-row">IN port<HelpPopover text="Edge where material enters; flows route to this port." /></span>} value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>
+          {SIDES.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
+        <Select id="cfg-outside" labelText={<span className="field-lab-row">OUT port<HelpPopover text="Edge where material exits." /></span>} value={s.outSide ?? "right"} onChange={(e) => up({ outSide: e.target.value as Side })}>
+          {SIDES.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
       </div>
-      <div className="row2">
-        <Field label="Scrap port">
-          <select value={s.scrapSide ?? "bottom"} onChange={(e) => up({ scrapSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Scrap rate (%)" help="Share of incoming parts scrapped here. Shown in Balance ▸ Yield; not part of the grade.">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={Math.round((s.scrapRate ?? 0) * 100)}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { scrapRate: Math.max(0, Math.min(100, +e.target.value)) / 100 } })}
-          />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <Select id="cfg-scrapside" labelText="Scrap port" value={s.scrapSide ?? "bottom"} onChange={(e) => up({ scrapSide: e.target.value as Side })}>
+          {SIDES.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
+        <NumberInput
+          id="cfg-scraprate"
+          label={<span className="field-lab-row">Scrap rate (%)<HelpPopover text="Share of incoming parts scrapped here. Shown in Balance ▸ Yield; not part of the grade." /></span>}
+          min={0}
+          max={100}
+          value={Math.round((s.scrapRate ?? 0) * 100)}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { scrapRate: Math.max(0, Math.min(100, +value)) / 100 } })}
+        />
       </div>
-      <div className="row2">
-        <Field label="Parallel units (×N)" help="Identical resources running in parallel at this step. Capacity scales ×N.">
-          <input
-            type="number"
-            min={1}
-            value={s.parallelUnits ?? 1}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { parallelUnits: Math.max(1, Math.round(+e.target.value)) } })}
-          />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <NumberInput
+          id="cfg-parallel"
+          label={<span className="field-lab-row">Parallel units (×N)<HelpPopover text="Identical resources running in parallel at this step. Capacity scales ×N." /></span>}
+          min={1}
+          value={s.parallelUnits ?? 1}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { parallelUnits: Math.max(1, Math.round(+value)) } })}
+        />
         {outFlows.length > 1 ? (
-          <Field label="Split mode" help="distribute = volume splits by share across lanes; fork = each branch gets full part count (distinct components).">
-            <select value={s.splitMode ?? "distribute"} onChange={(e) => up({ splitMode: e.target.value })}>
-              {SPLIT_MODES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </Field>
+          <Select id="cfg-split" labelText={<span className="field-lab-row">Split mode<HelpPopover text="distribute = volume splits by share across lanes; fork = each branch gets full part count (distinct components)." /></span>} value={s.splitMode ?? "distribute"} onChange={(e) => up({ splitMode: e.target.value })}>
+            {SPLIT_MODES.map((t) => (
+              <SelectItem key={t} value={t} text={t} />
+            ))}
+          </Select>
         ) : (
           <div style={{ flex: 1 }} />
         )}
       </div>
       {inCount > 1 ? (
-        <Field label="Merge mode" help="sum = inbound rates add; assemble = synchronized, needs one of each input (rate = slowest feeder).">
-          <select value={s.mergeMode ?? "sum"} onChange={(e) => up({ mergeMode: e.target.value })}>
+        <div style={{ marginTop: 8 }}>
+          <Select id="cfg-merge" labelText={<span className="field-lab-row">Merge mode<HelpPopover text="sum = inbound rates add; assemble = synchronized, needs one of each input (rate = slowest feeder)." /></span>} value={s.mergeMode ?? "sum"} onChange={(e) => up({ mergeMode: e.target.value })}>
             {MERGE_MODES.map((t) => (
-              <option key={t}>{t}</option>
+              <SelectItem key={t} value={t} text={t} />
             ))}
-          </select>
-        </Field>
+          </Select>
+        </div>
       ) : null}
-      <div className="row2">
-        <Field label="Equipment capex" aside={qAside("capex")} help="One-time cost of this step's equipment (Cost tab).">
-          <input className={estClass("capex")} type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
-        </Field>
-        <Field label="Automation capex" help="Cost to automate this step — drives ROI payback.">
-          <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("capex")}</div>
+          <NumberInput id="cfg-capex" className={estClass("capex")} label={<span>Equipment capex<HelpPopover text="One-time cost of this step's equipment (Cost tab)." /></span>} min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +value) } })} />
+        </div>
+        <NumberInput id="cfg-autocapex" label={<span className="field-lab-row">Automation capex<HelpPopover text="Cost to automate this step — drives ROI payback." /></span>} min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +value) } })} />
       </div>
-      <div className="row2">
-        <Field label="Automation state">
-          <select value={s.auto} onChange={(e) => up({ auto: e.target.value })}>
-            {AUTO.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Automate? (override)">
-          <select value={s.autoOverride ?? "auto"} onChange={(e) => up({ autoOverride: e.target.value === "auto" ? null : e.target.value })}>
-            <option value="auto">heuristic</option>
-            <option value="yes">force yes</option>
-            <option value="no">force no</option>
-          </select>
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <Select id="cfg-auto" labelText="Automation state" value={s.auto} onChange={(e) => up({ auto: e.target.value })}>
+          {AUTO.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
+        <Select id="cfg-autooverride" labelText="Automate? (override)" value={s.autoOverride ?? "auto"} onChange={(e) => up({ autoOverride: e.target.value === "auto" ? null : e.target.value })}>
+          <SelectItem value="auto" text="heuristic" />
+          <SelectItem value="yes" text="force yes" />
+          <SelectItem value="no" text="force no" />
+        </Select>
       </div>
-      <div className="row2">
-        <Field label="Capacity/shift" aside={qAside("capacityPerShift")}>
-          <input className={estClass("capacityPerShift")} type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
-        </Field>
-        <Field label="Changeover (min)" aside={qAside("changeoverMin")}>
-          <input className={estClass("changeoverMin")} type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("capacityPerShift")}</div>
+          <NumberInput id="cfg-capacity" className={estClass("capacityPerShift")} label="Capacity/shift" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +value } })} />
+        </div>
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("changeoverMin")}</div>
+          <NumberInput id="cfg-changeover" className={estClass("changeoverMin")} label="Changeover (min)" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +value } })} />
+        </div>
       </div>
       <CycleBreakdownEditor api={api} s={s} />
-      <div className="row2">
-        <Field label="Ergonomic risk">
-          <select value={s.ergoRisk} onChange={(e) => up({ ergoRisk: e.target.value })}>
-            {ERGO.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Shift hours (override)" help="Leave blank to use the cell default.">
-          <input type="number" value={s.shiftHours ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { shiftHours: e.target.value === "" ? undefined : +e.target.value } })} />
-        </Field>
+      <div className="row2" style={{ marginTop: 8 }}>
+        <Select id="cfg-ergo" labelText="Ergonomic risk" value={s.ergoRisk} onChange={(e) => up({ ergoRisk: e.target.value })}>
+          {ERGO.map((t) => (
+            <SelectItem key={t} value={t} text={t} />
+          ))}
+        </Select>
+        <NumberInput id="cfg-shifthours" label={<span className="field-lab-row">Shift hours (override)<HelpPopover text="Leave blank to use the cell default." /></span>} allowEmpty value={s.shiftHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { shiftHours: value === "" ? undefined : +value } })} />
       </div>
-      <Field label="Utilities (comma-sep)">
-        <input value={(s.utilities ?? []).join(", ")} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { utilities: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } })} />
-      </Field>
-      <Field label="Notes">
-        <textarea style={{ minHeight: 42, resize: "vertical" }} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { notes: e.target.value } })} />
-      </Field>
+      <div style={{ marginTop: 8 }}>
+        <TextInput id="cfg-utilities" labelText="Utilities (comma-sep)" value={(s.utilities ?? []).join(", ")} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { utilities: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } })} />
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <TextArea id="cfg-notes" labelText="Notes" rows={2} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { notes: e.target.value } })} />
+      </div>
       </>
       ) : null}
 
       <div className="lab" style={{ margin: "12px 0 6px" }}>
         Connections
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 6 }}>Outgoing flows from this step:</div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6 }}>Outgoing flows from this step:</div>
       {outFlows.map((f, i) => (
-        <div key={i} className="card" style={{ padding: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, marginBottom: 6 }}>
+        <Tile key={i} style={{ padding: 8, marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", marginBottom: 6 }}>
             <span>→ {f.to}</span>
-            <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}>
-              ×
-            </button>
+            <Button kind="danger--tertiary" size="sm" aria-label={`Remove flow to ${f.to}`} onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}>
+              <TrashCan />
+            </Button>
           </div>
           <div className="row2">
-            <Field label="Volume">
-              <input type="number" value={f.volume} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { volume: +e.target.value } })} />
-            </Field>
-            <Field label="Transport">
-              <select value={f.transport} onChange={(e) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { transport: e.target.value as Flow["transport"] } })}>
-                {TRANSPORT.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
+            <NumberInput id={`flow-vol-${i}`} label="Volume" value={f.volume} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { volume: +value } })} />
+            <Select id={`flow-transport-${i}`} labelText="Transport" value={f.transport} onChange={(e) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { transport: e.target.value as Flow["transport"] } })}>
+              {TRANSPORT.map((t) => (
+                <SelectItem key={t} value={t} text={t} />
+              ))}
+            </Select>
           </div>
-        </div>
+        </Tile>
       ))}
-      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <select value={addTo} style={{ flex: 1 }} onChange={(e) => setAddTo(e.target.value)}>
-          <option value="" disabled>
-            add flow to…
-          </option>
-          {m.stations.filter((x) => x.id !== s.id).map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-        <button className="btn sm" onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}>
+          <Select id="cfg-addflow" labelText="Add flow to" hideLabel value={addTo} onChange={(e) => setAddTo(e.target.value)}>
+            <SelectItem value="" text="add flow to…" disabled />
+            {m.stations.filter((x) => x.id !== s.id).map((x) => (
+              <SelectItem key={x.id} value={x.id} text={x.name} />
+            ))}
+          </Select>
+        </div>
+        <Button kind="tertiary" size="sm" onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
           Add
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1141,17 +1163,18 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
 
   if (!s.cycle) {
     return (
-      <div style={{ margin: "2px 0 10px" }}>
-        <button
-          className="btn sm"
+      <div style={{ margin: "2px 0 10px", display: "flex", alignItems: "center" }}>
+        <Button
+          kind="tertiary"
+          size="sm"
           onClick={() => {
             api.checkpoint();
             api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: seedBreakdown(s) });
           }}
         >
           Decompose cycle
-        </button>
-        <span style={{ fontSize: 10.5, color: TEXTD, marginLeft: 8 }}>
+        </Button>
+        <span style={{ fontSize: "0.75rem", color: TEXTD, marginLeft: 8 }}>
           split {s.cycleTimeSec}s into value-add & waste
         </span>
       </div>
@@ -1163,14 +1186,15 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
   const vaPct = total > 0 ? Math.round((va / total) * 100) : 0;
 
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
+    <Tile style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span className="lab" style={{ margin: 0 }}>
           Cycle breakdown
           <HelpPopover text="Only value-add transforms the part. The other four classes are waste — the cycle time is their sum." />
         </span>
-        <button
-          className="btn sm"
+        <Button
+          kind="tertiary"
+          size="sm"
           title="Discard the split and go back to a single cycle time"
           onClick={() => {
             api.checkpoint();
@@ -1178,31 +1202,35 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
           }}
         >
           Reset
-        </button>
+        </Button>
       </div>
 
       {CYCLE_KEYS.map((k) => (
         <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, flex: "0 0 auto" }} />
-          <span style={{ fontSize: 11, flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
-          <input
-            type="number"
-            min={0}
-            style={{ width: 74, flex: "0 0 auto" }}
-            value={(s.cycle as CycleBreakdown)[k]}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "PATCH_CYCLE_BREAKDOWN", id: s.id, patch: { [k]: Math.max(0, +e.target.value) } })}
-          />
+          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 0, flex: "0 0 auto" }} />
+          <span style={{ fontSize: "0.75rem", flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
+          <div style={{ width: 96, flex: "0 0 auto" }}>
+            <NumberInput
+              id={`cycle-${k}`}
+              label={CYCLE_LABELS[k]}
+              hideLabel
+              size="sm"
+              min={0}
+              value={(s.cycle as CycleBreakdown)[k]}
+              onFocus={api.checkpoint}
+              onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "PATCH_CYCLE_BREAKDOWN", id: s.id, patch: { [k]: Math.max(0, +value) } })}
+            />
+          </div>
         </div>
       ))}
 
-      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: "0.75rem" }}>
         <span>Total cycle</span>
         <span>
           <b>{total}s</b> <span style={{ color: vaPct >= 60 ? TEAL : vaPct >= 30 ? AMBER : RED }}>· {vaPct}% value-add</span>
         </span>
       </div>
-    </div>
+    </Tile>
   );
 }
 
@@ -1235,11 +1263,11 @@ export function SchemaPanel() {
       <div className="lab" style={{ marginBottom: 8 }}>
         Data model
       </div>
-      <div style={{ fontSize: 11.5, color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
         The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields
         fill with defaults on import, and older files are migrated forward automatically.
       </div>
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>root</code>
       </div>
       {tbl([
@@ -1254,7 +1282,7 @@ export function SchemaPanel() {
         ["flows", "array", "material movements"],
         ["noGoZones", "array", "blocked rects {x,y,w,h}"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>station</code>
       </div>
       {tbl([
@@ -1286,7 +1314,7 @@ export function SchemaPanel() {
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
         <code>flow</code>
       </div>
       {tbl([
@@ -1300,7 +1328,7 @@ export function SchemaPanel() {
         ["unitsPerAssembly", "int?", "inputs per assembled unit"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>
         Flow cost = Σ(volume × rectilinear-distance × unitCost). Chaining reads auto on both ends +
         transport: two auto steps with conveyor/agv = chained; with a manual handoff = auto-island.
       </div>

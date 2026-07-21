@@ -137,6 +137,15 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-top: 3rem; /* clears the fixed Carbon Header (AppHeader) */
+}
+/* Page intro paragraph under a page title — Carbon helper-text style. */
+.page-sub {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.43;
+  max-width: 60ch;
+  margin: 0 0 var(--cds-spacing-05);
 }
 
 /* NOTE: there is deliberately no bare `header {}` rule here. The editor's
@@ -372,7 +381,7 @@ main {
   min-height: 0;
 }
 .libside__group {
-  font-size: 10px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--textDim);
@@ -385,7 +394,7 @@ main {
   margin-top: 0;
 }
 .libside__manage {
-  font-size: 10px;
+  font-size: 0.75rem;
   text-transform: none;
   letter-spacing: 0;
   color: var(--cds-link-primary);
@@ -404,7 +413,7 @@ main {
   align-items: center;
   gap: 5px;
   padding: 3px 7px;
-  font-size: 11.5px;
+  font-size: 0.75rem;
   border: 1px solid var(--cds-border-subtle-01);
   border-left-width: 3px;
   background: var(--cds-layer-02);
@@ -419,7 +428,7 @@ main {
   gap: var(--sp-03);
 }
 .libside__empty {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
 }
 .canvas {
@@ -805,7 +814,7 @@ code {
   border-bottom: 1px solid var(--cds-border-subtle-01);
 }
 .palette-lab {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--cds-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -831,7 +840,7 @@ code {
 .palette-swatch {
   width: 8px;
   height: 8px;
-  border-radius: 1px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .palette-form {
@@ -853,7 +862,7 @@ code {
   margin: 0 var(--sp-02);
 }
 .palette-hint {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* ---------- data quality / confidence (spec §5) ---------- */
@@ -876,7 +885,7 @@ code {
   border-bottom: 1px dashed var(--amber);
 }
 .qmark {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   margin-left: 3px;
   vertical-align: 0.05em;
 }
@@ -891,7 +900,7 @@ code {
   width: 1.1rem;
   height: 1.1rem;
   padding: 0;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1;
   background: var(--cds-layer-02);
   color: var(--cds-text-secondary);
@@ -930,7 +939,7 @@ input.est-field {
   border-radius: 50%;
   border: 1px solid var(--cds-text-secondary);
   color: var(--cds-text-secondary);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   margin-left: var(--sp-02);
   cursor: help;
   position: relative;
@@ -1087,6 +1096,42 @@ input.est-field {
   padding: var(--sp-03) var(--sp-04);
 }
 
+/* Carbon TreeView rows: let the label span the row so the name sits left and
+   the action Menu / archive / confirm controls push to the right, and give the
+   drop-target the same focus outline the hand-rolled tree used. */
+.explorer-tree .cds--tree-node__label__details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.explorer-tree .cds--tree-node__label__text {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  width: 100%;
+  overflow: visible;
+}
+.explorer-tree .tree-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  width: 100%;
+}
+.explorer-tree .tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer-tree .tree-controls {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.explorer-tree .tree-node-row.drop {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
+
 .resizer {
   width: 2px;
   flex: 0 0 2px;
@@ -1179,7 +1224,7 @@ input.est-field {
   padding: var(--sp-05);
 }
 .dash-tile__lab {
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--textDim);
@@ -1188,13 +1233,13 @@ input.est-field {
   gap: 2px;
 }
 .dash-tile__val {
-  font-size: 24px;
+  font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.2;
   margin-top: 4px;
 }
 .dash-tile__sub {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
   margin-top: 2px;
 }
@@ -1214,7 +1259,7 @@ input.est-field {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
 }
 .dash-legend__item {
@@ -1226,7 +1271,7 @@ input.est-field {
 .dash-legend__sw {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 0;
   display: inline-block;
 }
 .dash-dag {
@@ -1234,7 +1279,7 @@ input.est-field {
 }
 .dash-note,
 .dash-empty {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
   margin-top: var(--sp-03);
 }
@@ -1243,31 +1288,34 @@ input.est-field {
 }
 
 /* ---------- improved view summary ---------- */
-.improved-summary {
-  margin-top: var(--sp-05);
-  max-width: 640px;
-}
-.improved-metrics {
+/* ---------- optimize layout modal (before/after) ---------- */
+.opt-modal__head {
   display: flex;
-  gap: var(--sp-05);
-  flex-wrap: wrap;
-  align-items: center;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  flex-direction: column;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-05);
 }
-.improved-metric {
-  font-size: 15px;
-  font-weight: 600;
-}
-.improved-rationale {
-  font-size: 12px;
-  color: var(--textDim);
+.opt-modal__rationale {
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
   line-height: 1.5;
-  margin: var(--sp-04) 0;
+  margin: 0;
 }
-.improved-note {
-  font-size: 10.5px;
-  color: var(--textDim);
-  margin-left: var(--sp-04);
+.opt-modal__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-05);
+  margin-top: var(--sp-05);
+}
+.opt-modal__note {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+.opt-modal__foot .cds--btn {
+  flex: 0 0 auto;
 }
 
 /* ---------- process library (master-detail) ---------- */
@@ -1308,24 +1356,24 @@ input.est-field {
 .lib-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .lib-item__name {
   flex: 1 1 auto;
-  font-size: 12.5px;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .lib-item__meta {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: var(--textDim);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   flex: 0 0 auto;
 }
 .lib-tag {
-  font-size: 9px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--amber);
@@ -1340,7 +1388,7 @@ input.est-field {
 .lib-member > summary {
   padding: var(--sp-03) var(--sp-04);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ---------- element documentation ---------- */
@@ -1348,11 +1396,11 @@ input.est-field {
   margin-bottom: var(--sp-04);
 }
 .element-doc__title {
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 600;
 }
 .element-doc__sub {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--textDim);
   text-transform: capitalize;
 }
@@ -1389,4 +1437,153 @@ input.est-field {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Editor input-rail tab bar: Carbon Tabs + a trailing collapse control. */
+.rail-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-02);
+}
+.rail-tabbar .cds--tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- Analysis: business-analytics dashboard ---------- */
+.bi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-05);
+}
+.bi-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-03);
+}
+.bi-kpi {
+  padding: var(--sp-05);
+}
+.bi-kpi__lab {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.bi-kpi__val {
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: var(--sp-02);
+  font-family: "IBM Plex Sans", sans-serif;
+}
+.bi-kpi__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-02);
+}
+.bi-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-05);
+}
+.bi-row--2 {
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
+.bi-card {
+  padding: var(--sp-05);
+}
+.bi-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-04);
+}
+.bi-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
+}
+.bi-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-04);
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.bi-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+}
+.bi-legend__sw {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.bi-split__bar {
+  display: flex;
+  height: 0.75rem;
+  width: 100%;
+  overflow: hidden;
+  background: var(--cds-layer-accent-01);
+  margin-bottom: var(--sp-03);
+}
+.bi-split__seg {
+  height: 100%;
+  border-right: 2px solid var(--cds-layer-01);
+}
+.bi-split__seg:last-child {
+  border-right: 0;
+}
+.bi-scroll {
+  overflow-x: auto;
+}
+.bi-note {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-04);
+  line-height: 1.4;
+}
+.bi-empty {
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-05) 0;
+}
+
+/* Material-flow card: inline KPI row + sub-label. */
+.bi-flowkpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-06);
+  margin-bottom: var(--sp-05);
+}
+.bi-flowkpi {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.bi-flowkpi__lab {
+  display: block;
+  margin-bottom: var(--sp-02);
+}
+.bi-flowkpi__val {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--cds-text-primary);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.bi-card__sublab {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-bottom: var(--sp-03);
 }

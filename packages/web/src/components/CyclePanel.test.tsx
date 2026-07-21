@@ -19,8 +19,8 @@ function loadSample() {
 
 // Balance now lives in the dedicated Analysis view (the rail is inputs-only).
 function openBalance() {
-  fireEvent.click(screen.getByText("📊 Analysis"));
-  fireEvent.click(screen.getByRole("button", { name: "Balance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Balance" }));
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
@@ -29,7 +29,7 @@ function openBalance() {
  *  behind an "Advanced settings" toggle, so expand it for the tests that need
  *  those controls. */
 function inspect(stationName: string) {
-  fireEvent.click(screen.getByText("⊟ DAG"));
+  fireEvent.click(screen.getByRole("button", { name: "DAG" }));
   fireEvent.click(screen.getAllByText(stationName)[0]);
   const adv = screen.queryByRole("button", { name: /Advanced settings/ });
   if (adv) fireEvent.click(adv);
@@ -37,13 +37,14 @@ function inspect(stationName: string) {
 
 /** The opaque "Cycle time (s)" input, located via its field label. */
 function cycleField(): HTMLInputElement {
-  const label = screen.getByText(/Cycle time \(s\)/).closest("label") as HTMLElement;
-  return label.querySelector("input") as HTMLInputElement;
+  // The label carries a Carbon Toggletip (help) button once decomposed, so scope
+  // the match to the input itself.
+  return screen.getByLabelText(/Cycle time \(s\)/, { selector: "input" }) as HTMLInputElement;
 }
 
 /** The five breakdown inputs, scoped to the breakdown card. */
 function breakdownInputs(): HTMLInputElement[] {
-  const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+  const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
   return within(card).getAllByRole("spinbutton") as HTMLInputElement[];
 }
 
@@ -96,7 +97,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
     const inputs = breakdownInputs();
     expect(inputs).toHaveLength(5); // valueAdd, handling, walk, wait, setup
 
@@ -147,7 +148,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".cds--tile") as HTMLElement;
     fireEvent.click(within(card).getByRole("button", { name: "Reset" }));
 
     expect(screen.queryByText("Cycle breakdown")).toBeNull();

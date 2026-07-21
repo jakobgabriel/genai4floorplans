@@ -236,6 +236,9 @@ export interface WorkElement {
   attendedFraction: number;
   skillClass?: string;
   ergonomicLoad: ErgonomicLoad;
+  /** Fraction of parts scrapped performing this element (0–1). Absent ⇒ 0.
+   *  A station inherits the max scrap of the elements assigned to it. */
+  scrapRate?: number;
   /** Zoning constraints for the balancer. */
   mustBeSameStationAs?: string[];
   mustNotBeSameStationAs?: string[];

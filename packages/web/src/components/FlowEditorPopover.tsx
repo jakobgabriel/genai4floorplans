@@ -29,15 +29,15 @@ export function FlowEditorPopover({
         top: 12,
         zIndex: 25,
         width: 210,
-        background: "var(--panel2)",
-        border: "1px solid var(--line)",
-        borderRadius: 8,
-        padding: 12,
-        boxShadow: "0 6px 20px rgba(0,0,0,.45)",
+        background: "var(--cds-layer-02)",
+        border: "1px solid var(--cds-border-subtle-01)",
+        borderRadius: 0,
+        padding: "var(--cds-spacing-05)",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 11.5 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--cds-spacing-03)" }}>
+        <span style={{ fontSize: "0.75rem" }}>
           {f.from} → {f.to}
         </span>
         <CloseButton onClick={onClose} />

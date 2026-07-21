@@ -11,6 +11,8 @@ import { workspacesRouter } from "./routes/workspaces.ts";
 import { foldersRouter } from "./routes/folders.ts";
 import { conceptsRouter } from "./routes/concepts.ts";
 import { cellsRouter } from "./routes/cells.ts";
+import { libraryRouter } from "./routes/library.ts";
+import { subflowsRouter } from "./routes/subflows.ts";
 import { scenariosRouter } from "./routes/scenarios.ts";
 import { aiRouter } from "./routes/ai.ts";
 import { aiCredentialsRouter } from "./routes/aiCredentials.ts";
@@ -25,6 +27,8 @@ export const ROUTE_MOUNTS: { mount: string; router: Router }[] = [
   { mount: "/api", router: foldersRouter },
   { mount: "/api", router: conceptsRouter },
   { mount: "/api", router: cellsRouter },
+  { mount: "/api", router: libraryRouter },
+  { mount: "/api", router: subflowsRouter },
   { mount: "/api", router: scenariosRouter },
   { mount: "/api", router: aiRouter },
   { mount: "/api", router: aiCredentialsRouter },
@@ -63,6 +67,8 @@ export function createApp(): Express {
   app.use("/api", foldersRouter);
   app.use("/api", conceptsRouter);
   app.use("/api", cellsRouter);
+  app.use("/api", libraryRouter);
+  app.use("/api", subflowsRouter);
   app.use("/api", scenariosRouter);
   app.use("/api", aiRouter);
   app.use("/api", aiCredentialsRouter);

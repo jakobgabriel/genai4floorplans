@@ -13,12 +13,13 @@ import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
 import { ProcessShell } from "./planner/ProcessShell";
-import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
+import { AppHeader, type HeaderSection } from "./components/AppHeader";
+import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, DEFAULT_DEMAND, toDemand, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
-import { parseSteps } from "./planner/parseSteps";
-import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
-import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
-import { Button, Theme } from "@carbon/react";
+import { USE_CASES, type UseCaseId } from "./planner/usecases";
+import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
+import { ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -38,6 +39,8 @@ import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { improvedLayout } from "@flowplan/core/engine/improved";
+import { costAnalysis } from "@flowplan/core/engine/cost";
+import { OptimizeModal } from "./components/OptimizeModal";
 import { useSubflows, makeSubflow } from "./store/subflows";
 import { useLibrary } from "./store/library";
 import { catalogStationPatch } from "@flowplan/core/model/catalog";
@@ -59,9 +62,9 @@ import {
 } from "./components/panels";
 import { AnalysisDashboard } from "./components/AnalysisDashboard";
 import { StationDoc } from "./components/ElementDoc";
-import { AMBER, TEAL, TEXTD } from "./components/colors";
+import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
 
-type View = "actual" | "improved" | "split" | "dag" | "analysis";
+type View = "actual" | "split" | "dag" | "analysis";
 type Overlay = "none" | "confidence" | "congestion";
 const CELL = 30;
 
@@ -81,6 +84,14 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
   // AI Chat is hidden for now.
+];
+// The editor input rail's tabs (Configure/Flow/Workload) plus the docs + schema
+// reference. Every value the `tab` state can hold while the rail is shown is a
+// tab, so the Carbon selectedIndex is always resolvable.
+const RAIL_TABS: { tab: Tab; label: string; title?: string }[] = [
+  ...INPUT_TABS,
+  { tab: "doc", label: "Docs", title: "Documentation — every field of the selected step" },
+  { tab: "schema", label: "Schema", title: "Data model / schema reference" },
 ];
 
 export function App() {
@@ -128,11 +139,14 @@ export function App() {
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
   const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8 });
-  const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
-  const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
-  const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
-  const [complexity, setComplexity] = useState("moderate");
+  const [demand, setDemand] = useState<DemandValues>(DEFAULT_DEMAND);
+  const [processSteps, setProcessSteps] = useState<CoreStep[]>([
+    { name: "Load blank", cycleTimeSec: 15 },
+    { name: "Press", cycleTimeSec: 35 },
+    { name: "Weld", cycleTimeSec: 60 },
+    { name: "Leak test", cycleTimeSec: 25 },
+    { name: "Pack", cycleTimeSec: 20 },
+  ]);
   const [pickedId, setPickedId] = useState<string | null>(null);
   // Which candidate has already been loaded into the workspace, so advancing
   // to Refine twice does not create duplicate cells.
@@ -140,6 +154,7 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [showOptimize, setShowOptimize] = useState(false);
   const [route] = useHashRoute();
   // Collapsible config panel (persisted). The workspace is now a global page.
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
@@ -171,21 +186,25 @@ export function App() {
   }, []);
 
   // ---- derived planning data ----------------------------------------------
-  const briefSteps: CoreStep[] = useMemo(() => {
-    if (knowledge === "known") return parseSteps(paste);
-    const sec = COMPLEXITY_SEC[complexity] ?? 35;
-    return stepNames
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((n) => ({ name: n, cycleTimeSec: sec }));
-  }, [knowledge, paste, stepNames, complexity]);
+  const briefSteps: CoreStep[] = processSteps;
 
-  const brief: GenerateBrief = { ...demand, steps: briefSteps };
+  const brief: GenerateBrief = {
+    name: demand.name,
+    steps: briefSteps,
+    annualVolume: demand.annualVolume,
+    annualShifts: demand.annualShifts,
+    shiftHours: demand.shiftHours,
+    programYears: demand.programYears,
+    demand: toDemand(demand),
+    variantModes: demand.variantModes.length ? demand.variantModes : undefined,
+    defaultTransport: demand.transport,
+    defaultPartWeightKg: demand.partWeightKg,
+  };
   const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
     () => (step === "concepts" || step === "summary" ? rankCandidates(generateCandidates(brief)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [step, demand, briefSteps],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
@@ -298,9 +317,8 @@ export function App() {
         return;
       }
       if (e.key === "1") setView("actual");
-      if (e.key === "2") setView("improved");
-      if (e.key === "3") setView("split");
-      if (e.key === "4") setView("dag");
+      if (e.key === "2") setView("split");
+      if (e.key === "3") setView("dag");
       const s = model.stations.find((x) => x.id === selId);
       if (s && !s.fixed && e.key.startsWith("Arrow")) {
         e.preventDefault();
@@ -315,11 +333,11 @@ export function App() {
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
 
-  function vBtn(k: View, l: string) {
+  function vBtn(k: View, label: string, Icon: typeof Layers) {
     return (
-      <button className={"btn" + (view === k ? " on" : "")} onClick={() => setView(k)}>
-        {l}
-      </button>
+      <Button size="sm" kind={view === k ? "primary" : "ghost"} renderIcon={Icon} onClick={() => setView(k)}>
+        {label}
+      </Button>
     );
   }
   // Analysis panels deep-link to inputs (e.g. Balance → Configure); wrap setTab
@@ -331,11 +349,26 @@ export function App() {
   // reposition), not just pairwise swaps. Recomputed with the model.
   const improved = useMemo(() => improvedLayout(model), [model]);
   const improvedModel = { ...model, stations: improved.stations };
+  const cost = useMemo(() => costAnalysis(model), [model]);
 
   // §4: the optimizer's output is a proposal, not a write. Recomputed with the
   // rating; dismissal is cleared whenever a genuinely new one appears.
   const proposal = useMemo(() => makePlacementProposal(model, rating), [model, rating]);
   useEffect(() => { setProposalDismissed(false); }, [proposal?.baseSignature]);
+
+  // Applying the optimised layout — reused by the Improved view and the
+  // one-click Optimize modal. Non-destructive: a form re-lay is an
+  // APPLY_TEMPLATE, a reposition is an ACCEPT_PROPOSAL, both undoable.
+  const applyImproved = useCallback(() => {
+    if (improved.strategy === "form" && improved.form) {
+      api.commit({ type: "APPLY_TEMPLATE", form: improved.form });
+      toast(`Applied ${improved.form}-form layout`);
+    } else if (proposal) {
+      api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
+      toast(`${proposal.items.length} move${proposal.items.length === 1 ? "" : "s"} accepted`);
+    }
+    setView("actual");
+  }, [api, improved.strategy, improved.form, proposal, toast]);
 
   // One drop handler for every draggable in the left library sidebar and the
   // palette: a station kind, a typed zone ("zone:*"), a library entry ("lib:*"),
@@ -463,46 +496,6 @@ export function App() {
         </div>
       </div>
     );
-  } else if (view === "improved") {
-    const applyImproved = () => {
-      if (improved.strategy === "form" && improved.form) {
-        api.commit({ type: "APPLY_TEMPLATE", form: improved.form });
-        toast(`Applied ${improved.form}-form layout`);
-      } else if (proposal) {
-        api.commit({ type: "ACCEPT_PROPOSAL", items: proposal.items, itemIds: proposal.items.map((i) => i.stationId) });
-        toast(`${proposal.items.length} move${proposal.items.length === 1 ? "" : "s"} accepted`);
-      }
-      setView("actual");
-    };
-    canvasInner = (
-      <div>
-        <LayoutCanvas model={improvedModel} stations={improvedModel.stations} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
-        <div className="improved-summary">
-          {improved.better ? (
-            <>
-              <div className="improved-metrics">
-                <span className="improved-metric" style={{ color: TEAL }}>
-                  {improved.deltas.flowCostPct.toFixed(0)}% flow cost
-                </span>
-                <span className="improved-metric" style={{ color: improved.deltas.travelPct < 0 ? TEAL : TEXTD }}>
-                  {improved.deltas.travelPct.toFixed(0)}% travel
-                </span>
-                <span className="improved-metric" style={{ color: TEXTD }}>
-                  {improved.strategy === "form" ? `${improved.form}-form` : `${improved.deltas.moved} moved`}
-                </span>
-              </div>
-              <p className="improved-rationale">{improved.rationale}</p>
-              <Button size="sm" kind="primary" onClick={applyImproved}>
-                Apply this layout
-              </Button>
-              <span className="improved-note">Non-destructive — you can undo (Ctrl/Cmd+Z).</span>
-            </>
-          ) : (
-            <p className="improved-rationale">{improved.rationale}</p>
-          )}
-        </div>
-      </div>
-    );
   } else if (view === "dag") {
     canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
   } else if (view === "split") {
@@ -517,12 +510,17 @@ export function App() {
     // rail can stay inputs-only.
     canvasInner = (
       <div className="analysis-view">
-        <div className="subtabs" style={{ maxWidth: 760, margin: "0 auto", padding: 0 }}>
-          {ANALYSIS_TABS.map((t) => (
-            <button key={t.tab} className={"chip" + (analysisTab === t.tab ? " on" : "")} onClick={() => setAnalysisTab(t.tab)}>
-              {t.label}
-            </button>
-          ))}
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <Tabs
+            selectedIndex={Math.max(0, ANALYSIS_TABS.findIndex((t) => t.tab === analysisTab))}
+            onChange={({ selectedIndex }: { selectedIndex: number }) => setAnalysisTab(ANALYSIS_TABS[selectedIndex].tab)}
+          >
+            <TabList aria-label="Analysis sections" contained>
+              {ANALYSIS_TABS.map((t) => (
+                <CarbonTab key={t.tab}>{t.label}</CarbonTab>
+              ))}
+            </TabList>
+          </Tabs>
         </div>
         {analysisTab === "rating" ? (
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -545,13 +543,22 @@ export function App() {
   // navigation; all hooks above have already run, so these early returns are safe.
   // Each is wrapped in <Theme> so the entry/workspace screen re-themes with the
   // editor (they render OUTSIDE ProcessShell's Theme).
-  const page = (node: React.ReactNode) => <Theme theme={theme}><div className="wrap">{node}</div></Theme>;
-  if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} theme={theme} onToggleTheme={toggleTheme} />);
-  if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />);
-  if (route === "/compare") return page(<ComparePage api={api} />);
-  if (route === "/site") return page(<SitePage api={api} />);
-  if (route === "/archive") return page(<ArchivePage api={api} />);
-  if (route === "/admin") return page(<AdminPage />);
+  // Every route gets the same Carbon UI Shell top bar (AppHeader) so the top bar
+  // is identical across the workspace, pages, planner and editor.
+  const page = (node: React.ReactNode, active: HeaderSection = null) => (
+    <Theme theme={theme}>
+      <div className="wrap">
+        <AppHeader theme={theme} onToggleTheme={toggleTheme} active={active} />
+        {node}
+      </div>
+    </Theme>
+  );
+  if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} />, "workspace");
+  if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />, "library");
+  if (route === "/compare") return page(<ComparePage api={api} />, "compare");
+  if (route === "/site") return page(<SitePage api={api} />, "site");
+  if (route === "/archive") return page(<ArchivePage api={api} />, "workspace");
+  if (route === "/admin") return page(<AdminPage />, null);
 
   const editorToolbar = (
     <div className="editorbar">
@@ -633,29 +640,40 @@ export function App() {
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
-              {vBtn("actual", "● Actual")}
-              {vBtn("improved", "◇ Improved")}
-              {vBtn("split", "⇄ Both")}
-              {vBtn("dag", "⊟ DAG")}
-              {vBtn("analysis", "📊 Analysis")}
+              {vBtn("actual", "Actual", Layers)}
+              {vBtn("split", "Both", Compare)}
+              {vBtn("dag", "DAG", FlowConnection)}
+              {vBtn("analysis", "Analysis", ChartColumn)}
             </div>
             {view === "actual" ? (
               <div className="views" style={{ marginLeft: "auto" }} role="group" aria-label="Canvas overlays">
-                <button
-                  className={"btn sm" + (mode === "group" ? " on" : "")}
+                <Button
+                  size="sm"
+                  kind="primary"
+                  renderIcon={MagicWand}
+                  title="Reposition stations for the shortest material path and preview the before/after savings"
+                  onClick={() => setShowOptimize(true)}
+                >
+                  Optimize
+                </Button>
+                <span className="hsep" />
+                <Button
+                  size="sm"
+                  kind={mode === "group" ? "primary" : "ghost"}
+                  renderIcon={GroupObjects}
                   title="Group mode: drag a rectangle around steps to save them as a reusable grouped element"
                   onClick={() => setMode((m) => (m === "group" ? "select" : "group"))}
                 >
-                  ⧉ Group
-                </button>
+                  Group
+                </Button>
                 <span className="hsep" />
-                <span style={{ fontSize: 11, color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
-                <button className={"btn sm" + (overlay === "confidence" ? " on" : "")} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
+                <span style={{ fontSize: "0.75rem", color: TEXTD, alignSelf: "center", marginRight: 6 }}>overlay</span>
+                <Button size="sm" kind={overlay === "confidence" ? "primary" : "ghost"} title="Shade steps whose numbers are estimated" onClick={() => setOverlay((o) => (o === "confidence" ? "none" : "confidence"))}>
                   Confidence
-                </button>
-                <button className={"btn sm" + (overlay === "congestion" ? " on" : "")} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
+                </Button>
+                <Button size="sm" kind={overlay === "congestion" ? "primary" : "ghost"} title="Heat by per-step utilization; the bottleneck reads hottest" onClick={() => setOverlay((o) => (o === "congestion" ? "none" : "congestion"))}>
                   Congestion
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
@@ -667,7 +685,7 @@ export function App() {
               </span>
               <span>dots: ergo (TL) · automation (TR)</span>
               <span>
-                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+                links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: RED }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
               </span>
             </div>
           )}
@@ -687,21 +705,22 @@ export function App() {
           <Resizer edge="left" width={configWidth} setWidth={setConfigWidth} min={280} max={760} />
           <div className="side" style={{ flexBasis: configWidth, width: configWidth }}>
           <div className="tabbar">
-            <div className="subtabs">
-              {INPUT_TABS.map((t) => (
-                <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => setTab(t.tab)}>
-                  {t.label}
-                </button>
-              ))}
-              <button className={"chip" + (tab === "doc" ? " on" : "")} title="Documentation — every field of the selected step" onClick={() => setTab("doc")}>
-                Docs
-              </button>
-              <button className={"chip" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
-                ?
-              </button>
-              <button className="chip" title="Collapse inputs panel" onClick={() => setConfigCollapsed(true)}>
-                ▶
-              </button>
+            <div className="rail-tabbar">
+              <Tabs
+                selectedIndex={Math.max(0, RAIL_TABS.findIndex((t) => t.tab === tab))}
+                onChange={({ selectedIndex }: { selectedIndex: number }) => setTab(RAIL_TABS[selectedIndex].tab)}
+              >
+                <TabList aria-label="Editor inputs" contained>
+                  {RAIL_TABS.map((t) => (
+                    <CarbonTab key={t.tab} title={t.title}>
+                      {t.label}
+                    </CarbonTab>
+                  ))}
+                </TabList>
+              </Tabs>
+              <IconButton kind="ghost" size="sm" label="Collapse inputs panel" align="bottom" onClick={() => setConfigCollapsed(true)}>
+                <SidePanelClose />
+              </IconButton>
             </div>
           </div>
           {tab === "workload" && <WorkloadPanel {...panelProps} />}
@@ -711,13 +730,13 @@ export function App() {
             <div className="pad">
               {(() => {
                 const s = model.stations.find((x) => x.id === selId);
-                return s ? <StationDoc station={s} /> : <div style={{ color: TEXTD, fontSize: 12 }}>Select a step on the canvas to read its full data sheet.</div>;
+                return s ? <StationDoc station={s} /> : <div style={{ color: TEXTD, fontSize: "0.75rem" }}>Select a step on the canvas to read its full data sheet.</div>;
               })()}
             </div>
           )}
           {tab === "schema" && <SchemaPanel />}
           {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost") && (
-            <div className="pad" style={{ color: TEXTD, fontSize: 12 }}>
+            <div className="pad" style={{ color: TEXTD, fontSize: "0.75rem" }}>
               Analysis moved to the <button className="chip on" style={{ display: "inline" }} onClick={() => setView("analysis")}>📊 Analysis</button> view.
             </div>
           )}
@@ -779,15 +798,10 @@ export function App() {
 
       {step === "process" ? (
         <ProcessStepView
-          knowledge={knowledge}
-          setKnowledge={setKnowledge}
-          paste={paste}
-          setPaste={setPaste}
-          names={stepNames}
-          setNames={setStepNames}
-          complexity={complexity}
-          setComplexity={setComplexity}
-          steps={briefSteps}
+          steps={processSteps}
+          onChange={setProcessSteps}
+          routing={{ transport: demand.transport, partWeightKg: demand.partWeightKg }}
+          onRouting={(patch) => setDemand((d) => ({ ...d, ...patch }))}
         />
       ) : null}
 
@@ -814,6 +828,18 @@ export function App() {
 
       {hover ? <StationTooltip station={hover.station} x={hover.x} y={hover.y} shiftHours={model.shiftHours ?? 8} /> : null}
 
+      {showOptimize ? (
+        <OptimizeModal
+          open
+          model={model}
+          improved={improved}
+          rating={rating}
+          cost={cost}
+          onApply={applyImproved}
+          onPreview={() => { setShowOptimize(false); setView("split"); }}
+          onClose={() => setShowOptimize(false)}
+        />
+      ) : null}
       {showSettings ? (
         <SettingsModal initial={settings} onClose={() => setShowSettings(false)} onSaved={setSettings} />
       ) : null}

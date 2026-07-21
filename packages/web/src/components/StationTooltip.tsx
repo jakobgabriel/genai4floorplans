@@ -22,16 +22,16 @@ export function StationTooltip({ station, x, y, shiftHours }: { station: Station
         top: y + 14,
         zIndex: 60,
         pointerEvents: "none",
-        background: "var(--panel2)",
-        border: "1px solid var(--line)",
-        borderRadius: 6,
-        padding: "8px 10px",
-        fontSize: 11,
+        background: "var(--cds-layer-02)",
+        border: "1px solid var(--cds-border-subtle-01)",
+        borderRadius: 0,
+        padding: "var(--cds-spacing-03) var(--cds-spacing-04)",
+        fontSize: "0.75rem",
         width: 180,
-        boxShadow: "0 6px 20px rgba(0,0,0,.45)",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif" }}>{station.name}</div>
+      <div style={{ fontWeight: 600, marginBottom: "var(--cds-spacing-02)" }}>{station.name}</div>
       {row("role · type", `${station.role} · ${station.type}`)}
       {station.role === "process" ? (
         <>
