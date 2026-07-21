@@ -37,6 +37,9 @@ import { USE_CASES, type UseCase, type UseCaseId } from "./usecases";
 import { parseSteps } from "./parseSteps";
 import { ConceptTable } from "./ConceptTable";
 import { money, moneyWhole, num } from "../format";
+import { LayoutCanvas } from "../components/LayoutCanvas";
+import { TEAL, scoreColor } from "../components/colors";
+import { navigate } from "../store/useHashRoute";
 
 // Individual stages of the planning process. Each is a plain presentational
 // component; all state and navigation live in App, so the stepper stays
@@ -562,7 +565,32 @@ export function ConceptsStep({
 
 // ---- summary --------------------------------------------------------------
 
-export function SummaryStep({ picked, useCase }: { picked: Candidate | null; useCase: UseCase | null }) {
+/** One decision figure in the summary's KPI panel. */
+function SumKpi({ lab, val, sub, color, big }: { lab: string; val: string; sub?: string; color?: string; big?: boolean }) {
+  return (
+    <div className={"sum1__kpi" + (big ? " sum1__kpi--big" : "")}>
+      <span className="sum1__kpiLab">{lab}</span>
+      <span className="sum1__kpiVal" style={{ color }}>{val}</span>
+      {sub ? <span className="sum1__kpiSub">{sub}</span> : null}
+    </div>
+  );
+}
+
+// The Summary is a decision one-pager: the chosen concept, the numbers a
+// business case turns on, a layout thumbnail, and — the "why this one" — a
+// head-to-head against the other concepts. Everything comes from the candidate
+// set already computed; this only arranges it for a pitch.
+export function SummaryStep({
+  picked,
+  useCase,
+  candidates = [],
+  onRefine,
+}: {
+  picked: Candidate | null;
+  useCase: UseCase | null;
+  candidates?: Candidate[];
+  onRefine?: () => void;
+}) {
   if (!picked) {
     return (
       <section className="planner">
@@ -573,30 +601,64 @@ export function SummaryStep({ picked, useCase }: { picked: Candidate | null; use
   }
   const m = picked.metrics;
   const cur = picked.cost.currency;
+  const foot = picked.cost.floorSpace;
+
+  // Head-to-head: rank every concept by the loaded cost/part a business case
+  // turns on (lower = better). The picked one is highlighted.
+  const ranked = [...candidates].sort((a, b) => a.metrics.loadedCostPerPart - b.metrics.loadedCostPerPart);
+  const worst = Math.max(m.loadedCostPerPart, ...ranked.map((c) => c.metrics.loadedCostPerPart), 1e-9);
 
   return (
-    <section className="planner">
-      <h2 className="planner__h2">{picked.conceptLabel}</h2>
-      <p className="planner__sub">{picked.rationale}</p>
+    <section className="planner sum1">
+      {/* Header — the choice + its grade, top-left. */}
+      <div className="sum1__head">
+        <div>
+          <h2 className="planner__h2">{picked.conceptLabel}</h2>
+          <p className="planner__sub">{picked.rationale}</p>
+        </div>
+        <Tile className="sum1__grade">
+          <span className="sum1__gradeLab">Rating</span>
+          <span className="sum1__gradeVal" style={{ color: scoreColor(m.composite) }}>{m.letter}</span>
+          <span className="sum1__gradeScore">{m.composite.toFixed(0)} / 100</span>
+        </Tile>
+      </div>
 
-      <Tile className="planner__derived">
-        <div>
-          <span className="planner__derivedLab">Loaded cost/part</span>
-          <span className="planner__derivedVal">{money(cur, m.loadedCostPerPart)}</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Capex</span>
-          <span className="planner__derivedVal">{moneyWhole(cur, m.capexTotal)}</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Operators</span>
-          <span className="planner__derivedVal">{m.operators}</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Output</span>
-          <span className="planner__derivedVal">{num(m.lineOut)}/shift</span>
-        </div>
-      </Tile>
+      {/* Layout thumbnail + the decision figures. */}
+      <div className="sum1__grid">
+        <Tile className="sum1__viz">
+          <div className="sum1__vizLab">Layout</div>
+          <div className="sum1__vizCanvas">
+            <LayoutCanvas model={picked.model} stations={picked.model.stations} flows={picked.model.flows} label="" badge={TEAL} cell={14} />
+          </div>
+        </Tile>
+        <Tile className="sum1__kpis">
+          <SumKpi lab="Loaded cost / part" val={money(cur, m.loadedCostPerPart)} sub={`${money(cur, m.costPerPart)} opex + ${money(cur, m.capexPerPart)} capex`} big />
+          <SumKpi lab="Output / shift" val={num(m.lineOut)} sub={`takt ${m.takt > 0 ? m.takt.toFixed(1) + "s" : "—"} · demand ${m.meetsDemand ? "met" : "not met"}`} color={m.meetsDemand ? undefined : "var(--cds-support-error)"} />
+          <SumKpi lab="Capex" val={moneyWhole(cur, m.capexTotal)} />
+          <SumKpi lab="Operators" val={String(m.operators)} sub={`${m.stations} stations · ${m.parallelUnits} units`} />
+          <SumKpi lab="Footprint" val={`${num(foot.total)} ${foot.unit}`} sub={`cell ${num(foot.cell)} + supply ${num(foot.materialSupply)}`} />
+          <SumKpi lab="Over-capacity" val={`${m.overCapacityPct}%`} sub="line vs demand" color={m.overCapacityPct > 30 ? "var(--cds-support-warning)" : undefined} />
+        </Tile>
+      </div>
+
+      {/* Why this concept — head-to-head on loaded cost/part. */}
+      {ranked.length > 1 ? (
+        <Tile className="sum1__cmp">
+          <h3 className="sum1__cmpH">Why this concept — loaded cost / part vs alternatives</h3>
+          {ranked.map((c) => {
+            const isPicked = c.id === picked.id;
+            return (
+              <div key={c.id} className={"sum1__cmpRow" + (isPicked ? " sum1__cmpRow--on" : "")}>
+                <span className="sum1__cmpName">{c.conceptLabel}{isPicked ? " ✓" : ""}</span>
+                <span className="sum1__cmpTrack">
+                  <span className="sum1__cmpBar" style={{ width: `${(c.metrics.loadedCostPerPart / worst) * 100}%`, background: isPicked ? TEAL : "var(--cds-border-strong-01)" }} />
+                </span>
+                <span className="sum1__cmpVal">{money(cur, c.metrics.loadedCostPerPart)} · {c.metrics.letter}</span>
+              </div>
+            );
+          })}
+        </Tile>
+      ) : null}
 
       {m.conceptFit < 40 ? (
         <InlineNotification
@@ -617,6 +679,14 @@ export function SummaryStep({ picked, useCase }: { picked: Candidate | null; use
         title="This is a starting point, not a plan"
         subtitle="Concept costs are planning heuristics and layouts are template placements. Refine the layout before quoting."
       />
+
+      {/* Next actions. */}
+      <div className="sum1__actions">
+        {onRefine ? (
+          <Button kind="primary" onClick={onRefine}>Refine the layout</Button>
+        ) : null}
+        <Button kind="tertiary" onClick={() => navigate("/compare")}>Compare scenarios</Button>
+      </div>
 
       {useCase ? <p className="planner__lifecycle">{useCase.lifecycle}</p> : null}
     </section>
