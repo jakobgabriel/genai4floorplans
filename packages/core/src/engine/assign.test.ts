@@ -116,6 +116,49 @@ describe("assignment — stations are generated, not authored", () => {
     expect(sa).not.toBe(sb);
   });
 
+  it("co-locates a transitive must-together chain a↔b, b↔c (audit A-07)", () => {
+    const els = [
+      el("a", 10, { mustBeSameStationAs: ["b"] }),
+      el("b", 10, { mustBeSameStationAs: ["c"] }),
+      el("c", 10),
+    ];
+    const r = assignStations(els, 40); // 30s fits one station
+    const st = r.stations.find((s) => s.elementIds.includes("a"));
+    expect(st?.elementIds).toEqual(expect.arrayContaining(["a", "b", "c"]));
+  });
+
+  it("never lets a must-together pull-in break takt or a must-not rule (audit A-07)", () => {
+    // a+b are glued; c must not sit with b. Gluing must not drag b onto c's
+    // station, and the a+b station must still respect takt.
+    const els = [
+      el("a", 20, { mustBeSameStationAs: ["b"] }),
+      el("b", 20, { mustNotBeSameStationAs: ["c"], predecessors: ["a"] }),
+      el("c", 20, { predecessors: ["b"] }),
+    ];
+    const r = assignStations(els, 45); // a+b = 40 ≤ 45; c separate
+    const sab = r.stations.find((s) => s.elementIds.includes("a"));
+    expect(sab?.elementIds).toContain("b");
+    expect(sab?.elementIds).not.toContain("c");
+    for (const s of r.stations) expect(s.cycleTimeSec).toBeLessThanOrEqual(45 + 1e-6);
+  });
+
+  it("flags an unsatisfiable must/must-not contradiction instead of violating one (A-07)", () => {
+    const els = [el("a", 10, { mustBeSameStationAs: ["b"], mustNotBeSameStationAs: ["b"] }), el("b", 10)];
+    const r = assignStations(els, 50);
+    expect(r.issues.some((i) => /contradiction/i.test(i))).toBe(true);
+  });
+
+  it("pins elements sharing a fixedStationId onto one station (A-07)", () => {
+    const els = [
+      el("a", 10, { fixedStationId: "S1" }),
+      el("b", 10, { predecessors: ["a"] }),
+      el("c", 10, { fixedStationId: "S1", predecessors: ["a"] }),
+    ];
+    const r = assignStations(els, 40);
+    const sa = r.stations.find((s) => s.elementIds.includes("a"));
+    expect(sa?.elementIds).toContain("c"); // both pinned to S1 → same station
+  });
+
   it("reports balance loss and identifies the bottleneck", () => {
     const r = assignStations(chain([["a", 50], ["b", 10]]), 55);
     expect(r.stations.find((s) => s.isBottleneck)?.elementIds).toContain("a");
