@@ -55,7 +55,7 @@ export interface ImprovementReport {
   balanceLossPct: number;
 }
 
-const ALL_FORMS: CellForm[] = ["I", "U", "L", "S"];
+const ALL_FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
 
 /**
  * Rank what could still be improved about a cell.

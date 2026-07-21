@@ -18,7 +18,7 @@ import { applyForm, type CellForm } from "./templates";
 // safe, non-destructive floor for both the rating and the Improved/Optimize
 // flow, which share this one search.
 
-const ALL_FORMS: CellForm[] = ["I", "U", "L", "S"];
+const ALL_FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
 
 export type BestStrategy = "form" | "reposition";
 

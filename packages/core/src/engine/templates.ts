@@ -1,8 +1,10 @@
 import type { Model, Station } from "../model/types";
-import { cellTopology } from "./topology";
+import { cellTopology, type CellForm } from "./topology";
 import { clampToGrid } from "./geometry";
 
-export type CellForm = "I" | "U" | "L" | "S";
+// CellForm lives in ./topology (which owns the geometry); re-exported here so the
+// many callers that import it from ./templates keep working with one source.
+export type { CellForm };
 
 export interface Slot {
   x: number;

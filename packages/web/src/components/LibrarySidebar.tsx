@@ -14,7 +14,7 @@ import { AMBER, TEAL, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 // the full library page. Collapsible and drag-resizable so the canvas can take
 // the space when you want it to.
 
-const FORMS: CellForm[] = ["I", "U", "L", "S"];
+const FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
 
 function dragProps(kind: string, label: string) {
   return {
