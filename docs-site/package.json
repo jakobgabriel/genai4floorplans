@@ -4,7 +4,7 @@
   "private": true,
   "description": "FlowPlan documentation site (Docusaurus). A standalone package with its own node_modules and no \"type\": \"module\", isolating Docusaurus's SSR build from the ESM monorepo root (Docusaurus does not support type:module).",
   "scripts": {
-    "api": "typedoc",
+    "api": "typedoc --options typedoc.core.json && typedoc --options typedoc.web.json",
     "build": "npm run api && docusaurus build",
     "start": "npm run api && docusaurus start",
     "serve": "docusaurus serve",

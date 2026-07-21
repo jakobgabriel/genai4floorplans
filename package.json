@@ -27,14 +27,16 @@
     "test:integration": "npm run test:integration --workspace @flowplan/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "docs:install": "npm --prefix docs-site install",
-    "docs:build": "npm --prefix docs-site run build",
-    "docs:dev": "npm --prefix docs-site run start"
+    "docs:openapi": "tsx scripts/emit-openapi.ts && redocly build-docs docs-site/static/openapi.json -o docs-site/static/rest-api/index.html --title \"FlowPlan REST API\"",
+    "docs:build": "npm run docs:openapi && npm --prefix docs-site run build",
+    "docs:dev": "npm run docs:openapi && npm --prefix docs-site run start"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@redocly/cli": "^1.34.5",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.12",
