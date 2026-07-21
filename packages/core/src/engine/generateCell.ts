@@ -1,9 +1,13 @@
-import type { AutoState, CycleBreakdown, Station, StationType, VariantMode, WorkElement } from "../model/types";
-import { normalizeStation } from "../model/defaults";
+import type { AutoState, CycleBreakdown, Flow, Model, Station, StationType, VariantMode, WorkElement } from "../model/types";
+import { SCHEMA_VERSION } from "../model/types";
+import { normalizeStation, normalizeFlow } from "../model/defaults";
 import type { AssignedStation, AssignmentResult } from "./assign";
 import { assignOnePerElement, assignStations } from "./assign";
 import type { InferenceResult, RawStep } from "./infer";
 import { inferWorkload } from "./infer";
+import { customerTaktSec } from "./takt";
+import { cellTopology } from "./topology";
+import { clampToGrid } from "./geometry";
 
 // The generation pipeline: names in, placed cell out.
 //
@@ -208,4 +212,91 @@ export function buildWorkloadStations(
   }
 
   return { inference, elements, assignment, stations, taktSec: +taktSec.toFixed(2) };
+}
+
+export interface WorkloadCellResult {
+  model: Model;
+  assignment: AssignmentResult;
+  taktSec: number;
+  /** Where the takt came from — so the UI can say so honestly (audit A-01/B-02). */
+  taktSource: "demand" | "slowest-station" | "largest-element";
+}
+
+/**
+ * Close the spec's `workload → balancer → stations` loop from the editor
+ * (audit B-02): take the model's authored work elements, balance them into
+ * stations with the customer takt, place them on an I-form, wire a sequential
+ * flow through any existing input/output docks, and return a NEW model. The
+ * caller applies it explicitly (a confirmed, undoable action), never silently.
+ *
+ * Everything else on the model — demand, cost config, weights, workload,
+ * variant modes, groups, grid — is preserved. Only stations and flows change.
+ */
+export function balanceWorkloadIntoCell(model: Model, opts: { oneStationPerStep?: boolean } = {}): WorkloadCellResult {
+  const elements = model.workElements ?? [];
+  const variantModes = model.variantModes;
+
+  // Takt: the customer takt if demand is set (A-01); else the slowest existing
+  // process station (the panel's historical fallback); else the largest single
+  // element, so at least one feasible station is always produced.
+  const procNow = model.stations.filter((s) => s.role === "process");
+  const slowest = procNow.reduce((m, s) => Math.max(m, s.cycleTimeSec || 0), 0);
+  const worstElement = elements.reduce((m, e) => {
+    const modes = variantModes && variantModes.length ? variantModes : null;
+    const worst = modes ? Math.max(...modes.map((md) => e.time.seconds * (md.elementOverrides[e.id] ?? 1))) : e.time.seconds;
+    return Math.max(m, worst);
+  }, 0);
+  const demandTakt = customerTaktSec(model);
+  const taktSource: WorkloadCellResult["taktSource"] = demandTakt > 0 ? "demand" : slowest > 0 ? "slowest-station" : "largest-element";
+  const taktSec = demandTakt > 0 ? demandTakt : slowest > 0 ? slowest : worstElement;
+
+  const assignment = opts.oneStationPerStep
+    ? assignOnePerElement(elements, taktSec, variantModes)
+    : assignStations(elements, taktSec, variantModes);
+  const procs = stationsFromAssignment(assignment, elements, variantModes);
+
+  // Reuse existing input/output docks if the cell has them, so their config and
+  // provenance survive; otherwise synthesise simple staging stores.
+  const gridW = model.gridW;
+  const gridH = model.gridH;
+  const END_MARGIN = 2;
+  const input = model.stations.find((s) => s.role === "input") ?? normalizeStation({ id: "in", name: "Raw Material", role: "input", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Inbound staging" });
+  const output = model.stations.find((s) => s.role === "output") ?? normalizeStation({ id: "out", name: "Shipping", role: "output", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Outbound dock" });
+
+  // Place the balanced stations along an I-form path, clamped to the grid.
+  const placed = cellTopology("I", procs.length, { gridW: gridW - END_MARGIN * 2, gridH });
+  procs.forEach((st, i) => {
+    const slot = placed.slots[i];
+    if (slot) {
+      const { x, y } = clampToGrid(st, slot.x + END_MARGIN, slot.y, gridW, gridH);
+      st.x = x;
+      st.y = y;
+    }
+  });
+  const e = clampToGrid(input, placed.entry.x, placed.entry.y, gridW, gridH);
+  input.x = e.x;
+  input.y = e.y;
+  const xo = clampToGrid(output, placed.exit.x + END_MARGIN, placed.exit.y, gridW, gridH);
+  output.x = xo.x;
+  output.y = xo.y;
+
+  const chain = procs.length > 0 ? [input, ...procs, output] : model.stations;
+  const flows: Flow[] = [];
+  if (procs.length > 0) {
+    // Per-shift throughput target implied by the takt, stamped on each flow.
+    const shiftSec = (model.shiftHours ?? 8) * 3600;
+    const vol = taktSec > 0 ? Math.max(1, Math.round(shiftSec / taktSec)) : 1;
+    for (let i = 0; i < chain.length - 1; i++) {
+      flows.push(normalizeFlow({ from: chain[i].id, to: chain[i + 1].id, volume: vol, transport: "manual", unitCost: 0.05, partWeightKg: 1 }));
+    }
+  }
+
+  const newModel: Model = {
+    ...model,
+    schemaVersion: model.schemaVersion ?? SCHEMA_VERSION,
+    stations: chain,
+    flows: procs.length > 0 ? flows : model.flows,
+  };
+
+  return { model: newModel, assignment, taktSec: +taktSec.toFixed(2), taktSource };
 }

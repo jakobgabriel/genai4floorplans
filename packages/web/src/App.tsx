@@ -84,7 +84,11 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "capacity", label: "Capacity" },
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
-  // AI Chat is hidden for now.
+  // AI Chat is hidden for now (audit B-03). Before re-enabling it, its apply path
+  // must route through the governed placement-Proposal flow (makePlacementProposal
+  // → ProposalPanel → ACCEPT_PROPOSAL, with pin-respect and staleness). Today it
+  // commits SET_MODEL / live edits directly, which bypasses that governance —
+  // exactly the silent-overwrite risk spec §4 calls adoption-fatal.
 ];
 // The editor input rail's tabs (Configure/Flow/Workload) plus the docs + schema
 // reference. Every value the `tab` state can hold while the rail is shown is a

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Button,
   InlineNotification,
@@ -17,7 +17,10 @@ import type { Confidence, TimeMethod, WorkClass, WorkElement } from "@flowplan/c
 import { CONFIDENCES, LOSS_FACTOR_BAND, TIME_METHODS, WORK_CLASSES, lossFactorOf } from "@flowplan/core/model/types";
 import { analyseWorkload, makeWorkElement, precedenceOrder } from "@flowplan/core/engine/workload";
 import { inferWorkload, type InferenceResult } from "@flowplan/core/engine/infer";
+import { balanceWorkloadIntoCell } from "@flowplan/core/engine/generateCell";
+import { customerTaktSec } from "@flowplan/core/engine/takt";
 import { AMBER, LINE, RED, TEAL, TEXT, TEXTD } from "./colors";
+import { ConfirmableButton } from "./ConfirmableButton";
 import { HelpPopover } from "./ui";
 
 // Spec §11 — the product-free workload editor.
@@ -56,14 +59,46 @@ export function WorkloadPanel({ api }: PanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [derived, setDerived] = useState<InferenceResult | null>(null);
 
-  // Takt drives the station counts. Absent a demand figure the analysis still
-  // produces every time figure — §11 — so this panel is useful before takt is known.
+  // Takt drives the station counts. The customer takt (net available time ÷
+  // demand, audit A-01) is the correct master constraint; absent a demand figure
+  // we fall back to the slowest existing station so the panel is still useful.
+  // The analysis produces every time figure regardless — §11.
   const taktSec = useMemo(() => {
+    const demandTakt = customerTaktSec(model);
+    if (demandTakt > 0) return demandTakt;
     const stations = model.stations.filter((s) => s.role === "process");
     if (stations.length === 0) return undefined;
     const slowest = Math.max(...stations.map((s) => s.cycleTimeSec || 0));
     return slowest > 0 ? slowest : undefined;
-  }, [model.stations]);
+  }, [model]);
+
+  // Close the workload → balancer → stations loop from the editor (audit B-02):
+  // balance the authored elements into placed stations and apply the result as
+  // an explicit, undoable change.
+  function balanceIntoStations() {
+    const r = balanceWorkloadIntoCell(model);
+    api.commit({ type: "SET_MODEL", model: r.model });
+  }
+
+  // Variant-mode editing (audit B-04): the reducer actions existed and were
+  // tested, but no screen wrote them, so mixed-model was read-only. This is that
+  // editor — including per-element overrides, the one field that makes a mode
+  // more than a label.
+  const modes = model.variantModes ?? [];
+  function addMode() {
+    const id = `vm${modes.length + 1}_${Math.random().toString(36).slice(2, 6)}`;
+    const share = modes.length === 0 ? 1 : +(1 / (modes.length + 1)).toFixed(2);
+    api.commit({ type: "ADD_VARIANT_MODE", mode: { id, name: `Mode ${modes.length + 1}`, share, elementOverrides: {} } });
+  }
+  function patchMode(id: string, patch: Partial<{ name: string; share: number }>) {
+    api.commit({ type: "UPDATE_VARIANT_MODE", id, patch });
+  }
+  function setOverride(mode: { id: string; elementOverrides: Record<string, number> }, elId: string, mult: number) {
+    const next = { ...mode.elementOverrides };
+    if (mult === 1) delete next[elId];
+    else next[elId] = mult;
+    api.commit({ type: "UPDATE_VARIANT_MODE", id: mode.id, patch: { elementOverrides: next } });
+  }
 
   const lossFactor = lossFactorOf(model);
   const a = useMemo(
@@ -183,6 +218,19 @@ export function WorkloadPanel({ api }: PanelProps) {
             </span>
           </div>
         ) : null}
+
+        {/* Close the loop: balance these elements INTO stations (audit B-02).
+            Replaces the layout, so it is an explicit, confirmable, undoable step. */}
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <ConfirmableButton
+            label="Balance into stations"
+            confirmLabel="Replace layout"
+            onConfirm={balanceIntoStations}
+          />
+          <span style={{ fontSize: "0.75rem", color: TEXTD }}>
+            {taktSec ? `Runs the balancer at ${taktSec.toFixed(1)}s takt and lays out the stations.` : "Set demand for a customer takt, or it uses the largest element."}
+          </span>
+        </div>
 
         {/* Loss factor — a chosen IE constant, shown with its band so it reads as
             provenance, not a free knob. */}
@@ -344,19 +392,54 @@ export function WorkloadPanel({ api }: PanelProps) {
 
       <Button kind="tertiary" size="sm" style={{ marginTop: 10 }} onClick={add}>Add element</Button>
 
-      {/* --- mix modes --- */}
+      {/* --- mix modes (editable, audit B-04) --- */}
       <div className="lab" style={{ margin: "18px 0 8px" }}>Mix modes</div>
-      {a.modes.map((m) => (
-        <Tile key={m.modeId} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
-          <span style={{ color: m.modeId === a.worstModeId ? AMBER : TEXT }}>
-            {m.name}{m.modeId === a.worstModeId && a.modes.length > 1 ? " · heaviest" : ""}
-          </span>
-          <span style={{ color: TEXTD }}>{(m.share * 100).toFixed(0)}% · {m.totalSec.toFixed(1)}s</span>
-        </Tile>
-      ))}
+      {modes.length === 0 ? (
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
+          Single-model — every part needs the same work. Add a mode only where the
+          work content genuinely differs (a mode carries no product identity).
+        </div>
+      ) : (
+        modes.map((m) => {
+          const computed = a.modes.find((x) => x.modeId === m.id);
+          const heaviest = computed && computed.modeId === a.worstModeId && a.modes.length > 1;
+          return (
+            <Tile key={m.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <TextInput id={`vm-name-${m.id}`} size="sm" labelText="Mode" value={m.name} onChange={(e) => patchMode(m.id, { name: e.target.value })} style={{ flex: 1 }} />
+                <NumberInput id={`vm-share-${m.id}`} size="sm" label="Share" min={0} max={1} step={0.05} value={m.share} onChange={(_e, { value }) => patchMode(m.id, { share: num(String(value), m.share) })} style={{ width: 90 }} />
+                <Button hasIconOnly size="sm" kind="ghost" renderIcon={TrashCan} iconDescription="Delete mode" onClick={() => api.commit({ type: "DELETE_VARIANT_MODE", id: m.id })} />
+              </div>
+              <div style={{ fontSize: "0.75rem", color: heaviest ? AMBER : TEXTD, marginTop: 4 }}>
+                {computed ? `${computed.totalSec.toFixed(1)}s work content${heaviest ? " · heaviest — balance to this" : ""}` : ""}
+              </div>
+              {/* Per-element overrides — a multiplier of 1 means "same as base". */}
+              <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 70px", gap: 4, alignItems: "center" }}>
+                {elements.map((el) => (
+                  <Fragment key={`${m.id}-${el.id}`}>
+                    <span style={{ fontSize: "0.7rem", color: TEXTD, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{el.name}</span>
+                    <NumberInput
+                      id={`vm-ov-${m.id}-${el.id}`}
+                      size="sm"
+                      hideLabel
+                      label={`${el.name} multiplier in ${m.name}`}
+                      min={0}
+                      step={0.1}
+                      value={m.elementOverrides[el.id] ?? 1}
+                      onChange={(_e, { value }) => setOverride(m, el.id, num(String(value), 1))}
+                    />
+                  </Fragment>
+                ))}
+              </div>
+            </Tile>
+          );
+        })
+      )}
+      <Button kind="tertiary" size="sm" style={{ marginTop: 4 }} onClick={addMode}>Add variant mode</Button>
       <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
-        Forty part numbers needing the same work are one mode. A mode exists only
-        where work content genuinely differs — it carries no product identity.
+        Forty part numbers needing the same work are one mode. A multiplier scales
+        an element's time in that mode (0 = skipped). Balancing sizes on the
+        heaviest mode, not the average.
       </div>
     </div>
   );
