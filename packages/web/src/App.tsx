@@ -497,7 +497,7 @@ export function App() {
       </div>
     );
   } else if (view === "dag") {
-    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
+    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} balance={rating.balance} />;
   } else if (view === "split") {
     canvasInner = (
       <div className="splitWrap">

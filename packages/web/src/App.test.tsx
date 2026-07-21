@@ -124,8 +124,9 @@ describe("App", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "DAG" }));
-    // click a DAG node to select + open Configure
-    fireEvent.click(screen.getByText("CNC Turning"));
+    // click a DAG node to select + open Configure. The step name also appears in
+    // the DAG's bottleneck hint, so target the first match — the graph node itself.
+    fireEvent.click(screen.getAllByText("CNC Turning")[0]);
     // Footprint editing lives under the inspector's Advanced section.
     fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     expect(screen.getByText(/Footprint shape/)).toBeTruthy();
