@@ -1,7 +1,8 @@
 import type { Model, RatingWeights, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { computeKPIs, type FlowDetail, type KPIResult } from "./kpis";
-import { optimize, type OptimizeOptions } from "./optimize";
+import { type OptimizeOptions } from "./optimize";
+import { bestLayout } from "./bestLayout";
 import { balanceAnalysis, type BalanceResult } from "./balance";
 import { autoCoherenceScore, chainRating, ergoScore } from "./automation";
 
@@ -81,7 +82,11 @@ export function buildRating(model: Model, opts: OptimizeOptions = {}): Rating {
   const shiftHours = model.shiftHours ?? DEFAULT_SHIFT_HOURS;
 
   const actual = computeKPIs(stations, flows, grid);
-  const optimized = optimize(stations, flows, grid, opts);
+  // Score against the TRUE floor — the cheapest layout reachable by
+  // repositioning (pairwise AND every cell form), not just pairwise swaps.
+  // Otherwise a cell 29% off the shortest material path still grades ~100% on
+  // flow, because the pairwise optimiser can't see the better form.
+  const optimized = bestLayout(model, opts).stations;
   const opt = computeKPIs(optimized, flows, grid);
 
   const sFlow = scoreVsFloor(actual.flowCost, opt.flowCost);

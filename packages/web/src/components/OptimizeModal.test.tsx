@@ -53,6 +53,18 @@ describe("Optimize layout modal", () => {
     expect((screen.getByRole("button", { name: "Apply optimized layout" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("shows a grade that genuinely improves (rating floor sees the better form)", () => {
+    loadSample();
+    fireEvent.click(screen.getByRole("button", { name: "Optimize" }));
+    const table = screen.getByLabelText("Before and after comparison");
+    const gradeRow = within(table).getByText("Grade").closest(".cds--structured-list-row") as HTMLElement;
+    // Current sample is 29% off the material-flow optimum → it grades below A;
+    // the optimised layout reaches A. The Δ is a positive points gain, not "—".
+    expect(within(gradeRow).getByText(/A · 9\d/)).toBeTruthy();
+    expect(within(gradeRow).getByText(/^\+\d/)).toBeTruthy();
+    expect(within(gradeRow).queryByText("—")).toBeNull();
+  });
+
   it("previews the rearrangement on the Both canvas without applying", () => {
     loadSample();
     fireEvent.click(screen.getByRole("button", { name: "Optimize" }));

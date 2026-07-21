@@ -1,8 +1,7 @@
 import type { Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
-import { optimize } from "./optimize";
-import { clampToGrid } from "./geometry";
-import { cellTemplate, type CellForm } from "./templates";
+import { bestLayout } from "./bestLayout";
+import { type CellForm } from "./templates";
 import { cellTopology } from "./topology";
 
 // The Improved view, made live.
@@ -22,8 +21,6 @@ import { cellTopology } from "./topology";
 // APPLY_TEMPLATE / ACCEPT_PROPOSAL paths — never a silent structural overwrite
 // (spec §4). Merging or removing stations stays an explicit suggestion in the
 // Analysis backlog, never something Improved does behind the planner's back.
-
-const ALL_FORMS: CellForm[] = ["I", "U", "L", "S"];
 
 export type ImproveStrategy = "form" | "reposition" | "none";
 
@@ -51,23 +48,6 @@ export interface ImprovedLayout {
 }
 
 type Grid = { gridW: number; gridH: number; noGoZones: Model["noGoZones"] };
-
-/** Reposition the movable process stations into `form`, mirroring APPLY_TEMPLATE. */
-function applyForm(model: Model, form: CellForm): Station[] {
-  const movable = model.stations.filter((s) => s.role === "process" && !s.fixed);
-  const slots = cellTemplate(form, movable.length, model);
-  let k = 0;
-  return model.stations.map((s) => {
-    if (s.role === "process" && !s.fixed) {
-      const sl = slots[k++];
-      if (sl) {
-        const { x, y } = clampToGrid(s, sl.x, sl.y, model.gridW, model.gridH);
-        return { ...s, x, y };
-      }
-    }
-    return s;
-  });
-}
 
 function movedCount(a: Station[], b: Station[]): number {
   const byId: Record<string, Station> = {};
@@ -112,22 +92,11 @@ export function improvedLayout(model: Model): ImprovedLayout {
   // Too few movable stations to reshape meaningfully.
   if (movable.length < 2 || !(base.flowCost > 0)) return noop;
 
-  interface Candidate { stations: Station[]; strategy: ImproveStrategy; form: CellForm | null; cost: number }
-  const candidates: Candidate[] = [];
+  // The best reachable layout — pairwise optimize AND every cell form — shared
+  // with the rating so the grade and the Improved/Optimize deltas agree.
+  const win = bestLayout(model);
 
-  // 1) Pairwise reposition of the current layout (the old behaviour, kept).
-  const repositioned = optimize(model.stations, model.flows, grid, { restarts: 4 });
-  candidates.push({ stations: repositioned, strategy: "reposition", form: null, cost: computeKPIs(repositioned, model.flows, grid).flowCost });
-
-  // 2) Each cell form — the reshape the pairwise optimiser cannot reach.
-  ALL_FORMS.forEach((form) => {
-    const stations = applyForm(model, form);
-    candidates.push({ stations, strategy: "form", form, cost: computeKPIs(stations, model.flows, grid).flowCost });
-  });
-
-  // Keep the cheapest that beats the current layout by a real margin (>1%).
-  candidates.sort((a, b) => a.cost - b.cost);
-  const win = candidates[0];
+  // Keep it only if it beats the current layout by a real margin (>1%).
   const gainPct = pct(base.flowCost, win.cost); // negative = better
   if (!(win.cost < base.flowCost) || gainPct > -1) return noop;
 
