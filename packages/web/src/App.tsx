@@ -84,7 +84,11 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
   { tab: "capacity", label: "Capacity" },
   { tab: "cost", label: "Cost" },
   { tab: "auto", label: "Automation" },
-  // AI Chat is hidden for now.
+  // AI Chat is hidden for now (audit B-03). Before re-enabling it, its apply path
+  // must route through the governed placement-Proposal flow (makePlacementProposal
+  // → ProposalPanel → ACCEPT_PROPOSAL, with pin-respect and staleness). Today it
+  // commits SET_MODEL / live edits directly, which bypasses that governance —
+  // exactly the silent-overwrite risk spec §4 calls adoption-fatal.
 ];
 // The editor input rail's tabs (Configure/Flow/Workload) plus the docs + schema
 // reference. Every value the `tab` state can hold while the rail is shown is a
@@ -185,6 +189,18 @@ export function App() {
   const clipboard = useRef<Station | null>(null);
 
   const { model, rating } = api;
+
+  // Stations with a layout-realism conflict (clearance / floor load / egress),
+  // ringed red on the canvas so an unbuildable placement is visible (audit C-03).
+  const realismConflictIds = useMemo(() => {
+    const r = api.realism;
+    return Array.from(new Set([
+      ...r.clearanceConflicts.flat(),
+      ...r.overloaded.map((o) => o.id),
+      ...r.enclosed,
+      ...r.offFloor,
+    ]));
+  }, [api.realism]);
 
   // Selecting a step opens Configure in the editor. Only leave the Analysis view
   // (a deep-link back to the editor); staying in DAG/Improved when selecting a
@@ -482,6 +498,7 @@ export function App() {
           stations={model.stations}
           flows={model.flows}
           chain={api.chain}
+          conflictIds={realismConflictIds}
           fill
           ghost={rating.optimized}
           proposalItems={proposal?.items}

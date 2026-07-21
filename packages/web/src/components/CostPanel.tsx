@@ -35,6 +35,8 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
       {row("Labor / shift", money(c.laborPerShift))}
       {row("Transport / shift", money(c.transportPerShift))}
       {row("Energy / shift", money(c.energyPerShift))}
+      {row("Floor space / shift", money(c.spacePerShift))}
+      {row("Maintenance / shift", money(c.maintenancePerShift))}
       {row("Opex / shift", money(c.opexPerShift))}
       {row("Equipment capex", money(c.capexTotal))}
 

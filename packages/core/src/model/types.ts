@@ -2,6 +2,8 @@
 // The whole layout is a single Model object; Export produces exactly this and
 // Import fills missing fields with defaults (see model/defaults.ts).
 
+import type { Capability } from "./capabilities";
+
 export type Role = "input" | "process" | "output";
 export type StationType = "machine" | "manual" | "quality" | "store" | "buffer";
 export type AutoState = "manual" | "semi" | "auto";
@@ -121,6 +123,24 @@ export interface Station {
    *  missing entry is treated as "estimated" at render, so an unmarked number
    *  reads as suspect rather than firm. Assigned at model entry, not at render. */
   dataQuality?: Partial<Record<StationDataField, DataQuality>>;
+  /** Keep-clear access margins around the footprint, in grid cells per side
+   *  (spec §12 access_clearance / §14 clearance). The space an operator or
+   *  maintenance needs, and an aisle must not be blocked by another machine's
+   *  body. Absent ⇒ no declared clearance. A first, grid-aligned increment
+   *  toward a real envelope (audit C-03); true machine-relative access is a
+   *  later refinement. */
+  clearance?: Clearance;
+  /** Equipment weight in kg (spec §12 floor_load). With a cell's floor-load
+   *  capacity it flags a station too heavy for the slab. Absent ⇒ not checked. */
+  weightKg?: number;
+}
+
+/** Grid-aligned keep-clear margins around a station footprint, in cells. */
+export interface Clearance {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
 /** Cost assumptions for the ROI model. Informational — not in the composite. */
@@ -135,6 +155,14 @@ export interface CostConfig {
   /** Extra floor for bins and replenishment, as a fraction of the cell area.
    *  The blueprint's "forgotten 30-40 %". Absent ⇒ DEFAULT_MATERIAL_SUPPLY_FACTOR. */
   materialSupplyFactor?: number;
+  /** Annual occupancy cost per m² of floor (rent, utilities, overhead). Floor
+   *  space was measured but never charged (audit C-08); this turns it into an
+   *  opex line. Absent ⇒ DEFAULT_COST_CONFIG.spaceCostPerM2Year. */
+  spaceCostPerM2Year?: number;
+  /** Annual maintenance/MRO + tooling as a fraction of equipment capex — the
+   *  standard estimate when a detailed tooling model is absent (audit C-08).
+   *  Absent ⇒ DEFAULT_COST_CONFIG.maintenancePctOfCapexPerYear. */
+  maintenancePctOfCapexPerYear?: number;
 }
 
 /** The four separated material paths (blueprint §09/§10). The separation itself
@@ -176,6 +204,11 @@ export interface NoGoZone {
   label?: string;
   /** What kind of reserved/blocked space this is. Absent ⇒ "blocking". */
   kind?: ZoneKind;
+  /** Envelope obstacle attributes (spec §14, audit C-03 inc2). `movable` marks
+   *  an obstacle that could be relocated at a cost; `moveCost` is that cost in
+   *  cost units. Absent ⇒ a fixed obstacle (a column, a wall). */
+  movable?: boolean;
+  moveCost?: number;
 }
 
 /** A documentation annotation (Node-RED "group"): a labelled, commented box drawn
@@ -384,6 +417,22 @@ export interface Model {
   conceptKind?: string;
   /** Multi-year demand + shift model, for capacity analysis (PAUL Capa MA/HC). */
   demand?: Demand;
+  /** Floor slab load capacity in kg/m² (spec §12/§14 envelope, audit C-03).
+   *  A station whose weight ÷ footprint area exceeds this is flagged. Absent ⇒
+   *  the floor-load check is skipped (no false positives on legacy models). */
+  floorLoadKgPerM2?: number;
+  /** Minimum aisle / egress width in grid cells (audit C-03). Used to check
+   *  that every station keeps a walkable path to the floor boundary. Absent ⇒
+   *  DEFAULT_AISLE_WIDTH is used only when a clearance/egress check runs. */
+  aisleWidth?: number;
+  /** Usable floor outline as a closed polygon of grid points (spec §14 envelope,
+   *  audit C-03 inc2). Lets the floor be a non-rectangular shape: a station whose
+   *  footprint leaves the polygon is flagged and the optimiser won't move one
+   *  out. Absent ⇒ the full grid rectangle is usable. */
+  floorPolygon?: Array<[number, number]>;
+  /** Governed capability catalog for this cell (spec §12, audit C-01). Absent ⇒
+   *  the seeded DEFAULT_CAPABILITIES are used, so coverage works offline. */
+  capabilities?: Capability[];
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -417,7 +466,11 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 15;
+
+/** Default minimum aisle / egress width in cells when a model omits it but a
+ *  clearance/egress check runs (audit C-03). One metre = one cell. */
+export const DEFAULT_AISLE_WIDTH = 1;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {
@@ -448,6 +501,12 @@ export const DEFAULT_COST_CONFIG = {
   materialSupplyFactor: DEFAULT_MATERIAL_SUPPLY_FACTOR,
   // One cell = 1 m × 1 m, so floor space and travel report in real metres.
   cellAreaM2: CELL_AREA_M2,
+  // Occupancy cost per m²·year — a mid-range industrial figure so floor space
+  // finally shows up in cost per part (audit C-08).
+  spaceCostPerM2Year: 150,
+  // Maintenance/MRO + tooling as a fraction of capex per year — the standard
+  // planning estimate when no detailed tooling model exists (audit C-08).
+  maintenancePctOfCapexPerYear: 0.05,
 } as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */

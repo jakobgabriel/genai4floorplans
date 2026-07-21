@@ -20,7 +20,9 @@
     "db:setup": "npm run prisma:generate --workspace @flowplan/server && npm run prisma:deploy --workspace @flowplan/server && npm run db:seed --workspace @flowplan/server",
     "build": "npm run build --workspace @flowplan/web",
     "preview": "npm run preview --workspace @flowplan/web",
+    "pretest": "npm run prisma:generate --workspace @flowplan/server",
     "test": "vitest run",
+    "pretest:watch": "npm run prisma:generate --workspace @flowplan/server",
     "test:watch": "vitest",
     "test:integration": "npm run test:integration --workspace @flowplan/server",
     "typecheck": "npm run typecheck --workspaces --if-present"

@@ -18,9 +18,22 @@ describe("costAnalysis", () => {
     const stations = SAMPLE.stations.map((s) => (s.id === "cnc" ? { ...s, automationCapex: 100000 } : s));
     const c = costAnalysis({ ...SAMPLE, stations });
     const cnc = c.automation.find((a) => a.id === "cnc")!;
-    // labor saved/yr = 1 op × 8h × $45 × 460 shifts = 165,600 → payback ≈ 7.2 months
+    // labor saved/yr = 1 op × 8h × $45 × 460 shifts = 165,600. Payback nets the
+    // new equipment's upkeep (5% of $100k = $5,000/yr, audit C-08): 100,000 ÷
+    // 160,600 × 12 ≈ 7.5 months — slightly longer than the naive 7.2.
     expect(cnc.laborSavedPerYear).toBe(165600);
-    expect(cnc.paybackMonths).toBeCloseTo(7.2, 1);
+    expect(cnc.paybackMonths).toBeCloseTo(7.5, 1);
+  });
+
+  it("charges floor space and maintenance into opex (audit C-08)", () => {
+    const stations = SAMPLE.stations.map((s) => (s.id === "cnc" ? { ...s, capex: 200000 } : s));
+    const c = costAnalysis({ ...SAMPLE, stations });
+    // Space: 48 m² × 1.35 × $150/m²·yr ÷ 460 shifts ≈ $21.1/shift.
+    expect(c.spacePerShift).toBeGreaterThan(0);
+    // Maintenance: $200k × 5%/yr ÷ 460 ≈ $21.7/shift.
+    expect(c.maintenancePerShift).toBeCloseTo((200000 * 0.05) / 460, 1);
+    // Both are folded into opex and thus cost per part.
+    expect(c.opexPerShift).toBeCloseTo(c.laborPerShift + c.energyPerShift + c.transportPerShift + c.spacePerShift + c.maintenancePerShift, 2);
   });
 
   it("respects costConfig overrides", () => {

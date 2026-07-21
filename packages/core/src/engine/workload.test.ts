@@ -232,3 +232,24 @@ describe("migration to v8", () => {
     expect(m.variantModes?.[0].name).toBe("Base");
   });
 });
+
+describe("seven-wastes Pareto (audit B-05)", () => {
+  it("ranks non-value-add seconds by waste class, heaviest first", () => {
+    const els = [
+      el("cut", 40, { classification: "VA" }),
+      el("carry", 30, { classification: "NVA", wasteClass: "transport" }),
+      el("wait", 20, { classification: "NVA", wasteClass: "waiting" }),
+      el("carry2", 10, { classification: "NVA", wasteClass: "transport" }),
+    ];
+    const a = analyseWorkload(els, undefined);
+    expect(a.wastePareto.map((w) => w.wasteClass)).toEqual(["transport", "waiting"]);
+    // transport = 30 + 10 = 40 of 60 total waste seconds.
+    expect(a.wastePareto[0].sec).toBeCloseTo(40, 1);
+    expect(a.wastePareto[0].sharePct).toBeCloseTo(66.7, 1);
+  });
+
+  it("is empty when no element declares a waste class", () => {
+    const a = analyseWorkload([el("cut", 40, { classification: "VA" })], undefined);
+    expect(a.wastePareto).toEqual([]);
+  });
+});

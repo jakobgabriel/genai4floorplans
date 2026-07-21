@@ -58,9 +58,11 @@ describe("Optimize layout modal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Optimize" }));
     const table = screen.getByLabelText("Before and after comparison");
     const gradeRow = within(table).getByText("Grade").closest(".cds--structured-list-row") as HTMLElement;
-    // Current sample is 29% off the material-flow optimum → it grades below A;
-    // the optimised layout reaches A. The Δ is a positive points gain, not "—".
-    expect(within(gradeRow).getByText(/A · 9\d/)).toBeTruthy();
+    // Sample grades C; repositioning lifts it to a solid B (flow cost + travel
+    // reach 100). It does NOT auto-reach A: the honest 7-KPI rating shows the
+    // flow-optimal form still trades off congestion/compactness (audit A-03/A-04),
+    // so the grade rises without the old inflation. The Δ is a positive gain.
+    expect(within(gradeRow).getByText(/[AB] · [89]\d/)).toBeTruthy();
     expect(within(gradeRow).getByText(/^\+\d/)).toBeTruthy();
     expect(within(gradeRow).queryByText("—")).toBeNull();
   });

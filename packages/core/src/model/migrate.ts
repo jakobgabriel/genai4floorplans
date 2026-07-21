@@ -71,6 +71,15 @@ const toV12: Migration = (m) => ({ ...m, schemaVersion: 12 });
 // Absent on every existing model (⇒ none), so nothing renders or changes on load.
 const toV13: Migration = (m) => ({ ...m, schemaVersion: 13 });
 
+// version 13 -> 14: layout-realism envelope (audit C-03) — optional station
+// clearance/weightKg and model floorLoadKgPerM2/aisleWidth. All absent on every
+// existing model (⇒ checks skipped), so nothing changes on load.
+const toV14: Migration = (m) => ({ ...m, schemaVersion: 14 });
+
+// version 14 -> 15: envelope polygon + obstacle movable/moveCost (audit C-03
+// inc2). All absent on existing models (⇒ full-grid floor, fixed obstacles).
+const toV15: Migration = (m) => ({ ...m, schemaVersion: 15 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -85,6 +94,8 @@ const MIGRATIONS: Record<number, Migration> = {
   10: toV11,
   11: toV12,
   12: toV13,
+  13: toV14,
+  14: toV15,
 };
 
 export function migrate(raw: unknown): Model {

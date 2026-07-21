@@ -1,6 +1,7 @@
 import type { Model } from "../model/types";
 import { DEFAULT_SHIFT_HOURS, lossFactorOf } from "../model/types";
 import { balanceAnalysis } from "./balance";
+import { customerTaktSec } from "./takt";
 import { costAnalysis } from "./cost";
 import { analyseWorkload } from "./workload";
 import { archetypeCode } from "./archetype";
@@ -33,7 +34,7 @@ export interface CellDataSheet {
 
 export function cellDataSheet(model: Model): CellDataSheet {
   const shiftHours = model.shiftHours ?? DEFAULT_SHIFT_HOURS;
-  const bal = balanceAnalysis(model.stations, model.flows, shiftHours);
+  const bal = balanceAnalysis(model.stations, model.flows, shiftHours, customerTaktSec(model));
   const cost = costAnalysis(model, shiftHours);
   const process = model.stations.filter((s) => s.role === "process");
   const takt = bal.takt;

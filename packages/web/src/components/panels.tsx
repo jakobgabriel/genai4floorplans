@@ -237,7 +237,7 @@ export function ImprovementList({
       )}
 
       <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
-        Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
+        Balance loss {report.balanceLossPct}%{report.taktSec > 0 ? ` · takt ${report.taktSec}s` : ""} · {report.lineOut.toLocaleString("en-US")}/shift
       </div>
     </div>
   );
@@ -311,7 +311,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
           {bal.lineOut.toLocaleString()} <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>parts/shift</span>
         </div>
         <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
-          Takt ≈ {bal.takt} s/part · balance score {bal.score}/100
+          Line pace ≈ {bal.lineCycleSec} s/part{bal.takt > 0 ? ` · customer takt ${bal.takt}s` : " · takt —"} · balance score {bal.score}/100
         </div>
       </div>
       {advice.length > 0 ? (
@@ -658,6 +658,7 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
 }
 
 function LayoutSettings({ api }: { api: FlowPlanApi }) {
+  const { toast } = useToast();
   const m = api.model;
   return (
     <div>
@@ -671,6 +672,42 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
       </div>
       <div style={{ marginTop: 8 }}>
         <NumberInput id="ls-shift" label="Shift length (hours)" helperText="Used by the balance model for throughput. Stations can override this individually in Configure." value={m.shiftHours ?? 8} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: +value })} />
+      </div>
+      {/* Floor-load capacity (audit C-03) — with per-station weight it flags a
+          station too heavy for the slab. 0/blank ⇒ the check is skipped. */}
+      <div style={{ marginTop: 8 }}>
+        <NumberInput id="ls-floorload" label="Floor load capacity (kg/m²)" helperText="Slab capacity. A station whose weight ÷ footprint exceeds this is flagged in Flow ▸ Layout realism. 0 = not checked." min={0} value={m.floorLoadKgPerM2 ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_FLOOR_LOAD", floorLoadKgPerM2: +value > 0 ? +value : undefined })} />
+      </div>
+      {/* Floor envelope polygon (audit C-03 inc2). "Fit" seeds it to the current
+          layout's bounding box; then it can be reshaped by editing the model JSON
+          (a full on-canvas polygon editor is a later increment). Stations off the
+          floor are flagged and the optimiser keeps them inside it. */}
+      <div style={{ marginTop: 12 }}>
+        <div className="lab" style={{ marginBottom: 6 }}>Floor envelope</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Button
+            kind="tertiary"
+            size="sm"
+            onClick={() => {
+              const ss = m.stations.filter((s) => s.w > 0 && s.h > 0);
+              if (ss.length === 0) { toast("Add stations first", "err"); return; }
+              const minX = Math.max(0, Math.min(...ss.map((s) => s.x)) - 1);
+              const minY = Math.max(0, Math.min(...ss.map((s) => s.y)) - 1);
+              const maxX = Math.min(m.gridW, Math.max(...ss.map((s) => s.x + s.w)) + 1);
+              const maxY = Math.min(m.gridH, Math.max(...ss.map((s) => s.y + s.h)) + 1);
+              api.commit({ type: "SET_FLOOR_POLYGON", floorPolygon: [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]] });
+              toast("Floor fitted to layout");
+            }}
+          >
+            Fit floor to layout
+          </Button>
+          <Button kind="ghost" size="sm" disabled={!m.floorPolygon} onClick={() => { api.commit({ type: "SET_FLOOR_POLYGON", floorPolygon: undefined }); toast("Floor envelope cleared"); }}>
+            Clear
+          </Button>
+        </div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
+          {m.floorPolygon ? `${m.floorPolygon.length}-point envelope. Stations leaving it are flagged in Flow ▸ Layout realism.` : "No envelope — the full grid is usable floor."}
+        </div>
       </div>
     </div>
   );
@@ -752,6 +789,53 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
           onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
         />
       ))}
+
+      {/* Layout realism (audit C-03): clearance, floor load, egress — the checks
+          that decide whether a layout is buildable, not just cheap to flow. Only
+          shown when the model carries the data (clearance/weight/floor capacity). */}
+      {api.realism.issues.length > 0 ? (
+        <>
+          <div className="lab" style={{ margin: "16px 0 8px" }}>Layout realism</div>
+          {api.realism.issues.map((it, i) => (
+            <InlineNotification
+              key={i}
+              kind={it.sev === "err" ? "error" : "warning"}
+              lowContrast
+              hideCloseButton
+              title={it.msg}
+              style={{ cursor: it.id ? "pointer" : "default", maxWidth: "none" }}
+              onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
+            />
+          ))}
+        </>
+      ) : null}
+
+      {/* Capability coverage — Gate 1 (audit C-01): can this workload be produced
+          on this line's resources? Direct, via a substitution, or a blocker. */}
+      {!api.coverage.empty ? (
+        <>
+          <div className="lab" style={{ margin: "16px 0 8px" }}>
+            Capability coverage (Gate 1)
+          </div>
+          <InlineNotification
+            kind={api.coverage.gate1Pass ? "success" : "error"}
+            lowContrast
+            hideCloseButton
+            title={api.coverage.gate1Pass
+              ? `All ${api.coverage.required.length} required capabilities are covered${api.coverage.alternative > 0 ? ` (${api.coverage.alternative} via a substitute)` : ""}.`
+              : `${api.coverage.missing} capability(ies) not provided — the line cannot make this workload as-is.`}
+            style={{ marginBottom: 8, maxWidth: "none" }}
+          />
+          {api.coverage.required.map((c) => (
+            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", padding: "2px 0", color: TEXTD }}>
+              <span style={{ color: c.status === "missing" ? RED : "var(--cds-text-primary)" }}>{c.name}</span>
+              <span style={{ color: c.status === "covered" ? TEAL : c.status === "alternative" ? AMBER : RED }}>
+                {c.status === "covered" ? "provided" : c.status === "alternative" ? `via ${c.viaName}` : "MISSING"}
+              </span>
+            </div>
+          ))}
+        </>
+      ) : null}
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Draw connections
@@ -1045,6 +1129,32 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         <NumberInput id="cfg-w" label="Width" value={s.w} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +value) } })} />
         <NumberInput id="cfg-h" label="Height" value={s.h} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +value) } })} />
       </div>
+      {/* Access clearance + weight (audit C-03) — feed the Layout-realism checks. */}
+      {(() => {
+        const c = s.clearance ?? { top: 0, right: 0, bottom: 0, left: 0 };
+        const setClear = (k: "top" | "right" | "bottom" | "left", v: number) => {
+          const next = { ...c, [k]: Math.max(0, Math.round(v || 0)) };
+          const allZero = next.top === 0 && next.right === 0 && next.bottom === 0 && next.left === 0;
+          up({ clearance: allZero ? undefined : next });
+        };
+        return (
+          <>
+            <div className="field-lab-row" style={{ fontSize: "0.75rem", marginTop: 10 }}>
+              Access clearance (cells)
+              <HelpPopover text="Keep-clear margin per side for operator/maintenance access. Another machine's body must not sit in it — violations show in Flow ▸ Layout realism and ring the station red. The optimiser respects it." />
+            </div>
+            <div className="row2" style={{ marginTop: 4 }}>
+              <NumberInput id="cfg-cl-top" label="Top" min={0} value={c.top} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("top", +value)} />
+              <NumberInput id="cfg-cl-bottom" label="Bottom" min={0} value={c.bottom} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("bottom", +value)} />
+            </div>
+            <div className="row2" style={{ marginTop: 4 }}>
+              <NumberInput id="cfg-cl-left" label="Left" min={0} value={c.left} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("left", +value)} />
+              <NumberInput id="cfg-cl-right" label="Right" min={0} value={c.right} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("right", +value)} />
+            </div>
+            <NumberInput id="cfg-weight" label={<span className="field-lab-row">Weight (kg)<HelpPopover text="Equipment weight. With the cell's floor-load capacity (Layout settings) it flags a station too heavy for the slab." /></span>} min={0} value={s.weightKg ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ weightKg: Math.max(0, +value) || undefined })} style={{ marginTop: 8 }} />
+          </>
+        );
+      })()}
       <CellShapeEditor api={api} station={s} />
       <div className="row2" style={{ marginTop: 8 }}>
         <Select id="cfg-inside" labelText={<span className="field-lab-row">IN port<HelpPopover text="Edge where material enters; flows route to this port." /></span>} value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>

@@ -5,7 +5,7 @@ import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { fieldQuality } from "@flowplan/core/model/types";
-import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
+import { center, clampToGrid, clearanceRect, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
 import { AMBER, AUTO_COL, BLUE, ERGO_COL, LINE, PANEL2, PURPLE, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 
 const PAD = 12;
@@ -61,6 +61,10 @@ interface Props {
   flowFirst?: string | null;
   selFlow?: { from: string; to: string } | null;
   criticalPath?: string[];
+  /** Station ids with a layout-realism conflict (clearance/floor-load/egress),
+   *  ringed in red on the canvas so the violation is visible in place (§3 Law 3,
+   *  audit C-03). */
+  conflictIds?: string[];
   onSelect?: (id: string | null) => void;
   onSelectFlow?: (f: { from: string; to: string } | null) => void;
   onHoverStation?: (s: Station | null, clientX: number, clientY: number) => void;
@@ -453,6 +457,19 @@ export function LayoutCanvas(props: Props) {
           );
         })}
 
+        {/* Usable floor outline (audit C-03 inc2) — stations must sit inside it. */}
+        {model.floorPolygon && model.floorPolygon.length >= 3 ? (
+          <polygon
+            points={model.floorPolygon.map(([px, py]) => `${PAD + px * cell},${PAD + py * cell}`).join(" ")}
+            fill="none"
+            stroke={TEAL}
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
+            opacity={0.6}
+            pointerEvents="none"
+          />
+        ) : null}
+
         {(model.noGoZones ?? []).map((z, i) => {
           const st = ZONE_STYLE[z.kind ?? "blocking"];
           const solid = (z.kind === "wall" || z.kind === "column");
@@ -634,7 +651,10 @@ export function LayoutCanvas(props: Props) {
           // positions, so it shows whether the station was moved onto the zone
           // OR the zone was moved onto the station.
           const zoneConflict = hasCollision(s, s.x, s.y, [], model.noGoZones ?? []);
-          const colliding = (draggingId === s.id && dragCollide) || zoneConflict;
+          // A layout-realism conflict (clearance / floor load / egress) rings the
+          // station red too, so an unbuildable placement is visible in place (C-03).
+          const realismConflict = props.conflictIds?.includes(s.id) ?? false;
+          const colliding = (draggingId === s.id && dragCollide) || zoneConflict || realismConflict;
           const onCpNode = cpNodes.has(s.id);
           const units = Math.max(1, s.parallelUnits ?? 1);
           const assemble = (s.mergeMode ?? "sum") === "assemble" && flows.filter((f) => f.to === s.id).length > 1;
@@ -660,6 +680,26 @@ export function LayoutCanvas(props: Props) {
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
               onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
             >
+              {/* keep-clear access halo (audit C-03) — the space that must stay
+                  free around the machine; turns red when a body encroaches. */}
+              {s.clearance ? (() => {
+                const cr = clearanceRect(s);
+                return (
+                  <rect
+                    x={PAD + cr.x * cell}
+                    y={PAD + cr.y * cell}
+                    width={cr.w * cell}
+                    height={cr.h * cell}
+                    rx={4}
+                    fill="none"
+                    stroke={realismConflict ? RED : TEALD}
+                    strokeDasharray="2 3"
+                    strokeWidth={1}
+                    opacity={0.55}
+                    pointerEvents="none"
+                  />
+                );
+              })() : null}
               {/* stacked shadow implies parallel lanes */}
               {units > 1 && !shaped ? (
                 <>

@@ -37,7 +37,7 @@ export interface BestLayout {
  * the cheapest of a pairwise optimize and each cell form. Deterministic.
  */
 export function bestLayout(model: Model, opts: OptimizeOptions = {}): BestLayout {
-  const grid = { gridW: model.gridW, gridH: model.gridH, noGoZones: model.noGoZones };
+  const grid = { gridW: model.gridW, gridH: model.gridH, noGoZones: model.noGoZones, floorPolygon: model.floorPolygon };
   const movable = model.stations.filter((s) => s.role === "process" && !s.fixed);
 
   const candidates: BestLayout[] = [];

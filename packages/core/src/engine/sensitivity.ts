@@ -1,6 +1,7 @@
 import type { Model } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { balanceAnalysis } from "./balance";
+import { customerTaktSec } from "./takt";
 
 // Behaviour at +N % volume (blueprint §11 data sheet). Volume is the assumption
 // that breaks most often, so the sheet states it explicitly, as a sentence.
@@ -19,7 +20,7 @@ export interface VolumeSensitivity {
 
 export function volumeSensitivity(model: Model, pct = 0.2): VolumeSensitivity {
   const shiftHours = model.shiftHours ?? DEFAULT_SHIFT_HOURS;
-  const bal = balanceAnalysis(model.stations, model.flows, shiftHours);
+  const bal = balanceAnalysis(model.stations, model.flows, shiftHours, customerTaktSec(model));
   const currentTakt = bal.takt;
   const newTakt = currentTakt > 0 ? +(currentTakt / (1 + pct)).toFixed(1) : 0;
 

@@ -158,7 +158,17 @@ export function conceptFit(kind: ConceptKind, annualVolume: number): number {
   return Math.max(0, Math.round((1 - dist / tolerance) * 100));
 }
 
-/** Concepts ordered by how well they fit a volume, best first. */
+/** Concepts ordered by how well they fit a volume, best first.
+ *
+ *  Equal volume fit is broken by the lean default (spec §9, "lowest automation
+ *  meeting takt wins by default; escalation needs justification"): the cheaper,
+ *  less-automated concept ranks first. Without this, overlapping volume bands
+ *  tied at 100 in arbitrary declaration order (audit C-06). This is a coarse
+ *  screen; the primary concept comparison is the fully-loaded cost ranking over
+ *  generated cells in generate.ts (RankBy), which weighs capex, opex, ergo and
+ *  balance together. */
 export function rankConcepts(annualVolume: number): Array<{ kind: ConceptKind; fit: number }> {
-  return CONCEPT_KINDS.map((kind) => ({ kind, fit: conceptFit(kind, annualVolume) })).sort((a, b) => b.fit - a.fit);
+  return CONCEPT_KINDS.map((kind) => ({ kind, fit: conceptFit(kind, annualVolume) })).sort(
+    (a, b) => b.fit - a.fit || CONCEPTS[a.kind].capexPerStation - CONCEPTS[b.kind].capexPerStation,
+  );
 }

@@ -37,6 +37,10 @@ export interface CostResult {
   laborPerShift: number;
   energyPerShift: number;
   transportPerShift: number;
+  /** Floor-occupancy cost per shift = floor area × €/m²·yr ÷ annual shifts (C-08). */
+  spacePerShift: number;
+  /** Maintenance/MRO + tooling per shift = capex × pct/yr ÷ annual shifts (C-08). */
+  maintenancePerShift: number;
   opexPerShift: number;
   costPerPart: number;
   /** Labour-dependent cost per part (PAUL LDC) — operator time. */
@@ -61,13 +65,6 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
   const laborPerShift = model.stations.reduce((a, s) => a + s.operators * stationHours(s) * cfg.laborCostPerHour, 0);
   const energyPerShift = model.stations.reduce((a, s) => a + (s.energyKw ?? 0) * stationHours(s) * cfg.energyCostPerKwh, 0);
   const transportPerShift = +computeKPIs(model.stations, model.flows, grid).flowCost.toFixed(2);
-  const opexPerShift = +(laborPerShift + energyPerShift + transportPerShift).toFixed(2);
-
-  const lineOut = balanceAnalysis(model.stations, model.flows, shiftHours).lineOut;
-  const costPerPart = lineOut > 0 ? +(opexPerShift / lineOut).toFixed(3) : 0;
-  // LDC/MDC split (PAUL): labour-dependent vs machine-dependent cost per part.
-  const ldcPerPart = lineOut > 0 ? +(laborPerShift / lineOut).toFixed(3) : 0;
-  const mdcPerPart = lineOut > 0 ? +((energyPerShift + transportPerShift) / lineOut).toFixed(3) : 0;
 
   // Floor space, split cell vs material supply (blueprint §4.9). Cell area is the
   // footprint the stations occupy; material supply is the routinely-forgotten
@@ -92,16 +89,38 @@ export function costAnalysis(model: Model, shiftHours: number = model.shiftHours
     unit: cfg.cellAreaM2 && cfg.cellAreaM2 > 0 ? "m²" : "cells",
   };
 
+  // Floor space and maintenance/tooling finally enter opex (audit C-08): space
+  // was measured but never charged, and equipment carried no upkeep cost.
+  const annualShifts = cfg.annualShifts > 0 ? cfg.annualShifts : 1;
+  const spaceCostPerM2Year = cfg.spaceCostPerM2Year ?? 0;
+  const maintenancePct = cfg.maintenancePctOfCapexPerYear ?? 0;
+  const spacePerShift = +((floorSpace.total * spaceCostPerM2Year) / annualShifts).toFixed(2);
+  const maintenancePerShift = +((capexTotal * maintenancePct) / annualShifts).toFixed(2);
+
+  const opexPerShift = +(laborPerShift + energyPerShift + transportPerShift + spacePerShift + maintenancePerShift).toFixed(2);
+
+  const lineOut = balanceAnalysis(model.stations, model.flows, shiftHours).lineOut;
+  const costPerPart = lineOut > 0 ? +(opexPerShift / lineOut).toFixed(3) : 0;
+  // LDC/MDC split (PAUL): labour-dependent vs everything-else per part. Space and
+  // maintenance are machine/facility-dependent, so they sit in MDC.
+  const ldcPerPart = lineOut > 0 ? +(laborPerShift / lineOut).toFixed(3) : 0;
+  const mdcPerPart = lineOut > 0 ? +((energyPerShift + transportPerShift + spacePerShift + maintenancePerShift) / lineOut).toFixed(3) : 0;
+
   const automation: AutomationROI[] = model.stations
     .filter((s) => s.role === "process")
     .map((s) => {
       const ap = autoPotential(s);
-      // assume automating removes the step's operators' labor
-      const laborSavedPerYear = s.operators * stationHours(s) * cfg.laborCostPerHour * cfg.annualShifts;
+      // Automating removes the step's operator labour, but the new equipment
+      // carries its own annual upkeep (audit C-08) — net it out so payback is
+      // not overstated. (Assumes full operator removal; a partial-manning model
+      // would refine this.)
+      const laborSavedPerYear = s.operators * stationHours(s) * cfg.laborCostPerHour * annualShifts;
       const capex = s.automationCapex ?? 0;
-      const paybackMonths = capex > 0 && laborSavedPerYear > 0 ? +((capex / laborSavedPerYear) * 12).toFixed(1) : null;
+      const addedUpkeepPerYear = capex * maintenancePct;
+      const netSavedPerYear = laborSavedPerYear - addedUpkeepPerYear;
+      const paybackMonths = capex > 0 && netSavedPerYear > 0 ? +((capex / netSavedPerYear) * 12).toFixed(1) : null;
       return { id: s.id, name: s.name, verdict: ap.verdict, automationCapex: capex, laborSavedPerYear: Math.round(laborSavedPerYear), paybackMonths };
     });
 
-  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, opexPerShift, costPerPart, ldcPerPart, mdcPerPart, lineOut, floorSpace, automation };
+  return { currency: cfg.currency, capexTotal, laborPerShift: +laborPerShift.toFixed(2), energyPerShift: +energyPerShift.toFixed(2), transportPerShift, spacePerShift, maintenancePerShift, opexPerShift, costPerPart, ldcPerPart, mdcPerPart, lineOut, floorSpace, automation };
 }
