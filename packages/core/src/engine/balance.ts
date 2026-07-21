@@ -35,7 +35,14 @@ export interface BalanceResult {
   lineOut: number;
   maxRate: number;
   score: number;
+  /** Customer takt in seconds/part = net available time ÷ demand (audit A-01).
+   *  0 when demand is unknown — the honest signal that there is no takt to hit
+   *  yet, rather than a fabricated one. This is the line the Yamazumi draws. */
   takt: number;
+  /** Achieved line pace in seconds/part = available time ÷ actual output. What
+   *  the line currently does, NOT what the customer needs. Kept distinct from
+   *  `takt` so the two are never conflated (the old code called this "takt"). */
+  lineCycleSec: number;
   /** Longest cumulative-cycle route through the flow (station ids, source→end). */
   criticalPath: string[];
   /** Synchronized merges where faster branches idle waiting on the slowest. */
@@ -46,20 +53,43 @@ function shiftSeconds(hours: number): number {
   return hours * 3600;
 }
 
+/** Parallel lanes an operator count contributes to *throughput*.
+ *
+ *  Audit A-02: operators must NOT multiply a machine's throughput — a machine's
+ *  rate is set by its cycle time, and identical parallel machines are modelled
+ *  explicitly via `parallelUnits`. Adding a second operator to one CNC does not
+ *  double its output; adding a second person to a manual bench (each assembling
+ *  a separate part) genuinely does. So operators scale throughput only for
+ *  operator-paced work (`manual`), where each operator is a parallel worker.
+ *  Machine/quality/store stations are machine- or process-paced: operators there
+ *  drive labour cost and manning, not part throughput. */
+export function operatorPaceLanes(s: Pick<Station, "type" | "operators">): number {
+  return s.type === "manual" ? Math.max(1, s.operators) : 1;
+}
+
 // Effective parts/shift one resource at a step can output (cycle- or capacity-
 // bound). Multiply by parallelUnits for the step's full capacity (see capacityOf).
 export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS): number {
   const hours = s.shiftHours ?? shiftHours;
   const cycleSec = effectiveCycleSec(s);
   // Each cycle yields partsPerCycle parts (a multi-cavity die / batch fixture),
-  // so the same cycle time delivers that many times the part throughput.
+  // so the same cycle time delivers that many times the part throughput. Manual
+  // benches also scale with the number of operators working in parallel (A-02).
   const byCycle =
     cycleSec > 0
-      ? Math.floor((3600 / cycleSec) * hours * Math.max(1, s.operators) * partsPerCycleOf(s))
+      ? Math.floor((3600 / cycleSec) * hours * operatorPaceLanes(s) * partsPerCycleOf(s))
       : Infinity;
   const cap = s.capacityPerShift > 0 ? s.capacityPerShift : Infinity;
   const r = Math.min(byCycle, cap);
   return isFinite(r) ? r : cap === Infinity ? byCycle : cap;
+}
+
+/** Good-part yield of a step: the fraction of processed parts that pass. A step
+ *  with scrapRate r consumes capacity for every part but only (1−r) leave good,
+ *  so downstream demand upstream is inflated by 1/(1−r) (audit A-05). */
+function yieldOf(s: Station): number {
+  const r = Math.max(0, Math.min(1, s.scrapRate ?? 0));
+  return 1 - r;
 }
 
 /** Full step capacity = single-resource rate × parallel units. */
@@ -90,7 +120,12 @@ export function bottleneckAdvice(bal: BalanceResult, stations: Station[]): strin
   const bn = bal.bottleneck;
   if (!bn) return tips;
   const st = stations.find((s) => s.id === bn.id);
-  tips.push(`${bn.name} caps the line at ${bal.lineOut.toLocaleString()} parts/shift (takt ≈ ${bal.takt}s).`);
+  tips.push(`${bn.name} caps the line at ${bal.lineOut.toLocaleString()} parts/shift (line pace ≈ ${bal.lineCycleSec}s/part).`);
+  if (bal.takt > 0) {
+    const gap = +(bn.cycle - bal.takt).toFixed(1);
+    if (gap > 0) tips.push(`${bn.name} runs ${bn.cycle}s against a ${bal.takt}s customer takt — ${gap}s over. This configuration cannot meet demand without lifting the constraint.`);
+    else tips.push(`The line meets the ${bal.takt}s customer takt (${bn.name} at ${bn.cycle}s has ${Math.abs(gap)}s headroom).`);
+  }
   if (st) {
     const units = Math.max(1, st.parallelUnits ?? 1);
     const withLane = Math.round((bn.rate / units) * (units + 1));
@@ -134,11 +169,15 @@ export function balanceAnalysis(
   stations: Station[],
   flows: Flow[],
   shiftHours: number = DEFAULT_SHIFT_HOURS,
+  /** Customer takt in seconds/part (net available time ÷ demand). Omit/0 when
+   *  demand is unknown — the result's `takt` then stays 0 (audit A-01). */
+  taktSec: number = 0,
 ): BalanceResult {
   // Work steps only — flow functions (buffers/stores) hold WIP, they are not
   // steps to balance, so they never appear as a bottleneck or in the balance.
   const proc = stations.filter((s) => s.role === "process" && !isFlowFunction(s));
-  const empty: BalanceResult = { steps: [], bottleneck: null, lineOut: 0, maxRate: 0, score: 100, takt: 0, criticalPath: [], syncWaits: [] };
+  const takt = taktSec > 0 ? +taktSec.toFixed(1) : 0;
+  const empty: BalanceResult = { steps: [], bottleneck: null, lineOut: 0, maxRate: 0, score: 100, takt, lineCycleSec: 0, criticalPath: [], syncWaits: [] };
   if (proc.length === 0) return empty;
 
   const byId: Record<string, Station> = {};
@@ -173,7 +212,10 @@ export function balanceAnalysis(
     } else {
       const contribs = ins.map((f) => {
         const src = byId[f.from];
-        const ts = T[f.from] ?? 0;
+        // Only good parts leave a step: a source with scrapRate r passes (1−r)
+        // of its throughput downstream (audit A-05). Scrap still consumed the
+        // source's capacity, so the loss correctly depresses line output.
+        const ts = (T[f.from] ?? 0) * (src ? yieldOf(src) : 1);
         const split = src?.splitMode ?? "distribute";
         const c = split === "fork" ? ts : ts * shareOf(f, outFlows[f.from]);
         return { f, c };
@@ -220,8 +262,11 @@ export function balanceAnalysis(
   const limited = steps.filter((x) => x.rate > 0 && Math.abs((T[x.id] ?? 0) - x.rate) < 1).sort((a, b) => a.rate - b.rate);
   const bottleneck = limited[0] ?? finite.slice().sort((a, b) => a.rate - b.rate)[0] ?? null;
 
+  // Achieved line pace = available time ÷ actual output. This is what the line
+  // currently does; it is NOT the customer takt (audit A-01), which arrives via
+  // the taktSec parameter and is 0 when demand is unknown.
   const bnHours = (bottleneck && proc.find((p) => p.id === bottleneck.id)?.shiftHours) ?? shiftHours;
-  const takt = lineOut > 0 ? +(shiftSeconds(bnHours) / lineOut).toFixed(1) : 0;
+  const lineCycleSec = lineOut > 0 ? +(shiftSeconds(bnHours) / lineOut).toFixed(1) : 0;
 
   // Critical path: longest cumulative cycle-time route.
   const cp: Record<string, number> = {};
@@ -252,5 +297,5 @@ export function balanceAnalysis(
   const criticalPath: string[] = [];
   for (let n: string | null = endNode; n; n = parent[n]) criticalPath.unshift(n);
 
-  return { steps, bottleneck, lineOut, maxRate, score, takt, criticalPath, syncWaits };
+  return { steps, bottleneck, lineOut, maxRate, score, takt, lineCycleSec, criticalPath, syncWaits };
 }

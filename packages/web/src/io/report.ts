@@ -62,7 +62,7 @@ export function buildReportHTML(model: Model, layoutSvg: string): string {
       ${bar("Ergonomics", r.scores.ergo)}
       ${bar("Automation coherence", r.scores.auto)}
       <div class="callout">Improvement potential: −${r.flowReductionPct.toFixed(0)}% material-flow cost by repositioning movable stations.</div>
-      ${bn ? `<div class="callout">Bottleneck: ${esc(bn.name)} at ${bn.cycle}s/part caps the line at ${r.balance.lineOut.toLocaleString()} parts/shift (takt ≈ ${r.balance.takt}s).</div>` : ""}
+      ${bn ? `<div class="callout">Bottleneck: ${esc(bn.name)} at ${bn.cycle}s/part caps the line at ${r.balance.lineOut.toLocaleString()} parts/shift (line pace ≈ ${r.balance.lineCycleSec}s/part${r.balance.takt > 0 ? `, customer takt ${r.balance.takt}s` : ""}).</div>` : ""}
     </div>
     <div class="col">
       ${layoutSvg}

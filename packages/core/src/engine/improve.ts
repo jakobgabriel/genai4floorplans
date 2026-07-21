@@ -1,6 +1,7 @@
 import type { Confidence, Model, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { balanceAnalysis } from "./balance";
+import { customerTaktSec } from "./takt";
 import { effectiveCycleSec, cycleAnalysis } from "./cycle";
 import { computeKPIs } from "./kpis";
 import { optimize } from "./optimize";
@@ -66,7 +67,7 @@ const ALL_FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
 export function findImprovements(model: Model, opts: { restarts?: number } = {}): ImprovementReport {
   const shiftHours = model.shiftHours ?? DEFAULT_SHIFT_HOURS;
   const procs = model.stations.filter((s) => s.role === "process");
-  const bal = balanceAnalysis(model.stations, model.flows, shiftHours);
+  const bal = balanceAnalysis(model.stations, model.flows, shiftHours, customerTaktSec(model));
   const out: Improvement[] = [];
 
   const empty: ImprovementReport = {
@@ -142,7 +143,10 @@ export function findImprovements(model: Model, opts: { restarts?: number } = {})
       detail: onBottleneck
         ? `${w.sec}s of ${w.label.toLowerCase()} sits on the bottleneck, so removing it raises line output directly.`
         : `${w.sec}s of ${w.label.toLowerCase()} (${w.sharePct}% of all waste). Off the constraint, so this buys labour, not throughput.`,
-      throughputGain: onBottleneck && bal.takt > 0 ? Math.round((w.sec / bal.takt) * bal.lineOut) : 0,
+      // Removing waste from the constraint lifts output relative to the actual
+      // line pace, independent of customer takt (audit A-01): a shorter
+      // bottleneck cycle raises the rate whether or not demand is known.
+      throughputGain: onBottleneck && bal.lineCycleSec > 0 ? Math.round((w.sec / bal.lineCycleSec) * bal.lineOut) : 0,
       stationsSaved: 0,
       secondsSaved: w.sec,
       // Waste on the constraint is worth far more than waste beside it.

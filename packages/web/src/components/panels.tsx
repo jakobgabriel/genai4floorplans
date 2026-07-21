@@ -311,7 +311,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
           {bal.lineOut.toLocaleString()} <span style={{ fontSize: "0.75rem", color: TEXTD, fontWeight: 400 }}>parts/shift</span>
         </div>
         <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
-          Takt ≈ {bal.takt} s/part · balance score {bal.score}/100
+          Line pace ≈ {bal.lineCycleSec} s/part{bal.takt > 0 ? ` · customer takt ${bal.takt}s` : " · takt —"} · balance score {bal.score}/100
         </div>
       </div>
       {advice.length > 0 ? (

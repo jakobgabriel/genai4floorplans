@@ -33,7 +33,13 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
         undefined,
         "Opex per shift ÷ line output. The number to design against.",
       )}
-      {kpi("Takt", rating.balance.takt > 0 ? rating.balance.takt + "s" : "—", undefined, "Seconds per part at the current line output")}
+      {kpi(
+        "Takt",
+        rating.balance.takt > 0 ? rating.balance.takt + "s" : "—",
+        rating.balance.takt > 0 && rating.balance.bottleneck && rating.balance.bottleneck.cycle > rating.balance.takt ? "var(--cds-support-error)" : undefined,
+        "Customer takt = net available time ÷ demand. Set demand to compute it. This is the line to hit — red when the bottleneck cycle exceeds it.",
+      )}
+      {kpi("Line pace", rating.balance.lineCycleSec > 0 ? rating.balance.lineCycleSec + "s" : "—", undefined, "Seconds per part the line actually achieves (available time ÷ output). What it does now — not what the customer needs.")}
       {cyc.lineValueAddPct != null
         ? kpi("Value add", cyc.lineValueAddPct + "%", scoreColor(cyc.lineValueAddPct), "Share of decomposed cycle time that transforms the part")
         : null}
