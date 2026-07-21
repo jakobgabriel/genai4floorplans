@@ -12,8 +12,13 @@ import type { DataQuality, StationType } from "./types";
 // alternatives (governing spec §7). A 1:1 link makes the tool a recorder, not a
 // generator.
 
-export type ProcessCategory = "metal" | "rubber" | "plastic" | "assembly" | "test" | "logistics";
-export const PROCESS_CATEGORIES: ProcessCategory[] = ["metal", "rubber", "plastic", "assembly", "test", "logistics"];
+// A process category is the library "group" an entry belongs to. It is free-form
+// so users can define their own groups; the six below are the seeded defaults
+// that ship with the catalog and anchor the display order.
+export type ProcessCategory = string;
+export const DEFAULT_PROCESS_CATEGORIES = ["metal", "rubber", "plastic", "assembly", "test", "logistics"] as const;
+/** The seeded default groups, in display order. Custom groups sort after these. */
+export const PROCESS_CATEGORIES: ProcessCategory[] = [...DEFAULT_PROCESS_CATEGORIES];
 
 export type Robustness = "low" | "med" | "high";
 

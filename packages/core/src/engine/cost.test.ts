@@ -33,7 +33,8 @@ describe("costAnalysis", () => {
     const c = costAnalysis(SAMPLE);
     // SAMPLE footprints: 3×2 + 3×3 + 4×3 + 3×3 + 3×2 + 3×2 = 6+9+12+9+6+6 = 48 cells.
     expect(c.floorSpace.cell).toBe(48);
-    expect(c.floorSpace.unit).toBe("cells");
+    // Default scale is 1 cell = 1 m², so floor space reports in m².
+    expect(c.floorSpace.unit).toBe("m²");
     // Default +35% material supply, reported separately, never folded in.
     expect(c.floorSpace.materialSupply).toBeCloseTo(48 * 0.35, 2);
     expect(c.floorSpace.total).toBeCloseTo(48 * 1.35, 2);

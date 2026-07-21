@@ -30,7 +30,6 @@ import { LibrarySidebar } from "./components/LibrarySidebar";
 import { ComparePage } from "./pages/ComparePage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { LibraryPage } from "./pages/LibraryPage";
-import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
 import { useHashRoute, navigate } from "./store/useHashRoute";
@@ -128,8 +127,22 @@ export function App() {
     const noRoute = !window.location.hash || window.location.hash === "#" || window.location.hash === "#/";
     if (returning && noRoute) navigate("/workspace");
   }, []);
+  // The workspace cell this guided session materialised its concept into. On
+  // re-entry (the user went back, changed steps, and came forward again) we
+  // update THIS cell in place rather than spawning a duplicate — so an added or
+  // removed step is reflected without cluttering the workspace. Cleared whenever
+  // a fresh guided session starts, so a new concept never overwrites an old one.
+  const guidedCell = useRef<string | null>(null);
+  // Signature of what was last materialised, so re-entering Concepts without any
+  // change keeps the user's editor edits instead of overwriting them.
+  const guidedSig = useRef<string | null>(null);
   // Start the guided wizard for a new concept, from the workspace.
   const startGuided = useCallback(() => {
+    // A brand-new concept must not reuse the previous guided session's cell —
+    // otherwise the next Concepts→Refine would overwrite the earlier concept's
+    // layout instead of creating a fresh one. Clear the session's binding.
+    guidedCell.current = null;
+    guidedSig.current = null;
     setStep("situation");
     setReached(["situation"]);
     setView("actual");
@@ -150,14 +163,6 @@ export function App() {
     { name: "Pack", cycleTimeSec: 20 },
   ]);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  // The workspace cell this guided session materialised its concept into. On
-  // re-entry (the user went back, changed steps, and came forward again) we
-  // update THIS cell in place rather than spawning a duplicate — so an added or
-  // removed step is reflected without cluttering the workspace.
-  const guidedCell = useRef<string | null>(null);
-  // Signature of what was last materialised, so re-entering Concepts without any
-  // change keeps the user's editor edits instead of overwriting them.
-  const guidedSig = useRef<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -216,6 +221,40 @@ export function App() {
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
   const useCase = useCaseId ? USE_CASES.find((u) => u.id === useCaseId) ?? null : null;
+
+  // The Summary must reflect what the user actually built in the editor, not the
+  // original generated candidate — otherwise refinements never reach the decision
+  // one-pager. Recompute the headline metrics from the live workspace model.
+  const liveSummary = useMemo(() => {
+    if (step !== "summary") return null;
+    const m = api.model;
+    const r = api.rating;
+    const c = costAnalysis(m);
+    const programParts = demand.annualVolume * (demand.programYears || 1);
+    const capexPerPart = programParts > 0 ? +(c.capexTotal / programParts).toFixed(3) : 0;
+    const procs = m.stations.filter((s) => s.role === "process");
+    const operators = procs.reduce((a, s) => a + s.operators * Math.max(1, s.parallelUnits ?? 1), 0);
+    const parallelUnits = procs.reduce((a, s) => a + Math.max(1, s.parallelUnits ?? 1), 0);
+    const lineOut = r.balance.lineOut;
+    return {
+      model: m,
+      letter: r.letter,
+      composite: r.composite,
+      loadedCostPerPart: +(c.costPerPart + capexPerPart).toFixed(3),
+      costPerPart: c.costPerPart,
+      capexPerPart,
+      capexTotal: c.capexTotal,
+      lineOut,
+      takt: r.balance.takt,
+      meetsDemand: perShift <= 0 || lineOut >= Math.floor(perShift),
+      operators,
+      stations: procs.length,
+      parallelUnits,
+      overCapacityPct: perShift > 0 ? Math.max(0, Math.round(((lineOut - perShift) / perShift) * 100)) : 0,
+      floorSpace: c.floorSpace,
+      currency: c.currency,
+    };
+  }, [step, api.model, api.rating, demand, perShift]);
 
   // ---- flow drawing: pick source then target
   const pickStation = useCallback(
@@ -582,7 +621,6 @@ export function App() {
   if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} />, "workspace");
   if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />, "library");
   if (route === "/compare") return page(<ComparePage api={api} />, "compare");
-  if (route === "/site") return page(<SitePage api={api} />, "site");
   if (route === "/archive") return page(<ArchivePage api={api} />, "workspace");
   if (route === "/admin") return page(<AdminPage />, null);
 
@@ -602,12 +640,6 @@ export function App() {
         Continue to summary
       </Button>
       <span className="hsep" />
-        {/* The workspace is deliberately NOT reachable from the editor — it is the
-            app's entry point, not a detour inside the flow editor. */}
-        <button className="btn sm" onClick={() => navigate("/site")} title="Site overview across all layouts">
-          Site
-        </button>
-        <span className="hsep" />
         <button className="btn sm" onClick={api.undo} disabled={!api.canUndo} title="Undo (Ctrl/Cmd+Z)">
           ↺
         </button>
@@ -641,7 +673,6 @@ export function App() {
           title="More actions"
           items={[
             { label: "Compare scenarios", onClick: () => navigate("/compare") },
-            { label: "Site overview", onClick: () => navigate("/site") },
             { label: "Archived items", onClick: () => navigate("/archive") },
             { label: "Admin (teams & workspaces)", onClick: () => navigate("/admin") },
             {
@@ -871,7 +902,7 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} useCase={useCase} candidates={candidates} onRefine={() => goTo("refine")} /> : null}
+      {step === "summary" ? <SummaryStep picked={picked} live={liveSummary} useCase={useCase} candidates={candidates} onRefine={() => goTo("refine")} /> : null}
 
       {step !== "refine" ? stepNav : null}
 

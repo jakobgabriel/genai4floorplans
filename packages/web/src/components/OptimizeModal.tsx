@@ -93,7 +93,7 @@ export function OptimizeModal({
     },
     {
       label: "Material travel",
-      help: "Σ(volume × rectilinear distance) in cell·moves per shift.",
+      help: "Σ(volume × rectilinear distance) in m·moves per shift (1 cell = 1 m).",
       before: improved.deltas.travelBefore,
       after: improved.deltas.travelAfter,
       fmt: num,

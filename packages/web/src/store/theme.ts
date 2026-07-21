@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 // App theme: dark (Carbon g100) ⇄ light (Carbon white). Every route must render
-// inside a <Theme> with this value so the editor AND the workspace/library/site
+// inside a <Theme> with this value so the editor AND the workspace/library
 // pages re-theme together. `data-theme` on the root drives the custom
 // data-encoding fills Carbon doesn't own (tokens.css --type-*). Persisted.
 export type CarbonTheme = "g100" | "white";

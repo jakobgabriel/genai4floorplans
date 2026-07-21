@@ -432,6 +432,13 @@ export const EMPTY_CYCLE: CycleBreakdown = {
  *  blueprint's "forgotten 30-40 %". 0.35 is the midpoint. */
 export const DEFAULT_MATERIAL_SUPPLY_FACTOR = 0.35;
 
+/** Physical edge length of one grid cell, in metres. One cell is a 1 m × 1 m
+ *  square, so a cell is 1 m² of floor and a unit of travel distance is 1 m.
+ *  This is the canonical scale the whole tool measures space in. */
+export const CELL_SIZE_M = 1;
+/** Floor area of one grid cell, m² (CELL_SIZE_M²). */
+export const CELL_AREA_M2 = CELL_SIZE_M * CELL_SIZE_M;
+
 /** Default cost assumptions used when costConfig fields are absent. */
 export const DEFAULT_COST_CONFIG = {
   laborCostPerHour: 45,
@@ -439,6 +446,8 @@ export const DEFAULT_COST_CONFIG = {
   annualShifts: 460,
   currency: "$",
   materialSupplyFactor: DEFAULT_MATERIAL_SUPPLY_FACTOR,
+  // One cell = 1 m × 1 m, so floor space and travel report in real metres.
+  cellAreaM2: CELL_AREA_M2,
 } as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */

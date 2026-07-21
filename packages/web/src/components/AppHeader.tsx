@@ -8,12 +8,11 @@ import type { CarbonTheme } from "../store/theme";
 // carrying any page actions and the theme toggle. Rendering one component
 // everywhere is what keeps the top bar consistent.
 
-export type HeaderSection = "workspace" | "site" | "library" | "compare" | "editor" | null;
+export type HeaderSection = "workspace" | "library" | "compare" | "editor" | null;
 
 const NAV: { id: HeaderSection; label: string; href: string }[] = [
   { id: "workspace", label: "Workspace", href: "#/workspace" },
   { id: "editor", label: "Editor", href: "#/" },
-  { id: "site", label: "Site", href: "#/site" },
   { id: "compare", label: "Compare", href: "#/compare" },
   { id: "library", label: "Library", href: "#/library" },
 ];

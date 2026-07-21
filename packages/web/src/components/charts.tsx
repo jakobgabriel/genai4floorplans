@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Tile } from "@carbon/react";
 import type { StationCycle } from "@flowplan/core/engine/cycle";
-import { CYCLE_COL, RED, scoreColor, TEAL, TEXTD } from "./colors";
+import { CYCLE_COL, LINE, RED, scoreColor, TEAL, TEXT, TEXTD } from "./colors";
 
 // Lightweight inline-SVG charts (no charting dependency — consistent with the
-// hand-drawn layout canvas). Used by the Compare and Site pages.
+// hand-drawn layout canvas). Used by the Compare page and the analysis dashboard.
 
 export interface Bar {
   label: string;
@@ -17,27 +17,32 @@ export interface Bar {
 }
 
 // Horizontal bar chart — readable with long category labels (scenario/cell names).
+// Sized generously and stretched to fill its container width (the SVG scales via
+// the viewBox), so it stays legible whether it sits in a wide card or a column.
 export function BarChart({ bars, max, unit, colorByScore = false }: { bars: Bar[]; max?: number; unit?: string; colorByScore?: boolean }) {
   const top = max ?? Math.max(1, ...bars.map((b) => b.value));
-  const rowH = 26;
-  const labelW = 132;
-  const barW = 360;
-  const w = labelW + barW + 56;
+  const rowH = 30;
+  const barH = 14;
+  const labelW = 170;
+  const barW = 460;
+  const valueW = 84;
+  const w = labelW + barW + valueW;
   const h = bars.length * rowH + 8;
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} role="img" style={{ maxWidth: w }}>
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} role="img" preserveAspectRatio="xMinYMin meet" style={{ display: "block" }}>
       {bars.map((b, i) => {
         const y = i * rowH + 4;
+        const barY = y + (rowH - 8 - barH) / 2;
         const len = Math.max(0, (b.value / top) * barW);
         const fill = b.color ?? (colorByScore ? scoreColor(b.value) : TEAL);
         return (
           <g key={b.label + i}>
-            <text x={labelW - 8} y={y + rowH / 2} textAnchor="end" dominantBaseline="middle" fontSize="11" fill={b.highlight ? TEAL : "var(--text)"} fontWeight={b.highlight ? 700 : 400}>
-              {b.label.length > 20 ? b.label.slice(0, 19) + "…" : b.label}
+            <text x={labelW - 10} y={y + rowH / 2} textAnchor="end" dominantBaseline="middle" fontSize="13" fill={b.highlight ? TEAL : TEXT} fontWeight={b.highlight ? 700 : 400}>
+              {b.label.length > 24 ? b.label.slice(0, 23) + "…" : b.label}
             </text>
-            <rect x={labelW} y={y + 4} width={barW} height={rowH - 12} rx="3" fill="var(--line)" />
-            <rect x={labelW} y={y + 4} width={len} height={rowH - 12} rx="3" fill={fill} />
-            <text x={labelW + Math.min(len, barW) + 6} y={y + rowH / 2} dominantBaseline="middle" fontSize="10.5" fill={TEXTD}>
+            <rect x={labelW} y={barY} width={barW} height={barH} rx="4" fill={LINE} />
+            <rect x={labelW} y={barY} width={len} height={barH} rx="4" fill={fill} />
+            <text x={labelW + Math.min(len, barW) + 8} y={y + rowH / 2} dominantBaseline="middle" fontSize="12" fill={TEXTD}>
               {b.display ?? Math.round(b.value).toLocaleString()}{unit ?? ""}
             </text>
           </g>
