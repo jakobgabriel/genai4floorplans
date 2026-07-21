@@ -24,6 +24,7 @@ import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
+import { GroupEditorPopover } from "./components/GroupEditorPopover";
 import { Resizer } from "./components/Resizer";
 import { LibrarySidebar } from "./components/LibrarySidebar";
 import { ComparePage } from "./pages/ComparePage";
@@ -105,6 +106,7 @@ export function App() {
   const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
   const [selId, setSel] = useState<string | null>(null);
   const [selZone, setSelZone] = useState<number | null>(null);
+  const [selGroup, setSelGroup] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [overlay, setOverlay] = useState<Overlay>("none");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
@@ -370,6 +372,20 @@ export function App() {
     setView("actual");
   }, [api, improved.strategy, improved.form, proposal, toast]);
 
+  // Promote a documentation group's machines into a reusable subflow: capture the
+  // machines whose centre falls inside the group box, plus their internal flows,
+  // with the entry/exit ports derived automatically. Reusable from the Library.
+  const saveGroupAsSubflow = useCallback((groupId: string) => {
+    const g = (model.groups ?? []).find((x) => x.id === groupId);
+    if (!g) return;
+    const inside = model.stations.filter(
+      (s) => s.role === "process" && s.x + s.w / 2 >= g.x && s.x + s.w / 2 <= g.x + g.w && s.y + s.h / 2 >= g.y && s.y + s.h / 2 <= g.y + g.h,
+    );
+    if (inside.length < 2) { toast("A subflow needs at least two machines inside the group", "warn"); return; }
+    const sf = makeSubflow(model, inside.map((s) => s.id), g.label);
+    if (sf) { subflows.add(sf); toast(`Saved “${sf.name}” as a reusable subflow (${sf.inputs?.length ?? 0} in · ${sf.outputs?.length ?? 0} out)`); }
+  }, [model, subflows, toast]);
+
   // One drop handler for every draggable in the left library sidebar and the
   // palette: a station kind, a typed zone ("zone:*"), a library entry ("lib:*"),
   // or a grouped subflow ("sub:*").
@@ -457,19 +473,24 @@ export function App() {
           onDropNode={dropElement}
           onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
           onGroupRect={(z) => {
-            // Movable process stations whose centre falls inside the rubber-band.
+            // A "group" is a documentation annotation drawn around machines — a
+            // labelled, commented box that stays on the canvas. (A reusable
+            // subflow is made from the group afterwards, see the group editor.)
+            setMode("select");
             const inside = model.stations.filter(
               (s) => s.role === "process" && s.x + s.w / 2 >= z.x && s.x + s.w / 2 <= z.x + z.w && s.y + s.h / 2 >= z.y && s.y + s.h / 2 <= z.y + z.h,
             );
-            setMode("select");
-            if (inside.length < 2) { toast("Draw around at least two steps to group them", "warn"); return; }
-            const name = window.prompt(`Name this grouped element (${inside.length} steps)`, `Group of ${inside.length}`);
-            if (name == null) return;
-            const sf = makeSubflow(model, inside.map((s) => s.id), name);
-            if (sf) { subflows.add(sf); toast(`Grouped ${inside.length} steps as “${sf.name}”`); }
+            const id = "grp-" + Math.random().toString(36).slice(2, 9);
+            api.commit({ type: "ADD_GROUP", group: { id, x: z.x, y: z.y, w: z.w, h: z.h, label: `Group of ${inside.length}`, comment: "" } });
+            setSel(null); setSelZone(null); setSelGroup(id);
+            toast("Group added — add a comment to document it");
           }}
+          selGroup={selGroup}
+          onSelectGroup={setSelGroup}
+          onUpdateGroup={(id, patch) => api.live({ type: "UPDATE_GROUP", id, patch })}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
+        {selGroup ? <GroupEditorPopover api={api} groupId={selGroup} onClose={() => setSelGroup(null)} onSaveSubflow={saveGroupAsSubflow} /> : null}
         {/* §4: the proposal annotates the canvas it belongs to; the per-item
             accept is the ghost itself, not a control in this strip. */}
         {proposal && !proposalDismissed ? (

@@ -81,3 +81,22 @@ describe("INSERT_SUBFLOW", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe("documentation groups", () => {
+  const g = { id: "grp-1", x: 2, y: 3, w: 6, h: 4, label: "Weld cell", comment: "shared robot" };
+
+  it("adds, updates and removes a group without touching stations/flows", () => {
+    let m = modelReducer(SAMPLE, { type: "ADD_GROUP", group: g });
+    expect(m.groups).toHaveLength(1);
+    expect(m.groups?.[0].label).toBe("Weld cell");
+    // A group is purely informational — the rating is unchanged.
+    expect(buildRating(m).composite).toBeCloseTo(buildRating(SAMPLE).composite, 6);
+
+    m = modelReducer(m, { type: "UPDATE_GROUP", id: "grp-1", patch: { comment: "ESD required", x: 5 } });
+    expect(m.groups?.[0].comment).toBe("ESD required");
+    expect(m.groups?.[0].x).toBe(5);
+
+    m = modelReducer(m, { type: "REMOVE_GROUP", id: "grp-1" });
+    expect(m.groups).toHaveLength(0);
+  });
+});

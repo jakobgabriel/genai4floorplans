@@ -178,6 +178,23 @@ export interface NoGoZone {
   kind?: ZoneKind;
 }
 
+/** A documentation annotation (Node-RED "group"): a labelled, commented box drawn
+ *  around a set of machines. Purely informational — it never blocks placement,
+ *  affects the flow or enters the rating; it exists to document the layout. */
+export interface Group {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Short title shown on the box. */
+  label: string;
+  /** Longer note shown under the title for documentation. */
+  comment?: string;
+  /** One of the data-encoding accent colours (index into a small palette). */
+  color?: number;
+}
+
 /** True when a zone blocks station placement (vs. merely reserving floor). */
 export function isBlockingZone(z: NoGoZone): boolean {
   return BLOCKING_ZONE_KINDS.includes(z.kind ?? "blocking");
@@ -371,6 +388,9 @@ export interface Model {
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
   variantModes?: VariantMode[];
+  /** Documentation annotations — labelled/commented boxes around machines. Purely
+   *  informational; they never affect placement, flow or the rating. Absent ⇒ none. */
+  groups?: Group[];
 }
 
 export const STATION_TYPES: StationType[] = ["machine", "manual", "quality", "store", "buffer"];
@@ -397,7 +417,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

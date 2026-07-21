@@ -1,4 +1,4 @@
-import type { CostConfig, CycleBreakdown, Demand, Flow, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
+import type { CostConfig, CycleBreakdown, Demand, Flow, Group, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
@@ -29,6 +29,9 @@ export type ModelAction =
   | { type: "ADD_NOGO"; zone: NoGoZone }
   | { type: "UPDATE_NOGO"; index: number; patch: Partial<NoGoZone> }
   | { type: "REMOVE_NOGO"; index: number }
+  | { type: "ADD_GROUP"; group: Group }
+  | { type: "UPDATE_GROUP"; id: string; patch: Partial<Group> }
+  | { type: "REMOVE_GROUP"; id: string }
   | { type: "APPLY_TEMPLATE"; form: CellForm }
   // ---- Workload (spec §11). The product-free input: what must be done, ----
   // ---- independent of what is made. `analyseWorkload` has consumed these ----
@@ -189,6 +192,18 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "REMOVE_NOGO":
       return { ...model, noGoZones: model.noGoZones.filter((_, i) => i !== action.index) };
+
+    case "ADD_GROUP":
+      return { ...model, groups: (model.groups ?? []).concat([action.group]) };
+
+    case "UPDATE_GROUP":
+      return {
+        ...model,
+        groups: (model.groups ?? []).map((g) => (g.id === action.id ? { ...g, ...action.patch } : g)),
+      };
+
+    case "REMOVE_GROUP":
+      return { ...model, groups: (model.groups ?? []).filter((g) => g.id !== action.id) };
 
     case "APPLY_TEMPLATE":
       // Movable I/O reshape with the form (see applyForm); pinned areas stay put.

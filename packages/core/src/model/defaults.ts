@@ -81,5 +81,6 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     conceptKind: typeof o.conceptKind === "string" ? o.conceptKind : undefined,
     workElements: Array.isArray(o.workElements) ? o.workElements : undefined,
     variantModes: Array.isArray(o.variantModes) ? o.variantModes : undefined,
+    groups: Array.isArray(o.groups) ? o.groups : undefined,
   };
 }
