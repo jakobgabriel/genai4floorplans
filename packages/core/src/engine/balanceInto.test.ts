@@ -56,6 +56,24 @@ describe("balanceWorkloadIntoCell — the workload→balancer→stations loop (a
     expect(r.model.costConfig).toEqual(base.costConfig);
   });
 
+  it("does not mutate the input model's dock stations (undo safety, defect D1)", () => {
+    const base = modelWith({
+      stations: [
+        { id: "in", name: "Raw", role: "input", type: "store", x: 1, y: 6, w: 3, h: 2, fixed: true, auto: "manual", autoOverride: null, capacityPerShift: 1000, operators: 0, cycleTimeSec: 0, changeoverMin: 0, ergoRisk: "low", utilities: [], notes: "" },
+        { id: "out", name: "Ship", role: "output", type: "store", x: 18, y: 6, w: 3, h: 2, fixed: true, auto: "manual", autoOverride: null, capacityPerShift: 1000, operators: 0, cycleTimeSec: 0, changeoverMin: 0, ergoRisk: "low", utilities: [], notes: "" },
+      ],
+      demand: { years: [{ year: 2026, units: 100000 }] },
+    });
+    const beforeIn = { ...base.stations[0] };
+    const beforeOut = { ...base.stations[1] };
+    const r = balanceWorkloadIntoCell(base);
+    // the original objects must be untouched (history stores models by reference)
+    expect(base.stations[0]).toEqual(beforeIn);
+    expect(base.stations[1]).toEqual(beforeOut);
+    // and the new model actually repositioned its own dock copies
+    expect(r.model.stations.find((s) => s.id === "in")).toBeTruthy();
+  });
+
   it("falls back to the largest element when there is no demand or station", () => {
     const r = balanceWorkloadIntoCell(modelWith());
     expect(r.taktSource).toBe("largest-element");

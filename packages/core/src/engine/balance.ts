@@ -245,7 +245,11 @@ export function balanceAnalysis(
 
   const outputs = stations.filter((s) => s.role === "output");
   const sinks = outputs.length ? outputs : stations.filter((s) => outFlows[s.id].length === 0);
-  const lineOut = Math.round(sinks.reduce((a, s) => a + (isFinite(T[s.id]) ? T[s.id] : 0), 0));
+  // A terminal sink's own scrap still removes good parts from the line output
+  // (audit A-05). Stores/outputs carry no scrapRate so yieldOf is 1 for them —
+  // this only bites when the last node is a process step with scrap and no
+  // explicit output area.
+  const lineOut = Math.round(sinks.reduce((a, s) => a + (isFinite(T[s.id]) ? T[s.id] * yieldOf(s) : 0), 0));
 
   const steps: BalanceStep[] = proc.map((s) => {
     const cap = capacity[s.id];

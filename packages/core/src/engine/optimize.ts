@@ -1,6 +1,6 @@
 import type { Flow, Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
-import { hasCollision } from "./geometry";
+import { hasCollision, clearanceBlocked } from "./geometry";
 
 /** A station footprint fits entirely inside the grid (audit C-05). Swapping the
  *  positions of two differently sized stations can push the larger one off the
@@ -33,6 +33,7 @@ function greedyPass(
   grid: Grid,
   zones: Model["noGoZones"],
   avoidCollisions: boolean,
+  respectClearance: boolean,
 ): { stations: Station[]; cost: number } {
   let best = cloneStations(start);
   let bestCost = computeKPIs(best, flows, grid).flowCost;
@@ -67,6 +68,16 @@ function greedyPass(
             hasCollision(trial[j], trial[j].x, trial[j].y, others.concat(trial[i]), zones)
           ) {
             continue;
+          }
+          // Reject swaps that would block a station's access clearance with
+          // another station's body (audit C-03). Only runs when some station
+          // declares clearance, so the common case is unaffected. Self-pairs are
+          // skipped (a clearance zone always contains its own footprint).
+          if (respectClearance) {
+            const blocked =
+              clearanceBlocked(trial[i], trial[j]) ||
+              trial.some((s, k) => k !== i && k !== j && (clearanceBlocked(trial[i], s) || clearanceBlocked(trial[j], s)));
+            if (blocked) continue;
           }
         }
         const c = computeKPIs(trial, flows, grid).flowCost;
@@ -115,10 +126,13 @@ export function optimize(
   const avoidCollisions = opts.avoidCollisions ?? true;
   const restarts = opts.restarts ?? 0;
   const zones = grid.noGoZones ?? [];
-  let { stations: best, cost: bestCost } = greedyPass(stations, flows, grid, zones, avoidCollisions);
+  // Clearance is only enforced when a station actually declares it, so legacy
+  // models pay nothing and behave exactly as before (audit C-03).
+  const respectClearance = stations.some((s) => s.clearance);
+  let { stations: best, cost: bestCost } = greedyPass(stations, flows, grid, zones, avoidCollisions, respectClearance);
   for (let r = 0; r < restarts; r++) {
     const seeded = shuffleMovable(stations, r + 1);
-    const res = greedyPass(seeded, flows, grid, zones, avoidCollisions);
+    const res = greedyPass(seeded, flows, grid, zones, avoidCollisions, respectClearance);
     if (res.cost < bestCost - 1e-9) {
       best = res.stations;
       bestCost = res.cost;

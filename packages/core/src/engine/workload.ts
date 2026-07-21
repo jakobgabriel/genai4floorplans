@@ -42,7 +42,8 @@ export interface WasteBucket {
   wasteClass: WasteClass;
   /** Mix-weighted seconds carrying this waste. */
   sec: number;
-  /** Share of ALL non-value-add (NNVA+NVA) seconds, %. */
+  /** Share of all CLASSIFIED waste seconds (non-VA elements that carry a waste
+   *  class), %. Elements tagged NNVA/NVA without a waste class are not counted. */
   sharePct: number;
 }
 

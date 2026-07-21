@@ -121,6 +121,24 @@ export interface Station {
    *  missing entry is treated as "estimated" at render, so an unmarked number
    *  reads as suspect rather than firm. Assigned at model entry, not at render. */
   dataQuality?: Partial<Record<StationDataField, DataQuality>>;
+  /** Keep-clear access margins around the footprint, in grid cells per side
+   *  (spec §12 access_clearance / §14 clearance). The space an operator or
+   *  maintenance needs, and an aisle must not be blocked by another machine's
+   *  body. Absent ⇒ no declared clearance. A first, grid-aligned increment
+   *  toward a real envelope (audit C-03); true machine-relative access is a
+   *  later refinement. */
+  clearance?: Clearance;
+  /** Equipment weight in kg (spec §12 floor_load). With a cell's floor-load
+   *  capacity it flags a station too heavy for the slab. Absent ⇒ not checked. */
+  weightKg?: number;
+}
+
+/** Grid-aligned keep-clear margins around a station footprint, in cells. */
+export interface Clearance {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
 /** Cost assumptions for the ROI model. Informational — not in the composite. */
@@ -392,6 +410,14 @@ export interface Model {
   conceptKind?: string;
   /** Multi-year demand + shift model, for capacity analysis (PAUL Capa MA/HC). */
   demand?: Demand;
+  /** Floor slab load capacity in kg/m² (spec §12/§14 envelope, audit C-03).
+   *  A station whose weight ÷ footprint area exceeds this is flagged. Absent ⇒
+   *  the floor-load check is skipped (no false positives on legacy models). */
+  floorLoadKgPerM2?: number;
+  /** Minimum aisle / egress width in grid cells (audit C-03). Used to check
+   *  that every station keeps a walkable path to the floor boundary. Absent ⇒
+   *  DEFAULT_AISLE_WIDTH is used only when a clearance/egress check runs. */
+  aisleWidth?: number;
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -425,7 +451,11 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
+
+/** Default minimum aisle / egress width in cells when a model omits it but a
+ *  clearance/egress check runs (audit C-03). One metre = one cell. */
+export const DEFAULT_AISLE_WIDTH = 1;
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

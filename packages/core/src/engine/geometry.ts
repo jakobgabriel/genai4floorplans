@@ -102,6 +102,32 @@ export function hasCollision(
   return false;
 }
 
+/** A station's solid footprint rectangle (grid cells). */
+export function footprintRect(s: Pick<Station, "x" | "y" | "w" | "h">): Rect {
+  return { x: s.x, y: s.y, w: s.w, h: s.h };
+}
+
+/** The footprint expanded by its keep-clear access margins (audit C-03). Absent
+ *  clearance ⇒ the footprint itself. Clamped so a margin can't run negative. */
+export function clearanceRect(s: Pick<Station, "x" | "y" | "w" | "h" | "clearance">): Rect {
+  const c = s.clearance;
+  const top = Math.max(0, c?.top ?? 0);
+  const right = Math.max(0, c?.right ?? 0);
+  const bottom = Math.max(0, c?.bottom ?? 0);
+  const left = Math.max(0, c?.left ?? 0);
+  return { x: s.x - left, y: s.y - top, w: s.w + left + right, h: s.h + top + bottom };
+}
+
+/** True if a's keep-clear zone is blocked by b's solid body (or vice versa).
+ *  Two clearance zones may overlap — that is a shared aisle — but a machine body
+ *  standing inside another's access margin is a real violation (audit C-03). */
+export function clearanceBlocked(
+  a: Pick<Station, "x" | "y" | "w" | "h" | "clearance">,
+  b: Pick<Station, "x" | "y" | "w" | "h" | "clearance">,
+): boolean {
+  return rectsOverlap(clearanceRect(a), footprintRect(b)) || rectsOverlap(clearanceRect(b), footprintRect(a));
+}
+
 /** Clamp a station footprint to stay inside the grid. */
 export function clampToGrid(s: Pick<Station, "w" | "h">, x: number, y: number, gridW: number, gridH: number): Point {
   return {

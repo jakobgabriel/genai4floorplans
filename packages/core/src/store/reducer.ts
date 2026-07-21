@@ -13,6 +13,7 @@ export type ModelAction =
   | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
   | { type: "SET_LOSS_FACTOR"; lossFactor: number | undefined }
   | { type: "SET_DEMAND"; demand: Demand | undefined }
+  | { type: "SET_FLOOR_LOAD"; floorLoadKgPerM2: number | undefined }
   | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
@@ -92,6 +93,9 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_DEMAND":
       return { ...model, demand: action.demand };
+
+    case "SET_FLOOR_LOAD":
+      return { ...model, floorLoadKgPerM2: action.floorLoadKgPerM2 };
 
     case "SET_COST_CONFIG":
       return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };

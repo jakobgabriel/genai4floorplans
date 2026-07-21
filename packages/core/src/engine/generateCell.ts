@@ -260,8 +260,13 @@ export function balanceWorkloadIntoCell(model: Model, opts: { oneStationPerStep?
   const gridW = model.gridW;
   const gridH = model.gridH;
   const END_MARGIN = 2;
-  const input = model.stations.find((s) => s.role === "input") ?? normalizeStation({ id: "in", name: "Raw Material", role: "input", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Inbound staging" });
-  const output = model.stations.find((s) => s.role === "output") ?? normalizeStation({ id: "out", name: "Shipping", role: "output", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Outbound dock" });
+  // Clone the reused docks — mutating the live objects inside model.stations
+  // would corrupt the pre-commit undo snapshot (history stores models by
+  // reference), leaving the docks jumped after an undo.
+  const foundIn = model.stations.find((s) => s.role === "input");
+  const foundOut = model.stations.find((s) => s.role === "output");
+  const input = foundIn ? { ...foundIn } : normalizeStation({ id: "in", name: "Raw Material", role: "input", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Inbound staging" });
+  const output = foundOut ? { ...foundOut } : normalizeStation({ id: "out", name: "Shipping", role: "output", type: "store", w: 3, h: 2, capacityPerShift: 100000, operators: 0, notes: "Outbound dock" });
 
   // Place the balanced stations along an I-form path, clamped to the grid.
   const placed = cellTopology("I", procs.length, { gridW: gridW - END_MARGIN * 2, gridH });

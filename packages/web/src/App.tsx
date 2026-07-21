@@ -190,6 +190,17 @@ export function App() {
 
   const { model, rating } = api;
 
+  // Stations with a layout-realism conflict (clearance / floor load / egress),
+  // ringed red on the canvas so an unbuildable placement is visible (audit C-03).
+  const realismConflictIds = useMemo(() => {
+    const r = api.realism;
+    return Array.from(new Set([
+      ...r.clearanceConflicts.flat(),
+      ...r.overloaded.map((o) => o.id),
+      ...r.enclosed,
+    ]));
+  }, [api.realism]);
+
   // Selecting a step opens Configure in the editor. Only leave the Analysis view
   // (a deep-link back to the editor); staying in DAG/Improved when selecting a
   // node there is the expected behaviour.
@@ -486,6 +497,7 @@ export function App() {
           stations={model.stations}
           flows={model.flows}
           chain={api.chain}
+          conflictIds={realismConflictIds}
           fill
           ghost={rating.optimized}
           proposalItems={proposal?.items}

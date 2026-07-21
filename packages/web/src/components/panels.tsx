@@ -237,7 +237,7 @@ export function ImprovementList({
       )}
 
       <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6 }}>
-        Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
+        Balance loss {report.balanceLossPct}%{report.taktSec > 0 ? ` · takt ${report.taktSec}s` : ""} · {report.lineOut.toLocaleString("en-US")}/shift
       </div>
     </div>
   );
@@ -672,6 +672,11 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
       <div style={{ marginTop: 8 }}>
         <NumberInput id="ls-shift" label="Shift length (hours)" helperText="Used by the balance model for throughput. Stations can override this individually in Configure." value={m.shiftHours ?? 8} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: +value })} />
       </div>
+      {/* Floor-load capacity (audit C-03) — with per-station weight it flags a
+          station too heavy for the slab. 0/blank ⇒ the check is skipped. */}
+      <div style={{ marginTop: 8 }}>
+        <NumberInput id="ls-floorload" label="Floor load capacity (kg/m²)" helperText="Slab capacity. A station whose weight ÷ footprint exceeds this is flagged in Flow ▸ Layout realism. 0 = not checked." min={0} value={m.floorLoadKgPerM2 ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_FLOOR_LOAD", floorLoadKgPerM2: +value > 0 ? +value : undefined })} />
+      </div>
     </div>
   );
 }
@@ -752,6 +757,26 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
           onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
         />
       ))}
+
+      {/* Layout realism (audit C-03): clearance, floor load, egress — the checks
+          that decide whether a layout is buildable, not just cheap to flow. Only
+          shown when the model carries the data (clearance/weight/floor capacity). */}
+      {api.realism.issues.length > 0 ? (
+        <>
+          <div className="lab" style={{ margin: "16px 0 8px" }}>Layout realism</div>
+          {api.realism.issues.map((it, i) => (
+            <InlineNotification
+              key={i}
+              kind={it.sev === "err" ? "error" : "warning"}
+              lowContrast
+              hideCloseButton
+              title={it.msg}
+              style={{ cursor: it.id ? "pointer" : "default", maxWidth: "none" }}
+              onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
+            />
+          ))}
+        </>
+      ) : null}
 
       <div className="lab" style={{ margin: "16px 0 8px" }}>
         Draw connections
@@ -1045,6 +1070,32 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         <NumberInput id="cfg-w" label="Width" value={s.w} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +value) } })} />
         <NumberInput id="cfg-h" label="Height" value={s.h} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +value) } })} />
       </div>
+      {/* Access clearance + weight (audit C-03) — feed the Layout-realism checks. */}
+      {(() => {
+        const c = s.clearance ?? { top: 0, right: 0, bottom: 0, left: 0 };
+        const setClear = (k: "top" | "right" | "bottom" | "left", v: number) => {
+          const next = { ...c, [k]: Math.max(0, Math.round(v || 0)) };
+          const allZero = next.top === 0 && next.right === 0 && next.bottom === 0 && next.left === 0;
+          up({ clearance: allZero ? undefined : next });
+        };
+        return (
+          <>
+            <div className="field-lab-row" style={{ fontSize: "0.75rem", marginTop: 10 }}>
+              Access clearance (cells)
+              <HelpPopover text="Keep-clear margin per side for operator/maintenance access. Another machine's body must not sit in it — violations show in Flow ▸ Layout realism and ring the station red. The optimiser respects it." />
+            </div>
+            <div className="row2" style={{ marginTop: 4 }}>
+              <NumberInput id="cfg-cl-top" label="Top" min={0} value={c.top} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("top", +value)} />
+              <NumberInput id="cfg-cl-bottom" label="Bottom" min={0} value={c.bottom} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("bottom", +value)} />
+            </div>
+            <div className="row2" style={{ marginTop: 4 }}>
+              <NumberInput id="cfg-cl-left" label="Left" min={0} value={c.left} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("left", +value)} />
+              <NumberInput id="cfg-cl-right" label="Right" min={0} value={c.right} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => setClear("right", +value)} />
+            </div>
+            <NumberInput id="cfg-weight" label={<span className="field-lab-row">Weight (kg)<HelpPopover text="Equipment weight. With the cell's floor-load capacity (Layout settings) it flags a station too heavy for the slab." /></span>} min={0} value={s.weightKg ?? 0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ weightKg: Math.max(0, +value) || undefined })} style={{ marginTop: 8 }} />
+          </>
+        );
+      })()}
       <CellShapeEditor api={api} station={s} />
       <div className="row2" style={{ marginTop: 8 }}>
         <Select id="cfg-inside" labelText={<span className="field-lab-row">IN port<HelpPopover text="Edge where material enters; flows route to this port." /></span>} value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>

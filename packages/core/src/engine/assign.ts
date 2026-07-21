@@ -279,11 +279,14 @@ export function assignStations(
     }
 
     if (!addedAny) {
-      // Nothing placeable — precedence deadlock (a cycle) or all blocked.
-      prepared.filter((p) => !placed.has(p.el.id)).forEach((p) =>
-        unassigned.push({ elementId: p.el.id, reason: "Precedence could not be satisfied — check for a cycle." }),
-      );
-      issues.push("Some elements could not be placed; the precedence graph may contain a cycle.");
+      // Nothing placeable this pass — either a precedence deadlock (a cycle) or
+      // an unsatisfiable zoning contradiction already reported above.
+      const hadContradiction = reportedContradiction.size > 0;
+      const reason = hadContradiction
+        ? "Blocked by a zoning contradiction (an element required together and apart) or a precedence cycle."
+        : "Precedence could not be satisfied — check for a cycle.";
+      prepared.filter((p) => !placed.has(p.el.id)).forEach((p) => unassigned.push({ elementId: p.el.id, reason }));
+      if (!hadContradiction) issues.push("Some elements could not be placed; the precedence graph may contain a cycle.");
       break;
     }
     stations.push(station);
