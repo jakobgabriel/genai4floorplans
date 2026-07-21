@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
+import type { Flow, Group, Model, NoGoZone, Station } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { fieldQuality } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
-import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
+import { AMBER, AUTO_COL, BLUE, ERGO_COL, LINE, PANEL2, PURPLE, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 
 const PAD = 12;
 
@@ -38,6 +38,8 @@ const GRIP_CURSOR: Record<Grip, string> = {
   nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
   n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
 };
+/** Accent palette for documentation groups (data-encoding colours). */
+const GROUP_COLORS = [TEAL, AMBER, PURPLE, BLUE];
 
 interface Props {
   model: Model;
@@ -71,6 +73,10 @@ interface Props {
   /** Index of the currently-selected zone (for move/resize handles). */
   selZone?: number | null;
   onSelectZone?: (index: number | null) => void;
+  /** Documentation groups: move/resize (id into model.groups). */
+  onUpdateGroup?: (id: string, patch: Partial<Group>) => void;
+  selGroup?: string | null;
+  onSelectGroup?: (id: string | null) => void;
   /** Group mode: drag a rubber-band rectangle; the movable stations inside it
    *  are handed back so the caller can mint a subflow (node-RED grouping). */
   onGroupRect?: (zone: NoGoZone) => void;
@@ -104,6 +110,8 @@ export function LayoutCanvas(props: Props) {
     wireFrom: string | null;
     /** Moving or resizing an existing zone: its index, the grip (for resize), the grab offset and the original rect. */
     zone: { index: number; mode: "move" | "resize"; grip?: Grip; grabX: number; grabY: number; orig: NoGoZone } | null;
+    /** Moving or resizing a documentation group (same gesture as a zone). */
+    group?: { id: string; mode: "move" | "resize"; grip?: Grip; grabX: number; grabY: number; orig: Group } | null;
   }>({
     id: null,
     pan: false,
@@ -113,6 +121,7 @@ export function LayoutCanvas(props: Props) {
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
   const [hoverZone, setHoverZone] = useState<number | null>(null);
+  const [hoverGroup, setHoverGroup] = useState<string | null>(null);
   const [wireEnd, setWireEnd] = useState<{ from: string; x: number; y: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
@@ -171,6 +180,28 @@ export function LayoutCanvas(props: Props) {
           if (grip.includes("n")) { const ny = Math.max(0, Math.min(bottom - 1, gy)); patch.y = ny; patch.h = bottom - ny; }
           if (grip.includes("s")) { patch.h = Math.max(1, Math.min(model.gridH - o.y, gy - o.y)); }
           props.onUpdateNoGo(d.zone.index, patch);
+        }
+        return;
+      }
+      if (d.group && props.onUpdateGroup) {
+        const g = toGrid(e.clientX, e.clientY);
+        const o = d.group.orig;
+        if (d.group.mode === "move") {
+          const nx = Math.max(0, Math.min(model.gridW - o.w, Math.round(o.x + (g.x - d.group.grabX))));
+          const ny = Math.max(0, Math.min(model.gridH - o.h, Math.round(o.y + (g.y - d.group.grabY))));
+          props.onUpdateGroup(d.group.id, { x: nx, y: ny });
+        } else {
+          const grip = d.group.grip ?? "se";
+          const gx = Math.round(g.x);
+          const gy = Math.round(g.y);
+          const right = o.x + o.w;
+          const bottom = o.y + o.h;
+          const patch: Partial<Group> = {};
+          if (grip.includes("w")) { const nx = Math.max(0, Math.min(right - 1, gx)); patch.x = nx; patch.w = right - nx; }
+          if (grip.includes("e")) { patch.w = Math.max(1, Math.min(model.gridW - o.x, gx - o.x)); }
+          if (grip.includes("n")) { const ny = Math.max(0, Math.min(bottom - 1, gy)); patch.y = ny; patch.h = bottom - ny; }
+          if (grip.includes("s")) { patch.h = Math.max(1, Math.min(model.gridH - o.y, gy - o.y)); }
+          props.onUpdateGroup(d.group.id, patch);
         }
         return;
       }
@@ -244,6 +275,7 @@ export function LayoutCanvas(props: Props) {
     } else {
       props.onSelect?.(null);
       props.onSelectZone?.(null);
+      props.onSelectGroup?.(null);
       dragRef.current = { id: null, pan: true, nogo: null, wireFrom: null, zone: null };
       panStart.current = { x: e.clientX, y: e.clientY, ox: off.x, oy: off.y };
     }
@@ -262,6 +294,7 @@ export function LayoutCanvas(props: Props) {
       return;
     }
     props.onSelect?.(s.id);
+    props.onSelectGroup?.(null);
     if (interactive && !s.fixed && props.onMove) {
       props.onMoveStart?.();
       dragRef.current = { id: s.id, pan: false, nogo: null, wireFrom: null, zone: null };
@@ -278,9 +311,22 @@ export function LayoutCanvas(props: Props) {
     if (!z) return;
     props.onSelect?.(null);
     props.onSelectZone?.(index);
+    props.onSelectGroup?.(null);
     props.onMoveStart?.(); // checkpoint once, so the whole drag is one undo step
     const g = toGrid(e.clientX, e.clientY);
     dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: { index, mode: zoneMode, grip, grabX: g.x, grabY: g.y, orig: { ...z } } };
+  }
+
+  // Start moving or resizing a documentation group (same gesture as a zone).
+  function onGroupDown(e: React.PointerEvent, grp: Group, groupMode: "move" | "resize", grip?: Grip) {
+    if (!interactive || mode === "nogo" || mode === "group" || mode === "flow") return;
+    e.stopPropagation();
+    props.onSelect?.(null);
+    props.onSelectZone?.(null);
+    props.onSelectGroup?.(grp.id);
+    props.onMoveStart?.();
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: null, group: { id: grp.id, mode: groupMode, grip, grabX: g.x, grabY: g.y, orig: { ...grp } } };
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -361,6 +407,51 @@ export function LayoutCanvas(props: Props) {
             </text>
           </g>
         ))}
+
+        {/* Documentation groups — annotation boxes drawn BEHIND the machines they
+            surround, so the stations sit on top. Purely informational. */}
+        {(model.groups ?? []).map((grp) => {
+          const accent = GROUP_COLORS[(grp.color ?? 0) % GROUP_COLORS.length];
+          const gsel = props.selGroup === grp.id;
+          const draggable = interactive && mode === "select";
+          const showHandles = draggable && (gsel || hoverGroup === grp.id);
+          const gx = PAD + grp.x * cell;
+          const gy = PAD + grp.y * cell;
+          const gw = grp.w * cell;
+          const gh = grp.h * cell;
+          const maxChars = Math.max(6, Math.floor(gw / 6.5));
+          const comment = grp.comment ? (grp.comment.length > maxChars ? grp.comment.slice(0, maxChars - 1) + "…" : grp.comment) : "";
+          const grips: { grip: Grip; hx: number; hy: number }[] = [
+            { grip: "nw", hx: gx, hy: gy }, { grip: "n", hx: gx + gw / 2, hy: gy }, { grip: "ne", hx: gx + gw, hy: gy },
+            { grip: "e", hx: gx + gw, hy: gy + gh / 2 }, { grip: "se", hx: gx + gw, hy: gy + gh }, { grip: "s", hx: gx + gw / 2, hy: gy + gh },
+            { grip: "sw", hx: gx, hy: gy + gh }, { grip: "w", hx: gx, hy: gy + gh / 2 },
+          ];
+          return (
+            <g
+              key={grp.id}
+              onPointerEnter={draggable ? () => setHoverGroup(grp.id) : undefined}
+              onPointerLeave={draggable ? () => setHoverGroup((h) => (h === grp.id ? null : h)) : undefined}
+            >
+              <rect
+                x={gx} y={gy} width={gw} height={gh} rx={4}
+                fill={accent} fillOpacity={gsel ? 0.1 : 0.06}
+                stroke={accent} strokeWidth={gsel ? 2 : 1.5} strokeDasharray="6 4"
+                style={draggable ? { cursor: "move" } : undefined}
+                onPointerDown={draggable ? (e) => onGroupDown(e, grp, "move") : undefined}
+              />
+              <text x={gx + 8} y={gy + 17} fill={accent} fontSize={12} fontWeight={700} style={{ pointerEvents: "none" }}>{grp.label}</text>
+              {comment ? <text x={gx + 8} y={gy + 33} fill={TEXTD} fontSize={10} style={{ pointerEvents: "none" }}>{comment}</text> : null}
+              {showHandles
+                ? grips.map((h) => (
+                    <rect key={h.grip} x={h.hx - 5} y={h.hy - 5} width={10} height={10} rx={1}
+                      fill={accent} stroke="var(--cds-background)" strokeWidth={1}
+                      style={{ cursor: GRIP_CURSOR[h.grip] }}
+                      onPointerDown={(e) => onGroupDown(e, grp, "resize", h.grip)} />
+                  ))
+                : null}
+            </g>
+          );
+        })}
 
         {(model.noGoZones ?? []).map((z, i) => {
           const st = ZONE_STYLE[z.kind ?? "blocking"];
@@ -537,7 +628,13 @@ export function LayoutCanvas(props: Props) {
         {stations.map((s) => {
           const seld = selId === s.id;
           const picked = props.flowFirst === s.id;
-          const colliding = draggingId === s.id && dragCollide;
+          // A station conflicts when it overlaps a HARD zone (wall / blocking /
+          // column) — hasCollision already ignores soft areas (ESD, aisle,
+          // spacer), where a machine may sit. Persistent and derived from the
+          // positions, so it shows whether the station was moved onto the zone
+          // OR the zone was moved onto the station.
+          const zoneConflict = hasCollision(s, s.x, s.y, [], model.noGoZones ?? []);
+          const colliding = (draggingId === s.id && dragCollide) || zoneConflict;
           const onCpNode = cpNodes.has(s.id);
           const units = Math.max(1, s.parallelUnits ?? 1);
           const assemble = (s.mergeMode ?? "sum") === "assemble" && flows.filter((f) => f.to === s.id).length > 1;

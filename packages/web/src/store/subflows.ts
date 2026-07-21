@@ -19,6 +19,12 @@ export interface Subflow {
   stations: Station[];
   /** Internal flows among members only. */
   flows: Flow[];
+  /** Member ids that are the subflow's INPUTS — fed from outside (or, when the
+   *  selection is isolated, the members with no internal predecessor). */
+  inputs?: string[];
+  /** Member ids that are the subflow's OUTPUTS — feeding outside (or the members
+   *  with no internal successor). Like a machine, a subflow has ports. */
+  outputs?: string[];
   /** Bounding size in grid cells. */
   w: number;
   h: number;
@@ -65,11 +71,26 @@ export function makeSubflow(model: Model, ids: string[], name: string): Subflow 
   const maxY = Math.max(...members.map((s) => s.y + s.h));
   const stations = members.map((s) => ({ ...s, x: s.x - minX, y: s.y - minY, fixed: false }));
   const flows = model.flows.filter((f) => set.has(f.from) && set.has(f.to)).map((f) => ({ ...f }));
+
+  // Derive the subflow's ports automatically. A member is an INPUT if something
+  // OUTSIDE the selection feeds it, an OUTPUT if it feeds outside. When the
+  // selection is isolated (no external flows), fall back to the internal
+  // endpoints: members with no internal predecessor / successor.
+  const uniq = (a: string[]) => [...new Set(a)];
+  const extIn = uniq(model.flows.filter((f) => set.has(f.to) && !set.has(f.from)).map((f) => f.to));
+  const extOut = uniq(model.flows.filter((f) => set.has(f.from) && !set.has(f.to)).map((f) => f.from));
+  const hasInternalPred = new Set(flows.map((f) => f.to));
+  const hasInternalSucc = new Set(flows.map((f) => f.from));
+  const inputs = extIn.length ? extIn : members.filter((s) => !hasInternalPred.has(s.id)).map((s) => s.id);
+  const outputs = extOut.length ? extOut : members.filter((s) => !hasInternalSucc.has(s.id)).map((s) => s.id);
+
   return {
     id: "sub-" + Math.random().toString(36).slice(2, 9),
     name: name.trim() || `Group of ${members.length}`,
     stations,
     flows,
+    inputs,
+    outputs,
     w: maxX - minX,
     h: maxY - minY,
     createdAt: Date.now(),

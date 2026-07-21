@@ -67,6 +67,10 @@ const toV11: Migration = (m) => ({ ...m, schemaVersion: 11 });
 // stays an obstacle and placement/floor-space are unchanged on load.
 const toV12: Migration = (m) => ({ ...m, schemaVersion: 12 });
 
+// version 12 -> 13: documentation groups (labelled/commented annotation boxes).
+// Absent on every existing model (⇒ none), so nothing renders or changes on load.
+const toV13: Migration = (m) => ({ ...m, schemaVersion: 13 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -80,6 +84,7 @@ const MIGRATIONS: Record<number, Migration> = {
   9: toV10,
   10: toV11,
   11: toV12,
+  12: toV13,
 };
 
 export function migrate(raw: unknown): Model {
