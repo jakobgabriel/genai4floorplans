@@ -1,5 +1,6 @@
 import { ApiStorageProvider } from "./storage/ApiStorageProvider";
 import { setSession } from "./session";
+import { hydrateScenarios } from "./scenarios";
 import { authLogin, authMe, listTeams, createTeam, listWorkspaces, createWorkspace, fetchLibrary, fetchSubflows } from "./apiClient";
 
 // Establish the DB-backed session before the app renders. In dev this
@@ -33,13 +34,14 @@ export async function bootstrapSession(): Promise<boolean> {
 
     // 4) Hydrate everything from the DB.
     const provider = new ApiStorageProvider(workspaceId);
-    const [workspace, library, subflows] = await Promise.all([
+    const [workspace, library, subflows, scenarios] = await Promise.all([
       provider.loadWorkspace(),
       fetchLibrary(teamId),
       fetchSubflows(teamId),
+      hydrateScenarios(provider),
     ]);
 
-    setSession({ session: { userId: "me", teamId, workspaceId }, provider, workspace, library, subflows });
+    setSession({ session: { userId: "me", teamId, workspaceId }, provider, workspace, library, subflows, scenarios });
     return true;
   } catch (e) {
     console.warn("DB bootstrap failed; running offline (localStorage).", e);
