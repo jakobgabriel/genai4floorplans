@@ -93,6 +93,10 @@ const toV17: Migration = (m) => ({ ...m, schemaVersion: 17 });
 // for the product-process feasibility matrix. Absent ⇒ no matrix, no change.
 const toV18: Migration = (m) => ({ ...m, schemaVersion: 18 });
 
+// version 18 -> 19: part campaignsPerYear for the capacity/changeover gate
+// (audit C-11 Gate 3). Optional, absent ⇒ 1, so nothing changes.
+const toV19: Migration = (m) => ({ ...m, schemaVersion: 19 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -112,6 +116,7 @@ const MIGRATIONS: Record<number, Migration> = {
   15: toV16,
   16: toV17,
   17: toV18,
+  18: toV19,
 };
 
 export function migrate(raw: unknown): Model {

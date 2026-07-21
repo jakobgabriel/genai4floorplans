@@ -422,10 +422,13 @@ export interface PartEntry {
   name?: string;
   /** Capability ids this part demands (governed catalog ids). */
   requiredCapabilityIds: string[];
-  /** Annual demand, for later capacity gates. */
+  /** Annual demand, for the capacity gate (audit C-11 Gate 3). */
   demandPerYear?: number;
   /** Changeover family — parts in one family need no changeover between them. */
   changeoverFamily?: string;
+  /** How many separate campaigns (production runs) this part has per year — each
+   *  campaign start costs a changeover (spec §15). Absent ⇒ 1. */
+  campaignsPerYear?: number;
 }
 
 export interface Model {
@@ -510,7 +513,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */
