@@ -144,6 +144,14 @@ export interface Station {
    *  machine tending); walk time between them is computed from the layout.
    *  Absent ⇒ not assigned to an explicit loop. */
   operatorId?: string;
+  /** Equipment availability 0–1 (spec §12 reliability, audit C-02): the uptime
+   *  fraction that scales the station's effective throughput. Absent ⇒ derived
+   *  from mtbf/mttr if given, else 1 (perfectly available). */
+  availabilityPct?: number;
+  /** Mean time between failures / to repair, hours (spec §12 reliability). When
+   *  both are given, availability = MTBF ÷ (MTBF + MTTR). */
+  mtbfHours?: number;
+  mttrHours?: number;
 }
 
 /** Grid-aligned keep-clear margins around a station footprint, in cells. */
@@ -480,7 +488,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */
@@ -489,6 +497,20 @@ export const DEFAULT_AISLE_WIDTH = 1;
 /** Default operator walking speed, m/s (audit C-13). A conservative shop-floor
  *  pace with turns and reaches — slower than the ~1.4 m/s open-corridor figure. */
 export const DEFAULT_WALK_SPEED_MPS = 1.0;
+
+/** Equipment availability of a station, 0–1 (audit C-02). Prefers MTBF/MTTR
+ *  when both are given (availability = MTBF ÷ (MTBF + MTTR)), else the direct
+ *  availabilityPct, else 1. Scales effective throughput so an unreliable machine
+ *  becomes a capacity constraint. */
+export function availabilityOf(s: Pick<Station, "availabilityPct" | "mtbfHours" | "mttrHours">): number {
+  const mtbf = s.mtbfHours;
+  const mttr = s.mttrHours;
+  if (typeof mtbf === "number" && mtbf > 0 && typeof mttr === "number" && mttr >= 0 && mtbf + mttr > 0) {
+    return Math.max(0, Math.min(1, mtbf / (mtbf + mttr)));
+  }
+  const a = s.availabilityPct;
+  return typeof a === "number" && isFinite(a) ? Math.max(0, Math.min(1, a)) : 1;
+}
 
 /** Type defaults for the operator-bound share of a station's cycle when it does
  *  not declare one (audit A-06/C-13): manual work fully binds an operator, a

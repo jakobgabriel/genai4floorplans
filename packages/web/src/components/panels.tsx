@@ -14,7 +14,7 @@ import {
 import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, attendedFractionOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, attendedFractionOf, availabilityOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -1150,6 +1150,23 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
             onChange={(e) => up({ operatorId: e.target.value.trim() === "" ? undefined : e.target.value.trim() })}
             style={{ marginTop: 8 }}
           />
+          {/* Reliability (audit C-02): availability scales effective throughput. */}
+          <NumberInput
+            id="cfg-availability"
+            label={<span className="field-lab-row">Availability %<HelpPopover text="Equipment uptime fraction — scales this step's effective output, so an unreliable machine can become the bottleneck. Blank = 100%, or derived from MTBF/MTTR below when both are set." /></span>}
+            helperText={s.mtbfHours && s.mttrHours ? `from MTBF/MTTR: ${Math.round(availabilityOf(s) * 100)}%` : undefined}
+            allowEmpty
+            min={0}
+            max={100}
+            value={s.mtbfHours && s.mttrHours ? Math.round(availabilityOf(s) * 100) : s.availabilityPct == null ? "" : Math.round(s.availabilityPct * 100)}
+            onFocus={api.checkpoint}
+            onChange={(_: unknown, { value }: { value: number | string }) => up({ availabilityPct: value === "" ? undefined : Math.max(0, Math.min(100, +value)) / 100 })}
+            style={{ marginTop: 8 }}
+          />
+          <div className="row2" style={{ marginTop: 8 }}>
+            <NumberInput id="cfg-mtbf" label={<span className="field-lab-row">MTBF (h)<HelpPopover text="Mean time between failures. With MTTR it derives availability = MTBF ÷ (MTBF + MTTR)." /></span>} allowEmpty min={0} value={s.mtbfHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mtbfHours: value === "" ? undefined : Math.max(0, +value) })} />
+            <NumberInput id="cfg-mttr" label={<span className="field-lab-row">MTTR (h)<HelpPopover text="Mean time to repair. With MTBF it derives the availability used to scale effective capacity." /></span>} allowEmpty min={0} value={s.mttrHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mttrHours: value === "" ? undefined : Math.max(0, +value) })} />
+          </div>
         </>
       ) : null}
       <div style={{ marginTop: 8, marginBottom: 8 }}>
