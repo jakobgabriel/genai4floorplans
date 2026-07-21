@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { Tile } from "@carbon/react";
 import type { StationCycle } from "@flowplan/core/engine/cycle";
 import { CYCLE_COL, RED, scoreColor, TEAL, TEXTD } from "./colors";
@@ -62,20 +63,39 @@ function niceStep(raw: number): number {
 // between stacked segments, a recessive gridded y-axis, selective direct labels
 // (total on top), a legend (owned by the dashboard) and per-segment hover.
 export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; takt?: number; onSelect?: (id: string) => void }) {
+  // Measure the container so the chart fills the whole width it is given (the
+  // dashboard's Yamazumi is the primary panel and should use its full area),
+  // widening the bands up to a cap and only scrolling when there are too many
+  // stations to fit at a legible minimum width.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // Default to a reasonable width so the chart is sensible before the first
+  // measurement and in environments without ResizeObserver (SSR, jsdom tests).
+  const [availW, setAvailW] = useState(720);
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => setAvailW(entries[0].contentRect.width));
+    ro.observe(el);
+    if (el.clientWidth > 0) setAvailW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
   if (rows.length === 0) return null;
 
-  // Fixed intrinsic size (px) so the chart is not upscaled to the container —
-  // it renders at its natural height and scrolls horizontally when there are
-  // many stations (the global `svg { max-width:100% }` only ever shrinks it).
   const padT = 20; // room for the total label above the tallest bar
   const padB = 56; // rotated station names
   const axisW = 40; // y-axis labels
   const rightPad = 16;
   const plotH = 240;
-  const band = 88;
-  const barW = 52;
+  // Band fills the available width, clamped: below MIN we scroll, above MAX the
+  // bars would look absurd on a near-empty cell.
+  const MIN_BAND = 64;
+  const MAX_BAND = 168;
+  const plotAvail = Math.max(0, availW - axisW - rightPad);
+  const band = Math.min(MAX_BAND, Math.max(MIN_BAND, rows.length > 0 ? plotAvail / rows.length : MIN_BAND));
+  const barW = Math.max(28, Math.min(band - 20, band * 0.62));
   const h = padT + plotH + padB;
-  const w = axisW + rows.length * band + rightPad;
+  const w = Math.max(availW || 0, axisW + rows.length * band + rightPad);
   const baseY = padT + plotH;
 
   const top = Math.max(1, ...rows.map((r) => r.totalSec), takt ?? 0) * 1.08;
@@ -86,7 +106,8 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
   for (let t = 0; t <= top; t += step) ticks.push(t);
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" preserveAspectRatio="xMinYMid meet" style={{ height: "auto" }} aria-label="Cycle time by station, split into value-add and waste, against takt">
+    <div ref={wrapRef} style={{ width: "100%" }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" preserveAspectRatio="xMinYMid meet" style={{ maxWidth: "none", display: "block" }} aria-label="Cycle time by station, split into value-add and waste, against takt">
       {/* Recessive gridlines + y-axis labels (seconds). */}
       {ticks.map((t) => (
         <g key={"g" + t}>
@@ -144,6 +165,7 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
         </g>
       ) : null}
     </svg>
+    </div>
   );
 }
 
