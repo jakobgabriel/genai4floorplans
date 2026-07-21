@@ -1,7 +1,7 @@
 import type { AutoState, CycleBreakdown, Station, StationType, VariantMode, WorkElement } from "../model/types";
 import { normalizeStation } from "../model/defaults";
 import type { AssignedStation, AssignmentResult } from "./assign";
-import { assignStations } from "./assign";
+import { assignOnePerElement, assignStations } from "./assign";
 import type { InferenceResult, RawStep } from "./infer";
 import { inferWorkload } from "./infer";
 
@@ -78,6 +78,15 @@ export interface StationBuildOptions {
   changeoverMin?: number;
   /** Multiplier applied to every element's time before assignment. */
   cycleFactor?: number;
+  /** Map each work element to its own station (guided-planner behaviour) rather
+   *  than balancing/merging elements. Preserves the user's defined step list. */
+  oneStationPerStep?: boolean;
+  /** Automation state imposed by the concept (overrides the attended-derived
+   *  default). A transfer line's stations are `auto`, a manual bench's `manual`. */
+  auto?: AutoState;
+  /** Operators manning each attended station, from the concept. A fully
+   *  unattended station stays at 0 regardless. Overrides the derived count. */
+  operatorsPerStation?: number;
 }
 
 /**
@@ -116,6 +125,12 @@ export function stationsFromAssignment(
     const ppcs = els.map((e) => Math.max(1, Math.floor(e.partsPerCycle ?? 1)));
     const partsPerCycle = ppcs.length > 0 && ppcs.every((p) => p === ppcs[0]) ? ppcs[0] : 1;
 
+    // The concept can impose its own automation and manning (that's what makes a
+    // transfer line a transfer line); otherwise fall back to the attended-derived
+    // values. A station with no operator-bound work never gets phantom operators.
+    const auto = opts.auto ?? autoState(attended);
+    const operators = opts.operatorsPerStation != null ? (attended > 0 ? opts.operatorsPerStation : 0) : st.operators;
+
     return normalizeStation({
       id: st.id,
       name: nameFor(st, byId, i),
@@ -126,8 +141,8 @@ export function stationsFromAssignment(
       w: 3,
       h: 2,
       fixed: false,
-      auto: autoState(attended),
-      operators: st.operators,
+      auto,
+      operators,
       cycle: breakdownOf(els, worstOf),
       capacityPerShift: 0, // cycle-bound
       partsPerCycle: partsPerCycle > 1 ? partsPerCycle : undefined,
@@ -177,8 +192,20 @@ export function buildWorkloadStations(
         }));
 
   const taktSec = perShiftTarget > 0 ? (shiftHours * 3600) / perShiftTarget : 0;
-  const assignment = assignStations(elements, taktSec, variantModes);
+  const assignment = opts.oneStationPerStep
+    ? assignOnePerElement(elements, taktSec, variantModes)
+    : assignStations(elements, taktSec, variantModes);
   const stations = stationsFromAssignment(assignment, elements, variantModes, opts);
+
+  // With one station per step, a step whose cycle exceeds takt can't merge into a
+  // faster neighbour — so give it parallel lanes to hit takt instead, keeping the
+  // step visible while the concept still meets demand.
+  if (opts.oneStationPerStep && taktSec > 0) {
+    stations.forEach((st) => {
+      const lanes = Math.max(1, Math.ceil(st.cycleTimeSec / taktSec - 1e-9));
+      if (lanes > 1) st.parallelUnits = lanes;
+    });
+  }
 
   return { inference, elements, assignment, stations, taktSec: +taktSec.toFixed(2) };
 }

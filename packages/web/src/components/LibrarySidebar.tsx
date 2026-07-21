@@ -1,5 +1,6 @@
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { ZONE_KINDS } from "@flowplan/core/model/types";
+import { PROCESS_CATEGORIES, type ProcessCatalogEntry, type ProcessCategory } from "@flowplan/core/model/catalog";
 import type { useLibrary } from "../store/library";
 import type { useSubflows } from "../store/subflows";
 import { navigate } from "../store/useHashRoute";
@@ -15,6 +16,34 @@ import { AMBER, TEAL, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 // the space when you want it to.
 
 const FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
+
+const CATEGORY_LABEL: Record<ProcessCategory, string> = {
+  metal: "Metal",
+  rubber: "Rubber",
+  plastic: "Plastic",
+  assembly: "Assembly",
+  test: "Test & inspection",
+  logistics: "Logistics",
+};
+
+/** Group catalog entries by process category, preserving list order within each
+ *  and keeping the canonical category order. Any unknown category falls into a
+ *  trailing "Other" bucket so nothing is ever dropped from the palette. */
+function groupByCategory(entries: ProcessCatalogEntry[]): Array<{ key: string; label: string; items: ProcessCatalogEntry[] }> {
+  const buckets = new Map<string, ProcessCatalogEntry[]>();
+  entries.forEach((e) => {
+    const key = (PROCESS_CATEGORIES as string[]).includes(e.category) ? e.category : "other";
+    (buckets.get(key) ?? buckets.set(key, []).get(key)!).push(e);
+  });
+  const ordered: Array<{ key: string; label: string; items: ProcessCatalogEntry[] }> = [];
+  PROCESS_CATEGORIES.forEach((c) => {
+    const items = buckets.get(c);
+    if (items && items.length) ordered.push({ key: c, label: CATEGORY_LABEL[c], items });
+  });
+  const other = buckets.get("other");
+  if (other && other.length) ordered.push({ key: "other", label: "Other", items: other });
+  return ordered;
+}
 
 function dragProps(kind: string, label: string) {
   return {
@@ -91,16 +120,33 @@ export function LibrarySidebar({ library, subflows, onApplyForm, collapsed, setC
             ))}
           </div>
 
-          {/* Catalog entries — seed + custom building blocks. */}
-          <div className="libside__group">Processes <button className="libside__manage" onClick={() => navigate("/library")}>manage</button></div>
-          {library.entries.map((e) => (
-            <div key={e.id} className="lib-item" {...dragProps("lib:" + e.id, e.name)} title="Drag onto the canvas">
-              <span className="lib-swatch" style={{ background: TYPE_COL[e.stationType] }} />
-              <span className="lib-item__name">{e.name}</span>
-              {e.custom ? <span className="lib-tag">c</span> : null}
-              <span className="lib-item__meta">{e.cycleTimeSec}s</span>
+          {/* Catalog entries — seed + custom building blocks, grouped by process
+              category in a dedicated scroll region so every entry is reachable. */}
+          <div className="libside__group">
+            <span>Processes <span className="libside__count">{library.entries.length}</span></span>
+            <button className="libside__manage" onClick={() => navigate("/library")}>manage</button>
+          </div>
+          {library.entries.length === 0 ? (
+            <div className="libside__empty">No processes yet — add building blocks on the library page.</div>
+          ) : (
+            <div className="libside__proc">
+              {groupByCategory(library.entries).map((grp) => (
+                <div key={grp.key} className="libside__catGroup">
+                  <div className="libside__subgroup">
+                    {grp.label} <span className="libside__count">{grp.items.length}</span>
+                  </div>
+                  {grp.items.map((e) => (
+                    <div key={e.id} className="lib-item" {...dragProps("lib:" + e.id, e.name)} title={`Drag ${e.name} onto the canvas`}>
+                      <span className="lib-swatch" style={{ background: TYPE_COL[e.stationType] }} />
+                      <span className="lib-item__name">{e.name}</span>
+                      {e.custom ? <span className="lib-tag">c</span> : null}
+                      <span className="lib-item__meta">{e.cycleTimeSec}s</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
 
           {/* Grouped subflows. */}
           <div className="libside__group">Grouped</div>

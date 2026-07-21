@@ -403,6 +403,34 @@ main {
   cursor: pointer;
   padding: 0;
 }
+.libside__count {
+  font-weight: 400;
+  opacity: 0.55;
+}
+/* Dedicated scroll region for the (potentially long) process catalog, so every
+   entry is reachable without pushing the rest of the palette off-screen. */
+.libside__proc {
+  max-height: 42vh;
+  overflow-y: auto;
+  /* Let the scrollbar hug the rail edge while content keeps its inset. */
+  margin: 0 calc(-1 * var(--sp-03));
+  padding: 0 var(--sp-03);
+}
+.libside__catGroup:first-child .libside__subgroup {
+  margin-top: var(--sp-02);
+}
+.libside__subgroup {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--cds-text-secondary);
+  background: var(--cds-layer-01);
+  margin: var(--sp-04) 0 var(--sp-02);
+  padding: 3px 0;
+}
 .libside__nodes {
   display: flex;
   flex-wrap: wrap;
