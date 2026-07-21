@@ -5,12 +5,11 @@
   "entryPointStrategy": "expand",
   "exclude": ["**/*.test.ts", "**/parked/**"],
   "tsconfig": "../packages/core/tsconfig.json",
-  "out": "../docs/engine-api",
-  "name": "FlowPlan Engine API",
+  "out": "../docs/api/core",
+  "name": "Core — @flowplan/core (engine, model, store)",
   "readme": "none",
-  "githubPages": false,
   "hidePageHeader": true,
   "hideBreadcrumbs": true,
   "entryFileName": "index",
-  "mergeReadme": false
+  "skipErrorChecking": true
 }

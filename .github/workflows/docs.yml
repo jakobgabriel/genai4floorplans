@@ -32,17 +32,23 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Root install so TypeDoc can resolve @flowplan/core's sources/types.
+      # Root install so TypeDoc can resolve the packages' sources/types and tsx
+      # can build the OpenAPI document from the server source.
       - name: Install monorepo dependencies
         run: npm ci
+
+      # The server's OpenAPI emit imports route modules that load @prisma/client.
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace @flowplan/server
 
       # The docs site is a standalone package (own node_modules, no type:module)
       # so Docusaurus's SSR build is isolated from the ESM monorepo root.
       - name: Install docs dependencies
         run: npm --prefix docs-site ci
 
-      - name: Build docs (TypeDoc API + Docusaurus)
-        run: npm --prefix docs-site run build
+      # Emit OpenAPI + Redoc REST reference, then TypeDoc (core + web) + Docusaurus.
+      - name: Build docs (OpenAPI + TypeDoc + Docusaurus)
+        run: npm run docs:build
 
       - uses: actions/configure-pages@v5
 
