@@ -67,6 +67,18 @@ describe("testfit — feasibility service (audit C-04, spec §20)", () => {
     expect(r.gates.find((g) => g.id === "takt")!.status).toBe("pass");
   });
 
+  it("warns (not blocks) when the constraint clears takt on the mean but its p95 tail does not", () => {
+    // 100,000 units → takt 63.36s; a 55s mean clears it, but cv 0.25 pushes p95 over.
+    const r = testfit(model({
+      stations: [prov("s1", ["cut.machining"], { cycleTimeSec: 55, cycleCV: 0.25 })],
+      demand: { years: [{ year: 2026, units: 100000 }] },
+    }));
+    const takt = r.gates.find((g) => g.id === "takt")!;
+    expect(takt.status).toBe("warn");
+    expect(r.feasible).toBe(true); // a warn does not block
+    expect(r.violations.some((v) => v.gate === "takt" && v.sev === "warn")).toBe(true);
+  });
+
   it("skips takt when no demand is modelled", () => {
     const r = testfit(model({ stations: [prov("s1", ["cut.machining"], { cycleTimeSec: 30 })] }));
     expect(r.gates.find((g) => g.id === "takt")!.status).toBe("skipped");

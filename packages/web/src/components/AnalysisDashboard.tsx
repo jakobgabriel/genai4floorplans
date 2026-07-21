@@ -220,6 +220,34 @@ export function AnalysisDashboard(props: PanelProps) {
           <div className="bi-note">Total operating {money(cost.costPerPart)}/part · opex {money(cost.opexPerShift)}/shift · capex {money(cost.capexTotal)}.</div>
         </ChartCard>
 
+        {api.variability.hasData ? (
+          <ChartCard title="Cycle variability — the p95 tail" help="Cycle times are not single numbers; losses live in the tail. Each station's cycle is modelled lognormal from its mean and coefficient of variation (σ/μ). A station whose mean clears takt but whose p95 does not meets demand on average yet misses it whenever it runs long.">
+            <div className="bi-var">
+              <div className="bi-var__line">
+                Line meets takt <strong style={{ color: scoreColor((api.variability.lineTaktAttainment ?? 1) * 100) }}>{Math.round((api.variability.lineTaktAttainment ?? 1) * 100)}%</strong> of cycles unbuffered
+                {api.variability.p95PaceSec != null ? <> · constraint p95 <strong>{api.variability.p95PaceSec}s</strong>{takt > 0 ? ` vs ${takt.toFixed(1)}s takt` : ""}</> : null}
+              </div>
+              {api.variability.stations.filter((s) => s.cv > 0).map((s) => {
+                const over = takt > 0 && s.p95Sec > takt;
+                return (
+                  <div key={s.id} className="bi-var__row" onClick={() => openStation(s.id)} role="button" tabIndex={0}>
+                    <span className="bi-var__name">{s.name}</span>
+                    <span className="bi-var__stats">
+                      p50 {s.p50Sec}s · <span style={{ color: over ? RED : undefined, fontWeight: over ? 600 : undefined }}>p95 {s.p95Sec}s</span> · p99 {s.p99Sec}s
+                      {s.fragile ? <span className="bi-var__flag" style={{ color: RED }}> fragile</span> : null}
+                    </span>
+                  </div>
+                );
+              })}
+              {api.variability.fragileStations.length === 0 ? (
+                <div className="bi-note">No fragile stations — every p95 clears takt.</div>
+              ) : (
+                <div className="bi-note">{api.variability.fragileStations.length} station{api.variability.fragileStations.length === 1 ? "" : "s"} clear takt on the mean but not at p95 — cut variability or buffer them.</div>
+              )}
+            </div>
+          </ChartCard>
+        ) : null}
+
         <ChartCard title="Floor space" help="Cell = the area the stations occupy. Material supply = bins + replenishment, routinely forgotten and worth about a third more.">
           <SplitBar
             parts={[

@@ -8,6 +8,7 @@ import { layoutRealism } from "@flowplan/core/engine/envelope";
 import { capabilityCoverage } from "@flowplan/core/engine/coverage";
 import { analyseOperatorLoops } from "@flowplan/core/engine/operatorLoop";
 import { testfit } from "@flowplan/core/engine/testfit";
+import { lineVariability } from "@flowplan/core/engine/variability";
 import { chainRating } from "@flowplan/core/engine/automation";
 import { blankModel } from "@flowplan/core/model/sample";
 import {
@@ -44,6 +45,7 @@ export interface FlowPlanApi {
   coverage: ReturnType<typeof capabilityCoverage>;
   operatorLoops: ReturnType<typeof analyseOperatorLoops>;
   feasibility: ReturnType<typeof testfit>;
+  variability: ReturnType<typeof lineVariability>;
   chain: ReturnType<typeof chainRating>;
   commit: (action: ModelAction) => void;
   live: (action: ModelAction) => void;
@@ -151,6 +153,7 @@ export function useFlowPlan(): FlowPlanApi {
   const coverage = useMemo(() => capabilityCoverage(model), [model]);
   const operatorLoops = useMemo(() => analyseOperatorLoops(model), [model]);
   const feasibility = useMemo(() => testfit(model), [model]);
+  const variability = useMemo(() => lineVariability(model), [model]);
   const chain = useMemo(() => chainRating(model.stations, model.flows), [model]);
 
   const commit = useCallback((action: ModelAction) => dispatch({ kind: "commit", action }), []);
@@ -472,6 +475,7 @@ export function useFlowPlan(): FlowPlanApi {
     coverage,
     operatorLoops,
     feasibility,
+    variability,
     chain,
     commit,
     live,
