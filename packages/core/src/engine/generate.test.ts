@@ -37,6 +37,15 @@ describe("conceptFit", () => {
     expect(rankConcepts(2000000)[0].kind).toBe("transfer-line");
   });
 
+  it("breaks a volume-fit tie by the lean default — cheapest/least automated first (audit C-06)", () => {
+    // At 5,000/yr both job-shop and manual-bench fit at 100; the cheaper
+    // manual-bench must win the tie deterministically, not declaration order.
+    const top2 = rankConcepts(5000).filter((c) => c.fit === 100);
+    expect(top2.length).toBeGreaterThanOrEqual(2);
+    expect(top2[0].kind).toBe("manual-bench");
+    expect(CONCEPTS[top2[0].kind].capexPerStation).toBeLessThan(CONCEPTS[top2[1].kind].capexPerStation);
+  });
+
   it("returns zero for a zero volume rather than throwing", () => {
     expect(conceptFit("cell", 0)).toBe(0);
   });

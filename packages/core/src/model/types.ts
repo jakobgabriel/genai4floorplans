@@ -135,6 +135,14 @@ export interface CostConfig {
   /** Extra floor for bins and replenishment, as a fraction of the cell area.
    *  The blueprint's "forgotten 30-40 %". Absent ⇒ DEFAULT_MATERIAL_SUPPLY_FACTOR. */
   materialSupplyFactor?: number;
+  /** Annual occupancy cost per m² of floor (rent, utilities, overhead). Floor
+   *  space was measured but never charged (audit C-08); this turns it into an
+   *  opex line. Absent ⇒ DEFAULT_COST_CONFIG.spaceCostPerM2Year. */
+  spaceCostPerM2Year?: number;
+  /** Annual maintenance/MRO + tooling as a fraction of equipment capex — the
+   *  standard estimate when a detailed tooling model is absent (audit C-08).
+   *  Absent ⇒ DEFAULT_COST_CONFIG.maintenancePctOfCapexPerYear. */
+  maintenancePctOfCapexPerYear?: number;
 }
 
 /** The four separated material paths (blueprint §09/§10). The separation itself
@@ -448,6 +456,12 @@ export const DEFAULT_COST_CONFIG = {
   materialSupplyFactor: DEFAULT_MATERIAL_SUPPLY_FACTOR,
   // One cell = 1 m × 1 m, so floor space and travel report in real metres.
   cellAreaM2: CELL_AREA_M2,
+  // Occupancy cost per m²·year — a mid-range industrial figure so floor space
+  // finally shows up in cost per part (audit C-08).
+  spaceCostPerM2Year: 150,
+  // Maintenance/MRO + tooling as a fraction of capex per year — the standard
+  // planning estimate when no detailed tooling model exists (audit C-08).
+  maintenancePctOfCapexPerYear: 0.05,
 } as const;
 
 /** Default shift length (hours) used by the balance engine when unspecified. */

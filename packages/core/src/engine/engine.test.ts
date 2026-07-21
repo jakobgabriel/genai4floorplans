@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { Station, Flow } from "../model/types";
 import { SAMPLE } from "../model/sample";
 import { computeKPIs } from "./kpis";
 import { buildRating } from "./rating";
@@ -181,6 +182,23 @@ describe("Optimizer", () => {
     for (const s of SAMPLE.stations.filter((x) => x.fixed)) {
       const o = out.find((x) => x.id === s.id)!;
       expect({ x: o.x, y: o.y }).toEqual({ x: s.x, y: s.y });
+    }
+  });
+
+  it("never places a station off the grid when swapping unequal footprints (audit C-05)", () => {
+    // A wide station at the left edge and a 1-wide station at the right edge:
+    // swapping their corners would push the wide one off a 10-wide grid.
+    const g = { gridW: 10, gridH: 4, noGoZones: [] };
+    const base = SAMPLE.stations[1];
+    const wide: Station = { ...base, id: "wide", w: 5, h: 2, x: 0, y: 1, fixed: false };
+    const narrow: Station = { ...base, id: "narrow", w: 1, h: 2, x: 9, y: 1, fixed: false };
+    const flows: Flow[] = [{ from: "narrow", to: "wide", volume: 1000, unitCost: 1, transport: "manual", partWeightKg: 1, notes: "" }];
+    const out = optimize([wide, narrow], flows, g);
+    for (const s of out) {
+      expect(s.x).toBeGreaterThanOrEqual(0);
+      expect(s.y).toBeGreaterThanOrEqual(0);
+      expect(s.x + s.w).toBeLessThanOrEqual(g.gridW);
+      expect(s.y + s.h).toBeLessThanOrEqual(g.gridH);
     }
   });
 });

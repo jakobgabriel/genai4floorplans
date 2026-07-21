@@ -2,6 +2,14 @@ import type { Flow, Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
 import { hasCollision } from "./geometry";
 
+/** A station footprint fits entirely inside the grid (audit C-05). Swapping the
+ *  positions of two differently sized stations can push the larger one off the
+ *  grid — hasCollision catches overlaps but not out-of-bounds, so this is
+ *  checked separately. */
+function withinGrid(s: Pick<Station, "x" | "y" | "w" | "h">, grid: Grid): boolean {
+  return s.x >= 0 && s.y >= 0 && s.x + s.w <= grid.gridW && s.y + s.h <= grid.gridH;
+}
+
 type Grid = Pick<Model, "gridW" | "gridH"> & { noGoZones?: Model["noGoZones"] };
 
 export interface OptimizeOptions {
@@ -48,6 +56,10 @@ function greedyPass(
         trial[i].y = trial[j].y;
         trial[j].x = tx;
         trial[j].y = ty;
+        // Reject a swap that pushes either footprint off the grid — a larger
+        // station taking a smaller one's edge slot would otherwise leave the
+        // floor (audit C-05).
+        if (!withinGrid(trial[i], grid) || !withinGrid(trial[j], grid)) continue;
         if (avoidCollisions) {
           const others = trial.filter((_, k) => k !== i && k !== j);
           if (
