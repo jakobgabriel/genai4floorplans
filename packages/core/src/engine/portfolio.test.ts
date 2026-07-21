@@ -65,3 +65,57 @@ describe("product-process feasibility matrix (audit C-11)", () => {
     expect(mx.rows.find((r) => r.number === "P1")!.cells["form.press"].status).toBe("not-required");
   });
 });
+
+import { portfolioCapacity } from "./portfolio";
+
+describe("portfolio capacity gate — Gate 2/3 + drop (audit C-11)", () => {
+  const line = (provides: string[], cycleTimeSec: number, over: Partial<Station> = {}): Station => ({
+    ...prov("m", provides), cycleTimeSec, ...over,
+  });
+
+  it("has no data until parts carry demand and the line is priced", () => {
+    const cap = portfolioCapacity(model([prov("s", ["cut.machining"])], [part("P1", ["cut.machining"])]));
+    expect(cap.hasData).toBe(false);
+  });
+
+  it("computes utilization from processing + changeover against available time", () => {
+    // default shift model: 220 × 1 × 8h × 3600 × 0.85 = 5,385,600 s/yr
+    const stations = [line(["cut.machining"], 60)];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 50000 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    expect(cap.hasData).toBe(true);
+    expect(cap.processingSecPerYear).toBeCloseTo(50000 * 60, 0);
+    expect(cap.utilizationPct).toBeGreaterThan(50);
+    expect(cap.utilizationPct).toBeLessThan(60);
+    expect(cap.overCapacity).toBe(false);
+  });
+
+  it("adds changeover time per campaign", () => {
+    const stations = [line(["cut.machining"], 60, { changeoverMin: 120 })];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 10000, campaignsPerYear: 12 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    // 12 campaigns × 120 min × 60 = 86,400 s of changeover
+    expect(cap.changeoverSecPerYear).toBeCloseTo(12 * 120 * 60, 0);
+    expect(cap.totalLoadSecPerYear).toBeCloseTo(cap.processingSecPerYear + cap.changeoverSecPerYear, 0);
+  });
+
+  it("flags over-capacity and proposes which part to drop", () => {
+    const stations = [line(["cut.machining"], 60)];
+    const parts = [
+      part("P1", ["cut.machining"], { demandPerYear: 60000 }),
+      part("P2", ["cut.machining"], { demandPerYear: 60000 }),
+    ];
+    const cap = portfolioCapacity(model(stations, parts));
+    // 120,000 × 60 = 7,200,000 > 5,385,600 → over
+    expect(cap.overCapacity).toBe(true);
+    expect(cap.drop.length).toBeGreaterThanOrEqual(1);
+    expect(cap.drop[0].freedSecPerYear).toBeGreaterThan(0);
+  });
+
+  it("marks a part off its validated volume band (Gate 2)", () => {
+    const stations = [line(["cut.machining"], 60, { volumeBand: { minUnitsPerYear: 1000, maxUnitsPerYear: 20000 } })];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 50000 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    expect(cap.parts[0].offVolume).toBe(true);
+  });
+});

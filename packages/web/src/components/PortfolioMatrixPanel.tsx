@@ -3,7 +3,7 @@ import { Button, MultiSelect, NumberInput, Tag, TextInput } from "@carbon/react"
 import { TrashCan } from "@carbon/icons-react";
 import type { PanelProps } from "./panels";
 import type { CellStatus } from "@flowplan/core/engine/portfolio";
-import { portfolioMatrix } from "@flowplan/core/engine/portfolio";
+import { portfolioMatrix, portfolioCapacity } from "@flowplan/core/engine/portfolio";
 import { catalogFor } from "@flowplan/core/model/capabilities";
 import { AMBER, LINE, RED, TEAL, TEXT, TEXTD } from "./colors";
 
@@ -25,7 +25,9 @@ export function PortfolioMatrixPanel({ api }: PanelProps) {
   const model = api.model;
   const catalog = useMemo(() => catalogFor(model), [model]);
   const mx = useMemo(() => portfolioMatrix(model), [model]);
+  const cap = useMemo(() => portfolioCapacity(model), [model]);
   const [newNumber, setNewNumber] = useState("");
+  const hrs = (sec: number) => Math.round(sec / 3600).toLocaleString();
 
   const capItems = catalog.map((c) => ({ id: c.id, label: c.name }));
 
@@ -124,6 +126,35 @@ export function PortfolioMatrixPanel({ api }: PanelProps) {
         </>
       )}
 
+      {/* Capacity gate (Gate 3) */}
+      {cap.hasData ? (
+        <div style={{ marginBottom: 20 }}>
+          <div className="lab" style={{ marginBottom: 6 }}>Capacity gate (Gate 3 — processing + changeover)</div>
+          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", fontSize: "0.8rem", marginBottom: 8 }}>
+            <span>
+              <strong style={{ color: cap.overCapacity ? RED : cap.utilizationPct > 90 ? AMBER : TEAL, fontSize: "1.1rem" }}>{cap.utilizationPct.toFixed(0)}%</strong>
+              <span style={{ color: TEXTD }}> line utilization{cap.overCapacity ? " — over capacity" : ""}</span>
+            </span>
+            <span style={{ color: TEXTD }}>load {hrs(cap.totalLoadSecPerYear)} h/yr vs {hrs(cap.availableSecPerYear)} h available</span>
+            <span style={{ color: TEXTD }}>changeover {hrs(cap.changeoverSecPerYear)} h ({cap.switchesPerYear} setups × {cap.changeoverMinutesPerSwitch} min)</span>
+          </div>
+          <div style={{ height: 12, background: LINE, marginBottom: 8, overflow: "hidden" }}>
+            <div style={{ width: `${Math.min(100, cap.utilizationPct)}%`, height: "100%", background: cap.overCapacity ? RED : cap.utilizationPct > 90 ? AMBER : TEAL }} title={`processing ${hrs(cap.processingSecPerYear)} h + changeover ${hrs(cap.changeoverSecPerYear)} h`} />
+          </div>
+          {cap.overCapacity && cap.drop.length > 0 ? (
+            <div style={{ fontSize: "0.75rem", color: TEXTD }}>
+              <strong style={{ color: RED }}>Drop to fit:</strong>{" "}
+              {cap.drop.map((d) => `${d.number} (frees ${hrs(d.freedSecPerYear)} h, −${d.demandPerYear.toLocaleString()}/yr)`).join(" · ")}
+            </div>
+          ) : null}
+          {cap.parts.some((p) => p.offVolume) ? (
+            <div style={{ fontSize: "0.75rem", color: AMBER, marginTop: 4 }}>
+              Off volume band (Gate 2): {cap.parts.filter((p) => p.offVolume).map((p) => p.number).join(", ")}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Parts editor */}
       <div className="lab" style={{ marginBottom: 8 }}>Parts</div>
       {(model.parts ?? []).map((p) => (
@@ -144,8 +175,12 @@ export function PortfolioMatrixPanel({ api }: PanelProps) {
               onChange={({ selectedItems }: { selectedItems: { id: string; label: string }[] }) => api.commit({ type: "UPDATE_PART", id: p.id, patch: { requiredCapabilityIds: selectedItems.map((i) => i.id) } })}
             />
           </div>
+          <div className="row2" style={{ marginTop: 8 }}>
+            <NumberInput id={`pt-demand-${p.id}`} size="sm" label="Demand / year" min={0} allowEmpty value={p.demandPerYear ?? ""} onChange={(_e, { value }) => api.commit({ type: "UPDATE_PART", id: p.id, patch: { demandPerYear: value === "" ? undefined : Math.max(0, +value) } })} />
+            <NumberInput id={`pt-campaigns-${p.id}`} size="sm" label="Campaigns / year" min={1} allowEmpty value={p.campaignsPerYear ?? ""} onChange={(_e, { value }) => api.commit({ type: "UPDATE_PART", id: p.id, patch: { campaignsPerYear: value === "" ? undefined : Math.max(1, Math.floor(+value)) } })} />
+          </div>
           <div className="row2" style={{ marginTop: 8, alignItems: "end" }}>
-            <NumberInput id={`pt-demand-${p.id}`} size="sm" label="Demand / year (optional)" min={0} allowEmpty value={p.demandPerYear ?? ""} onChange={(_e, { value }) => api.commit({ type: "UPDATE_PART", id: p.id, patch: { demandPerYear: value === "" ? undefined : Math.max(0, +value) } })} />
+            <TextInput id={`pt-family-${p.id}`} size="sm" labelText="Changeover family (optional)" value={p.changeoverFamily ?? ""} onChange={(e) => api.commit({ type: "UPDATE_PART", id: p.id, patch: { changeoverFamily: e.target.value || undefined } })} />
             <Button hasIconOnly kind="danger--tertiary" size="sm" renderIcon={TrashCan} iconDescription="Delete part" onClick={() => api.commit({ type: "DELETE_PART", id: p.id })} />
           </div>
         </div>
