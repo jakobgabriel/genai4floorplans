@@ -2,6 +2,8 @@ import type { Workspace } from "./workspace";
 import type { StorageProvider } from "./storage/StorageProvider";
 import type { ProcessCatalogEntry } from "@flowplan/core/model/catalog";
 import type { Subflow } from "./subflows";
+import type { ScenarioStore } from "./scenarios";
+import type { Preferences } from "./preferences";
 
 // The signed-in session, set once by the bootstrap (store/bootstrap.ts) before
 // the app renders. When present, the app is DB-backed: loadWorkspace() returns
@@ -21,9 +23,11 @@ interface SessionState {
   workspace: Workspace | null;
   library: ProcessCatalogEntry[] | null;
   subflows: Subflow[] | null;
+  scenarios: ScenarioStore | null;
+  preferences: Preferences | null;
 }
 
-const state: SessionState = { session: null, provider: null, workspace: null, library: null, subflows: null };
+const state: SessionState = { session: null, provider: null, workspace: null, library: null, subflows: null, scenarios: null, preferences: null };
 
 export function setSession(s: SessionState): void {
   Object.assign(state, s);
@@ -34,3 +38,5 @@ export const getProvider = (): StorageProvider | null => state.provider;
 export const getHydratedWorkspace = (): Workspace | null => state.workspace;
 export const getHydratedLibrary = (): ProcessCatalogEntry[] | null => state.library;
 export const getHydratedSubflows = (): Subflow[] | null => state.subflows;
+export const getHydratedScenarios = (): ScenarioStore | null => state.scenarios;
+export const getHydratedPreferences = (): Preferences | null => state.preferences;

@@ -9,6 +9,7 @@ import {
   AiIngestImageBody,
   AiModelBody,
   AiOptimizeGoalBody,
+  PreferencesBody,
   Cell,
   CellMeta,
   CreateCellBody,
@@ -459,4 +460,18 @@ reg({
   summary: "List configured providers (no secrets)", description: "Requires OWNER role.",
   ok: { status: 200, description: "OK", schema: z.object({ credentials: z.array(AiCredentialMeta) }) },
   errors: [401, 403, 404],
+});
+
+// ---- Preferences ----------------------------------------------------------
+reg({
+  method: "get", path: "/api/me/preferences", tags: ["Preferences"],
+  summary: "Read the caller's UI/app preferences",
+  ok: { status: 200, description: "OK", schema: z.object({ prefs: z.record(z.any()) }) },
+  errors: [401],
+});
+reg({
+  method: "put", path: "/api/me/preferences", tags: ["Preferences"], body: PreferencesBody,
+  summary: "Replace the caller's UI/app preferences",
+  ok: { status: 200, description: "OK", schema: z.object({ prefs: z.record(z.any()) }) },
+  errors: [400, 401],
 });

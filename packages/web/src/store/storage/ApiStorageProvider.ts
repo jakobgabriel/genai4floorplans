@@ -12,7 +12,11 @@ export class ApiStorageProvider implements StorageProvider {
   constructor(
     private readonly workspaceId: string,
     private readonly baseUrl = "/api",
-    private readonly fetchImpl: FetchLike = fetch,
+    // Default to a window-bound wrapper: the browser's `fetch` throws "Illegal
+    // invocation" if called as a method (`this.fetchImpl(...)`) because it needs
+    // `this === window`. Storing the bare `fetch` reference here silently broke
+    // every workspace load/save and forced the app into offline localStorage.
+    private readonly fetchImpl: FetchLike = (input, init) => fetch(input, init),
   ) {}
 
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {

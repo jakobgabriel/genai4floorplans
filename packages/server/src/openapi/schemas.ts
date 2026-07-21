@@ -83,6 +83,10 @@ export const UpdateConceptBody = z
 export const ScenarioModelBody = z.object({ model: ModelSchema }).openapi("ScenarioModelBody");
 export const MoveScenarioBody = z.object({ folderId: z.string().nullable() }).openapi("MoveScenarioBody");
 
+// Per-user preferences: a free-form JSON blob (theme, panel layout, non-secret
+// AI choice). Kept permissive so the client owns the shape.
+export const PreferencesBody = z.object({ prefs: z.record(z.any()) }).openapi("PreferencesBody");
+
 // Folders organize layouts/scenarios; parentId null = workspace root.
 export const CreateFolderBody = z
   .object({ name: z.string().min(1), parentId: z.string().nullable().optional() })

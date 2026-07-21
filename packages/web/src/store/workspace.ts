@@ -1,6 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
 import { migrate } from "@flowplan/core/model/migrate";
-import { loadAutosave } from "./scenarios";
 import { SAMPLE } from "@flowplan/core/model/sample";
 import { getProvider, getHydratedWorkspace } from "./session";
 
@@ -122,8 +121,8 @@ export function loadWorkspace(): Workspace {
   } catch {
     /* ignore */
   }
-  // First run / legacy: seed from the old autosave or the sample.
-  const seed = loadAutosave() ?? SAMPLE;
+  // First run (offline, no saved workspace): seed from the sample cell.
+  const seed = SAMPLE;
   const concept: Concept = { id: newId("cpt"), name: seed.name || "Concept A", folderId: null, position: 0 };
   const cell: Cell = { id: newId("cell"), name: seed.name || "Layout A", model: seed, conceptId: concept.id, folderId: null };
   return { cells: [cell], concepts: [concept], folders: [], activeId: cell.id };
