@@ -1,5 +1,5 @@
 import type { CycleBreakdown, Flow, Station } from "../model/types";
-import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS } from "../model/types";
+import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS, isFlowFunction } from "../model/types";
 import { topoOrder } from "./dag";
 import { CYCLE_LABELS, effectiveCycleSec } from "./cycle";
 
@@ -62,6 +62,9 @@ export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS
 
 /** Full step capacity = single-resource rate × parallel units. */
 function capacityOf(s: Station, shiftHours: number): number {
+  // A flow function (buffer/store) passes material through — it never sets the
+  // rate — so it is throughput-limited only by its explicit capacityPerShift.
+  if (isFlowFunction(s)) return s.capacityPerShift > 0 ? s.capacityPerShift : Infinity;
   if (s.role === "process") {
     const r = stationRate(s, shiftHours);
     return (isFinite(r) ? r : Infinity) * Math.max(1, s.parallelUnits ?? 1);
@@ -130,7 +133,9 @@ export function balanceAnalysis(
   flows: Flow[],
   shiftHours: number = DEFAULT_SHIFT_HOURS,
 ): BalanceResult {
-  const proc = stations.filter((s) => s.role === "process");
+  // Work steps only — flow functions (buffers/stores) hold WIP, they are not
+  // steps to balance, so they never appear as a bottleneck or in the balance.
+  const proc = stations.filter((s) => s.role === "process" && !isFlowFunction(s));
   const empty: BalanceResult = { steps: [], bottleneck: null, lineOut: 0, maxRate: 0, score: 100, takt: 0, criticalPath: [], syncWaits: [] };
   if (proc.length === 0) return empty;
 
@@ -221,7 +226,7 @@ export function balanceAnalysis(
   const parent: Record<string, string | null> = {};
   order.forEach((id) => {
     const s = byId[id];
-    const cyc = s?.role === "process" ? effectiveCycleSec(s) : 0;
+    const cyc = s && s.role === "process" && !isFlowFunction(s) ? effectiveCycleSec(s) : 0;
     let best = -Infinity;
     let par: string | null = null;
     inFlows[id].forEach((f) => {
