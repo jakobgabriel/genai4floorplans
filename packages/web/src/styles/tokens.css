@@ -1546,6 +1546,45 @@ input.est-field {
   flex-direction: column;
   gap: var(--sp-05);
 }
+/* Feasibility go/no-go banner (§20) — above the rating; the binding constraint
+   is the headline, the gate chips give the full breakdown at a glance. */
+.bi-feas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+  padding: var(--sp-05);
+}
+.bi-feas__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-03);
+}
+.bi-feas__verdict {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.bi-feas__binding {
+  font-size: 0.875rem;
+}
+.bi-feas__gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-03);
+}
+.bi-feas__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid;
+  border-radius: 1rem;
+  white-space: nowrap;
+}
+.bi-feas__mark {
+  font-weight: 700;
+}
 /* F-pattern — top bar: the hero grade anchors top-left, KPIs sweep right. */
 .bi__topbar {
   display: grid;
