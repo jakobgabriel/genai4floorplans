@@ -14,7 +14,7 @@ import {
 import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, fieldQuality, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -950,26 +950,45 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           ))}
         </Select>
       </div>
-      <div className="row2" style={{ marginTop: 8 }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-          <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("cycleTimeSec")}</div>
-          <NumberInput
-            id="cfg-cycle"
-            className={estClass("cycleTimeSec")}
-            label={
-              <span>
-                Cycle time (s)
-                {s.cycle ? <HelpPopover text="Derived from the breakdown below — edit the components to change it." /> : null}
-              </span>
-            }
-            value={s.cycleTimeSec}
-            disabled={!!s.cycle}
-            onFocus={api.checkpoint}
-            onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +value } })}
-          />
+      {isFlowFunction(s) ? (
+        <>
+          <div className="row2" style={{ marginTop: 8 }}>
+            <NumberInput
+              id="cfg-wip"
+              label={<span>Buffer capacity (pieces)<HelpPopover text="WIP this buffer can hold to decouple its neighbours. A flow function holds material — it is not a work step, so it adds no cycle time, takt, balance load or operators." /></span>}
+              value={s.bufferCapacity ?? 0}
+              min={0}
+              onFocus={api.checkpoint}
+              onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { bufferCapacity: +value } })}
+            />
+            <NumberInput id="cfg-throughput" label={<span>Throughput/shift<HelpPopover text="Optional cap on parts/shift that can pass through. 0 = unlimited (a pure decoupling buffer)." /></span>} value={s.capacityPerShift} min={0} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +value } })} />
+          </div>
+          <div className="field" style={{ marginTop: 6, color: "var(--cds-text-secondary)", fontSize: "0.75rem" }}>
+            Flow function — decouples the flow and holds WIP; not a work step, so it never appears in the balance or Yamazumi.
+          </div>
+        </>
+      ) : (
+        <div className="row2" style={{ marginTop: 8 }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+            <div style={{ position: "absolute", right: 0, top: 0, zIndex: 1 }}>{qAside("cycleTimeSec")}</div>
+            <NumberInput
+              id="cfg-cycle"
+              className={estClass("cycleTimeSec")}
+              label={
+                <span>
+                  Cycle time (s)
+                  {s.cycle ? <HelpPopover text="Derived from the breakdown below — edit the components to change it." /> : null}
+                </span>
+              }
+              value={s.cycleTimeSec}
+              disabled={!!s.cycle}
+              onFocus={api.checkpoint}
+              onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +value } })}
+            />
+          </div>
+          <NumberInput id="cfg-operators" label="Operators" value={s.operators} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +value } })} />
         </div>
-        <NumberInput id="cfg-operators" label="Operators" value={s.operators} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +value } })} />
-      </div>
+      )}
       <div style={{ marginTop: 8, marginBottom: 8 }}>
         <div className="field"><span>Fixed / anchored</span></div>
         <Button kind={s.fixed ? "primary" : "tertiary"} style={{ width: "100%", maxWidth: "none" }} onClick={() => up({ fixed: !s.fixed })}>

@@ -102,6 +102,10 @@ export interface Station {
   energyKw?: number;
   /** Value-add / non-value-add split of cycleTimeSec. Absent ⇒ not decomposed. */
   cycle?: CycleBreakdown;
+  /** WIP a FLOW FUNCTION (buffer / store) can hold, in pieces. A buffer decouples
+   *  its neighbours by absorbing this much inventory; it is not a work step, so it
+   *  never contributes cycle time, takt, balance or operators. Absent ⇒ 0. */
+  bufferCapacity?: number;
   /** Capability ids this resource provides (spec §3.4). Drives gate 1 coverage:
    *  a cell needs capabilities, resources provide them, and it is the N:M
    *  relation that generates alternatives. Absent ⇒ provides nothing declared. */
@@ -363,6 +367,14 @@ export interface Model {
 
 export const STATION_TYPES: StationType[] = ["machine", "manual", "quality", "store", "buffer"];
 export const ROLES: Role[] = ["input", "process", "output"];
+
+/** Types that hold material rather than process it — a buffer or a store. A flow
+ *  function is part of the material flow (it sits in the graph, holds WIP, takes
+ *  floor space) but is NOT a work step: it contributes no cycle time, takt,
+ *  balance or operator load. `store` covers the input/output staging areas too. */
+export function isFlowFunction(s: Pick<Station, "type">): boolean {
+  return s.type === "buffer" || s.type === "store";
+}
 export const AUTO: AutoState[] = ["manual", "semi", "auto"];
 export const ERGO: ErgoRisk[] = ["low", "med", "high"];
 export const TRANSPORT: Transport[] = ["manual", "forklift", "conveyor", "agv"];
