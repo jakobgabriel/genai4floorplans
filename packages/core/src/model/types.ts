@@ -133,6 +133,25 @@ export interface Station {
   /** Equipment weight in kg (spec §12 floor_load). With a cell's floor-load
    *  capacity it flags a station too heavy for the slab. Absent ⇒ not checked. */
   weightKg?: number;
+  /** Fraction of the station's cycle that binds an operator (0–1), the
+   *  station-level analogue of WorkElement.attendedFraction (spec §11, audit
+   *  A-06/C-13). 1 = fully manual; a machine that only needs load/unload is low.
+   *  Absent ⇒ a type default (manual 1, quality 0.6, machine 0.3, flow 0). Drives
+   *  operator-loop work content and multi-machine tending. */
+  attendedFraction?: number;
+  /** Id of the operator loop that tends this station (spec §13, audit C-13).
+   *  Stations sharing an operatorId are one walking loop (chaku-chaku / multi-
+   *  machine tending); walk time between them is computed from the layout.
+   *  Absent ⇒ not assigned to an explicit loop. */
+  operatorId?: string;
+  /** Equipment availability 0–1 (spec §12 reliability, audit C-02): the uptime
+   *  fraction that scales the station's effective throughput. Absent ⇒ derived
+   *  from mtbf/mttr if given, else 1 (perfectly available). */
+  availabilityPct?: number;
+  /** Mean time between failures / to repair, hours (spec §12 reliability). When
+   *  both are given, availability = MTBF ÷ (MTBF + MTTR). */
+  mtbfHours?: number;
+  mttrHours?: number;
 }
 
 /** Grid-aligned keep-clear margins around a station footprint, in cells. */
@@ -430,6 +449,9 @@ export interface Model {
    *  footprint leaves the polygon is flagged and the optimiser won't move one
    *  out. Absent ⇒ the full grid rectangle is usable. */
   floorPolygon?: Array<[number, number]>;
+  /** Operator walking speed in m/s, for operator-loop walk time (spec §13, audit
+   *  C-13). Absent ⇒ DEFAULT_WALK_SPEED_MPS. */
+  walkSpeedMps?: number;
   /** Governed capability catalog for this cell (spec §12, audit C-01). Absent ⇒
    *  the seeded DEFAULT_CAPABILITIES are used, so coverage works offline. */
   capabilities?: Capability[];
@@ -466,11 +488,49 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 17;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */
 export const DEFAULT_AISLE_WIDTH = 1;
+
+/** Default operator walking speed, m/s (audit C-13). A conservative shop-floor
+ *  pace with turns and reaches — slower than the ~1.4 m/s open-corridor figure. */
+export const DEFAULT_WALK_SPEED_MPS = 1.0;
+
+/** Equipment availability of a station, 0–1 (audit C-02). Prefers MTBF/MTTR
+ *  when both are given (availability = MTBF ÷ (MTBF + MTTR)), else the direct
+ *  availabilityPct, else 1. Scales effective throughput so an unreliable machine
+ *  becomes a capacity constraint. */
+export function availabilityOf(s: Pick<Station, "availabilityPct" | "mtbfHours" | "mttrHours">): number {
+  const mtbf = s.mtbfHours;
+  const mttr = s.mttrHours;
+  if (typeof mtbf === "number" && mtbf > 0 && typeof mttr === "number" && mttr >= 0 && mtbf + mttr > 0) {
+    return Math.max(0, Math.min(1, mtbf / (mtbf + mttr)));
+  }
+  const a = s.availabilityPct;
+  return typeof a === "number" && isFinite(a) ? Math.max(0, Math.min(1, a)) : 1;
+}
+
+/** Type defaults for the operator-bound share of a station's cycle when it does
+ *  not declare one (audit A-06/C-13): manual work fully binds an operator, a
+ *  machine only for load/unload, a flow function not at all. */
+export function attendedFractionOf(s: Pick<Station, "type" | "attendedFraction">): number {
+  if (typeof s.attendedFraction === "number" && isFinite(s.attendedFraction)) {
+    return Math.max(0, Math.min(1, s.attendedFraction));
+  }
+  if (isFlowFunction(s as Pick<Station, "type">)) return 0;
+  switch (s.type) {
+    case "manual":
+      return 1;
+    case "quality":
+      return 0.6;
+    case "machine":
+      return 0.3;
+    default:
+      return 0.5;
+  }
+}
 
 /** An all-zero breakdown — the starting point when decomposing a station. */
 export const EMPTY_CYCLE: CycleBreakdown = {

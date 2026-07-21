@@ -1,5 +1,5 @@
 import type { CycleBreakdown, Flow, Station } from "../model/types";
-import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS, isFlowFunction, partsPerCycleOf } from "../model/types";
+import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS, availabilityOf, isFlowFunction, partsPerCycleOf } from "../model/types";
 import { topoOrder } from "./dag";
 import { CYCLE_LABELS, effectiveCycleSec } from "./cycle";
 
@@ -81,7 +81,11 @@ export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS
       : Infinity;
   const cap = s.capacityPerShift > 0 ? s.capacityPerShift : Infinity;
   const r = Math.min(byCycle, cap);
-  return isFinite(r) ? r : cap === Infinity ? byCycle : cap;
+  // Equipment availability scales the effective output (audit C-02): an
+  // unreliable machine delivers fewer good parts and can become the constraint.
+  // Absent reliability data ⇒ availability 1, so existing models are unchanged.
+  if (!isFinite(r)) return cap === Infinity ? byCycle : cap;
+  return Math.floor(r * availabilityOf(s));
 }
 
 /** Good-part yield of a step: the fraction of processed parts that pass. A step

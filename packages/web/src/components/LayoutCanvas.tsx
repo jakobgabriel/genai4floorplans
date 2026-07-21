@@ -65,6 +65,10 @@ interface Props {
    *  ringed in red on the canvas so the violation is visible in place (§3 Law 3,
    *  audit C-03). */
   conflictIds?: string[];
+  /** Explicit operator loops to draw as walking paths on the floor (spec §2/§13,
+   *  audit C-13) — visible carrier routes, not table rows. Synthetic loops are
+   *  skipped to avoid clutter. */
+  operatorLoops?: Array<{ id: string; stationIds: string[]; synthetic: boolean }>;
   onSelect?: (id: string | null) => void;
   onSelectFlow?: (f: { from: string; to: string } | null) => void;
   onHoverStation?: (s: Station | null, clientX: number, clientY: number) => void;
@@ -641,6 +645,23 @@ export function LayoutCanvas(props: Props) {
             </g>
           );
         })()}
+
+        {/* Operator walking loops (audit C-13) — closed paths through the
+            tended stations' centres, one colour each. Drawn under the stations. */}
+        {(props.operatorLoops ?? []).filter((l) => !l.synthetic && l.stationIds.length >= 2).map((loop, li) => {
+          const cols = ["#c084fc", "#38bdf8", "#f59e0b", "#34d399", "#f472b6"];
+          const col = cols[li % cols.length];
+          const byId = new Map(stations.map((s) => [s.id, s]));
+          const pts = loop.stationIds.map((id) => byId.get(id)).filter((s): s is Station => !!s)
+            .map((s) => `${PAD + (s.x + s.w / 2) * cell},${PAD + (s.y + s.h / 2) * cell}`);
+          if (pts.length < 2) return null;
+          return (
+            <g key={"oploop" + loop.id} pointerEvents="none">
+              <polygon points={pts.join(" ")} fill="none" stroke={col} strokeWidth={1.6} strokeDasharray="5 4" opacity={0.75} strokeLinejoin="round" />
+              {pts.map((p, i) => { const [px, py] = p.split(",").map(Number); return <circle key={i} cx={px} cy={py} r={3} fill={col} opacity={0.9} />; })}
+            </g>
+          );
+        })}
 
         {stations.map((s) => {
           const seld = selId === s.id;

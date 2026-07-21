@@ -80,6 +80,15 @@ const toV14: Migration = (m) => ({ ...m, schemaVersion: 14 });
 // inc2). All absent on existing models (⇒ full-grid floor, fixed obstacles).
 const toV15: Migration = (m) => ({ ...m, schemaVersion: 15 });
 
+// version 15 -> 16: operator loops (audit C-13) — optional station
+// attendedFraction/operatorId and model walkSpeedMps. Absent on existing models
+// (⇒ type-default attended fraction, no explicit loops), so nothing changes.
+const toV16: Migration = (m) => ({ ...m, schemaVersion: 16 });
+
+// version 16 -> 17: equipment availability (audit C-02) — optional station
+// availabilityPct / mtbfHours / mttrHours. Absent ⇒ availability 1, no change.
+const toV17: Migration = (m) => ({ ...m, schemaVersion: 17 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -96,6 +105,8 @@ const MIGRATIONS: Record<number, Migration> = {
   12: toV13,
   13: toV14,
   14: toV15,
+  15: toV16,
+  16: toV17,
 };
 
 export function migrate(raw: unknown): Model {
