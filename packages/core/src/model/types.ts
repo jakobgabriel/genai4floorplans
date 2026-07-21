@@ -90,6 +90,11 @@ export interface Station {
   scrapRate?: number;
   /** Number of identical parallel resources at this step. Default 1 (capacity ×N). */
   parallelUnits?: number;
+  /** Parts processed together in ONE cycle — a multi-cavity die, a fixture that
+   *  holds several parts, a batch oven. Multiplies the step's part throughput
+   *  without adding a machine (unlike parallelUnits): its per-part time is the
+   *  cycle divided by this. Default 1. */
+  partsPerCycle?: number;
   /** How this step's output divides across outgoing flows. Default "distribute". */
   splitMode?: SplitMode;
   /** How this step combines incoming flows. Default "sum". */
@@ -243,6 +248,9 @@ export interface WorkElement {
   /** Fraction of parts scrapped performing this element (0–1). Absent ⇒ 0.
    *  A station inherits the max scrap of the elements assigned to it. */
   scrapRate?: number;
+  /** Parts processed together in one cycle (a multi-cavity op). Absent ⇒ 1.
+   *  Its per-part time for balancing is the element time divided by this. */
+  partsPerCycle?: number;
   /** Zoning constraints for the balancer. */
   mustBeSameStationAs?: string[];
   mustNotBeSameStationAs?: string[];
@@ -374,6 +382,12 @@ export const ROLES: Role[] = ["input", "process", "output"];
  *  balance or operator load. `store` covers the input/output staging areas too. */
 export function isFlowFunction(s: Pick<Station, "type">): boolean {
   return s.type === "buffer" || s.type === "store";
+}
+
+/** Parts processed together in one cycle (≥1). A multi-part step outputs this
+ *  many parts per cycle, so its per-part time is the cycle divided by it. */
+export function partsPerCycleOf(s: Pick<Station, "partsPerCycle">): number {
+  return Math.max(1, Math.floor(s.partsPerCycle ?? 1));
 }
 export const AUTO: AutoState[] = ["manual", "semi", "auto"];
 export const ERGO: ErgoRisk[] = ["low", "med", "high"];

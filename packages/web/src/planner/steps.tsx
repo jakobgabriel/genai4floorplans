@@ -428,6 +428,7 @@ export function ProcessStepView({
                   {resolved.capabilityId && !CAPABILITY_OPTIONS.includes(resolved.capabilityId) ? <SelectItem value={resolved.capabilityId} text={resolved.capabilityId} /> : null}
                 </Select>
                 <NumberInput id={`st-cyc-${i}`} size="sm" label={`Cycle s${isPinned("cycleTimeSec") ? " ✏" : ""}`} min={0.1} step={1} value={resolved.seconds} onChange={(_: unknown, o: { value: number | string }) => update(i, { cycleTimeSec: Math.max(0.1, Number(o.value) || 0.1) })} />
+                <NumberInput id={`st-ppc-${i}`} size="sm" label="Parts/cyc" min={1} step={1} value={s.partsPerCycle ?? 1} onChange={(_: unknown, o: { value: number | string }) => update(i, { partsPerCycle: Math.max(1, Math.floor(Number(o.value) || 1)) })} />
                 <Select id={`st-cls-${i}`} size="sm" labelText={`Class${isPinned("classification") ? " ✏" : ""}`} value={resolved.classification} onChange={(e) => update(i, { classification: e.target.value as WorkClass })}>
                   {WORK_CLASSES.map((c) => (
                     <SelectItem key={c} value={c} text={c} />

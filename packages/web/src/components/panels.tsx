@@ -989,6 +989,20 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
           <NumberInput id="cfg-operators" label="Operators" value={s.operators} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +value } })} />
         </div>
       )}
+      {!isFlowFunction(s) ? (
+        <div className="row2" style={{ marginTop: 8 }}>
+          <NumberInput
+            id="cfg-parts-per-cycle"
+            label={<span>Parts / cycle<HelpPopover text="Parts processed together in ONE cycle — a multi-cavity die, a fixture that holds several parts, a batch oven. Multiplies part throughput without adding a machine; the Yamazumi shows the per-part time (cycle ÷ this)." /></span>}
+            value={s.partsPerCycle ?? 1}
+            min={1}
+            step={1}
+            onFocus={api.checkpoint}
+            onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { partsPerCycle: Math.max(1, Math.floor(+value || 1)) } })}
+          />
+          <div />
+        </div>
+      ) : null}
       <div style={{ marginTop: 8, marginBottom: 8 }}>
         <div className="field"><span>Fixed / anchored</span></div>
         <Button kind={s.fixed ? "primary" : "tertiary"} style={{ width: "100%", maxWidth: "none" }} onClick={() => up({ fixed: !s.fixed })}>

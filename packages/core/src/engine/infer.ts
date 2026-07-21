@@ -209,6 +209,8 @@ export interface RawStep {
   cycle?: CycleBreakdown;
   /** Fraction of parts scrapped at this step (0–1). Absent ⇒ 0. */
   scrapRate?: number;
+  /** Parts processed together in one cycle (multi-cavity). Absent ⇒ 1. */
+  partsPerCycle?: number;
 }
 
 export type InferredField = "capability" | "time" | "classification" | "attendedFraction" | "ergonomics" | "precedence";
@@ -300,6 +302,7 @@ export function inferWorkload(steps: RawStep[]): InferenceResult {
       attendedFraction,
       ergonomicLoad,
       scrapRate: step.scrapRate && step.scrapRate > 0 ? step.scrapRate : undefined,
+      partsPerCycle: step.partsPerCycle && step.partsPerCycle > 1 ? Math.floor(step.partsPerCycle) : undefined,
     };
   });
 

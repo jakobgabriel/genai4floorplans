@@ -82,7 +82,7 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
 
   if (rows.length === 0) return null;
 
-  const padT = 20; // room for the total label above the tallest bar
+  const padT = 30; // room for the total label + ×N badge above the tallest bar
   const padB = 56; // rotated station names
   const axisW = 40; // y-axis labels
   const rightPad = 16;
@@ -139,13 +139,19 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
               })
             ) : (
               <rect x={cx} y={yOf(r.totalSec)} width={barW} height={baseY - yOf(r.totalSec)} fill="var(--cds-layer-02)" stroke={TEXTD} strokeDasharray="3 2">
-                <title>{`${r.name} — not decomposed (${r.totalSec}s)`}</title>
+                <title>{r.partsPerCycle > 1 ? `${r.name} — ${r.cycleSec}s cycle ÷ ${r.partsPerCycle} parts = ${r.totalSec}s/part` : `${r.name} — not decomposed (${r.totalSec}s)`}</title>
               </rect>
             )}
-            {/* Total label above the bar. */}
+            {/* Total label above the bar (per part). */}
             <text x={cx + barW / 2} y={yOf(r.totalSec) - 6} textAnchor="middle" fontSize="11" fontWeight={600} fill={r.overTakt ? RED : "var(--cds-text-primary)"}>
               {r.totalSec}s
             </text>
+            {/* Multi-part badge: the bar is per part, so flag the ×N cycle. */}
+            {r.partsPerCycle > 1 ? (
+              <text x={cx + barW / 2} y={yOf(r.totalSec) - 19} textAnchor="middle" fontSize="9.5" fontWeight={600} fill={TEAL}>
+                ×{r.partsPerCycle}/cyc
+              </text>
+            ) : null}
             {/* Station name, rotated to avoid collisions. */}
             <text x={cx + barW / 2} y={baseY + 10} transform={`rotate(35 ${cx + barW / 2} ${baseY + 10})`} textAnchor="start" fontSize="10.5" fill={r.overTakt ? RED : TEXTD}>
               {shortName}

@@ -98,7 +98,10 @@ export function assignStations(
 
   const byId = new Map(elements.map((e) => [e.id, e]));
   const timeOf = (el: WorkElement) => {
-    const per = modes.map((m) => el.time.seconds * multiplierFor(m, el.id));
+    // Balance on the PER-PART time: a multi-cavity op that runs N parts per cycle
+    // fills only 1/N of the takt budget, so it needs fewer stations/lanes.
+    const ppc = Math.max(1, Math.floor(el.partsPerCycle ?? 1));
+    const per = modes.map((m) => (el.time.seconds * multiplierFor(m, el.id)) / ppc);
     return {
       worst: Math.max(...per),
       weighted: per.reduce((a, sec, i) => a + sec * (shares[i] / shareSum), 0),
