@@ -42,6 +42,20 @@ export function createApp(): Express {
   app.use(express.json({ limit: "4mb" })); // models + base64 images
   app.use(cookieParser());
 
+  // Dev-only request log, so it is obvious in `npm run dev` that the app is
+  // actually talking to the DB (and which endpoints each edit hits). Silent in
+  // production and under tests.
+  if (!ENV.isProd && process.env.NODE_ENV !== "test") {
+    app.use((req, res, next) => {
+      const t = Date.now();
+      res.on("finish", () => {
+        // eslint-disable-next-line no-console
+        console.log(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - t}ms`);
+      });
+      next();
+    });
+  }
+
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
   // Interactive API docs (public). The raw spec is generated from the same zod

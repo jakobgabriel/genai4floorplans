@@ -1,5 +1,8 @@
 // Centralized env access with sane dev fallbacks. Secrets must be set in prod;
 // the fallbacks keep tests and local dev runnable without a full .env.
+// Load packages/server/.env first so `npm run dev` picks up DATABASE_URL etc.
+// without the developer having to export them into the shell.
+import "dotenv/config";
 export const ENV = {
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: process.env.DATABASE_URL ?? "",

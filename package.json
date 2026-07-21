@@ -11,8 +11,11 @@
   ],
   "scripts": {
     "start": "docker compose up --build",
-    "dev": "npm run dev --workspace @flowplan/web",
-    "dev:all": "concurrently -n web,api -c blue,green \"npm run dev --workspace @flowplan/web\" \"npm run dev --workspace @flowplan/server\"",
+    "dev": "npm run db:setup && concurrently -k -n web,api -c blue,green \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace @flowplan/web",
+    "dev:api": "npm run dev --workspace @flowplan/server",
+    "dev:all": "npm run dev",
+    "db:setup": "npm run prisma:generate --workspace @flowplan/server && npm run prisma:deploy --workspace @flowplan/server && npm run db:seed --workspace @flowplan/server",
     "build": "npm run build --workspace @flowplan/web",
     "preview": "npm run preview --workspace @flowplan/web",
     "test": "vitest run",
