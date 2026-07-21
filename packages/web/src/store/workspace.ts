@@ -1,4 +1,4 @@
-import type { Model } from "@flowplan/core/model/types";
+import type { Model, Demand } from "@flowplan/core/model/types";
 import { migrate } from "@flowplan/core/model/migrate";
 import { SAMPLE } from "@flowplan/core/model/sample";
 import { getProvider, getHydratedWorkspace } from "./session";
@@ -33,6 +33,12 @@ export interface Concept {
   folderId: string | null;
   /** Orders concepts within a folder. */
   position: number;
+  /** Demand / shift model for the concept (working days, OEE, shifts, hours).
+   *  Demand is a property of the CONCEPT, not a single layout: every layout in
+   *  the concept is planned against the same volumes and calendar. New layouts
+   *  inherit it, and editing it on any layout mirrors back here so the whole
+   *  concept — and its Analysis tab — stays consistent. */
+  demand?: Demand;
   /** Soft-deleted (with its layouts). Recoverable from the Archive. */
   archived?: boolean;
 }
@@ -246,8 +252,8 @@ export function makeCell(name: string, model: Model, folderId: string | null = n
   return { id: newId("cell"), name, model: { ...model, name }, folderId, conceptId };
 }
 
-export function makeConcept(name: string, folderId: string | null, position: number): Concept {
-  return { id: newId("cpt"), name, folderId, position };
+export function makeConcept(name: string, folderId: string | null, position: number, demand?: Demand): Concept {
+  return { id: newId("cpt"), name, folderId, position, ...(demand ? { demand } : {}) };
 }
 
 export function makeFolder(name: string, parentId: string | null, position: number): Folder {

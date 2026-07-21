@@ -110,6 +110,8 @@ export function improvedLayout(model: Model): ImprovedLayout {
     const shape = win.form === "U" ? "U-cell (load and unload side by side)"
       : win.form === "L" ? "L-cell (one right-angle bend)"
       : win.form === "S" ? "serpentine (rows snake back)"
+      : win.form === "W" ? "double-U (multi-fold, front-access block)"
+      : win.form === "O" ? "closed loop (racetrack, returns to the start)"
       : "straight I-line";
     rationale =
       `Re-laying the ${movable.length} movable stations as a ${shape} cuts flow cost ${reduction}% ` +

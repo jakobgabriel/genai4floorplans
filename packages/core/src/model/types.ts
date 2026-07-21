@@ -74,6 +74,12 @@ export interface Station {
   auto: AutoState;
   autoOverride: AutoOverride;
   capacityPerShift: number;
+  /** Operators this station needs. MAY BE FRACTIONAL: an operator tending
+   *  several machines is modelled as a fraction on each (0.33 on three machines
+   *  = one shared operator), so Σ operators across the line is the real head
+   *  count, not one per station. On a manual bench whole operators are parallel
+   *  workers that raise throughput (operatorPaceLanes rounds to whole lanes); on
+   *  a machine the value is manning/cost only and never multiplies throughput. */
   operators: number;
   cycleTimeSec: number;
   changeoverMin: number;
