@@ -1,8 +1,7 @@
 import type { Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
 import { optimize, type OptimizeOptions } from "./optimize";
-import { clampToGrid } from "./geometry";
-import { cellTemplate, type CellForm } from "./templates";
+import { applyForm, type CellForm } from "./templates";
 
 // The true layout floor.
 //
@@ -31,23 +30,6 @@ export interface BestLayout {
   form: CellForm | null;
   /** Flow cost of `stations`. */
   cost: number;
-}
-
-/** Reposition the movable process stations into `form`, mirroring APPLY_TEMPLATE. */
-export function applyForm(model: Model, form: CellForm): Station[] {
-  const movable = model.stations.filter((s) => s.role === "process" && !s.fixed);
-  const slots = cellTemplate(form, movable.length, model);
-  let k = 0;
-  return model.stations.map((s) => {
-    if (s.role === "process" && !s.fixed) {
-      const sl = slots[k++];
-      if (sl) {
-        const { x, y } = clampToGrid(s, sl.x, sl.y, model.gridW, model.gridH);
-        return { ...s, x, y };
-      }
-    }
-    return s;
-  });
 }
 
 /**
