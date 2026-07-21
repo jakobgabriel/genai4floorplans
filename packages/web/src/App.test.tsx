@@ -69,7 +69,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByRole("button", { name: "DAG" }));
-    expect(screen.getByText("PROCESS DAG")).toBeTruthy();
+    expect(screen.getByText("Process DAG")).toBeTruthy();
     openAnalysis("Balance");
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
@@ -125,8 +125,9 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "DAG" }));
     // click a DAG node to select + open Configure. The step name also appears in
-    // the DAG's bottleneck hint, so target the first match — the graph node itself.
-    fireEvent.click(screen.getAllByText("CNC Turning")[0]);
+    // the DAG's bottleneck caption, so target the SVG <text> graph node.
+    const dagNode = screen.getAllByText("CNC Turning").find((el) => el.tagName.toLowerCase() === "text");
+    fireEvent.click(dagNode!);
     // Footprint editing lives under the inspector's Advanced section.
     fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     expect(screen.getByText(/Footprint shape/)).toBeTruthy();
