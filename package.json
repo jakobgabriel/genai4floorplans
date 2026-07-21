@@ -25,7 +25,10 @@
     "pretest:watch": "npm run prisma:generate --workspace @flowplan/server",
     "test:watch": "vitest",
     "test:integration": "npm run test:integration --workspace @flowplan/server",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "docs:install": "npm --prefix docs-site install",
+    "docs:build": "npm --prefix docs-site run build",
+    "docs:dev": "npm --prefix docs-site run start"
   },
   "dependencies": {
     "react": "^18.3.1",

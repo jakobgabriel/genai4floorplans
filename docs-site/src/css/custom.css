@@ -1,0 +1,21 @@
+/* FlowPlan docs theme — a teal accent over the Docusaurus classic base. */
+:root {
+  --ifm-color-primary: #0f766e;
+  --ifm-color-primary-dark: #0e6a63;
+  --ifm-color-primary-darker: #0d645d;
+  --ifm-color-primary-darkest: #0a524d;
+  --ifm-color-primary-light: #10827a;
+  --ifm-color-primary-lighter: #118880;
+  --ifm-color-primary-lightest: #149a90;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #2dd4bf;
+  --ifm-color-primary-dark: #22c9b4;
+  --ifm-color-primary-darker: #20beaa;
+  --ifm-color-primary-darkest: #1a9d8c;
+  --ifm-color-primary-light: #45d9c7;
+  --ifm-color-primary-lighter: #52dccb;
+  --ifm-color-primary-lightest: #7ae5d8;
+}
