@@ -14,11 +14,14 @@ import {
   isDescendant,
   subtreeFolderIds,
   saveWorkspace,
+  setSaveConflictHandler,
   type Cell,
   type Concept,
   type Folder,
   type Workspace,
 } from "./workspace";
+import { getProvider } from "./session";
+import { useToast } from "../components/ui";
 
 export interface CellRef {
   id: string;
@@ -112,6 +115,27 @@ export function useFlowPlan(): FlowPlanApi {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
   }, [model]);
+
+  // When the server rejects a save because the workspace changed elsewhere
+  // (another tab / teammate saved first), reload the latest and tell the user
+  // rather than silently discarding their edit or clobbering the other change.
+  const { toast } = useToast();
+  useEffect(() => {
+    setSaveConflictHandler(() => {
+      const provider = getProvider();
+      if (!provider) return;
+      provider
+        .loadWorkspace()
+        .then((fresh) => {
+          setWs(fresh);
+          const active = fresh.cells.find((c) => c.id === fresh.activeId && !c.archived) ?? fresh.cells.find((c) => !c.archived) ?? fresh.cells[0];
+          if (active) dispatch({ kind: "reset", model: active.model });
+          toast("This workspace changed elsewhere — reloaded the latest. Re-apply your last change if it's missing.", "warn");
+        })
+        .catch(() => toast("This workspace changed elsewhere. Please reload the page.", "err"));
+    });
+    return () => setSaveConflictHandler(null);
+  }, [toast]);
 
   const rating = useMemo(() => buildRating(model), [model]);
   const validation = useMemo(() => validateFlow(model.stations, model.flows), [model]);

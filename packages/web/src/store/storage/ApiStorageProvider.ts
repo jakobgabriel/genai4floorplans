@@ -5,10 +5,22 @@ import type { StorageProvider } from "./StorageProvider";
 
 export type FetchLike = typeof fetch;
 
+/** Thrown when a save is rejected because the workspace changed on the server
+ *  since it was loaded (HTTP 409). The store catches this to reload + notify. */
+export class ConflictError extends Error {
+  constructor(message = "The workspace changed elsewhere.") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 // Cloud provider: maps each StorageProvider method to the REST API. Bound to one
 // server Workspace id; the session cookie carries auth (credentials: "include").
 // A FetchLike is injectable for tests.
 export class ApiStorageProvider implements StorageProvider {
+  // Optimistic-concurrency token: set from the last load/save, sent back on the
+  // next save so the server can reject a write that raced a concurrent edit.
+  private version: number | null = null;
   constructor(
     private readonly workspaceId: string,
     private readonly baseUrl = "/api",
@@ -26,6 +38,7 @@ export class ApiStorageProvider implements StorageProvider {
       credentials: "include",
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    if (res.status === 409) throw new ConflictError();
     if (!res.ok) throw new Error(`API ${method} ${path} failed: ${res.status}`);
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
@@ -37,11 +50,13 @@ export class ApiStorageProvider implements StorageProvider {
         id: string;
         name: string;
         activeId: string | null;
+        version?: number;
         folders: (Folder & { archived?: boolean })[];
         concepts?: (Concept & { archived?: boolean })[];
         cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null; archived?: boolean }[];
       };
     }>("GET", `/workspaces/${this.workspaceId}`);
+    this.version = workspace.version ?? null;
     const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null, archived: c.archived }));
     // Wrap any loose layouts into concepts so the tree always has a concept level.
     const { cells, concepts } = wrapLooseCells(migratedCells, workspace.concepts ?? []);
@@ -54,12 +69,16 @@ export class ApiStorageProvider implements StorageProvider {
   // and deletes what's gone. This is the DB-backed client's single save path, so
   // create/move/delete/archive of any node persists.
   async saveWorkspace(ws: Workspace): Promise<void> {
-    await this.req("PUT", `/workspaces/${this.workspaceId}/tree`, {
+    const { version } = await this.req<{ ok: boolean; version: number | null }>("PUT", `/workspaces/${this.workspaceId}/tree`, {
       activeId: ws.activeId,
+      // Sent only when we know it; the server guards the write against it and
+      // returns the bumped value so the next save carries the fresh token.
+      baseVersion: this.version ?? undefined,
       folders: ws.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId, position: f.position, archived: !!f.archived })),
       concepts: ws.concepts.map((c) => ({ id: c.id, name: c.name, folderId: c.folderId, position: c.position, archived: !!c.archived })),
       cells: ws.cells.map((c) => ({ id: c.id, name: c.name, conceptId: c.conceptId, folderId: c.folderId, position: 0, archived: !!c.archived, model: c.model })),
     });
+    this.version = version ?? this.version;
   }
   async saveCell(cell: Cell): Promise<void> {
     await this.req("PUT", `/cells/${cell.id}`, { model: cell.model });
