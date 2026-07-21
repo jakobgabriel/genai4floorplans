@@ -47,6 +47,9 @@ export interface ProcessStep {
   predecessors?: number[];
   /** Per-part value-add / NVA decomposition. When set, cycle time = its sum. */
   cycle?: CycleBreakdown;
+  /** Parts processed together in one cycle (multi-cavity die, batch fixture).
+   *  Default 1. Multiplies part throughput without adding a machine. */
+  partsPerCycle?: number;
 }
 
 export interface GenerateBrief {
@@ -207,6 +210,7 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
     predecessors: st.predecessors,
     cycle: st.cycle,
     scrapRate: st.scrapRate,
+    partsPerCycle: st.partsPerCycle,
   }));
   const built = buildWorkloadStations(
     rawSteps,

@@ -1,5 +1,5 @@
 import type { CycleBreakdown, Flow, Station } from "../model/types";
-import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS, isFlowFunction } from "../model/types";
+import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS, isFlowFunction, partsPerCycleOf } from "../model/types";
 import { topoOrder } from "./dag";
 import { CYCLE_LABELS, effectiveCycleSec } from "./cycle";
 
@@ -51,9 +51,11 @@ function shiftSeconds(hours: number): number {
 export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS): number {
   const hours = s.shiftHours ?? shiftHours;
   const cycleSec = effectiveCycleSec(s);
+  // Each cycle yields partsPerCycle parts (a multi-cavity die / batch fixture),
+  // so the same cycle time delivers that many times the part throughput.
   const byCycle =
     cycleSec > 0
-      ? Math.floor((3600 / cycleSec) * hours * Math.max(1, s.operators))
+      ? Math.floor((3600 / cycleSec) * hours * Math.max(1, s.operators) * partsPerCycleOf(s))
       : Infinity;
   const cap = s.capacityPerShift > 0 ? s.capacityPerShift : Infinity;
   const r = Math.min(byCycle, cap);

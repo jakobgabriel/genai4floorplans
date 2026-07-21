@@ -1,5 +1,5 @@
 import type { CycleBreakdown, CycleKey, Station } from "../model/types";
-import { CYCLE_KEYS, sumCycle, isFlowFunction } from "../model/types";
+import { CYCLE_KEYS, sumCycle, isFlowFunction, partsPerCycleOf } from "../model/types";
 
 // Cycle-time decomposition (spec: lifecycle case 3).
 //
@@ -44,6 +44,11 @@ export interface StationCycle {
   name: string;
   /** False when the station still carries only an opaque cycleTimeSec. */
   decomposed: boolean;
+  /** Parts processed per cycle (≥1). >1 ⇒ totalSec/segments are PER PART. */
+  partsPerCycle: number;
+  /** The station's full machine cycle (all parts). totalSec = cycleSec / partsPerCycle. */
+  cycleSec: number;
+  /** Per-PART cycle time (machine cycle ÷ partsPerCycle), for takt comparison. */
   totalSec: number;
   /** Empty when not decomposed — callers must not invent a split. */
   segments: CycleSegment[];
@@ -105,16 +110,22 @@ export function cycleAnalysis(stations: Station[], takt?: number): CycleAnalysis
   const hasTakt = takt != null && takt > 0;
 
   const rows: StationCycle[] = proc.map((s) => {
-    const total = effectiveCycleSec(s);
+    // Multi-part steps process N parts per cycle; the takt view is PER PART, so
+    // the bar and its segments are the machine cycle divided by partsPerCycle.
+    const ppc = partsPerCycleOf(s);
+    const cycleSec = effectiveCycleSec(s);
+    const total = cycleSec / ppc;
     const decomposed = isDecomposed(s);
-    const va = decomposed ? (s.cycle as CycleBreakdown).valueAddSec : 0;
+    const va = (decomposed ? (s.cycle as CycleBreakdown).valueAddSec : 0) / ppc;
     const nva = decomposed ? total - va : 0;
     return {
       id: s.id,
       name: s.name,
       decomposed,
+      partsPerCycle: ppc,
+      cycleSec: +cycleSec.toFixed(3),
       totalSec: +total.toFixed(3),
-      segments: decomposed ? segmentsOf(s.cycle as CycleBreakdown) : [],
+      segments: decomposed ? segmentsOf(s.cycle as CycleBreakdown).map((seg) => ({ ...seg, sec: +(seg.sec / ppc).toFixed(3) })) : [],
       valueAddSec: +va.toFixed(3),
       nonValueAddSec: +nva.toFixed(3),
       valueAddPct: decomposed && total > 0 ? +((va / total) * 100).toFixed(1) : decomposed ? 0 : null,

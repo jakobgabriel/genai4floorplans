@@ -111,6 +111,10 @@ export function stationsFromAssignment(
         : "low";
     // A station inherits the worst scrap of the work it absorbed.
     const scrap = els.reduce((m, e) => Math.max(m, e.scrapRate ?? 0), 0);
+    // Parts per cycle carries over only when every element agrees — mixing a
+    // 4-cavity op with a single-part op has no single ×N, so fall back to 1.
+    const ppcs = els.map((e) => Math.max(1, Math.floor(e.partsPerCycle ?? 1)));
+    const partsPerCycle = ppcs.length > 0 && ppcs.every((p) => p === ppcs[0]) ? ppcs[0] : 1;
 
     return normalizeStation({
       id: st.id,
@@ -126,6 +130,7 @@ export function stationsFromAssignment(
       operators: st.operators,
       cycle: breakdownOf(els, worstOf),
       capacityPerShift: 0, // cycle-bound
+      partsPerCycle: partsPerCycle > 1 ? partsPerCycle : undefined,
       changeoverMin: opts.changeoverMin ?? 10,
       ergoRisk: ergo,
       provides: st.capabilityIds,
