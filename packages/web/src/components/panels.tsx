@@ -40,7 +40,7 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload" | "datasheet" | "capacity" | "portfolio" | "doc";
+export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload" | "datasheet" | "capacity" | "portfolio" | "doc" | "snapshots";
 
 export interface PanelProps {
   api: FlowPlanApi;

@@ -27,6 +27,7 @@ import {
 } from "./workspace";
 import { getProvider } from "./session";
 import { useToast } from "../components/ui";
+import { snapshotsFor, captureSnapshot as captureSnapshotStore, deleteSnapshot as deleteSnapshotStore, clearSnapshots, restoreModel, type Snapshot } from "./snapshots";
 
 export interface CellRef {
   id: string;
@@ -53,6 +54,14 @@ export interface FlowPlanApi {
   reset: (model: Model) => void;
   undo: () => void;
   redo: () => void;
+  // ---- immutable snapshots (release baselines, audit C-10) ----
+  /** Frozen releases of the active layout, newest first. */
+  snapshots: Snapshot[];
+  /** Freeze the current model as a new snapshot. */
+  captureSnapshot: (label: string, note?: string) => void;
+  /** Load a snapshot's model into the editor (records it as the lineage parent). */
+  restoreSnapshot: (id: string) => void;
+  deleteSnapshot: (id: string) => void;
   // ---- layouts (Cells) within concepts ----
   cells: CellRef[];
   activeId: string;
@@ -171,6 +180,42 @@ export function useFlowPlan(): FlowPlanApi {
   const reset = useCallback((m: Model) => dispatch({ kind: "reset", model: m }), []);
   const undo = useCallback(() => dispatch({ kind: "undo" }), []);
   const redo = useCallback(() => dispatch({ kind: "redo" }), []);
+
+  // ---- immutable snapshots (audit C-10) -----------------------------------
+  // Snapshots live in their own localStorage store, so a bump counter forces a
+  // re-read after capture/delete. `restoredFrom` tracks the lineage parent: the
+  // snapshot the working model was last restored from, so the next capture
+  // records it as parent_version (§6). It resets when the active layout changes.
+  const [snapVersion, setSnapVersion] = useState(0);
+  const restoredFrom = useRef<string | null>(null);
+  useEffect(() => {
+    restoredFrom.current = null;
+  }, [ws.activeId]);
+  const snapshots = useMemo(() => snapshotsFor(ws.activeId), [ws.activeId, snapVersion]);
+  const captureSnapshot = useCallback(
+    (label: string, note?: string) => {
+      captureSnapshotStore(ws.activeId, model, label, note, restoredFrom.current);
+      setSnapVersion((v) => v + 1);
+    },
+    [ws.activeId, model],
+  );
+  const restoreSnapshot = useCallback(
+    (id: string) => {
+      const snap = snapshotsFor(ws.activeId).find((s) => s.id === id);
+      if (!snap) return;
+      restoredFrom.current = id;
+      dispatch({ kind: "reset", model: restoreModel(snap) });
+    },
+    [ws.activeId],
+  );
+  const deleteSnapshot = useCallback(
+    (id: string) => {
+      deleteSnapshotStore(ws.activeId, id);
+      if (restoredFrom.current === id) restoredFrom.current = null;
+      setSnapVersion((v) => v + 1);
+    },
+    [ws.activeId],
+  );
 
   // Snapshot the current active model back into the cell list.
   const persistActive = useCallback(
@@ -444,6 +489,7 @@ export function useFlowPlan(): FlowPlanApi {
   }, []);
 
   const purgeCell = useCallback((id: string) => {
+    clearSnapshots(id); // a permanently-deleted layout takes its release history with it
     setWs((prev) => {
       const next = { ...prev, cells: prev.cells.filter((c) => c.id !== id) };
       saveWorkspace(next);
@@ -498,6 +544,10 @@ export function useFlowPlan(): FlowPlanApi {
     reset,
     undo,
     redo,
+    snapshots,
+    captureSnapshot,
+    restoreSnapshot,
+    deleteSnapshot,
     cells: ws.cells
       .filter((c) => !c.archived)
       .map((c) => ({ id: c.id, name: c.id === ws.activeId ? model.name || c.name : c.name, folderId: c.folderId, conceptId: c.conceptId })),

@@ -63,6 +63,7 @@ import {
   type Tab,
 } from "./components/panels";
 import { AnalysisDashboard } from "./components/AnalysisDashboard";
+import { SnapshotsPanel } from "./components/SnapshotsPanel";
 import { StationDoc } from "./components/ElementDoc";
 import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
 
@@ -98,6 +99,7 @@ const ANALYSIS_TABS: { tab: Tab; label: string }[] = [
 const RAIL_TABS: { tab: Tab; label: string; title?: string }[] = [
   ...INPUT_TABS,
   { tab: "doc", label: "Docs", title: "Documentation — every field of the selected step" },
+  { tab: "snapshots", label: "Snapshots", title: "Immutable releases — freeze, diff and restore" },
   { tab: "schema", label: "Schema", title: "Data model / schema reference" },
 ];
 
@@ -824,6 +826,7 @@ export function App() {
               })()}
             </div>
           )}
+          {tab === "snapshots" && <SnapshotsPanel api={api} />}
           {tab === "schema" && <SchemaPanel />}
           {(tab === "rating" || tab === "balance" || tab === "auto" || tab === "cost") && (
             <div className="pad" style={{ color: TEXTD, fontSize: "0.75rem" }}>
