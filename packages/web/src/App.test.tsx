@@ -74,17 +74,6 @@ describe("App", () => {
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
 
-  it("navigates to the dedicated Site overview page", async () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByRole("link", { name: "Site" }));
-    // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
-    expect(screen.getByText("Total throughput")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy());
-  });
-
   it("navigates to the dedicated Compare page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));

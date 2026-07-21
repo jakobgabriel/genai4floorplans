@@ -52,7 +52,7 @@ function Doc({ sections, title, subtitle }: { sections: Section[]; title: string
 
 /** Documentation for a library catalog entry. */
 export function CatalogEntryDoc({ entry, provenance }: { entry: ProcessCatalogEntry; provenance?: "builtin" | "custom" }) {
-  const area = entry.w != null && entry.h != null ? `${entry.w} × ${entry.h} cells (${entry.w * entry.h})` : undefined;
+  const area = entry.w != null && entry.h != null ? `${entry.w} × ${entry.h} m (${entry.w * entry.h} m²)` : undefined;
   const sections: Section[] = [
     {
       title: "Identity",
@@ -135,7 +135,7 @@ export function StationDoc({ station }: { station: Station }) {
     {
       title: "Footprint",
       rows: [
-        ["Bounding box", `${s.w} × ${s.h} cells (${s.w * s.h})`],
+        ["Bounding box", `${s.w} × ${s.h} m (${s.w * s.h} m²)`],
         ["Position", `(${s.x}, ${s.y})`],
       ],
     },

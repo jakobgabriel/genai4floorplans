@@ -1649,6 +1649,10 @@ input.est-field {
 .bi-card {
   padding: var(--sp-05);
 }
+/* A card that spans the full width of its grid row (the flow chart wants room). */
+.bi-card--wide {
+  grid-column: 1 / -1;
+}
 .bi-card__head {
   display: flex;
   align-items: center;

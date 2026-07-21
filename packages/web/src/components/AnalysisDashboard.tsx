@@ -154,9 +154,9 @@ export function AnalysisDashboard(props: PanelProps) {
 
       {/* ── supporting row: the optimisation signal + the cost/space breakdowns ── */}
       <div className="bi__support">
-        <ChartCard title="Material flow & distance" help="Layout optimisation minimises material travel. Total travel = Σ(volume × rectilinear distance). The heaviest flows are where re-placing stations saves the most; distance is in grid cells (× volume/shift).">
+        <ChartCard wide title="Material flow & distance" help="Layout optimisation minimises material travel. Total travel = Σ(volume × rectilinear distance). The heaviest flows are where re-placing stations saves the most; distance is in metres (1 cell = 1 m) × volume/shift.">
           <div className="bi-flowkpis">
-            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> cell·moves/shift</span>
+            <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Total travel</span><span className="bi-flowkpi__val">{Math.round(rating.actual.travel).toLocaleString()}</span> m·moves/shift</span>
             <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Placement</span><span className="bi-flowkpi__val" style={{ color: scoreColor(rating.scores.placement) }}>{rating.scores.placement.toFixed(0)}</span> / 100</span>
             <span className="bi-flowkpi"><span className="bi-flowkpi__lab">Flow cost</span><span className="bi-flowkpi__val">{Math.round(rating.actual.flowCost).toLocaleString()}</span></span>
             {buffers.length > 0 ? (
