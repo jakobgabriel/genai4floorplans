@@ -19,7 +19,7 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { USE_CASES, type UseCaseId } from "./planner/usecases";
 import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
-import { ChartColumn, Compare, FlowConnection, GroupObjects, Idea, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
+import { ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -64,7 +64,7 @@ import { AnalysisDashboard } from "./components/AnalysisDashboard";
 import { StationDoc } from "./components/ElementDoc";
 import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
 
-type View = "actual" | "improved" | "split" | "dag" | "analysis";
+type View = "actual" | "split" | "dag" | "analysis";
 type Overlay = "none" | "confidence" | "congestion";
 const CELL = 30;
 
@@ -317,9 +317,8 @@ export function App() {
         return;
       }
       if (e.key === "1") setView("actual");
-      if (e.key === "2") setView("improved");
-      if (e.key === "3") setView("split");
-      if (e.key === "4") setView("dag");
+      if (e.key === "2") setView("split");
+      if (e.key === "3") setView("dag");
       const s = model.stations.find((x) => x.id === selId);
       if (s && !s.fixed && e.key.startsWith("Arrow")) {
         e.preventDefault();
@@ -497,36 +496,6 @@ export function App() {
         </div>
       </div>
     );
-  } else if (view === "improved") {
-    canvasInner = (
-      <div>
-        <LayoutCanvas model={improvedModel} stations={improvedModel.stations} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
-        <div className="improved-summary">
-          {improved.better ? (
-            <>
-              <div className="improved-metrics">
-                <span className="improved-metric" style={{ color: TEAL }}>
-                  {improved.deltas.flowCostPct.toFixed(0)}% flow cost
-                </span>
-                <span className="improved-metric" style={{ color: improved.deltas.travelPct < 0 ? TEAL : TEXTD }}>
-                  {improved.deltas.travelPct.toFixed(0)}% travel
-                </span>
-                <span className="improved-metric" style={{ color: TEXTD }}>
-                  {improved.strategy === "form" ? `${improved.form}-form` : `${improved.deltas.moved} moved`}
-                </span>
-              </div>
-              <p className="improved-rationale">{improved.rationale}</p>
-              <Button size="sm" kind="primary" onClick={applyImproved}>
-                Apply this layout
-              </Button>
-              <span className="improved-note">Non-destructive — you can undo (Ctrl/Cmd+Z).</span>
-            </>
-          ) : (
-            <p className="improved-rationale">{improved.rationale}</p>
-          )}
-        </div>
-      </div>
-    );
   } else if (view === "dag") {
     canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
   } else if (view === "split") {
@@ -672,7 +641,6 @@ export function App() {
           <div className="viewbar">
             <div className="views">
               {vBtn("actual", "Actual", Layers)}
-              {vBtn("improved", "Improved", Idea)}
               {vBtn("split", "Both", Compare)}
               {vBtn("dag", "DAG", FlowConnection)}
               {vBtn("analysis", "Analysis", ChartColumn)}
@@ -868,6 +836,7 @@ export function App() {
           rating={rating}
           cost={cost}
           onApply={applyImproved}
+          onPreview={() => { setShowOptimize(false); setView("split"); }}
           onClose={() => setShowOptimize(false)}
         />
       ) : null}

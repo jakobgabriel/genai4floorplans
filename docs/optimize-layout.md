@@ -18,6 +18,17 @@ one-click action with a real before/after comparison.
   APPLY_TEMPLATE / ACCEPT_PROPOSAL path, so it is a normal undoable edit);
   **Discard** closes. When nothing beats the current layout it says so honestly
   and Apply is disabled — no invented change.
+- **See it on the canvas** opens the side-by-side **Both** view (Actual vs the
+  rearranged layout) for planners who want to *see* the move, not just the
+  numbers.
+
+## One optimizer, one door
+
+Optimize is the **single** entry point to the relayout. The old standalone
+"Improved" view showed the same `improvedLayout` result as a picture with its
+own Apply button — a second door to one room. That tab is removed: Optimize
+owns the numbers + Apply, and the **Both** view owns the side-by-side picture
+(reached from the modal's "See it on the canvas" link or the view switcher).
 
 ## Scope
 

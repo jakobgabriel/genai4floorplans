@@ -7,7 +7,9 @@ import {
   StructuredListRow,
   StructuredListCell,
   Tag,
+  Button,
 } from "@carbon/react";
+import { ArrowRight } from "@carbon/icons-react";
 import type { Model } from "@flowplan/core/model/types";
 import { buildRating, type Rating } from "@flowplan/core/engine/rating";
 import { costAnalysis, type CostResult } from "@flowplan/core/engine/cost";
@@ -57,6 +59,7 @@ export function OptimizeModal({
   open,
   onClose,
   onApply,
+  onPreview,
   model,
   improved,
   rating,
@@ -65,6 +68,8 @@ export function OptimizeModal({
   open: boolean;
   onClose: () => void;
   onApply: () => void;
+  /** Show the rearrangement on the canvas (the side-by-side Both view). */
+  onPreview: () => void;
   model: Model;
   improved: ImprovedLayout;
   rating: Rating;
@@ -188,11 +193,18 @@ export function OptimizeModal({
           </StructuredListBody>
         </StructuredListWrapper>
 
-        <p className="opt-modal__note">
-          {improved.better
-            ? "Non-destructive — applying is a normal edit you can undo (Ctrl/Cmd+Z). Same stations, same work content; only their placement changes."
-            : "No repositioning beats the current layout by a meaningful margin, so there is nothing to apply."}
-        </p>
+        <div className="opt-modal__foot">
+          <p className="opt-modal__note">
+            {improved.better
+              ? "Non-destructive — applying is a normal edit you can undo (Ctrl/Cmd+Z). Same stations, same work content; only their placement changes."
+              : "No repositioning beats the current layout by a meaningful margin, so there is nothing to apply."}
+          </p>
+          {improved.better ? (
+            <Button kind="ghost" size="sm" renderIcon={ArrowRight} onClick={onPreview}>
+              See it on the canvas
+            </Button>
+          ) : null}
+        </div>
       </div>
     </Modal>
   );

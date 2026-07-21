@@ -53,6 +53,18 @@ describe("Optimize layout modal", () => {
     expect((screen.getByRole("button", { name: "Apply optimized layout" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("previews the rearrangement on the Both canvas without applying", () => {
+    loadSample();
+    fireEvent.click(screen.getByRole("button", { name: "Optimize" }));
+    fireEvent.click(screen.getByRole("button", { name: /See it on the canvas/ }));
+
+    // Modal closes and the side-by-side Both view opens (ACTUAL + IMPROVED).
+    expect(screen.queryByText("Optimize layout")).toBeNull();
+    expect(screen.getByText("IMPROVED")).toBeTruthy();
+    // Nothing was applied — no apply toast.
+    expect(screen.queryByText(/Applied I-form layout/)).toBeNull();
+  });
+
   it("applies the optimized layout and closes the modal", () => {
     loadSample();
     fireEvent.click(screen.getByRole("button", { name: "Optimize" }));

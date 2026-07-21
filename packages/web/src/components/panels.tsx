@@ -45,7 +45,7 @@ export interface PanelProps {
   selId: string | null;
   setSel: (id: string | null) => void;
   setTab: (t: Tab) => void;
-  setView: (v: "actual" | "improved" | "split") => void;
+  setView: (v: "actual" | "split") => void;
   mode: CanvasMode;
   setMode: (m: CanvasMode) => void;
 }
@@ -197,7 +197,7 @@ export function ImprovementList({
   api: FlowPlanApi;
   setSel: (id: string | null) => void;
   setTab: (t: Tab) => void;
-  setView: (v: "actual" | "improved" | "split") => void;
+  setView: (v: "actual" | "split") => void;
 }) {
   const report = useMemo(() => findImprovements(api.model), [api.model]);
 
@@ -218,7 +218,7 @@ export function ImprovementList({
             key={imp.kind + i}
             style={{ borderLeft: "3px solid " + IMPROVEMENT_COLOR[imp.kind], cursor: imp.targetIds.length ? "pointer" : "default", marginBottom: 8 }}
             onClick={() => {
-              if (imp.kind === "relayout") setView("improved");
+              if (imp.kind === "relayout") setView("split");
               else if (imp.targetIds[0]) {
                 setSel(imp.targetIds[0]);
                 setTab("inspect");
