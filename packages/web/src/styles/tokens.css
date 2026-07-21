@@ -1597,6 +1597,112 @@ input.est-field {
 .bi-feas__mark {
   font-weight: 700;
 }
+/* Snapshots panel (audit C-10) — capture form + release list + inline diff. */
+.snaps__capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+  padding: var(--sp-04);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.snaps__capture .cds--btn {
+  align-self: flex-start;
+}
+.snaps__list {
+  list-style: none;
+  margin: var(--sp-05) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+}
+.snaps__item {
+  padding: var(--sp-04);
+  border: 1px solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
+}
+.snaps__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-03);
+}
+.snaps__label {
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+.snaps__time {
+  font-size: 0.6875rem;
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+}
+.snaps__note {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+.snaps__meta {
+  font-size: 0.6875rem;
+  color: var(--cds-text-secondary);
+  margin-top: 2px;
+}
+.snaps__actions {
+  display: flex;
+  gap: var(--sp-03);
+  margin-top: var(--sp-03);
+}
+.snaps__btn {
+  background: none;
+  border: 1px solid var(--cds-border-subtle-01);
+  color: var(--cds-text-primary);
+  font-size: 0.6875rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.snaps__btn:hover {
+  background: var(--cds-layer-hover-01);
+}
+.snaps__btn--danger {
+  color: #d96b5b;
+}
+.snaps__diff {
+  margin-top: var(--sp-03);
+  padding-top: var(--sp-03);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+.snaps__diffhead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-03);
+  font-size: 0.75rem;
+  margin-bottom: var(--sp-03);
+}
+.snaps__difflist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.snaps__difflist li {
+  display: flex;
+  gap: var(--sp-03);
+  align-items: baseline;
+  font-size: 0.6875rem;
+}
+.snaps__diffkind {
+  font-weight: 700;
+  width: 1rem;
+  flex: 0 0 auto;
+}
+.snaps__diffname {
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+.snaps__difffields {
+  color: var(--cds-text-secondary);
+}
 /* Cycle-variability card (audit C-09) — per-station p50/p95/p99 rows. */
 .bi-var {
   display: flex;
