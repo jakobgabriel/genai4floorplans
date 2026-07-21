@@ -410,6 +410,24 @@ export const DEFAULT_SHIFT_MODEL = {
   oee: 0.85,
 } as const;
 
+/** A part number in the feasibility portfolio (spec §15, audit C-11). Product-
+ *  free by design (§1.1): a part is modelled as the SET OF CAPABILITIES it
+ *  requires plus a demand — no BOM, geometry or tolerances. The product-process
+ *  matrix checks each part's required capabilities against what the line
+ *  provides (Gate 1). */
+export interface PartEntry {
+  id: string;
+  /** The part number as the planner knows it. */
+  number: string;
+  name?: string;
+  /** Capability ids this part demands (governed catalog ids). */
+  requiredCapabilityIds: string[];
+  /** Annual demand, for later capacity gates. */
+  demandPerYear?: number;
+  /** Changeover family — parts in one family need no changeover between them. */
+  changeoverFamily?: string;
+}
+
 export interface Model {
   /** Bumped by migrations in model/migrate.ts. Absent in legacy/demo files. */
   schemaVersion?: number;
@@ -455,6 +473,10 @@ export interface Model {
   /** Governed capability catalog for this cell (spec §12, audit C-01). Absent ⇒
    *  the seeded DEFAULT_CAPABILITIES are used, so coverage works offline. */
   capabilities?: Capability[];
+  /** Part-number portfolio for the product-process feasibility matrix (spec §15,
+   *  audit C-11). Each part is an abstract workload — a set of required
+   *  capabilities plus a demand — NOT product data (§1.1). Absent ⇒ no matrix. */
+  parts?: PartEntry[];
   /** Product-free workload: what must be done, independent of what is made. */
   workElements?: WorkElement[];
   /** Mix modes for mixed-model balancing. Absent/empty ⇒ single-model. */
@@ -488,7 +510,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */

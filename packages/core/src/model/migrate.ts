@@ -89,6 +89,10 @@ const toV16: Migration = (m) => ({ ...m, schemaVersion: 16 });
 // availabilityPct / mtbfHours / mttrHours. Absent ⇒ availability 1, no change.
 const toV17: Migration = (m) => ({ ...m, schemaVersion: 17 });
 
+// version 17 -> 18: part-number portfolio (audit C-11) — optional Model.parts
+// for the product-process feasibility matrix. Absent ⇒ no matrix, no change.
+const toV18: Migration = (m) => ({ ...m, schemaVersion: 18 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -107,6 +111,7 @@ const MIGRATIONS: Record<number, Migration> = {
   14: toV15,
   15: toV16,
   16: toV17,
+  17: toV18,
 };
 
 export function migrate(raw: unknown): Model {

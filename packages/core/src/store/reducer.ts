@@ -1,4 +1,4 @@
-import type { CostConfig, CycleBreakdown, Demand, Flow, Group, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
+import type { CostConfig, CycleBreakdown, Demand, Flow, Group, Model, NoGoZone, PartEntry, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
@@ -46,6 +46,9 @@ export type ModelAction =
   | { type: "ADD_VARIANT_MODE"; mode: VariantMode }
   | { type: "UPDATE_VARIANT_MODE"; id: string; patch: Partial<VariantMode> }
   | { type: "DELETE_VARIANT_MODE"; id: string }
+  | { type: "ADD_PART"; part: PartEntry }
+  | { type: "UPDATE_PART"; id: string; patch: Partial<PartEntry> }
+  | { type: "DELETE_PART"; id: string }
   /**
    * Accept some or all items of a solver proposal (spec §4). Replaces the old
    * ADOPT_STATIONS, which took a finished station array and overwrote the
@@ -290,6 +293,15 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "DELETE_VARIANT_MODE":
       return { ...model, variantModes: (model.variantModes ?? []).filter((m) => m.id !== action.id) };
+
+    case "ADD_PART":
+      return { ...model, parts: [...(model.parts ?? []), action.part] };
+
+    case "UPDATE_PART":
+      return { ...model, parts: (model.parts ?? []).map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)) };
+
+    case "DELETE_PART":
+      return { ...model, parts: (model.parts ?? []).filter((p) => p.id !== action.id) };
 
     default:
       return model;
