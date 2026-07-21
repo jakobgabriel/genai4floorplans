@@ -16,7 +16,7 @@ import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
 import { catalogFor } from "@flowplan/core/model/capabilities";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, attendedFractionOf, availabilityOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, SCHEMA_VERSION, attendedFractionOf, availabilityOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -1117,7 +1117,15 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
               onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +value } })}
             />
           </div>
-          <NumberInput id="cfg-operators" label="Operators" value={s.operators} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +value } })} />
+          <NumberInput
+            id="cfg-operators"
+            label={<span className="field-lab-row">Operators<HelpPopover text="Operators this station needs — fractional is allowed. One operator tending several machines is modelled as a fraction each (e.g. 0.33 on three machines = one shared operator), so line manning and labour cost sum to the real head count instead of one per station. On a manual bench, whole operators are parallel workers that raise throughput; on a machine the fraction is manning/cost only." /></span>}
+            min={0}
+            step={0.1}
+            value={s.operators}
+            onFocus={api.checkpoint}
+            onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: Math.max(0, +value) } })}
+          />
         </div>
       )}
       {!isFlowFunction(s) ? (
@@ -1519,33 +1527,46 @@ export function SchemaPanel() {
       </tbody>
     </table>
   );
+  const ent = (name: string) => (
+    <div style={{ fontSize: "0.75rem", margin: "14px 0 6px" }}>
+      <code>{name}</code>
+    </div>
+  );
   return (
     <div className="pad">
       <div className="lab" style={{ marginBottom: 8 }}>
-        Data model
+        Data model <span style={{ color: TEXTD, fontWeight: 400 }}>· schema v{SCHEMA_VERSION}</span>
       </div>
-      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 4, lineHeight: 1.5 }}>
         The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields
-        fill with defaults on import, and older files are migrated forward automatically.
+        fill with defaults on import, and older files are migrated forward to v{SCHEMA_VERSION} automatically.
+        All fields marked <code>?</code> are optional — absent means the analysis that uses them is skipped,
+        never fabricated.
       </div>
-      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
-        <code>root</code>
-      </div>
+      {ent("root — Model")}
       {tbl([
         ["field", "type", "meaning", 1],
         ["schemaVersion", "int", "migration version (auto)"],
         ["name", "string", "layout label"],
-        ["gridW, gridH", "int", "grid size (units)"],
+        ["gridW, gridH", "int", "grid size (cells, 1 cell = 1 m)"],
         ["shiftHours", "number", "default shift length"],
+        ["lossFactor", "number?", "balancing loss allowance (station count)"],
         ["weights", "object?", "KPI weight override (else defaults)"],
-        ["costConfig", "object?", "labor/energy/shifts assumptions"],
-        ["stations", "array", "steps / areas"],
-        ["flows", "array", "material movements"],
-        ["noGoZones", "array", "blocked rects {x,y,w,h}"],
+        ["costConfig", "object?", "labor/energy/shift + area/maintenance rates"],
+        ["demand", "Demand?", "years + shift model (takt, capacity)"],
+        ["stations", "Station[]", "steps / areas"],
+        ["flows", "Flow[]", "material movements"],
+        ["noGoZones", "array", "zones {x,y,w,h,kind} (obstacle/aisle/wall…)"],
+        ["floorPolygon", "[x,y][]?", "non-rectangular usable floor (envelope)"],
+        ["floorLoadKgPerM2", "number?", "slab capacity (layout realism)"],
+        ["aisleWidth, walkSpeedMps", "number?", "aisle width; operator walk speed"],
+        ["capabilities", "Capability[]?", "process-capability catalog override"],
+        ["parts", "PartEntry[]?", "part-number portfolio (feasibility matrix)"],
+        ["workElements", "WorkElement[]?", "work content for balancing"],
+        ["variantModes", "VariantMode[]?", "mix modes (mixed-model balance)"],
+        ["groups", "array?", "documentation annotation boxes"],
       ])}
-      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
-        <code>station</code>
-      </div>
+      {ent("Station")}
       {tbl([
         ["field", "type", "meaning", 1],
         ["id", "string", "unique key (flows reference it)"],
@@ -1557,39 +1578,87 @@ export function SchemaPanel() {
         ["auto", "enum", "manual·semi·auto (current state)"],
         ["autoOverride", "enum?", "null·yes·no (override potential)"],
         ["capacityPerShift", "int", "throughput ceiling"],
-        ["operators", "int", "staffing"],
+        ["operators", "number", "staffing — fractional (shared operators)"],
         ["cycleTimeSec", "int", "per-part cycle (derived from cycle when present)"],
         ["cycle", "obj?", "valueAdd/handling/walk/wait/setupSec — absent = not decomposed"],
+        ["cycleCV", "number?", "cycle σ/μ → p50/p95/p99 variability"],
         ["changeoverMin", "int", "setup/changeover time"],
         ["ergoRisk", "enum", "low·med·high"],
         ["shiftHours", "number?", "per-station shift override"],
+        ["partsPerCycle", "int?", "parts made per cycle (multi-cavity)"],
+        ["bufferCapacity", "int?", "WIP a buffer/store holds"],
         ["cells", "[x,y][]?", "occupied cells (absent ⇒ rectangle)"],
+        ["clearance", "obj?", "keep-clear margins {top,right,bottom,left}"],
+        ["weightKg", "number?", "equipment weight (floor-load check)"],
         ["inSide/outSide", "enum?", "port edge: left·right·top·bottom"],
         ["scrapSide", "enum?", "scrap-out edge"],
         ["scrapRate", "number?", "0–1 scrapped (Yield panel)"],
         ["parallelUnits", "int?", "identical parallel lanes (×N capacity)"],
         ["splitMode", "enum?", "distribute·fork (outgoing)"],
         ["mergeMode", "enum?", "sum·assemble (incoming)"],
+        ["provides", "string[]?", "capabilities this station performs (Gate 1)"],
+        ["volumeBand", "obj?", "validated {min,max} units/yr (Gate 2)"],
+        ["attendedFraction", "number?", "0–1 operator-bound share (loops)"],
+        ["operatorId", "string?", "shared operator loop (chaku-chaku)"],
+        ["availabilityPct", "number?", "uptime 0–1 (scales effective rate)"],
+        ["mtbfHours, mttrHours", "number?", "reliability → availability"],
         ["capex / automationCapex", "number?", "cost & ROI (Cost tab)"],
         ["energyKw", "number?", "power draw → energy opex"],
+        ["dataQuality", "obj?", "per-field measured/estimated marks"],
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: "0.75rem", marginBottom: 6 }}>
-        <code>flow</code>
-      </div>
+      {ent("Flow")}
       {tbl([
         ["field", "type", "meaning", 1],
         ["from, to", "string", "station ids"],
         ["volume", "int", "parts/shift moved"],
         ["unitCost", "float", "cost per unit-distance"],
         ["transport", "enum", "manual·forklift·conveyor·agv"],
+        ["kind", "enum?", "good·nok·rwk (material path)"],
         ["partWeightKg", "float", "per-part weight"],
         ["share", "number?", "split fraction (distribute)"],
         ["unitsPerAssembly", "int?", "inputs per assembled unit"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>
+      {ent("Demand  ·  root.demand")}
+      {tbl([
+        ["field", "type", "meaning", 1],
+        ["years", "{year,units}[]", "demand per year (peak drives takt)"],
+        ["shiftsPerDay", "number?", "shifts/day (default 1)"],
+        ["hoursPerShift", "number?", "hours/shift (default 8)"],
+        ["workingDaysPerYear", "number?", "days/year (default 220)"],
+        ["oee", "number?", "0–1 effectiveness (default 0.85)"],
+      ])}
+      {ent("PartEntry  ·  root.parts[]")}
+      {tbl([
+        ["field", "type", "meaning", 1],
+        ["id, number", "string", "key; the part number"],
+        ["requiredCapabilityIds", "string[]", "capabilities the part needs (Gate 1)"],
+        ["demandPerYear", "number?", "volume → capacity load (Gate 3)"],
+        ["changeoverFamily", "string?", "family for changeover grouping"],
+        ["campaignsPerYear", "number?", "campaign starts → changeover count"],
+      ])}
+      {ent("WorkElement  ·  root.workElements[]")}
+      {tbl([
+        ["field", "type", "meaning", 1],
+        ["id, name", "string", "key; label"],
+        ["capabilityId", "string?", "capability it requires (coverage)"],
+        ["predecessors", "string[]", "precedence DAG"],
+        ["time", "{seconds,…}", "duration + method/confidence"],
+        ["classification", "enum", "VA · NNVA · NVA"],
+        ["wasteClass", "enum?", "the 7 wastes (when non-VA)"],
+        ["attendedFraction", "number", "0–1 operator-bound share"],
+        ["ergonomicLoad", "enum", "light · medium · heavy"],
+      ])}
+      {ent("Capability  ·  root.capabilities[]")}
+      {tbl([
+        ["field", "type", "meaning", 1],
+        ["id, name", "string", "key; label"],
+        ["category", "string", "grouping (cut, join, inspect…)"],
+        ["alternatives", "string[]?", "capabilities that can substitute (N:M)"],
+      ])}
+      <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5, marginTop: 12 }}>
         Flow cost = Σ(volume × rectilinear-distance × unitCost). Chaining reads auto on both ends +
         transport: two auto steps with conveyor/agv = chained; with a manual handoff = auto-island.
       </div>

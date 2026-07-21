@@ -64,7 +64,11 @@ function shiftSeconds(hours: number): number {
  *  Machine/quality/store stations are machine- or process-paced: operators there
  *  drive labour cost and manning, not part throughput. */
 export function operatorPaceLanes(s: Pick<Station, "type" | "operators">): number {
-  return s.type === "manual" ? Math.max(1, s.operators) : 1;
+  // Operators may be fractional (a shared operator tending several machines is
+  // e.g. 0.33 each — a manning/cost input). Parallel-worker THROUGHPUT is only
+  // whole workers, so the lane count rounds; a fraction never adds a partial
+  // lane. Integer counts are unchanged, so the golden fixtures hold.
+  return s.type === "manual" ? Math.max(1, Math.round(s.operators)) : 1;
 }
 
 // Effective parts/shift one resource at a step can output (cycle- or capacity-

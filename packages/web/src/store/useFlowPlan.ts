@@ -116,7 +116,16 @@ export function useFlowPlan(): FlowPlanApi {
     saveTimer.current = window.setTimeout(() => {
       setWs((prev) => {
         const cells = prev.cells.map((c) => (c.id === prev.activeId ? { ...c, name: model.name || c.name, model } : c));
-        const next = { ...prev, cells };
+        // Demand is a concept-level property (working days, OEE, shifts): mirror
+        // the active layout's demand back onto its concept so every layout in the
+        // concept — and its Analysis tab — stays consistent, and new layouts
+        // inherit the latest.
+        const activeConcept = cells.find((c) => c.id === prev.activeId)?.conceptId ?? null;
+        const concepts =
+          activeConcept && model.demand
+            ? prev.concepts.map((k) => (k.id === activeConcept ? { ...k, demand: model.demand } : k))
+            : prev.concepts;
+        const next = { ...prev, cells, concepts };
         saveWorkspace(next);
         return next;
       });
@@ -192,7 +201,11 @@ export function useFlowPlan(): FlowPlanApi {
       const cid = conceptId ?? activeConceptId;
       const concept = ws.concepts.find((c) => c.id === cid) ?? null;
       const count = ws.cells.filter((c) => c.conceptId === cid).length;
-      const cell = makeCell(name ?? "Layout " + (count + 1), m ?? blankModel(), concept?.folderId ?? null, cid);
+      // A new blank layout inherits the concept's demand (or a sibling's), so its
+      // Analysis tab shows the concept's working days / OEE, not bare defaults.
+      const seedDemand = concept?.demand ?? ws.cells.find((c) => c.conceptId === cid && c.model.demand)?.model.demand;
+      const seed = m ?? (seedDemand ? { ...blankModel(), demand: seedDemand } : blankModel());
+      const cell = makeCell(name ?? "Layout " + (count + 1), seed, concept?.folderId ?? null, cid);
       const next: Workspace = { ...ws, cells: persistActive(ws).concat([cell]), activeId: cell.id };
       setWs(next);
       saveWorkspace(next);
@@ -261,7 +274,9 @@ export function useFlowPlan(): FlowPlanApi {
   // ---- concepts -----------------------------------------------------------
   const createConcept = useCallback((name: string, folderId: string | null = null, m?: Model): string => {
     const position = ws.concepts.filter((c) => c.folderId === folderId).length;
-    const concept = makeConcept(name, folderId, position);
+    // Seed demand (e.g. from the wizard's demand step) onto the concept, so every
+    // layout added later inherits the same working days / OEE.
+    const concept = makeConcept(name, folderId, position, m?.demand);
     const cell = makeCell("Layout 1", m ?? blankModel(), folderId, concept.id);
     setWs((prev) => {
       const next: Workspace = {

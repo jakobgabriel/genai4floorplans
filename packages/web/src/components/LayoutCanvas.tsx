@@ -377,7 +377,7 @@ export function LayoutCanvas(props: Props) {
         viewBox={`${off.x} ${off.y} ${vbW} ${vbH}`}
         width={props.fill ? "100%" : baseW}
         height={props.fill ? "100%" : baseH}
-        className={props.fill ? "canvas-svg--fill" : undefined}
+        className={props.fill ? "canvas-svg canvas-svg--fill" : "canvas-svg"}
         data-layout={label}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}

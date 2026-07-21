@@ -307,9 +307,14 @@ main {
   min-width: 0;
 }
 /* Node-RED editor: fill the viewport below the 3rem header; the rails hold
-   their own scroll so only the canvas grows. */
+   their own scroll so only the canvas grows. The header is cleared with a
+   margin (not the base .shell padding-top) and the shell sized to exactly the
+   remaining viewport, so `margin (3rem) + height (100vh − 3rem) = 100vh` and
+   the document can never scroll past it (no black seam below the app). */
 .shell--editor {
-  height: 100vh;
+  padding-top: 0;
+  margin-top: 3rem;
+  height: calc(100vh - 3rem);
   min-height: 0;
   overflow: hidden;
 }
@@ -345,7 +350,9 @@ main {
 .canvas-fill .layoutTitle {
   flex: 0 0 auto;
 }
-.canvas-svg--fill {
+/* Doubled class so the fill sizing always beats the base `.canvas-svg` rule
+   (which sets height:auto / max-width:100%) regardless of source order. */
+.canvas-svg.canvas-svg--fill {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -482,7 +489,12 @@ main {
   margin-bottom: var(--sp-03);
 }
 
-svg {
+/* Scoped to the floorplan canvas ONLY. A bare `svg` selector here used to paint
+   a background, border and drop-shadow behind EVERY svg in the app — including
+   Carbon button icons and the Select/Dropdown chevron, so a glyph sat in its own
+   little box and vanished when its fill matched the forced background. Keeping
+   this on `.canvas-svg` leaves all Carbon UI icons untouched. */
+.canvas-svg {
   background: var(--cds-layer-01);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   border-radius: 0;

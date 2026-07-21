@@ -26,11 +26,16 @@ export const NODE_KINDS: NodeKind[] = [
   { id: "output", label: "Output", type: "store", role: "output" },
 ];
 
-const FORMS: { form: CellForm; label: string }[] = [
-  { form: "I", label: "I" },
-  { form: "U", label: "U" },
-  { form: "L", label: "L" },
-  { form: "S", label: "S" },
+// Every archetype the engine can lay out and score. W (double-U / multi-fold)
+// and O (closed loop / racetrack) are produced by the optimizer and concept
+// generator but used to be missing here, so they were unreachable by hand.
+const FORMS: { form: CellForm; label: string; hint: string }[] = [
+  { form: "I", label: "I", hint: "straight line — in one end, out the other" },
+  { form: "U", label: "U", hint: "U-cell — load and unload side by side, one operator serves both" },
+  { form: "L", label: "L", hint: "L-cell — one right-angle bend around a corner" },
+  { form: "S", label: "S", hint: "serpentine — rows snake back on themselves to pack a long line" },
+  { form: "W", label: "W", hint: "double-U / multi-fold — a long process folded into a compact, front-access block" },
+  { form: "O", label: "O", hint: "closed loop / racetrack — enters and leaves the same corner (carriers, AGVs)" },
 ];
 
 export const NODE_DND_TYPE = "application/x-flowplan-node";
@@ -62,7 +67,7 @@ export function PaletteBar({ onApplyForm }: { onApplyForm: (form: CellForm) => v
       <span className="palette-sep" />
       <span className="palette-lab">Form</span>
       {FORMS.map((f) => (
-        <button key={f.form} className="palette-form" title={`Arrange the cell in a ${f.form} shape`} onClick={() => onApplyForm(f.form)}>
+        <button key={f.form} className="palette-form" title={`${f.label}-cell — ${f.hint}`} onClick={() => onApplyForm(f.form)}>
           {f.label}
         </button>
       ))}
