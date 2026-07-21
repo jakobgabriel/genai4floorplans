@@ -5,7 +5,7 @@ import { cellTopology } from "./topology";
 import type { Model } from "../model/types";
 
 const BRIEF: GenerateBrief = {
-  useCase: "assembly",
+  name: "assembly-flex",
   annualVolume: 120_000,
   shiftHours: 8,
   steps: [
