@@ -31,8 +31,11 @@
 | **C-05** | Optimizer footprint/Grid | ✅ behoben | Grid-Grenzprüfung im Swap |
 | **C-06** | Konzept-Scoring Tiebreak | ✅ behoben | Lean-Default-Tiebreak; Primärvergleich bleibt kostenbasiert (`generate.ts`) |
 | **C-08** | Fläche/Tooling ohne Kosten | ✅ behoben | Flächen- + Instandhaltungs-Opex, Payback nettiert |
-| C-01/02/03/04/09/10/11/12/13 | Katalog, Layout-Polygon, Testfit, Verteilungen, Snapshots, Portfolio-UI, Pattern-Library | 🔵 offen (Roadmap) | Greenfield-Features; bewusst nicht in dieser Iteration — Umfang je Wochen; Halbausbau widerspräche §4/§5 |
+| **C-03** | Layout-Realismus (Clearance/Egress/Floor-Load) | ✅ Increment 1 | `engine/envelope.ts` `layoutRealism` (Clearance-Overlap, Floor-Load, Egress-BFS); Optimizer respektiert Clearance; Canvas-Halos + Rot-Markierung; Inspector-Eingaben (Clearance/Gewicht) + Floor-Load-Setting. Voller Boden-Polygon-Envelope (Obstacles/`fixed_placements`) bleibt Increment 2 |
+| C-01/02/04/09/10/11/12/13 | Katalog, Testfit, Verteilungen, Snapshots, Portfolio-UI, Pattern-Library | 🔵 offen (Roadmap) | Greenfield-Features; bewusst nicht in dieser Iteration — Umfang je Wochen; Halbausbau widerspräche §4/§5 |
 | **D-01** | Doku veraltet | ✅ dieser Nachtrag | Status hier dokumentiert |
+
+**Unabhängige Nachprüfung (Re-Audit).** Die A/B/C-Fixes wurden anschließend adversarial gegengeprüft (zwei unabhängige Reviews gegen den Code, mit dem Ziel zu widerlegen). Ergebnis: **alle acht Engine-Fixes CONFIRMED**, keine Refutation. Aufgedeckt und behoben wurden drei UI-/Rand-Defekte der ersten Umsetzung: ein Undo-korrumpierender In-place-Mutations-Bug in `balanceWorkloadIntoCell` (D1), ein ungeguardetes „takt 0s" in einem Overview-Readout (D2), sowie zwei kosmetische Punkte (A-07-Fehlermeldung, A-05-terminaler-Sink-Yield, `wastePareto`-Kommentar). Alle sind im selben Branch geschlossen und test-verankert.
 
 **Test-/Typecheck-Stand nach Umsetzung:** `npm run typecheck` grün (core+web+server); `npm test` **462 grün / 2 skipped** (frischer Checkout ohne Handgriff dank B-01). Golden-Fixtures bewusst aktualisiert, wo eine Kennzahl korrigiert wurde; jeder Fix ist durch neue Tests abgesichert.
 
