@@ -14,7 +14,7 @@ import {
 import { TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, attendedFractionOf, fieldQuality, isFlowFunction, type CycleBreakdown, type DataQuality, type Flow, type RatingWeights, type Side, type Station, type StationDataField, type ZoneKind } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
@@ -347,9 +347,54 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
       </div>
       <CycleSection api={api} setSel={setSel} setTab={setTab} />
       <ParallelSection api={api} setSel={setSel} setTab={setTab} />
+      <OperatorLoopSection api={api} setSel={setSel} setTab={setTab} />
       <YieldSection api={api} />
       <FreedomSection api={api} setTab={setTab} />
       <GuardrailSection api={api} setSel={setSel} setTab={setTab} />
+    </div>
+  );
+}
+
+// Operator loops & walk time (audit C-13). An operator tending several stations
+// walks between them; that walk is waste computed from the layout. Shows the
+// operator-balance (work vs walk) against takt — the lean standardized-work view.
+function OperatorLoopSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const ol = api.operatorLoops;
+  if (ol.loops.length === 0) return null;
+  const takt = ol.takt;
+  const scale = Math.max(takt, ...ol.loops.map((l) => l.loopSec), 1);
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div className="lab" style={{ marginBottom: 6 }}>
+        Operator loops & walk time
+        <HelpPopover text="An operator tending several stations walks between them — a chaku-chaku loop. The walk is waste computed from the layout (rectilinear distance ÷ walk speed). Work + walk = the operator's time per part; over takt means one operator can't keep up. Assign an operator id per station in Configure to model explicit loops." />
+      </div>
+      {ol.notional ? (
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
+          No operators assigned — showing one notional loop over the whole line (a layout walking-waste indicator). Set an <em>operator loop id</em> per station in Configure to model real loops.
+        </div>
+      ) : null}
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
+        {ol.operatorCount} loop{ol.operatorCount === 1 ? "" : "s"} · walking waste <strong style={{ color: ol.walkWastePct > 15 ? AMBER : "var(--cds-text-primary)" }}>{ol.walkWastePct.toFixed(0)}%</strong> of operator time · walk speed {ol.walkSpeedMps} m/s
+      </div>
+      {ol.loops.map((l) => {
+        const over = l.overTaktSec > 0;
+        return (
+          <div key={l.id} style={{ marginBottom: 8, cursor: l.stationIds[0] ? "pointer" : "default" }} onClick={() => { if (l.stationIds[0]) { setSel(l.stationIds[0]); setTab("inspect"); } }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
+              <span style={{ color: over ? RED : "var(--cds-text-primary)" }}>{l.synthetic ? "Line (notional)" : l.id} · {l.stationNames.length} station{l.stationNames.length === 1 ? "" : "s"}</span>
+              <span style={{ color: TEXTD }}>{l.loopSec.toFixed(1)}s{takt > 0 ? ` / ${takt.toFixed(1)}s takt` : ""} · {l.walkMeters.toFixed(0)} m</span>
+            </div>
+            {/* work (teal) + walk (amber) stacked bar, with a takt line */}
+            <div style={{ position: "relative", height: 10, background: LINE, marginTop: 3 }}>
+              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(l.workSec / scale) * 100}%`, background: TEAL }} title={`work ${l.workSec.toFixed(1)}s`} />
+              <div style={{ position: "absolute", left: `${(l.workSec / scale) * 100}%`, top: 0, height: "100%", width: `${(l.walkSec / scale) * 100}%`, background: AMBER }} title={`walk ${l.walkSec.toFixed(1)}s`} />
+              {takt > 0 ? <div style={{ position: "absolute", left: `${Math.min(100, (takt / scale) * 100)}%`, top: -2, height: 14, width: 2, background: over ? RED : TEXTD }} title={`takt ${takt.toFixed(1)}s`} /> : null}
+            </div>
+            {over ? <div style={{ fontSize: "0.7rem", color: RED, marginTop: 2 }}>+{l.overTaktSec.toFixed(1)}s over takt — split the loop, shorten walks, or add an operator.</div> : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1074,18 +1119,38 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         </div>
       )}
       {!isFlowFunction(s) ? (
-        <div className="row2" style={{ marginTop: 8 }}>
-          <NumberInput
-            id="cfg-parts-per-cycle"
-            label={<span>Parts / cycle<HelpPopover text="Parts processed together in ONE cycle — a multi-cavity die, a fixture that holds several parts, a batch oven. Multiplies part throughput without adding a machine; the Yamazumi shows the per-part time (cycle ÷ this)." /></span>}
-            value={s.partsPerCycle ?? 1}
-            min={1}
-            step={1}
+        <>
+          <div className="row2" style={{ marginTop: 8 }}>
+            <NumberInput
+              id="cfg-parts-per-cycle"
+              label={<span>Parts / cycle<HelpPopover text="Parts processed together in ONE cycle — a multi-cavity die, a fixture that holds several parts, a batch oven. Multiplies part throughput without adding a machine; the Yamazumi shows the per-part time (cycle ÷ this)." /></span>}
+              value={s.partsPerCycle ?? 1}
+              min={1}
+              step={1}
+              onFocus={api.checkpoint}
+              onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { partsPerCycle: Math.max(1, Math.floor(+value || 1)) } })}
+            />
+            <NumberInput
+              id="cfg-attended"
+              label={<span className="field-lab-row">Operator-bound %<HelpPopover text="Share of the cycle that binds an operator (drives operator loops / walk balance). Blank uses a type default (manual 100%, quality 60%, machine 30%). A machine that only needs load/unload is low — the rest runs unattended." /></span>}
+              helperText={s.attendedFraction == null ? `default ${Math.round(attendedFractionOf(s) * 100)}%` : undefined}
+              allowEmpty
+              min={0}
+              max={100}
+              value={s.attendedFraction == null ? "" : Math.round(s.attendedFraction * 100)}
+              onFocus={api.checkpoint}
+              onChange={(_: unknown, { value }: { value: number | string }) => up({ attendedFraction: value === "" ? undefined : Math.max(0, Math.min(100, +value)) / 100 })}
+            />
+          </div>
+          <TextInput
+            id="cfg-operatorid"
+            labelText={<span className="field-lab-row">Operator loop id<HelpPopover text="Stations sharing an id are tended by one operator as a walking loop (chaku-chaku). Walk time between them is computed from the layout and shown in Balance ▸ Operator loops. Blank = not in an explicit loop." /></span>}
+            value={s.operatorId ?? ""}
             onFocus={api.checkpoint}
-            onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { partsPerCycle: Math.max(1, Math.floor(+value || 1)) } })}
+            onChange={(e) => up({ operatorId: e.target.value.trim() === "" ? undefined : e.target.value.trim() })}
+            style={{ marginTop: 8 }}
           />
-          <div />
-        </div>
+        </>
       ) : null}
       <div style={{ marginTop: 8, marginBottom: 8 }}>
         <div className="field"><span>Fixed / anchored</span></div>

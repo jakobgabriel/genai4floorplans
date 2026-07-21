@@ -499,6 +499,7 @@ export function App() {
           flows={model.flows}
           chain={api.chain}
           conflictIds={realismConflictIds}
+          operatorLoops={api.operatorLoops.loops}
           fill
           ghost={rating.optimized}
           proposalItems={proposal?.items}
