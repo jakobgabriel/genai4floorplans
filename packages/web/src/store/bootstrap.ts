@@ -1,7 +1,8 @@
 import { ApiStorageProvider } from "./storage/ApiStorageProvider";
 import { setSession } from "./session";
 import { hydrateScenarios } from "./scenarios";
-import { authLogin, authMe, listTeams, createTeam, listWorkspaces, createWorkspace, fetchLibrary, fetchSubflows } from "./apiClient";
+import { authLogin, authMe, listTeams, createTeam, listWorkspaces, createWorkspace, fetchLibrary, fetchSubflows, fetchPreferences } from "./apiClient";
+import type { Preferences } from "./preferences";
 
 // Establish the DB-backed session before the app renders. In dev this
 // auto-logs-in the seeded dev user (see prisma/seed.ts) so a fresh `npm run
@@ -34,14 +35,15 @@ export async function bootstrapSession(): Promise<boolean> {
 
     // 4) Hydrate everything from the DB.
     const provider = new ApiStorageProvider(workspaceId);
-    const [workspace, library, subflows, scenarios] = await Promise.all([
+    const [workspace, library, subflows, scenarios, preferences] = await Promise.all([
       provider.loadWorkspace(),
       fetchLibrary(teamId),
       fetchSubflows(teamId),
       hydrateScenarios(provider),
+      fetchPreferences() as Promise<Preferences>,
     ]);
 
-    setSession({ session: { userId: "me", teamId, workspaceId }, provider, workspace, library, subflows, scenarios });
+    setSession({ session: { userId: "me", teamId, workspaceId }, provider, workspace, library, subflows, scenarios, preferences });
     return true;
   } catch (e) {
     console.warn("DB bootstrap failed; running offline (localStorage).", e);

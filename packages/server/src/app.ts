@@ -16,6 +16,7 @@ import { subflowsRouter } from "./routes/subflows.ts";
 import { scenariosRouter } from "./routes/scenarios.ts";
 import { aiRouter } from "./routes/ai.ts";
 import { aiCredentialsRouter } from "./routes/aiCredentials.ts";
+import { preferencesRouter } from "./routes/preferences.ts";
 import { buildOpenApiDocument } from "./openapi/document.ts";
 
 // The mounted routers and their base paths. Exported so the OpenAPI drift test
@@ -32,6 +33,7 @@ export const ROUTE_MOUNTS: { mount: string; router: Router }[] = [
   { mount: "/api", router: scenariosRouter },
   { mount: "/api", router: aiRouter },
   { mount: "/api", router: aiCredentialsRouter },
+  { mount: "/api", router: preferencesRouter },
 ];
 
 // Build the Express app. Exported (separate from index.ts) so tests can mount it
@@ -86,6 +88,7 @@ export function createApp(): Express {
   app.use("/api", scenariosRouter);
   app.use("/api", aiRouter);
   app.use("/api", aiCredentialsRouter);
+  app.use("/api", preferencesRouter);
 
   // Single-origin deploy: also serve the built SPA so the web app's relative /api
   // calls resolve same-origin (no CORS/proxy). Gated on WEB_DIST so tests and the

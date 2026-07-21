@@ -41,6 +41,17 @@ model User {
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   aiUsage      AiUsageLog[]
+  preference   UserPreference?
+}
+
+// Per-user application + UI preferences (theme, panel layout, non-secret AI
+// choice). One row per user; a JSON blob so adding a preference needs no
+// migration. Device-syncing preferences moves them off browser localStorage.
+model UserPreference {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prefs     Json     @default("{}")
+  updatedAt DateTime @updatedAt
 }
 
 model Team {

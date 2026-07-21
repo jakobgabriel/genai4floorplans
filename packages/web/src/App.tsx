@@ -21,6 +21,7 @@ import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessSte
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
 import { ArrowLeft, ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
+import { getPreferences, patchPreferences } from "./store/preferences";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
@@ -168,18 +169,18 @@ export function App() {
   const [showReset, setShowReset] = useState(false);
   const [showOptimize, setShowOptimize] = useState(false);
   const [route] = useHashRoute();
-  // Collapsible config panel (persisted). The workspace is now a global page.
-  const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
-  useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
-  // Drag-resizable config width (persisted).
-  const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
-  const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
-  useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
-  // Left library sidebar (node-RED palette), collapsible + drag-resizable, persisted.
-  const [libCollapsed, setLibCollapsed] = useState(() => localStorage.getItem("flowplan_lib_collapsed") === "1");
-  useEffect(() => { localStorage.setItem("flowplan_lib_collapsed", libCollapsed ? "1" : "0"); }, [libCollapsed]);
-  const [libWidth, setLibWidth] = useState(() => numOr("flowplan_lib_w", 260));
-  useEffect(() => { localStorage.setItem("flowplan_lib_w", String(libWidth)); }, [libWidth]);
+  // Editor panel layout is a user preference (Postgres when signed in, else
+  // localStorage): collapse + drag-width of the inputs rail and the library rail.
+  const panelPrefs = getPreferences().panels ?? {};
+  const numOr = (v: number | undefined, d: number) => (Number.isFinite(v) && (v as number) > 0 ? (v as number) : d);
+  const [configCollapsed, setConfigCollapsed] = useState(() => panelPrefs.configCollapsed === true);
+  useEffect(() => { patchPreferences({ panels: { configCollapsed } }); }, [configCollapsed]);
+  const [configWidth, setConfigWidth] = useState(() => numOr(panelPrefs.configW, 360));
+  useEffect(() => { patchPreferences({ panels: { configW: configWidth } }); }, [configWidth]);
+  const [libCollapsed, setLibCollapsed] = useState(() => panelPrefs.libCollapsed === true);
+  useEffect(() => { patchPreferences({ panels: { libCollapsed } }); }, [libCollapsed]);
+  const [libWidth, setLibWidth] = useState(() => numOr(panelPrefs.libW, 260));
+  useEffect(() => { patchPreferences({ panels: { libW: libWidth } }); }, [libWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
 

@@ -63,3 +63,9 @@ export async function createSubflow(teamId: string, sf: Subflow): Promise<Subflo
 export const updateSubflow = (teamId: string, id: string, patch: { name?: string }) =>
   req("PATCH", `/teams/${teamId}/subflows/${id}`, patch);
 export const deleteSubflow = (teamId: string, id: string) => req("DELETE", `/teams/${teamId}/subflows/${id}`);
+
+// ---- preferences (per-user UI/app state) ----
+export const fetchPreferences = () =>
+  req<{ prefs: Record<string, unknown> }>("GET", "/me/preferences").then((r) => r.prefs);
+export const savePreferences = (prefs: Record<string, unknown>) =>
+  req<{ prefs: Record<string, unknown> }>("PUT", "/me/preferences", { prefs }).then((r) => r.prefs);
