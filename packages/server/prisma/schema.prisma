@@ -113,6 +113,7 @@ model Workspace {
   teamId    String
   name      String
   activeId  String? // mirrors Workspace.activeId; soft reference to a Cell.id
+  version   Int        @default(0) // optimistic-concurrency token; bumped on each tree save
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { blankModel } from "@flowplan/core/model/sample";
 import type { Model } from "@flowplan/core/model/types";
 import { LocalStorageProvider } from "./LocalStorageProvider";
-import { ApiStorageProvider, type FetchLike } from "./ApiStorageProvider";
+import { ApiStorageProvider, ConflictError, type FetchLike } from "./ApiStorageProvider";
 import type { StorageProvider } from "./StorageProvider";
 
 // A tiny in-memory API stand-in so the ApiStorageProvider can be exercised with
@@ -228,3 +228,49 @@ function runContract(name: string, make: () => StorageProvider) {
 
 runContract("local", () => new LocalStorageProvider());
 runContract("api", () => new ApiStorageProvider("w1", "/api", fakeApi()));
+
+// API-specific: optimistic concurrency. A version-aware fake server that bumps
+// on each guarded save and 409s a stale baseVersion — mirrors the real route.
+function versionedApi(state: { version: number }): FetchLike {
+  const empty = { folders: [], concepts: [], cells: [] };
+  return (async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    const path = url.replace(/^\/api/, "");
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    const json = (data: unknown, status = 200) => ({ ok: status < 400, status, async json() { return data; }, async text() { return ""; } }) as unknown as Response;
+    if (/^\/workspaces\/[^/]+$/.test(path) && method === "GET") {
+      return json({ workspace: { id: "w1", name: "WS", activeId: null, version: state.version, ...empty } });
+    }
+    if (/^\/workspaces\/[^/]+\/tree$/.test(path) && method === "PUT") {
+      if (typeof body.baseVersion === "number") {
+        if (body.baseVersion !== state.version) return json({ error: "conflict", code: "conflict" }, 409);
+        state.version += 1;
+      }
+      return json({ ok: true, version: state.version });
+    }
+    return json({ error: "unhandled" }, 500);
+  }) as unknown as FetchLike;
+}
+
+const emptyWs = { cells: [], concepts: [], folders: [], activeId: "" };
+
+describe("ApiStorageProvider — optimistic concurrency", () => {
+  it("advances the version token across successive saves", async () => {
+    const state = { version: 0 };
+    const p = new ApiStorageProvider("w1", "/api", versionedApi(state));
+    await p.loadWorkspace(); // learns version 0
+    await p.saveWorkspace(emptyWs); // sends baseVersion 0 → server bumps to 1
+    expect(state.version).toBe(1);
+    await p.saveWorkspace(emptyWs); // sends baseVersion 1 → server bumps to 2
+    expect(state.version).toBe(2);
+  });
+
+  it("throws ConflictError when the server moved on since load", async () => {
+    const state = { version: 0 };
+    const p = new ApiStorageProvider("w1", "/api", versionedApi(state));
+    await p.loadWorkspace(); // learns version 0
+    state.version = 7; // someone else saved in the meantime
+    await expect(p.saveWorkspace(emptyWs)).rejects.toBeInstanceOf(ConflictError);
+    expect(state.version).toBe(7); // our stale write did not land
+  });
+});

@@ -105,6 +105,10 @@ export const UpdateFolderBody = z
 export const WorkspaceTreeBody = z
   .object({
     activeId: z.string().nullable().optional(),
+    // Optimistic-concurrency token the client loaded with. When present and it no
+    // longer matches the server's Workspace.version, the save is rejected (409)
+    // instead of clobbering a concurrent edit. Absent = last-write-wins (offline).
+    baseVersion: z.number().int().optional(),
     folders: z.array(z.object({ id: z.string(), name: z.string(), parentId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional() })),
     concepts: z.array(z.object({ id: z.string(), name: z.string(), folderId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional() })),
     cells: z.array(z.object({ id: z.string(), name: z.string(), conceptId: z.string().nullable(), folderId: z.string().nullable(), position: z.number().int(), archived: z.boolean().optional(), model: ModelSchema })),

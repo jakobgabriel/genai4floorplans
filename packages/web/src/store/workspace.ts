@@ -2,6 +2,7 @@ import type { Model } from "@flowplan/core/model/types";
 import { migrate } from "@flowplan/core/model/migrate";
 import { SAMPLE } from "@flowplan/core/model/sample";
 import { getProvider, getHydratedWorkspace } from "./session";
+import { ConflictError } from "./storage/ApiStorageProvider";
 
 // A workspace holds several named cells (each a full Model) so FlowPlan stops
 // being single-cell. Persisted in localStorage; the active cell drives the app.
@@ -138,21 +139,100 @@ function migrateFolder(f: Folder): Folder {
   };
 }
 
+const OUTBOX_KEY = "flowplan_workspace_outbox";
+
+// The UI registers a handler so a save the server rejects for a version conflict
+// (someone else saved first) can reload the latest and tell the user, instead of
+// silently dropping their edit. Null when offline / in unit tests.
+type ConflictHandler = () => void;
+let conflictHandler: ConflictHandler | null = null;
+export function setSaveConflictHandler(h: ConflictHandler | null): void {
+  conflictHandler = h;
+}
+
 // DB-backed save is debounced so the many synchronous saveWorkspace() calls a
-// single user action makes coalesce into one tree-reconcile PUT.
+// single user action makes coalesce into one tree-reconcile PUT. `pendingWs`
+// doubles as a one-slot offline queue: because every save is a full-tree
+// snapshot, only the LATEST unsaved snapshot ever matters, so a network failure
+// just keeps it and retries (with backoff, and immediately on reconnect).
 let providerSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingWs: Workspace | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let retryDelay = 2000;
+let onlineHooked = false;
+// Serialize saves: a second save must not start until the first returns its
+// bumped version, or it would send a stale baseVersion and self-conflict (409).
+let saving = false;
+
+function mirrorOutbox(ws: Workspace | null): void {
+  try {
+    if (ws) localStorage.setItem(OUTBOX_KEY, JSON.stringify(ws));
+    else localStorage.removeItem(OUTBOX_KEY);
+  } catch {
+    /* quota / disabled — non-fatal */
+  }
+}
+
+function scheduleRetry(): void {
+  if (retryTimer) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    retryDelay = Math.min(retryDelay * 2, 30000);
+    flushToProvider();
+  }, retryDelay);
+  // Flush the moment connectivity returns, without waiting for the backoff.
+  if (!onlineHooked && typeof window !== "undefined" && window.addEventListener) {
+    onlineHooked = true;
+    window.addEventListener("online", () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = undefined;
+      }
+      retryDelay = 2000;
+      flushToProvider();
+    });
+  }
+}
+
+function flushToProvider(): void {
+  const provider = getProvider();
+  if (!provider || !pendingWs || saving) return;
+  const toSave = pendingWs;
+  saving = true;
+  provider
+    .saveWorkspace(toSave)
+    .then(() => {
+      saving = false;
+      // Clear only if no newer edit arrived while this save was in flight.
+      if (pendingWs === toSave) pendingWs = null;
+      mirrorOutbox(null);
+      retryDelay = 2000;
+      // A newer snapshot queued during the save — send it now (fresh version).
+      if (pendingWs) flushToProvider();
+    })
+    .catch((e) => {
+      saving = false;
+      if (e instanceof ConflictError) {
+        // A concurrent edit won. Drop our now-stale snapshot and let the UI
+        // reload the server's version so we never overwrite someone else's work.
+        if (pendingWs === toSave) pendingWs = null;
+        mirrorOutbox(null);
+        conflictHandler?.();
+        return;
+      }
+      // Network / server error: keep the snapshot, persist it, and retry.
+      mirrorOutbox(toSave);
+      scheduleRetry();
+      console.warn("workspace save failed; queued for retry", e);
+    });
+}
 
 export function saveWorkspace(ws: Workspace): void {
   const provider = getProvider();
   if (provider) {
     pendingWs = ws;
     if (providerSaveTimer) clearTimeout(providerSaveTimer);
-    providerSaveTimer = setTimeout(() => {
-      const toSave = pendingWs;
-      pendingWs = null;
-      if (toSave) provider.saveWorkspace(toSave).catch((e) => console.warn("workspace save failed", e));
-    }, 600);
+    providerSaveTimer = setTimeout(flushToProvider, 600);
     return;
   }
   try {
