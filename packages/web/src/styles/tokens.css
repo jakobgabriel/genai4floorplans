@@ -1585,6 +1585,42 @@ input.est-field {
 .bi-feas__mark {
   font-weight: 700;
 }
+/* Cycle-variability card (audit C-09) — per-station p50/p95/p99 rows. */
+.bi-var {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-02);
+}
+.bi-var__line {
+  font-size: 0.8125rem;
+  margin-bottom: var(--sp-02);
+}
+.bi-var__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-03);
+  padding: 0.15rem 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.bi-var__row:hover {
+  background: var(--cds-layer-hover-01);
+}
+.bi-var__name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.bi-var__stats {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+}
+.bi-var__flag {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+}
 /* F-pattern — top bar: the hero grade anchors top-left, KPIs sweep right. */
 .bi__topbar {
   display: grid;

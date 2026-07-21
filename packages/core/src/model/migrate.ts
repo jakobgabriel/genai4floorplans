@@ -97,6 +97,11 @@ const toV18: Migration = (m) => ({ ...m, schemaVersion: 18 });
 // (audit C-11 Gate 3). Optional, absent ⇒ 1, so nothing changes.
 const toV19: Migration = (m) => ({ ...m, schemaVersion: 19 });
 
+// version 19 -> 20: cycle-time variability (audit C-09) — optional Station
+// cycleCV. Absent ⇒ 0 (deterministic cycle), so mean-based analysis is
+// unchanged and the p50/p95/p99 view only appears where a CV is entered.
+const toV20: Migration = (m) => ({ ...m, schemaVersion: 20 });
+
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -117,6 +122,7 @@ const MIGRATIONS: Record<number, Migration> = {
   16: toV17,
   17: toV18,
   18: toV19,
+  19: toV20,
 };
 
 export function migrate(raw: unknown): Model {

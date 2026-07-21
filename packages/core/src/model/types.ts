@@ -152,6 +152,12 @@ export interface Station {
    *  both are given, availability = MTBF ÷ (MTBF + MTTR). */
   mtbfHours?: number;
   mttrHours?: number;
+  /** Coefficient of variation of the cycle time — σ/μ, the process's relative
+   *  spread (spec §13, audit C-09). A manual task with a variable tail has a
+   *  CV around 0.2–0.4; an automated station near 0. Drives the p50/p95/p99
+   *  cycle and the line's takt-attainment probability. Absent ⇒ 0 (the cycle is
+   *  treated as deterministic, so mean-based analysis is unchanged). */
+  cycleCV?: number;
 }
 
 /** Grid-aligned keep-clear margins around a station footprint, in cells. */
@@ -513,7 +519,7 @@ export const SPLIT_MODES: SplitMode[] = ["distribute", "fork"];
 export const MERGE_MODES: MergeMode[] = ["sum", "assemble"];
 
 /** Current schema version. Increment when adding a migration step. */
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;
 
 /** Default minimum aisle / egress width in cells when a model omits it but a
  *  clearance/egress check runs (audit C-03). One metre = one cell. */

@@ -8,6 +8,7 @@ import { portfolioMatrix, portfolioCapacity } from "./portfolio";
 import { customerTaktSec } from "./takt";
 import { balanceAnalysis } from "./balance";
 import { gate4Balance } from "./gate4";
+import { lineVariability } from "./variability";
 
 // Testfit — the feasibility service (spec §20, audit C-04). It answers ONE
 // question, deliberately kept separate from optimization: *can this line make
@@ -135,13 +136,28 @@ export function testfit(model: Model, catalog: Capability[] = catalogFor(model))
           detail: [`Constraint step: ${bn.name} at ${bn.cycle}s/part`, `Customer takt: ${takt}s/part`],
         };
       } else {
-        gates.takt = {
-          id: "takt",
-          label: LABELS.takt,
-          status: "pass",
-          summary: `The constraint (${bn.name} at ${bn.cycle}s) clears the ${takt}s takt with ${Math.abs(gap)}s headroom.`,
-          detail: [],
-        };
+        // Clears takt on the mean — but check the tail (audit C-09): a fragile
+        // constraint (mean under, p95 over) meets demand on average yet misses
+        // it whenever it runs long, so it is a robustness warning, not a pass.
+        const lv = lineVariability(model);
+        const fragileBn = lv.fragileStations.find((f) => f.id === bn.id);
+        if (fragileBn) {
+          gates.takt = {
+            id: "takt",
+            label: LABELS.takt,
+            status: "warn",
+            summary: `${bn.name} clears the ${takt}s takt on average (${bn.cycle}s) but its p95 is ${fragileBn.p95Sec}s — over takt. The line meets demand only ${Math.round((lv.lineTaktAttainment ?? fragileBn.taktAttainment ?? 0) * 100)}% of cycles without buffering.`,
+            detail: [`p50 ${fragileBn.p50Sec}s · p95 ${fragileBn.p95Sec}s · p99 ${fragileBn.p99Sec}s`, `Cut variability or add a buffer to protect takt.`],
+          };
+        } else {
+          gates.takt = {
+            id: "takt",
+            label: LABELS.takt,
+            status: "pass",
+            summary: `The constraint (${bn.name} at ${bn.cycle}s) clears the ${takt}s takt with ${Math.abs(gap)}s headroom.`,
+            detail: [],
+          };
+        }
       }
     }
   }

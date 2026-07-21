@@ -1169,6 +1169,20 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
             <NumberInput id="cfg-mtbf" label={<span className="field-lab-row">MTBF (h)<HelpPopover text="Mean time between failures. With MTTR it derives availability = MTBF ÷ (MTBF + MTTR)." /></span>} allowEmpty min={0} value={s.mtbfHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mtbfHours: value === "" ? undefined : Math.max(0, +value) })} />
             <NumberInput id="cfg-mttr" label={<span className="field-lab-row">MTTR (h)<HelpPopover text="Mean time to repair. With MTBF it derives the availability used to scale effective capacity." /></span>} allowEmpty min={0} value={s.mttrHours ?? ""} onFocus={api.checkpoint} onChange={(_: unknown, { value }: { value: number | string }) => up({ mttrHours: value === "" ? undefined : Math.max(0, +value) })} />
           </div>
+          {/* Cycle-time variability (audit C-09): σ/μ drives the p50/p95/p99 view
+              and the takt-attainment probability in Analysis. Blank = 0 = deterministic. */}
+          <NumberInput
+            id="cfg-cyclecv"
+            label={<span className="field-lab-row">Cycle CV (σ/μ)<HelpPopover text="Coefficient of variation of the cycle time — its relative spread. Manual tasks ≈ 0.2–0.4, automated ≈ 0. Drives the p95 tail and the line's takt-attainment probability in Analysis. Blank = deterministic." /></span>}
+            allowEmpty
+            min={0}
+            max={1}
+            step={0.05}
+            value={s.cycleCV == null ? "" : s.cycleCV}
+            onFocus={api.checkpoint}
+            onChange={(_: unknown, { value }: { value: number | string }) => up({ cycleCV: value === "" ? undefined : Math.max(0, Math.min(1, +value)) || undefined })}
+            style={{ marginTop: 8 }}
+          />
           {/* Capabilities this station provides (audit C-01/C-11) — the line's
               supply side of the part-number feasibility matrix. */}
           {(() => {
