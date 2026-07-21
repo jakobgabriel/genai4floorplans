@@ -1464,18 +1464,16 @@ input.est-field {
   gap: var(--sp-03);
   align-items: stretch;
 }
-/* F-pattern — vertical stroke: primary column (2fr) leads, supporting (1fr). */
-.bi__fbody {
+/* Supporting row under the full-width primary chart: the optimisation signal +
+   the cost/space breakdowns, wrapping as the width allows. */
+.bi__support {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
   gap: var(--sp-05);
   align-items: start;
 }
-.bi__col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-05);
-  min-width: 0; /* let the scrollable Yamazumi shrink inside the grid track */
+.bi__support > * {
+  min-width: 0; /* let scrollable children shrink inside their grid track */
 }
 .bi__bottom {
   display: flex;
@@ -1483,8 +1481,7 @@ input.est-field {
   gap: var(--sp-05);
 }
 @media (max-width: 62rem) {
-  .bi__topbar,
-  .bi__fbody {
+  .bi__topbar {
     grid-template-columns: 1fr;
   }
 }
