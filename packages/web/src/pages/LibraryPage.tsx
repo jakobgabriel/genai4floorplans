@@ -40,6 +40,14 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
   const selEntry = sel?.kind === "entry" ? entries.find((e) => e.id === sel.id) ?? null : null;
   const selSub = sel?.kind === "subflow" ? subflows.subflows.find((s) => s.id === sel.id) ?? null : null;
 
+  // Categories (library groups) are user-adjustable: the seeded defaults plus any
+  // custom group an entry has been assigned. Both the filter chips and the
+  // editor's category picker draw from this live set.
+  const customCats = Array.from(new Set(entries.map((e) => e.category).filter(Boolean)))
+    .filter((c) => !(PROCESS_CATEGORIES as string[]).includes(c))
+    .sort((a, b) => a.localeCompare(b));
+  const allCategories = [...PROCESS_CATEGORIES, ...customCats];
+
   function addToCell(e: ProcessCatalogEntry) {
     const base = makeStation(api.model);
     api.commit({ type: "ADD_STATION", station: { ...base, ...(catalogStationPatch(e) as object) } });
@@ -85,7 +93,7 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
         {/* Master: compact, draggable node list + grouped elements. */}
         <div className="lib-list">
           <div className="explorer-actions" style={{ marginBottom: 10, flexWrap: "wrap" }}>
-            {(["all", ...PROCESS_CATEGORIES] as const).map((c) => (
+            {["all", ...allCategories].map((c) => (
               <Button key={c} size="sm" kind={filter === c ? "primary" : "tertiary"} onClick={() => setFilter(c)}>
                 {c}
               </Button>
@@ -148,7 +156,7 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
               {detail === "doc" ? (
                 <CatalogEntryDoc entry={selEntry} provenance={selEntry.custom ? "custom" : "builtin"} />
               ) : (
-                <EntryEditor entry={selEntry} update={update} />
+                <EntryEditor entry={selEntry} update={update} categories={allCategories} />
               )}
               <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
                 <Button size="sm" kind="primary" style={{ flex: 1 }} onClick={() => addToCell(selEntry)}>Add to layout</Button>
@@ -184,17 +192,25 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
   );
 }
 
-function EntryEditor({ entry: e, update }: { entry: ProcessCatalogEntry; update: (id: string, patch: Partial<ProcessCatalogEntry>) => void }) {
+function EntryEditor({ entry: e, update, categories }: { entry: ProcessCatalogEntry; update: (id: string, patch: Partial<ProcessCatalogEntry>) => void; categories: string[] }) {
   return (
     <div>
       <Field label="Name">
         <input value={e.name} onChange={(ev) => update(e.id, { name: ev.target.value })} aria-label="Process name" />
       </Field>
       <div className="row2">
-        <Field label="Category">
-          <select value={e.category} onChange={(ev) => update(e.id, { category: ev.target.value as ProcessCategory })}>
-            {PROCESS_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
+        <Field label="Category (group)">
+          {/* Free-form: pick an existing group from the list or type a new one. */}
+          <input
+            list="lib-category-list"
+            value={e.category}
+            placeholder="e.g. metal, or a new group"
+            onChange={(ev) => update(e.id, { category: ev.target.value.trim().toLowerCase() as ProcessCategory })}
+            aria-label="Process category group"
+          />
+          <datalist id="lib-category-list">
+            {categories.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </Field>
         <Field label="Type">
           <select value={e.stationType} onChange={(ev) => update(e.id, { stationType: ev.target.value as ProcessCatalogEntry["stationType"] })}>
@@ -229,10 +245,10 @@ function EntryEditor({ entry: e, update }: { entry: ProcessCatalogEntry; update:
         </Field>
       </div>
       <div className="row2">
-        <Field label="Width (cells)">
+        <Field label="Width (m)">
           <input type="number" min={1} value={e.w ?? 3} onChange={(ev) => update(e.id, { w: Math.max(1, +ev.target.value) })} />
         </Field>
-        <Field label="Height (cells)">
+        <Field label="Height (m)">
           <input type="number" min={1} value={e.h ?? 2} onChange={(ev) => update(e.id, { h: Math.max(1, +ev.target.value) })} />
         </Field>
       </div>

@@ -1,6 +1,6 @@
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { ZONE_KINDS } from "@flowplan/core/model/types";
-import { PROCESS_CATEGORIES, type ProcessCatalogEntry, type ProcessCategory } from "@flowplan/core/model/catalog";
+import { PROCESS_CATEGORIES, type ProcessCatalogEntry } from "@flowplan/core/model/catalog";
 import type { useLibrary } from "../store/library";
 import type { useSubflows } from "../store/subflows";
 import { navigate } from "../store/useHashRoute";
@@ -17,7 +17,7 @@ import { AMBER, TEAL, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 
 const FORMS: CellForm[] = ["I", "U", "L", "S", "W", "O"];
 
-const CATEGORY_LABEL: Record<ProcessCategory, string> = {
+const CATEGORY_LABEL: Record<string, string> = {
   metal: "Metal",
   rubber: "Rubber",
   plastic: "Plastic",
@@ -26,22 +26,30 @@ const CATEGORY_LABEL: Record<ProcessCategory, string> = {
   logistics: "Logistics",
 };
 
-/** Group catalog entries by process category, preserving list order within each
- *  and keeping the canonical category order. Any unknown category falls into a
- *  trailing "Other" bucket so nothing is ever dropped from the palette. */
+/** Display label for a category — a friendly name for the seeded groups, else
+ *  the raw (user-defined) category name, capitalised. */
+function categoryLabel(cat: string): string {
+  return CATEGORY_LABEL[cat] ?? (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : "Uncategorised");
+}
+
+/** Group catalog entries by process category, preserving list order within each.
+ *  Categories are user-adjustable and free-form, so we group by whatever groups
+ *  the entries actually use: the seeded defaults first (in canonical order), then
+ *  any custom groups alphabetically. Nothing is ever dropped from the palette. */
 function groupByCategory(entries: ProcessCatalogEntry[]): Array<{ key: string; label: string; items: ProcessCatalogEntry[] }> {
   const buckets = new Map<string, ProcessCatalogEntry[]>();
   entries.forEach((e) => {
-    const key = (PROCESS_CATEGORIES as string[]).includes(e.category) ? e.category : "other";
+    const key = e.category || "uncategorised";
     (buckets.get(key) ?? buckets.set(key, []).get(key)!).push(e);
   });
+  const defaults = PROCESS_CATEGORIES as string[];
+  const custom = [...buckets.keys()].filter((k) => !defaults.includes(k)).sort((a, b) => a.localeCompare(b));
+  const order = [...defaults, ...custom];
   const ordered: Array<{ key: string; label: string; items: ProcessCatalogEntry[] }> = [];
-  PROCESS_CATEGORIES.forEach((c) => {
+  order.forEach((c) => {
     const items = buckets.get(c);
-    if (items && items.length) ordered.push({ key: c, label: CATEGORY_LABEL[c], items });
+    if (items && items.length) ordered.push({ key: c, label: categoryLabel(c), items });
   });
-  const other = buckets.get("other");
-  if (other && other.length) ordered.push({ key: "other", label: "Other", items: other });
   return ordered;
 }
 

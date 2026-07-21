@@ -127,8 +127,22 @@ export function App() {
     const noRoute = !window.location.hash || window.location.hash === "#" || window.location.hash === "#/";
     if (returning && noRoute) navigate("/workspace");
   }, []);
+  // The workspace cell this guided session materialised its concept into. On
+  // re-entry (the user went back, changed steps, and came forward again) we
+  // update THIS cell in place rather than spawning a duplicate — so an added or
+  // removed step is reflected without cluttering the workspace. Cleared whenever
+  // a fresh guided session starts, so a new concept never overwrites an old one.
+  const guidedCell = useRef<string | null>(null);
+  // Signature of what was last materialised, so re-entering Concepts without any
+  // change keeps the user's editor edits instead of overwriting them.
+  const guidedSig = useRef<string | null>(null);
   // Start the guided wizard for a new concept, from the workspace.
   const startGuided = useCallback(() => {
+    // A brand-new concept must not reuse the previous guided session's cell —
+    // otherwise the next Concepts→Refine would overwrite the earlier concept's
+    // layout instead of creating a fresh one. Clear the session's binding.
+    guidedCell.current = null;
+    guidedSig.current = null;
     setStep("situation");
     setReached(["situation"]);
     setView("actual");
@@ -149,14 +163,6 @@ export function App() {
     { name: "Pack", cycleTimeSec: 20 },
   ]);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  // The workspace cell this guided session materialised its concept into. On
-  // re-entry (the user went back, changed steps, and came forward again) we
-  // update THIS cell in place rather than spawning a duplicate — so an added or
-  // removed step is reflected without cluttering the workspace.
-  const guidedCell = useRef<string | null>(null);
-  // Signature of what was last materialised, so re-entering Concepts without any
-  // change keeps the user's editor edits instead of overwriting them.
-  const guidedSig = useRef<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
