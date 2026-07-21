@@ -1,4 +1,4 @@
-import type { Confidence, ErgonomicLoad, VariantMode, WorkClass, WorkElement } from "../model/types";
+import type { Confidence, ErgonomicLoad, VariantMode, WasteClass, WorkClass, WorkElement } from "../model/types";
 import { DEFAULT_LOSS_FACTOR, weakestConfidence } from "../model/types";
 
 // Mixed-model workload analysis (Cell Design spec §3.2, §5.2).
@@ -37,10 +37,21 @@ export function normalizedShares(modes: VariantMode[]): number[] {
   return raw.map((r) => r / sum);
 }
 
+/** A ranked bucket of one of the seven wastes (audit B-05). */
+export interface WasteBucket {
+  wasteClass: WasteClass;
+  /** Mix-weighted seconds carrying this waste. */
+  sec: number;
+  /** Share of ALL non-value-add (NNVA+NVA) seconds, %. */
+  sharePct: number;
+}
+
 export interface ElementLoad {
   elementId: string;
   name: string;
   classification: WorkClass;
+  /** The seven-wastes tag, when the element is NNVA/NVA. */
+  wasteClass?: WasteClass;
   ergonomicLoad: ErgonomicLoad;
   /** Mix-weighted mean seconds — what average throughput planning uses. */
   weightedSec: number;
@@ -78,6 +89,10 @@ export interface WorkloadAnalysis {
   nnvaSec: number;
   nvaSec: number;
   vaPct: number | null;
+  /** The seven wastes ranked by weighted seconds — a lean Pareto of where the
+   *  non-value-add time actually sits (audit B-05). Empty when no element
+   *  carries a waste class. */
+  wastePareto: WasteBucket[];
   attendedTotalSec: number;
   /** Operator-bound share of the weighted content — drives manning. */
   attendedPct: number | null;
@@ -133,6 +148,7 @@ export function analyseWorkload(
       elementId: el.id,
       name: el.name,
       classification: el.classification,
+      wasteClass: el.wasteClass,
       ergonomicLoad: el.ergonomicLoad,
       weightedSec: +weighted.toFixed(2),
       maxSec: +Math.max(0, maxSec).toFixed(2),
@@ -168,6 +184,23 @@ export function analyseWorkload(
   const vaSec = byClass("VA");
   const nnvaSec = byClass("NNVA");
   const nvaSec = byClass("NVA");
+
+  // Seven-wastes Pareto (audit B-05): aggregate weighted seconds by waste class
+  // over every non-value-add element that declares one, ranked heaviest first.
+  const wasteSecByClass = new Map<WasteClass, number>();
+  loads.forEach((l) => {
+    if (l.classification !== "VA" && l.wasteClass) {
+      wasteSecByClass.set(l.wasteClass, (wasteSecByClass.get(l.wasteClass) ?? 0) + l.weightedSec);
+    }
+  });
+  const totalWasteSec = [...wasteSecByClass.values()].reduce((a, b) => a + b, 0);
+  const wastePareto: WasteBucket[] = [...wasteSecByClass.entries()]
+    .map(([wasteClass, sec]) => ({
+      wasteClass,
+      sec: +sec.toFixed(2),
+      sharePct: totalWasteSec > 0 ? +((sec / totalWasteSec) * 100).toFixed(1) : 0,
+    }))
+    .sort((a, b) => b.sec - a.sec || a.wasteClass.localeCompare(b.wasteClass));
 
   const overTaktElements = hasTakt ? loads.filter((l) => l.maxSec > (taktSec as number)) : [];
 
@@ -205,6 +238,7 @@ export function analyseWorkload(
     nnvaSec,
     nvaSec,
     vaPct: weightedTotalSec > 0 ? +((vaSec / weightedTotalSec) * 100).toFixed(1) : null,
+    wastePareto,
     attendedTotalSec,
     attendedPct: weightedTotalSec > 0 ? +((attendedTotalSec / weightedTotalSec) * 100).toFixed(1) : null,
     minStationsWeighted: hasTakt ? Math.ceil(weightedTotalSec / (taktSec as number)) : null,

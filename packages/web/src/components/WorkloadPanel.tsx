@@ -148,6 +148,23 @@ export function WorkloadPanel({ api }: PanelProps) {
           {a.stationsCalculated == null ? " · no takt yet" : ""}
         </div>
 
+        {/* Seven-wastes Pareto (§8 / audit B-05): where the non-value-add time
+            actually sits, heaviest first — the standard lean target list. */}
+        {a.wastePareto.length > 0 ? (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 4 }}>Waste by type (7 wastes)</div>
+            {a.wastePareto.map((w) => (
+              <div key={w.wasteClass} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }} title={`${w.sec.toFixed(1)}s`}>
+                <span style={{ width: 92, fontSize: "0.75rem", color: TEXT, textTransform: "capitalize" }}>{w.wasteClass}</span>
+                <div style={{ flex: 1, height: 8, background: LINE, overflow: "hidden" }}>
+                  <div style={{ width: `${w.sharePct}%`, height: "100%", background: CLASS_COL.NVA }} />
+                </div>
+                <span style={{ width: 34, fontSize: "0.75rem", color: TEXTD, textAlign: "right" }}>{w.sharePct.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {/* Stations calculated (decimal, loss-factored) vs chosen (spec §4.3):
             the decimal says how much headroom is left. Never silently rounded. */}
         {a.stationsCalculated != null ? (
