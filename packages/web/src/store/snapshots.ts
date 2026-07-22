@@ -65,6 +65,12 @@ export function snapshotsFor(cellId: string): Snapshot[] {
   return (load()[cellId] ?? []).slice().sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/** Every snapshot across all layouts, newest first — for cross-layout mining. */
+export function allSnapshots(): Snapshot[] {
+  const store = load();
+  return Object.values(store).flat().sort((a, b) => b.createdAt - a.createdAt);
+}
+
 /** Freeze the current model as a new snapshot and return it. */
 export function captureSnapshot(cellId: string, model: Model, label: string, note?: string, parentId: string | null = null): Snapshot {
   const snap: Snapshot = {
