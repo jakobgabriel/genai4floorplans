@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Tab, TabList, Tabs } from "@carbon/react";
 import { Add, ArrowLeft, GroupObjects, TrashCan } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
 import type { useLibrary } from "../store/library";
-import type { useSubflows } from "../store/subflows";
+import { makeSubflow, type useSubflows } from "../store/subflows";
+import { allSnapshots } from "../store/snapshots";
+import { minePatterns, type PatternSource } from "@flowplan/core/engine/patterns";
+import type { Model } from "@flowplan/core/model/types";
 import {
   PROCESS_CATEGORIES,
   catalogStationPatch,
@@ -17,7 +20,7 @@ import { Field, useToast } from "../components/ui";
 import { QualityMark } from "../components/confidence";
 import { CatalogEntryDoc, StationDoc } from "../components/ElementDoc";
 import { NODE_DND_TYPE } from "../components/PaletteBar";
-import { TEXTD, TYPE_COL, TEAL } from "../components/colors";
+import { TEXTD, TYPE_COL, TEAL, AMBER } from "../components/colors";
 
 type Detail = "edit" | "doc";
 type Selection = { kind: "entry"; id: string } | { kind: "subflow"; id: string } | null;
@@ -63,6 +66,46 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
     api.commit({ type: "INSERT_SUBFLOW", stations: sf.stations, flows: sf.flows, x, y });
     toast(`Inserted “${sf.name}” (${sf.stations.length} steps)`);
     navigate("/");
+  }
+
+  // Recurring patterns (audit C-12, §30–35): mine the user's own history — every
+  // live layout plus its immutable snapshots — for process motifs that repeat, and
+  // offer to save one as a reusable grouped element. Keyed models let an instance
+  // be traced back to the exact layout/snapshot it came from for extraction.
+  const modelByKey = useMemo(() => {
+    const m = new Map<string, Model>();
+    const sources: PatternSource[] = [];
+    api.snapshotCells().forEach((c) => {
+      const key = "cell:" + c.id;
+      m.set(key, c.model);
+      sources.push({ key, name: c.name, model: c.model });
+    });
+    allSnapshots().forEach((s) => {
+      const key = "snap:" + s.id;
+      m.set(key, s.model);
+      sources.push({ key, name: s.label + " (snapshot)", model: s.model });
+    });
+    return { m, sources };
+  }, [api]);
+  const patterns = useMemo(() => minePatterns(modelByKey.sources), [modelByKey]);
+  const savedSignatures = new Set(subflows.subflows.map((s) => s.stations.map((x) => x.type).join(">")));
+
+  function savePattern(signature: string, label: string) {
+    const cand = patterns.find((p) => p.signature === signature);
+    if (!cand) return;
+    // Extract from the first instance whose source model is still available.
+    for (const inst of cand.instances) {
+      const src = modelByKey.m.get(inst.key);
+      if (!src) continue;
+      const sf = makeSubflow(src, inst.stationIds, label);
+      if (sf) {
+        sf.category = "pattern";
+        subflows.add(sf);
+        toast(`Saved “${label}” as a grouped element`);
+        return;
+      }
+    }
+    toast("Could not extract this pattern — its source layout changed.", "warn");
   }
 
   function newEntry() {
@@ -138,6 +181,34 @@ export function LibraryPage({ api, subflows, library }: { api: FlowPlanApi; subf
                 <span className="lib-item__meta">{sf.stations.length} steps</span>
               </div>
             ))
+          )}
+
+          {/* Recurring patterns mined from the user's layouts + snapshots (C-12). */}
+          <div className="lab" style={{ margin: "16px 0 6px" }}>
+            Recurring patterns
+            <span style={{ fontSize: 10.5, color: TEXTD, textTransform: "none", letterSpacing: 0 }}> · mined from your layouts &amp; snapshots</span>
+          </div>
+          {patterns.length === 0 ? (
+            <div style={{ fontSize: 11, color: TEXTD }}>No repeating motifs yet — snapshot a few layouts and any process chain you draw more than once appears here to save as a building block.</div>
+          ) : (
+            patterns.slice(0, 12).map((p) => {
+              const already = savedSignatures.has(p.signature);
+              return (
+                <div key={p.signature} className="lib-item" title={`Appears ${p.occurrences}× across ${p.sources} layout(s)/snapshot(s)`}>
+                  <span className="lib-swatch" style={{ background: AMBER }} />
+                  <span className="lib-item__name">{p.label}</span>
+                  <span className="lib-item__meta">×{p.occurrences} · {p.sources} src</span>
+                  <button
+                    className="snaps__btn"
+                    style={{ marginLeft: 6 }}
+                    disabled={already}
+                    onClick={() => savePattern(p.signature, p.label)}
+                  >
+                    {already ? "saved" : "save"}
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
 
