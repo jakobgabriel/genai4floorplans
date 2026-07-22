@@ -884,6 +884,181 @@ code {
   gap: var(--sp-05);
 }
 
+/* ---------- analysis kit (Carbon-composed readout panels) ----------
+ *
+ * Layout-only helpers for the standardized Rating / Balance / Automation / Cost
+ * panels. Every widget in those panels is a Carbon component; these classes only
+ * arrange them (flex rows, spacing, Carbon type tokens). No colours beyond the
+ * Carbon theme tokens live here. */
+
+.ak-panel {
+  padding: var(--sp-06) var(--sp-05);
+}
+
+/* Vertical rhythm between sections, matching Carbon's spacing-06. */
+.ak-panel > .cds--stack-vertical {
+  width: 100%;
+}
+
+.ak-section {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+}
+
+.ak-footnote {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  line-height: 1.34;
+  margin: 0;
+}
+
+/* KPI meter: name + status Tag over a Carbon ProgressBar. */
+.ak-meter__head,
+.ak-share__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-02);
+}
+.ak-meter__name,
+.ak-share__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+  min-width: 0;
+}
+.ak-meter__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-03);
+  flex: 0 0 auto;
+}
+.ak-meter__raw,
+.ak-share__figure {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+.ak-share--clickable {
+  cursor: pointer;
+}
+.ak-share--clickable:hover .ak-share__label {
+  color: var(--cds-text-primary);
+}
+.ak-share--clickable:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
+
+/* Metric tile: a headline figure in a Carbon Tile. */
+.ak-metric {
+  padding: var(--sp-05);
+}
+.ak-metric__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-02);
+}
+.ak-metric__value {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.1;
+  color: var(--cds-text-primary);
+}
+.ak-metric__unit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--cds-text-secondary);
+}
+.ak-metric__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-03);
+  line-height: 1.34;
+}
+
+/* Inline Toggletip help affordance sits on the text baseline. */
+.ak-help {
+  display: inline-flex;
+}
+.ak-help .cds--toggletip-button {
+  display: inline-flex;
+  align-items: center;
+  color: var(--cds-text-secondary);
+}
+
+/* Clickable Carbon Tiles in the readout lists (link rows, ROI, potential). */
+.ak-row {
+  margin-bottom: var(--sp-03);
+}
+.ak-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-03);
+}
+.ak-row__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-02);
+  line-height: 1.34;
+}
+.ak-kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-05);
+  font-size: 0.875rem;
+  padding: var(--sp-02) 0;
+}
+.ak-kv__k {
+  color: var(--cds-text-secondary);
+}
+.ak-kv__v {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+/* Advice lists inside Carbon notifications. */
+.ak-adviceList {
+  list-style: none;
+  margin: var(--sp-02) 0 0;
+  padding: 0;
+}
+.ak-adviceList li {
+  position: relative;
+  padding-left: var(--sp-05);
+  margin-bottom: var(--sp-02);
+  line-height: 1.34;
+}
+.ak-adviceList li::before {
+  content: "·";
+  position: absolute;
+  left: var(--sp-03);
+}
+.ak-adviceList li:last-child {
+  margin-bottom: 0;
+}
+
+/* Progress meter inside a clickable list row sits below the header. */
+.ak-row .cds--progress-bar {
+  margin-top: var(--sp-03);
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 1056px) {

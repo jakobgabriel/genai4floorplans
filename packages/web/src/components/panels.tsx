@@ -1,4 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Button,
+  ClickableTile,
+  InlineNotification,
+  OperationalTag,
+  ProgressBar,
+  Slider,
+  Stack,
+  Tag,
+  Tile,
+} from "@carbon/react";
+import { Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
@@ -11,7 +23,7 @@ import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEALD, TEXTD, PANEL2, scoreColor } from "./colors";
+import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEXTD, PANEL2 } from "./colors";
 import { Field, HelpPopover, useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
@@ -45,7 +57,6 @@ const KPI_HELP: Record<string, string> = {
 
 export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
   const r = api.rating;
-  const letterCol = scoreColor(r.composite);
   const kpis: Array<[string, number | null, number]> = [
     ["Material flow cost", r.actual.flowCost, r.scores.flowCost],
     ["Total travel effort", r.actual.travel, r.scores.travel],
@@ -56,67 +67,56 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
     ["Automation coherence", null, r.scores.auto],
   ];
   return (
-    <div className="pad">
-      <div className="grade">
-        <div className="gradeBox" style={{ border: "2px solid " + letterCol, color: letterCol }}>
-          {r.letter}
-        </div>
-        <div>
-          <div className="lab">Actual-state rating</div>
-          <div style={{ fontSize: 26, fontWeight: 600 }}>
-            {r.composite.toFixed(0)}
-            <span style={{ fontSize: 13, color: TEXTD }}>/100</span>
+    <div className="pad ak-panel">
+      <Stack gap={6}>
+        <Tile className="ak-metric">
+          <div className="ak-metric__label">Actual-state rating</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-05)" }}>
+            <span className="ak-metric__value">
+              {r.composite.toFixed(0)}
+              <span className="ak-metric__unit">/100</span>
+            </span>
+            <Tag type={scoreTag(r.composite)} size="lg">
+              Grade {r.letter}
+            </Tag>
           </div>
-        </div>
-      </div>
-      {kpis.map(([lbl, val, sc], i) => {
-        const col = scoreColor(sc);
-        return (
-          <div className="kpi" key={i}>
-            <div className="kpiTop">
-              <span style={{ textTransform: "uppercase", letterSpacing: 0.4 }}>
-                {lbl}
-                {KPI_HELP[lbl] ? <HelpPopover text={KPI_HELP[lbl]} /> : null}
-              </span>
-              <span>
-                {val != null ? val.toFixed(0) + " · " : ""}
-                <span style={{ color: col }}>{sc.toFixed(0)}</span>
-              </span>
-            </div>
-            <div className="bar">
-              <div style={{ width: sc + "%", background: col }} />
-            </div>
-          </div>
-        );
-      })}
-      <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
-      <div className="lab" style={{ marginBottom: 8 }}>
-        Where the cost sits
-      </div>
-      {r.pareto.slice(0, 5).map((p, i) => (
-        <div key={i} style={{ marginBottom: 7 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-            <span>{p.from + " → " + p.to}</span>
-            <span>{p.share.toFixed(0)}%</span>
-          </div>
-          <div className="bar" style={{ height: 4 }}>
-            <div style={{ width: p.share + "%", background: i === 0 ? RED : TEALD }} />
-          </div>
-        </div>
-      ))}
-      <WeightsEditor api={api} />
+        </Tile>
+
+        <Stack gap={4}>
+          {kpis.map(([lbl, val, sc]) => (
+            <KpiMeter key={lbl} label={lbl} score={sc} raw={val != null ? val.toFixed(0) : undefined} help={KPI_HELP[lbl]} />
+          ))}
+        </Stack>
+
+        <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
+
+        <Stack gap={4}>
+          <SectionLabel>Where the cost sits</SectionLabel>
+          <Stack gap={3}>
+            {r.pareto.slice(0, 5).map((p, i) => (
+              <ShareBar
+                key={i}
+                label={p.from + " → " + p.to}
+                value={p.share}
+                figure={p.share.toFixed(0) + "%"}
+                emphasis={
+                  i === 0 ? (
+                    <Tag type="red" size="sm">
+                      biggest
+                    </Tag>
+                  ) : undefined
+                }
+              />
+            ))}
+          </Stack>
+        </Stack>
+
+        <WeightsEditor api={api} />
+      </Stack>
     </div>
   );
 }
 
-
-const IMPROVEMENT_COLOR: Record<Improvement["kind"], string> = {
-  bottleneck: RED,
-  rebalance: AMBER,
-  waste: AMBER,
-  relayout: TEAL,
-  form: TEAL,
-};
 
 /**
  * Ranked improvement opportunities.
@@ -140,46 +140,58 @@ function ImprovementList({
   const report = useMemo(() => findImprovements(api.model), [api.model]);
 
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div className="lab" style={{ marginBottom: 8 }}>
+    <Stack gap={4}>
+      <SectionLabel help="Ranked across every axis the engine can see: line balance, the constraint, waste content, station positions and cell form. Throughput gains outrank labour gains, which outrank shorter travel.">
         What could be better
-        <HelpPopover text="Ranked across every axis the engine can see: line balance, the constraint, waste content, station positions and cell form. Throughput gains outrank labour gains, which outrank shorter travel." />
-      </div>
+      </SectionLabel>
 
       {report.exhausted ? (
-        <div className="ok" style={{ lineHeight: 1.5 }}>
-          <b>No headroom found.</b>
-          <div style={{ marginTop: 4, color: TEXTD }}>{report.why}</div>
-        </div>
+        <InlineNotification
+          kind="success"
+          lowContrast
+          hideCloseButton
+          title="No headroom found"
+          subtitle={report.why}
+        />
       ) : (
-        report.improvements.slice(0, 6).map((imp: Improvement, i: number) => (
-          <div
-            key={imp.kind + i}
-            className="card"
-            style={{ borderLeft: "3px solid " + IMPROVEMENT_COLOR[imp.kind], cursor: imp.targetIds.length ? "pointer" : "default" }}
-            onClick={() => {
+        <Stack gap={3}>
+          {report.improvements.slice(0, 6).map((imp: Improvement, i: number) => {
+            const clickable = imp.kind === "relayout" || imp.targetIds.length > 0;
+            const open = () => {
               if (imp.kind === "relayout") setView("improved");
               else if (imp.targetIds[0]) {
                 setSel(imp.targetIds[0]);
                 setTab("inspect");
               }
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-              <b style={{ fontSize: 12 }}>{imp.title}</b>
-              <span style={{ fontSize: 10.5, color: TEXTD, whiteSpace: "nowrap" }}>
-                {imp.confidence} conf.
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.5 }}>{imp.detail}</div>
-          </div>
-        ))
+            };
+            const body = (
+              <>
+                <div className="ak-row__head">
+                  <strong>{imp.title}</strong>
+                  <Tag type="gray" size="sm">
+                    {imp.confidence} conf.
+                  </Tag>
+                </div>
+                <div className="ak-row__sub">{imp.detail}</div>
+              </>
+            );
+            return clickable ? (
+              <ClickableTile key={imp.kind + i} className="ak-row" onClick={open}>
+                {body}
+              </ClickableTile>
+            ) : (
+              <Tile key={imp.kind + i} className="ak-row">
+                {body}
+              </Tile>
+            );
+          })}
+        </Stack>
       )}
 
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
+      <Footnote>
         Balance loss {report.balanceLossPct}% · takt {report.taktSec}s · {report.lineOut.toLocaleString("en-US")}/shift
-      </div>
-    </div>
+      </Footnote>
+    </Stack>
   );
 }
 
@@ -197,41 +209,57 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
   const [open, setOpen] = useState(false);
   const custom = !!api.model.weights;
   const w = normalizeWeights(api.model.weights ?? WEIGHTS);
+  // One undo entry per drag: checkpoint once when a drag starts, stream updates
+  // live, then finalise on release (mirrors the canvas drag pattern).
+  const dragging = useRef(false);
+  const setWeight = (key: keyof RatingWeights, value: number, live: boolean) => {
+    if (live) {
+      if (!dragging.current) {
+        api.checkpoint();
+        dragging.current = true;
+      }
+      api.live({ type: "SET_WEIGHTS", weights: { ...w, [key]: value } });
+    } else {
+      dragging.current = false;
+      api.commit({ type: "SET_WEIGHTS", weights: { ...w, [key]: value } });
+    }
+  };
   return (
-    <div style={{ marginTop: 14 }}>
-      <button className="btn sm" style={{ width: "100%" }} onClick={() => setOpen((o) => !o)}>
+    <Stack gap={3}>
+      <Button
+        kind="ghost"
+        size="sm"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
         {open ? "▾" : "▸"} Adjust KPI weights{custom ? " (custom)" : ""}
-      </button>
+      </Button>
       {open ? (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 8 }}>
+        <Stack gap={5}>
+          <Footnote>
             Re-weight the composite to match your priorities. Values are normalized to 100%; the grade updates live.
-          </div>
+          </Footnote>
           {WEIGHT_LABELS.map(([key, label]) => (
-            <div key={key} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                <span>{label}</span>
-                <span style={{ color: TEAL }}>{(w[key] * 100).toFixed(0)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={0.5}
-                step={0.01}
-                value={w[key]}
-                onPointerDown={api.checkpoint}
-                onChange={(e) => api.live({ type: "SET_WEIGHTS", weights: { ...w, [key]: +e.target.value } })}
-              />
-            </div>
+            <Slider
+              key={key}
+              labelText={`${label} — ${(w[key] * 100).toFixed(0)}%`}
+              hideTextInput
+              min={0}
+              max={0.5}
+              step={0.01}
+              value={w[key]}
+              onChange={({ value }) => setWeight(key, value, true)}
+              onRelease={({ value }) => setWeight(key, value, false)}
+            />
           ))}
           {custom ? (
-            <button className="btn sm" style={{ width: "100%" }} onClick={() => api.commit({ type: "SET_WEIGHTS", weights: undefined })}>
+            <Button kind="tertiary" size="sm" onClick={() => api.commit({ type: "SET_WEIGHTS", weights: undefined })}>
               Reset to defaults
-            </button>
+            </Button>
           ) : null}
-        </div>
+        </Stack>
       ) : null}
-    </div>
+    </Stack>
   );
 }
 
@@ -239,55 +267,68 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
   const bal = api.rating.balance;
   const advice = bottleneckAdvice(bal, api.model.stations);
   const maxRate = bal.maxRate || 1;
+  const bottleneck = bal.bottleneck;
   return (
-    <div className="pad">
-      <div className="lab" style={{ marginBottom: 8 }}>
-        Line balance & bottleneck
-      </div>
-      <div className="imp" style={{ marginTop: 0 }}>
-        <div className="lab">Line output (constrained by bottleneck)</div>
-        <div className="impVal">
-          {bal.lineOut.toLocaleString()} <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>parts/shift</span>
-        </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
-          Takt ≈ {bal.takt} s/part · balance score {bal.score}/100
-        </div>
-      </div>
-      {advice.length > 0 ? (
-        <div className="issue" style={{ borderLeftColor: RED, cursor: bal.bottleneck ? "pointer" : "default" }} onClick={() => bal.bottleneck && (setSel(bal.bottleneck.id), setTab("inspect"))}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>How to lift the constraint</div>
-          {advice.map((t, i) => (
-            <div key={i} style={{ marginBottom: 3 }}>
-              · {t}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <div className="lab" style={{ margin: "14px 0 8px" }}>
-        Throughput per step (util % vs line)
-      </div>
-      {bal.steps.map((x) => {
-        const isBn = bal.bottleneck && x.id === bal.bottleneck.id;
-        const col = isBn ? RED : x.util >= 85 ? AMBER : TEAL;
-        return (
-          <div key={x.id} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-              <span>{x.name + (isBn ? " ◀ bottleneck" : "")}</span>
-              <span style={{ color: col }}>{x.rate.toLocaleString() + "/sh · " + x.util + "%"}</span>
-            </div>
-            <div className="bar">
-              <div style={{ width: Math.round((x.rate / maxRate) * 100) + "%", background: col }} />
-            </div>
-          </div>
-        );
-      })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8, lineHeight: 1.5 }}>
-        Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
-        steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
-      </div>
-      <CycleSection api={api} setSel={setSel} setTab={setTab} />
-      <ParallelSection api={api} setSel={setSel} setTab={setTab} />
-      <YieldSection api={api} />
+    <div className="pad ak-panel">
+      <Stack gap={6}>
+        <SectionLabel>Line balance &amp; bottleneck</SectionLabel>
+
+        <MetricTile
+          label="Line output (constrained by bottleneck)"
+          value={bal.lineOut.toLocaleString()}
+          unit="parts/shift"
+          sub={`Takt ≈ ${bal.takt} s/part · balance score ${bal.score}/100`}
+        />
+
+        {advice.length > 0 ? (
+          <Stack gap={3}>
+            <InlineNotification kind="warning" lowContrast hideCloseButton title="How to lift the constraint">
+              <ul className="ak-adviceList">
+                {advice.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            </InlineNotification>
+            {bottleneck ? (
+              <Button kind="ghost" size="sm" onClick={() => { setSel(bottleneck.id); setTab("inspect"); }}>
+                View bottleneck
+              </Button>
+            ) : null}
+          </Stack>
+        ) : null}
+
+        <Stack gap={4}>
+          <SectionLabel>Throughput per step (util % vs line)</SectionLabel>
+          <Stack gap={3}>
+            {bal.steps.map((x) => {
+              const isBn = bottleneck && x.id === bottleneck.id;
+              return (
+                <ShareBar
+                  key={x.id}
+                  label={x.name}
+                  value={Math.round((x.rate / maxRate) * 100)}
+                  figure={x.rate.toLocaleString() + "/sh · " + x.util + "%"}
+                  emphasis={
+                    isBn ? (
+                      <Tag type="red" size="sm">
+                        bottleneck
+                      </Tag>
+                    ) : undefined
+                  }
+                />
+              );
+            })}
+          </Stack>
+          <Footnote>
+            Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
+            steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
+          </Footnote>
+        </Stack>
+
+        <CycleSection api={api} setSel={setSel} setTab={setTab} />
+        <ParallelSection api={api} setSel={setSel} setTab={setTab} />
+        <YieldSection api={api} />
+      </Stack>
     </div>
   );
 }
@@ -306,31 +347,25 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
   };
 
   return (
-    <>
-      <div className="lab" style={{ margin: "18px 0 8px" }}>
+    <Stack gap={4}>
+      <SectionLabel help="Cycle time split into value-add plus four waste classes. Only decomposed steps count toward the line ratio — undecomposed steps show hatched and are excluded.">
         Value add vs waste
-        <HelpPopover text="Cycle time split into value-add plus four waste classes. Only decomposed steps count toward the line ratio — undecomposed steps show hatched and are excluded." />
-      </div>
+      </SectionLabel>
 
       {analysis.decomposedCount === 0 ? (
-        <div style={{ fontSize: 11, color: TEXTD, lineHeight: 1.6 }}>
+        <Footnote>
           No step has a cycle breakdown yet. Select a step → Inspect → <b>Decompose</b> to split its
           cycle into value-add, handling, walk, wait and setup. The line ratio and waste backlog
           appear once at least one step is split.
-        </div>
+        </Footnote>
       ) : (
-        <>
-          <div className="imp" style={{ marginTop: 0 }}>
-            <div className="lab">Value-add ratio{analysis.complete ? "" : " (decomposed steps only)"}</div>
-            <div className="impVal">
-              {analysis.lineValueAddPct}
-              <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>%</span>
-            </div>
-            <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>
-              {analysis.lineValueAddSec}s value-add · {analysis.lineNonValueAddSec}s waste ·{" "}
-              {analysis.decomposedCount}/{analysis.totalCount} steps split
-            </div>
-          </div>
+        <Stack gap={4}>
+          <MetricTile
+            label={`Value-add ratio${analysis.complete ? "" : " (decomposed steps only)"}`}
+            value={analysis.lineValueAddPct}
+            unit="%"
+            sub={`${analysis.lineValueAddSec}s value-add · ${analysis.lineNonValueAddSec}s waste · ${analysis.decomposedCount}/${analysis.totalCount} steps split`}
+          />
 
           <YamazumiChart rows={analysis.stations} takt={takt} onSelect={open} />
 
@@ -344,41 +379,37 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
           </div>
 
           {tips.length > 0 ? (
-            <div className="issue" style={{ borderLeftColor: AMBER, marginTop: 12, cursor: "default" }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Where the waste is</div>
-              {tips.map((t, i) => (
-                <div key={i} style={{ marginBottom: 3 }}>
-                  · {t}
-                </div>
-              ))}
-            </div>
+            <InlineNotification kind="warning" lowContrast hideCloseButton title="Where the waste is">
+              <ul className="ak-adviceList">
+                {tips.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            </InlineNotification>
           ) : null}
 
           {analysis.waste.length > 0 ? (
-            <>
-              <div className="lab" style={{ margin: "14px 0 8px" }}>
-                Waste backlog (largest first)
-              </div>
+            <Stack gap={3}>
+              <SectionLabel>Waste backlog (largest first)</SectionLabel>
               {analysis.waste.slice(0, 6).map((wst, i) => (
-                <div key={wst.stationId + wst.key + i} style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => open(wst.stationId)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
-                    <span>
-                      {wst.stationName} · <span style={{ color: CYCLE_COL[wst.key] }}>{wst.label.toLowerCase()}</span>
-                    </span>
-                    <span style={{ color: TEXTD }}>
-                      {wst.sec}s · {wst.sharePct}%
-                    </span>
-                  </div>
-                  <div className="bar">
-                    <div style={{ width: wst.sharePct + "%", background: CYCLE_COL[wst.key] }} />
-                  </div>
-                </div>
+                <ShareBar
+                  key={wst.stationId + wst.key + i}
+                  label={wst.stationName}
+                  value={wst.sharePct}
+                  figure={`${wst.sec}s · ${wst.sharePct}%`}
+                  emphasis={
+                    <Tag type="gray" size="sm">
+                      {wst.label.toLowerCase()}
+                    </Tag>
+                  }
+                  onClick={() => open(wst.stationId)}
+                />
               ))}
-            </>
+            </Stack>
           ) : null}
-        </>
+        </Stack>
       )}
-    </>
+    </Stack>
   );
 }
 
@@ -388,46 +419,50 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
   api.model.stations.forEach((s) => (byId[s.id] = s.name));
   const path = bal.criticalPath.filter((id) => byId[id]);
   return (
-    <div>
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
+    <Stack gap={4}>
+      <SectionLabel help="The longest cumulative-cycle route — the sequence that sets the line's pace.">
         Critical path
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 6 }}>
+      </SectionLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-02)", alignItems: "center" }}>
         {path.length === 0 ? (
-          <span style={{ fontSize: 11, color: TEXTD }}>—</span>
+          <Footnote>—</Footnote>
         ) : (
           path.map((id, i) => (
-            <span key={id} style={{ display: "inline-flex", alignItems: "center" }}>
-              <span className="pill" style={{ background: "rgba(43,182,168,.12)", color: TEAL, cursor: "pointer" }} onClick={() => { setSel(id); setTab("inspect"); }}>
-                {byId[id]}
-              </span>
-              {i < path.length - 1 ? <span style={{ color: TEXTD, margin: "0 2px" }}>→</span> : null}
+            <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: "var(--sp-02)" }}>
+              <OperationalTag type="blue" size="sm" text={byId[id]} onClick={() => { setSel(id); setTab("inspect"); }} />
+              {i < path.length - 1 ? <span style={{ color: "var(--cds-text-secondary)" }}>→</span> : null}
             </span>
           ))
         )}
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 4 }}>The longest cumulative-cycle route — the sequence that sets the line's pace.</div>
 
       {bal.syncWaits.length > 0 ? (
-        <>
-          <div className="lab" style={{ margin: "14px 0 8px" }}>
-            Merge synchronization
-          </div>
+        <Stack gap={3}>
+          <SectionLabel>Merge synchronization</SectionLabel>
           {bal.syncWaits.map((sw) => (
-            <div key={sw.mergeId} className="issue" style={{ borderLeftColor: AMBER, background: "rgba(224,164,88,.08)", cursor: "pointer" }} onClick={() => { setSel(sw.mergeId); setTab("inspect"); }}>
-              <div style={{ fontWeight: 600, marginBottom: 3 }}>
-                {sw.mergeName}: paced by {sw.bindingName} at {sw.bindingRate.toLocaleString()}/sh
-              </div>
-              {sw.waiters.map((w) => (
-                <div key={w.id} style={{ fontSize: 11 }}>
-                  · {w.name} idles ~{w.idle.toLocaleString()}/sh — add a ≈{w.buffer.toLocaleString()}-part buffer to decouple.
-                </div>
-              ))}
-            </div>
+            <Stack gap={3} key={sw.mergeId}>
+              <InlineNotification
+                kind="warning"
+                lowContrast
+                hideCloseButton
+                title={`${sw.mergeName}: paced by ${sw.bindingName} at ${sw.bindingRate.toLocaleString()}/sh`}
+              >
+                <ul className="ak-adviceList">
+                  {sw.waiters.map((w) => (
+                    <li key={w.id}>
+                      {w.name} idles ~{w.idle.toLocaleString()}/sh — add a ≈{w.buffer.toLocaleString()}-part buffer to decouple.
+                    </li>
+                  ))}
+                </ul>
+              </InlineNotification>
+              <Button kind="ghost" size="sm" onClick={() => { setSel(sw.mergeId); setTab("inspect"); }}>
+                Inspect merge
+              </Button>
+            </Stack>
           ))}
-        </>
+        </Stack>
       ) : null}
-    </div>
+    </Stack>
   );
 }
 
@@ -435,34 +470,35 @@ function YieldSection({ api }: { api: FlowPlanApi }) {
   const y = yieldAnalysis(api.model.stations, api.model.flows);
   const withScrap = y.steps.filter((s) => s.scrapRate > 0);
   return (
-    <div>
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Yield &amp; scrap
-      </div>
-      <div className="imp" style={{ marginTop: 0 }}>
-        <div className="lab">Rolled throughput yield</div>
-        <div className="impVal">
-          {y.rolledYield}% <span style={{ fontSize: 12, color: TEXTD, fontWeight: 400 }}>good parts</span>
-        </div>
-        <div style={{ fontSize: 11, color: TEXTD, marginTop: 4 }}>≈ {y.totalScrap.toLocaleString()} scrap parts/shift across the line</div>
-      </div>
+    <Stack gap={4}>
+      <SectionLabel>Yield &amp; scrap</SectionLabel>
+      <MetricTile
+        label="Rolled throughput yield"
+        value={`${y.rolledYield}%`}
+        unit="good parts"
+        sub={`≈ ${y.totalScrap.toLocaleString()} scrap parts/shift across the line`}
+      />
       {withScrap.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Set a scrap rate per step in Configure to see where yield is lost.</div>
+        <Footnote>Set a scrap rate per step in Configure to see where yield is lost.</Footnote>
       ) : (
-        withScrap.map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-            <span>{s.name}</span>
-            <span style={{ color: RED }}>
-              {Math.round(s.scrapRate * 100)}% · {Math.round(s.scrapUnits).toLocaleString()}/sh
-            </span>
-          </div>
-        ))
+        <Stack gap={2}>
+          {withScrap.map((s) => (
+            <div key={s.id} className="ak-kv">
+              <span className="ak-kv__k">{s.name}</span>
+              <span className="ak-kv__v">
+                <Tag type="red" size="sm">
+                  {Math.round(s.scrapRate * 100)}% · {Math.round(s.scrapUnits).toLocaleString()}/sh
+                </Tag>
+              </span>
+            </div>
+          ))}
+        </Stack>
       )}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+      <Footnote>
         Rolled yield = ∏(1 − scrap rate) over process steps. Informational — it doesn't change the
         composite grade.
-      </div>
-    </div>
+      </Footnote>
+    </Stack>
   );
 }
 
@@ -625,57 +661,78 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
   );
 }
 
+const LINK_TAG: Record<string, "red" | "green" | "blue" | "gray"> = {
+  "auto-island": "red",
+  "chained-auto": "green",
+  mixed: "blue",
+};
+
 export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
   const chain = api.chain;
   return (
-    <div className="pad">
-      <div className="lab" style={{ marginBottom: 8 }}>
-        Automation chaining
-      </div>
-      <div className={chain.islands > 0 ? "issue" : "ok"} style={{ marginBottom: 12, cursor: "default", borderLeftColor: chain.islands > 0 ? AMBER : TEAL, background: chain.islands > 0 ? "rgba(224,164,88,.08)" : "rgba(43,182,168,.08)" }}>
-        {chain.islands > 0 ? chain.islands + " auto-island(s): two automated steps joined by a manual handoff — prime to chain." : "No broken automation chains detected."}
-      </div>
-      {chain.links.map((l, i) => {
-        const col = l.kind === "auto-island" ? RED : l.kind === "chained-auto" ? TEAL : l.kind === "mixed" ? AMBER : TEXTD;
-        return (
-          <div key={i} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11.5 }}>{l.from + " → " + l.to}</span>
-              <span className="pill" style={{ background: "rgba(255,255,255,.05)", color: col }}>
-                {l.kind}
-              </span>
-            </div>
-            <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 3 }}>via {l.transport}</div>
-          </div>
-        );
-      })}
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Automation potential per step
-      </div>
-      {api.model.stations
-        .filter((s) => s.role === "process")
-        .map((s) => {
-          const ap = autoPotential(s);
-          const col = scoreColor(ap.pct);
-          return (
-            <div key={s.id} className="card" style={{ cursor: "pointer" }} onClick={() => { setSel(s.id); setTab("inspect"); }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>{s.name}</span>
-                <span style={{ color: col, fontSize: 12 }}>{ap.verdict + " · " + ap.pct.toFixed(0)}</span>
-              </div>
-              <div className="bar">
-                <div style={{ width: ap.pct + "%", background: col }} />
-              </div>
-              <div style={{ fontSize: 10, color: TEXTD, marginTop: 4 }}>
-                currently {s.auto} · {ap.src === "override" ? "manual override" : "heuristic"}
-              </div>
-            </div>
-          );
-        })}
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 6 }}>
-        Heuristic weighs type, ergonomics, cycle time, changeover, volume, labor — an opinion, not a
-        validated ROI model. Override per step in Configure.
-      </div>
+    <div className="pad ak-panel">
+      <Stack gap={6}>
+        <Stack gap={4}>
+          <SectionLabel>Automation chaining</SectionLabel>
+          <InlineNotification
+            kind={chain.islands > 0 ? "warning" : "success"}
+            lowContrast
+            hideCloseButton
+            title={
+              chain.islands > 0
+                ? chain.islands + " auto-island(s): two automated steps joined by a manual handoff — prime to chain."
+                : "No broken automation chains detected."
+            }
+          />
+          {chain.links.length > 0 ? (
+            <Stack gap={3}>
+              {chain.links.map((l, i) => (
+                <Tile key={i} className="ak-row">
+                  <div className="ak-row__head">
+                    <span>{l.from + " → " + l.to}</span>
+                    <Tag type={LINK_TAG[l.kind] ?? "gray"} size="sm">
+                      {l.kind}
+                    </Tag>
+                  </div>
+                  <div className="ak-row__sub">via {l.transport}</div>
+                </Tile>
+              ))}
+            </Stack>
+          ) : null}
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Automation potential per step</SectionLabel>
+          <Stack gap={3}>
+            {api.model.stations
+              .filter((s) => s.role === "process")
+              .map((s) => {
+                const ap = autoPotential(s);
+                return (
+                  <ClickableTile key={s.id} className="ak-row" onClick={() => { setSel(s.id); setTab("inspect"); }}>
+                    <div className="ak-row__head">
+                      <span>{s.name}</span>
+                      <span className="ak-meter__value">
+                        <span className="ak-meter__raw">{ap.verdict}</span>
+                        <Tag type={scoreTag(ap.pct)} size="sm">
+                          {ap.pct.toFixed(0)}
+                        </Tag>
+                      </span>
+                    </div>
+                    <ProgressBar label={s.name} hideLabel size="small" value={Math.round(ap.pct)} max={100} />
+                    <div className="ak-row__sub">
+                      currently {s.auto} · {ap.src === "override" ? "manual override" : "heuristic"}
+                    </div>
+                  </ClickableTile>
+                );
+              })}
+          </Stack>
+          <Footnote>
+            Heuristic weighs type, ergonomics, cycle time, changeover, volume, labor — an opinion, not a
+            validated ROI model. Override per step in Configure.
+          </Footnote>
+        </Stack>
+      </Stack>
     </div>
   );
 }
