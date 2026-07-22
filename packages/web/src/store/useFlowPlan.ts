@@ -118,6 +118,19 @@ export function useFlowPlan(): FlowPlanApi {
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(activeCell.model));
   const model = state.present;
 
+  // Safety net (audit U-01): demand is a concept-level property, but a layout
+  // opened without its own demand — a pre-existing layout, or one created before
+  // demand became concept-level — would otherwise show engine defaults in the
+  // Analysis tab. Seed it from the owning concept on open, so the concept's
+  // working days / OEE always reach the analysis. Runs on layout switch only.
+  useEffect(() => {
+    if (model.demand) return;
+    const cid = ws.cells.find((c) => c.id === ws.activeId)?.conceptId ?? null;
+    const conceptDemand = ws.concepts.find((c) => c.id === cid)?.demand;
+    if (conceptDemand) dispatch({ kind: "live", action: { type: "SET_DEMAND", demand: conceptDemand } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.activeId]);
+
   // Persist the active cell's model into the workspace (debounced).
   const saveTimer = useRef<number | undefined>(undefined);
   useEffect(() => {
