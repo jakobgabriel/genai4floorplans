@@ -308,6 +308,28 @@ svg {
   display: block;
 }
 
+/* The decorative rule above is meant for the layout canvas and inline charts —
+   the app's own block-level SVGs. Carbon renders its icons as bare <svg>, so it
+   must NOT turn every dropdown chevron, button glyph, notification icon or tag
+   affordance into a bordered, shadowed box. Reset those back to plain glyphs. */
+.cds--btn svg,
+.cds--tag svg,
+.cds--select svg,
+.cds--list-box svg,
+.cds--toggletip-button svg,
+.cds--number-input svg,
+.cds--text-input__field-wrapper svg,
+.cds--toggle svg,
+.cds--inline-notification svg,
+.cds--actionable-notification svg,
+.cds--toast-notification svg {
+  background: none;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  height: auto;
+}
+
 .legend {
   display: flex;
   gap: var(--sp-06);
@@ -481,9 +503,12 @@ svg {
   margin-bottom: var(--sp-03);
 }
 
-input,
-select,
-textarea {
+/* Plain (non-Carbon) fields elsewhere in the app keep this bridge styling.
+   Carbon fields (.cds--text-input, .cds--select-input, .cds--text-area,
+   .cds--number-input) are excluded so the design system owns its own look. */
+input:not([class*="cds--"]),
+select:not([class*="cds--"]),
+textarea:not([class*="cds--"]) {
   background: var(--cds-field-01);
   color: var(--cds-text-primary);
   border: 0;
@@ -496,7 +521,7 @@ textarea {
   width: 100%;
   transition: background var(--dur) var(--ease);
 }
-textarea {
+textarea:not([class*="cds--"]) {
   padding: var(--sp-04) var(--sp-05);
   line-height: 1.43;
 }
@@ -511,14 +536,14 @@ input[type="radio"] {
   flex: 0 0 auto;
   accent-color: var(--cds-interactive);
 }
-input:hover:not(:disabled),
-select:hover:not(:disabled),
-textarea:hover:not(:disabled) {
+input:not([class*="cds--"]):hover:not(:disabled),
+select:not([class*="cds--"]):hover:not(:disabled),
+textarea:not([class*="cds--"]):hover:not(:disabled) {
   background: var(--cds-field-hover-01);
 }
-input:disabled,
-select:disabled,
-textarea:disabled {
+input:not([class*="cds--"]):disabled,
+select:not([class*="cds--"]):disabled,
+textarea:not([class*="cds--"]):disabled {
   color: var(--cds-text-disabled);
   border-bottom-color: transparent;
   cursor: not-allowed;
