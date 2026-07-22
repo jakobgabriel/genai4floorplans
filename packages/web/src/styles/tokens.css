@@ -312,9 +312,13 @@ main {
    remaining viewport, so `margin (3rem) + height (100vh − 3rem) = 100vh` and
    the document can never scroll past it (no black seam below the app). */
 .shell--editor {
+  /* Pin the editor to the viewport below the fixed 3rem header. Fixed
+     positioning takes it out of normal flow entirely, so NOTHING tall is left
+     in the document — the page can never scroll and no background shows below
+     the app (browser-independent, unlike a height+padding/margin pairing). */
+  position: fixed;
+  inset: 3rem 0 0 0;
   padding-top: 0;
-  margin-top: 3rem;
-  height: calc(100vh - 3rem);
   min-height: 0;
   overflow: hidden;
 }
