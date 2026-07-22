@@ -986,6 +986,20 @@ code {
   outline-offset: 2px;
 }
 
+/* Tiles sit ON the layer-01 side panel; a Carbon Tile defaults to that same
+   layer and vanishes. Raise the readout/editor tiles to layer-02 so cards,
+   metrics and list rows read as distinct surfaces. */
+.ak-metric,
+.ak-row,
+.ak-breakdown,
+.wl-el {
+  background: var(--cds-layer-02);
+}
+.ak-row.cds--tile--clickable:hover,
+.wl-el.cds--tile--clickable:hover {
+  background: var(--cds-layer-hover-02);
+}
+
 /* Metric tile: a headline figure in a Carbon Tile. */
 .ak-metric {
   padding: var(--sp-05);
@@ -1027,9 +1041,9 @@ code {
   color: var(--cds-text-secondary);
 }
 
-/* Clickable Carbon Tiles in the readout lists (link rows, ROI, potential). */
+/* Compact list-row tiles (links, ROI, potential, connections). */
 .ak-row {
-  margin-bottom: var(--sp-03);
+  padding: var(--sp-04) var(--sp-05);
 }
 .ak-row__head {
   display: flex;
@@ -1042,6 +1056,18 @@ code {
   color: var(--cds-text-secondary);
   margin-top: var(--sp-02);
   line-height: 1.34;
+}
+/* Improvement card header: confidence chip stays top-aligned beside a title
+   that may wrap to two lines. */
+.ak-imp__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-03);
+}
+.ak-imp__title {
+  flex: 1;
+  min-width: 0;
 }
 .ak-kv {
   display: flex;

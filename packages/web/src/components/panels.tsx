@@ -170,10 +170,10 @@ function ImprovementList({
             };
             const body = (
               <>
-                <div className="ak-row__head">
-                  <strong>{imp.title}</strong>
+                <div className="ak-imp__head">
+                  <strong className="ak-imp__title">{imp.title}</strong>
                   <Tag type="gray" size="sm">
-                    {imp.confidence} conf.
+                    {imp.confidence}
                   </Tag>
                 </div>
                 <div className="ak-row__sub">{imp.detail}</div>
