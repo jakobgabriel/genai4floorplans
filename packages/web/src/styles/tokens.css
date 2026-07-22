@@ -1059,6 +1059,123 @@ code {
   margin-top: var(--sp-03);
 }
 
+/* Two-up field row for the Carbon editor forms (replaces the old .row2). */
+.fk-row {
+  display: flex;
+  gap: var(--sp-05);
+  align-items: flex-start;
+}
+.fk-row > * {
+  flex: 1;
+  min-width: 0;
+}
+/* Inline action button aligned to the bottom of an adjacent field. */
+.fk-inline {
+  display: flex;
+  gap: var(--sp-03);
+  align-items: flex-end;
+}
+.fk-inline > .cds--form-item,
+.fk-inline > .cds--text-input-wrapper,
+.fk-inline > .cds--select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A list row: a full-width main control/label plus a trailing icon action. */
+.fk-listrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+}
+.fk-listrow__main {
+  flex: 1;
+  min-width: 0;
+}
+button.fk-listrow__main {
+  justify-content: flex-start;
+  max-width: none;
+}
+.fk-listrow__text {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Destructive icon-only ghost button (Carbon reserves danger kinds for
+   text buttons, so an icon delete gets its red accent here instead). */
+.fk-danger.cds--btn--ghost {
+  color: var(--cds-button-danger-secondary);
+}
+.fk-danger.cds--btn--ghost:hover:not(:disabled) {
+  background: var(--cds-button-danger-primary);
+  color: var(--cds-text-on-color);
+}
+
+/* Cycle-breakdown editor tile. */
+.ak-breakdown {
+  padding: var(--sp-05);
+}
+
+/* ---------- workload panel ---------- */
+.wl-metrics {
+  display: flex;
+  gap: var(--sp-05);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.875rem;
+}
+.wl-metrics__lab {
+  color: var(--cds-text-secondary);
+}
+.wl-classbar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  margin: var(--sp-04) 0 var(--sp-03);
+  background: var(--cds-layer-accent-01);
+}
+.wl-classbar > div {
+  min-width: 0;
+}
+.wl-el {
+  padding: var(--sp-04) var(--sp-05);
+}
+.wl-el__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--cds-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.wl-el__name {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.wl-el__sec {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  flex: 0 0 auto;
+}
+.wl-el__body {
+  margin-top: var(--sp-04);
+}
+.ak-breakdown__total {
+  border-top: 1px solid var(--cds-border-subtle-01);
+  padding-top: var(--sp-04);
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 1056px) {

@@ -5,12 +5,16 @@ import {
   InlineNotification,
   OperationalTag,
   ProgressBar,
+  SelectItem,
   Slider,
   Stack,
   Tag,
   Tile,
+  Toggle,
 } from "@carbon/react";
+import { Add, Draw, TrashCan } from "@carbon/icons-react";
 import { Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
+import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
@@ -23,8 +27,8 @@ import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { AMBER, CYCLE_COL, LINE, RED, TEAL, TEXTD, PANEL2 } from "./colors";
-import { Field, HelpPopover, useToast } from "./ui";
+import { CYCLE_COL, TEXTD } from "./colors";
+import { useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
   deleteScenario,
@@ -507,90 +511,123 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
   const [name, setName] = useState("");
   const [tick, setTick] = useState(0);
   const scenarios = listScenarios();
+  const save = () => {
+    const n = name.trim() || api.model.name || "Variant";
+    saveScenario(n, api.model);
+    setName("");
+    setTick((t) => t + 1);
+    toast("Saved scenario “" + n + "”");
+  };
   return (
-    <div>
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Scenarios (compare variants)
-      </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input placeholder="name this variant…" value={name} onChange={(e) => setName(e.target.value)} />
-        <button
-          className="btn sm"
-          onClick={() => {
-            const n = name.trim() || api.model.name || "Variant";
-            saveScenario(n, api.model);
-            setName("");
-            setTick((t) => t + 1);
-            toast("Saved scenario “" + n + "”");
-          }}
-        >
+    <Stack gap={4}>
+      <SectionLabel>Scenarios (compare variants)</SectionLabel>
+      <div className="fk-inline">
+        <TextField id="scenario-name" labelText="Variant name" placeholder="name this variant…" value={name} onChange={setName} />
+        <Button size="sm" kind="secondary" onClick={save}>
           Save
-        </button>
+        </Button>
       </div>
       {scenarios.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Save the current layout as a named variant to compare alternatives.</div>
+        <Footnote>Save the current layout as a named variant to compare alternatives.</Footnote>
       ) : (
-        scenarios.map((s) => (
-          <div key={s.name + tick} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 11.5 }}>
-            <button className="btn sm" style={{ flex: 1, textAlign: "left" }} onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}>
-              {s.name}
-            </button>
-            <button className="btn sm" style={{ borderColor: RED, color: RED, marginLeft: 6 }} onClick={() => { deleteScenario(s.name); setTick((t) => t + 1); }}>
-              ×
-            </button>
-          </div>
-        ))
+        <Stack gap={2}>
+          {scenarios.map((s) => (
+            <div key={s.name + tick} className="fk-listrow">
+              <Button
+                kind="ghost"
+                size="sm"
+                className="fk-listrow__main"
+                onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}
+              >
+                {s.name}
+              </Button>
+              <Button
+                kind="ghost"
+                className="fk-danger"
+                hasIconOnly
+                size="sm"
+                iconDescription={`Delete ${s.name}`}
+                tooltipPosition="left"
+                renderIcon={TrashCan}
+                onClick={() => { deleteScenario(s.name); setTick((t) => t + 1); }}
+              />
+            </div>
+          ))}
+        </Stack>
       )}
-    </div>
+    </Stack>
   );
 }
 
 function LayoutSettings({ api }: { api: FlowPlanApi }) {
   const m = api.model;
   return (
-    <div>
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Layout settings
-      </div>
-      <Field label="Cell name">
-        <input value={m.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_NAME", name: e.target.value })} />
-      </Field>
-      <div className="row2">
-        <Field label="Grid width" help="Stations are re-clamped inside the grid when you shrink it.">
-          <input type="number" value={m.gridW} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_GRID", gridW: +e.target.value, gridH: m.gridH })} />
-        </Field>
-        <Field label="Grid height">
-          <input type="number" value={m.gridH} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_GRID", gridW: m.gridW, gridH: +e.target.value })} />
-        </Field>
-      </div>
-      <Field label="Shift length (hours)" help="Used by the balance model for throughput. Stations can override this individually in Configure.">
-        <input type="number" value={m.shiftHours ?? 8} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: +e.target.value })} />
-      </Field>
-    </div>
+    <Stack gap={4}>
+      <SectionLabel>Layout settings</SectionLabel>
+      <TextField id="cell-name" labelText="Cell name" value={m.name} onFocus={api.checkpoint} onChange={(v) => api.live({ type: "SET_NAME", name: v })} />
+      <FieldRow>
+        <NumberField
+          id="grid-w"
+          label="Grid width"
+          helperText="Stations re-clamp when shrunk."
+          value={m.gridW}
+          min={1}
+          onFocus={api.checkpoint}
+          onChange={(v) => api.live({ type: "SET_GRID", gridW: Math.max(1, Number(v) || 1), gridH: m.gridH })}
+        />
+        <NumberField
+          id="grid-h"
+          label="Grid height"
+          value={m.gridH}
+          min={1}
+          onFocus={api.checkpoint}
+          onChange={(v) => api.live({ type: "SET_GRID", gridW: m.gridW, gridH: Math.max(1, Number(v) || 1) })}
+        />
+      </FieldRow>
+      <NumberField
+        id="shift-hours"
+        label="Shift length (hours)"
+        helperText="Balance-model default; stations can override in Configure."
+        value={m.shiftHours ?? 8}
+        min={1}
+        onFocus={api.checkpoint}
+        onChange={(v) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: Number(v) || 8 })}
+      />
+    </Stack>
   );
 }
 
 function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMode; setMode: (m: CanvasMode) => void }) {
+  const zones = api.model.noGoZones ?? [];
   return (
-    <div>
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        No-go zones
-      </div>
-      <button className={"btn sm" + (mode === "nogo" ? " on" : "")} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
+    <Stack gap={4}>
+      <SectionLabel>No-go zones</SectionLabel>
+      <Button kind={mode === "nogo" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
         {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a no-go zone"}
-      </button>
-      <div style={{ fontSize: 10.5, color: TEXTD, margin: "6px 0" }}>Drag a rectangle on the canvas. The optimizer and templates avoid these.</div>
-      {(api.model.noGoZones ?? []).map((z, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 11.5 }}>
-          <span>
-            zone {i + 1} · {z.w}×{z.h} @ ({z.x},{z.y})
-          </span>
-          <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}>
-            ×
-          </button>
-        </div>
-      ))}
-    </div>
+      </Button>
+      <Footnote>Drag a rectangle on the canvas. The optimizer and templates avoid these.</Footnote>
+      {zones.length > 0 ? (
+        <Stack gap={2}>
+          {zones.map((z, i) => (
+            <div key={i} className="fk-listrow">
+              <span className="fk-listrow__main fk-listrow__text">
+                zone {i + 1} · {z.w}×{z.h} @ ({z.x},{z.y})
+              </span>
+              <Button
+                kind="ghost"
+                className="fk-danger"
+                hasIconOnly
+                size="sm"
+                iconDescription={`Remove zone ${i + 1}`}
+                tooltipPosition="left"
+                renderIcon={TrashCan}
+                onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}
+              />
+            </div>
+          ))}
+        </Stack>
+      ) : null}
+    </Stack>
   );
 }
 
@@ -599,64 +636,73 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
   return (
-    <div className="pad">
-      <div className={v.valid ? "ok" : "issue"} style={{ marginBottom: 12, cursor: "default" }}>
-        {v.valid ? "Process flow is valid — every step connects input→output." : errCount + " blocking issue(s) found."}
-      </div>
-      <div className="lab" style={{ marginBottom: 8 }}>
-        Validation
-      </div>
-      {v.issues.length === 0 ? <div style={{ fontSize: 11.5, color: TEXTD }}>No dead ends, orphans, or unreachable steps.</div> : null}
-      {v.issues.map((it, i) => (
-        <div
-          key={i}
-          className="issue"
-          style={{ borderLeftColor: it.sev === "err" ? RED : AMBER, background: it.sev === "err" ? "rgba(217,107,91,.08)" : "rgba(224,164,88,.08)" }}
-          onClick={() => { if (it.id) { setSel(it.id); setTab("inspect"); } }}
+    <div className="pad ak-panel">
+      <Stack gap={6}>
+        <InlineNotification
+          kind={v.valid ? "success" : "error"}
+          lowContrast
+          hideCloseButton
+          title={v.valid ? "Process flow is valid" : `${errCount} blocking issue(s) found`}
+          subtitle={v.valid ? "Every step connects input → output." : undefined}
+        />
+
+        <Stack gap={3}>
+          <SectionLabel>Validation</SectionLabel>
+          {v.issues.length === 0 ? (
+            <Footnote>No dead ends, orphans, or unreachable steps.</Footnote>
+          ) : (
+            v.issues.map((it, i) =>
+              it.id ? (
+                <Stack gap={2} key={i}>
+                  <InlineNotification kind={it.sev === "err" ? "error" : "warning"} lowContrast hideCloseButton title={it.msg} />
+                  <Button kind="ghost" size="sm" onClick={() => { setSel(it.id!); setTab("inspect"); }}>
+                    Fix this step
+                  </Button>
+                </Stack>
+              ) : (
+                <InlineNotification key={i} kind={it.sev === "err" ? "error" : "warning"} lowContrast hideCloseButton title={it.msg} />
+              ),
+            )
+          )}
+        </Stack>
+
+        <Stack gap={3}>
+          <SectionLabel>Draw connections</SectionLabel>
+          <Button kind={mode === "flow" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
+            {mode === "flow" ? "Picking… tap source then target" : "Draw a flow on the canvas"}
+          </Button>
+        </Stack>
+
+        <Stack gap={3}>
+          <SectionLabel>Cell form templates</SectionLabel>
+          <div style={{ display: "flex", gap: "var(--sp-02)", flexWrap: "wrap" }}>
+            {(["I", "U", "L", "S"] as CellForm[]).map((fm) => (
+              <Button key={fm} kind="tertiary" size="sm" onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(fm + "-shape applied"); }}>
+                {fm}-shape
+              </Button>
+            ))}
+          </div>
+          <Footnote>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</Footnote>
+        </Stack>
+
+        <Button
+          kind="secondary"
+          size="sm"
+          renderIcon={Add}
+          onClick={() => {
+            const ns = makeStation(api.model);
+            api.commit({ type: "ADD_STATION", station: ns });
+            setSel(ns.id);
+            setTab("inspect");
+          }}
         >
-          <span style={{ color: it.sev === "err" ? RED : AMBER }}>{it.sev === "err" ? "● " : "▲ "}</span>
-          {it.msg}
-        </div>
-      ))}
+          Add process step
+        </Button>
 
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Draw connections
-      </div>
-      <button className={"btn sm" + (mode === "flow" ? " on" : "")} onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
-        {mode === "flow" ? "Picking… tap source then target" : "Draw a flow on the canvas"}
-      </button>
-
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Cell form templates
-      </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-        {(["I", "U", "L", "S"] as CellForm[]).map((fm) => (
-          <button key={fm} className="btn sm" onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(fm + "-shape applied"); }}>
-            {fm}-shape
-          </button>
-        ))}
-      </div>
-      <div style={{ fontSize: 10.5, color: TEXTD }}>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</div>
-
-      <div className="lab" style={{ margin: "16px 0 8px" }}>
-        Add a step
-      </div>
-      <button
-        className="btn"
-        style={{ width: "100%" }}
-        onClick={() => {
-          const ns = makeStation(api.model);
-          api.commit({ type: "ADD_STATION", station: ns });
-          setSel(ns.id);
-          setTab("inspect");
-        }}
-      >
-        + Add process step
-      </button>
-
-      <LayoutSettings api={api} />
-      <NoGoSection api={api} mode={mode} setMode={setMode} />
-      <ScenarioSection api={api} />
+        <LayoutSettings api={api} />
+        <NoGoSection api={api} mode={mode} setMode={setMode} />
+        <ScenarioSection api={api} />
+      </Stack>
     </div>
   );
 }
@@ -754,8 +800,8 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
   };
   const isRect = !(station.cells && station.cells.length);
   return (
-    <label className="field">
-      <span>Footprint shape {isRect ? "(rectangle)" : "(custom)"}</span>
+    <div className="cds--form-item">
+      <div className="cds--label">Footprint shape {isRect ? "(rectangle)" : "(custom)"}</div>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${w}, 16px)`, gap: 2 }}>
           {Array.from({ length: h }).map((_, dy) =>
@@ -767,17 +813,24 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
                   type="button"
                   onClick={() => toggle(dx, dy)}
                   title={`cell ${dx},${dy}`}
-                  style={{ width: 16, height: 16, padding: 0, borderRadius: 3, border: "1px solid " + LINE, background: on ? TEAL : "transparent", cursor: "pointer" }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    padding: 0,
+                    border: "1px solid var(--cds-border-strong-01)",
+                    background: on ? "var(--cds-interactive)" : "transparent",
+                    cursor: "pointer",
+                  }}
                 />
               );
             }),
           )}
         </div>
-        <button className="btn sm" type="button" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
+        <Button kind="tertiary" size="sm" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
           Fill (rect)
-        </button>
+        </Button>
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -789,243 +842,274 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const [addTo, setAddTo] = useState("");
   if (!s) {
     return (
-      <div className="pad">
-        <div style={{ color: TEXTD, fontSize: 12 }}>
-          Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add
-          a step to create new ones.
-        </div>
+      <div className="pad ak-panel">
+        <Footnote>
+          Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add a step to create new ones.
+        </Footnote>
       </div>
     );
   }
   const outFlows = m.flows.filter((f) => f.from === s.id);
   const inCount = m.flows.filter((f) => f.to === s.id).length;
   const up = (patch: Record<string, unknown>) => api.commit({ type: "UPDATE_STATION", id: s.id, patch });
+  const live = (patch: Record<string, unknown>) => api.live({ type: "UPDATE_STATION", id: s.id, patch });
   return (
-    <div className="pad">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div className="lab">Configure · {s.id}</div>
-        <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}>
-          Delete
-        </button>
-      </div>
-      <Field label="Name">
-        <input value={s.name} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { name: e.target.value } })} />
-      </Field>
-      <Field label="Station id (rename)" help="Renaming rewrites every flow that references this station.">
-        <div style={{ display: "flex", gap: 6 }}>
-          <input placeholder={s.id} value={renameVal} onChange={(e) => setRenameVal(e.target.value)} />
-          <button
-            className="btn sm"
-            onClick={() => {
-              const nid = renameVal.trim();
-              if (!nid) return;
-              if (m.stations.some((x) => x.id === nid)) { toast("That id is already taken", "err"); return; }
-              api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
-              setSel(nid);
-              setRenameVal("");
-            }}
+    <div className="pad ak-panel">
+      <Stack gap={6}>
+        <div className="ak-row__head">
+          <SectionLabel>Configure · {s.id}</SectionLabel>
+          <Button
+            kind="danger--tertiary"
+            size="sm"
+            renderIcon={TrashCan}
+            onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}
           >
-            Rename
-          </button>
+            Delete
+          </Button>
         </div>
-      </Field>
-      <div className="row2">
-        <Field label="Role (I/O flexible)">
-          <select value={s.role} onChange={(e) => up({ role: e.target.value })}>
-            {ROLES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Type">
-          <select value={s.type} onChange={(e) => up({ type: e.target.value })}>
-            {STATION_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Width">
-          <input type="number" value={s.w} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { w: Math.max(1, +e.target.value) } })} />
-        </Field>
-        <Field label="Height">
-          <input type="number" value={s.h} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { h: Math.max(1, +e.target.value) } })} />
-        </Field>
-      </div>
-      <CellShapeEditor api={api} station={s} />
-      <div className="row2">
-        <Field label="IN port" help="Edge where material enters; flows route to this port.">
-          <select value={s.inSide ?? "left"} onChange={(e) => up({ inSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="OUT port" help="Edge where material exits.">
-          <select value={s.outSide ?? "right"} onChange={(e) => up({ outSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Scrap port">
-          <select value={s.scrapSide ?? "bottom"} onChange={(e) => up({ scrapSide: e.target.value as Side })}>
-            {SIDES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Scrap rate (%)" help="Share of incoming parts scrapped here. Shown in Balance ▸ Yield; not part of the grade.">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={Math.round((s.scrapRate ?? 0) * 100)}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { scrapRate: Math.max(0, Math.min(100, +e.target.value)) / 100 } })}
-          />
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Parallel units (×N)" help="Identical resources running in parallel at this step. Capacity scales ×N.">
-          <input
-            type="number"
-            min={1}
-            value={s.parallelUnits ?? 1}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { parallelUnits: Math.max(1, Math.round(+e.target.value)) } })}
-          />
-        </Field>
-        {outFlows.length > 1 ? (
-          <Field label="Split mode" help="distribute = volume splits by share across lanes; fork = each branch gets full part count (distinct components).">
-            <select value={s.splitMode ?? "distribute"} onChange={(e) => up({ splitMode: e.target.value })}>
-              {SPLIT_MODES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </Field>
-        ) : (
-          <div style={{ flex: 1 }} />
-        )}
-      </div>
-      {inCount > 1 ? (
-        <Field label="Merge mode" help="sum = inbound rates add; assemble = synchronized, needs one of each input (rate = slowest feeder).">
-          <select value={s.mergeMode ?? "sum"} onChange={(e) => up({ mergeMode: e.target.value })}>
-            {MERGE_MODES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-      ) : null}
-      <div className="row2">
-        <Field label="Equipment capex" help="One-time cost of this step's equipment (Cost tab).">
-          <input type="number" min={0} value={s.capex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capex: Math.max(0, +e.target.value) } })} />
-        </Field>
-        <Field label="Automation capex" help="Cost to automate this step — drives ROI payback.">
-          <input type="number" min={0} value={s.automationCapex ?? 0} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { automationCapex: Math.max(0, +e.target.value) } })} />
-        </Field>
-      </div>
-      <Field label="Fixed / anchored">
-        <button className="btn" style={{ width: "100%", background: s.fixed ? AMBER : PANEL2, color: s.fixed ? "#0e1416" : undefined }} onClick={() => up({ fixed: !s.fixed })}>
-          {s.fixed ? "FIXED — won't be moved" : "Movable"}
-        </button>
-      </Field>
-      <div className="row2">
-        <Field label="Automation state">
-          <select value={s.auto} onChange={(e) => up({ auto: e.target.value })}>
-            {AUTO.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Automate? (override)">
-          <select value={s.autoOverride ?? "auto"} onChange={(e) => up({ autoOverride: e.target.value === "auto" ? null : e.target.value })}>
-            <option value="auto">heuristic</option>
-            <option value="yes">force yes</option>
-            <option value="no">force no</option>
-          </select>
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Capacity/shift">
-          <input type="number" value={s.capacityPerShift} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { capacityPerShift: +e.target.value } })} />
-        </Field>
-        <Field label="Operators">
-          <input type="number" value={s.operators} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { operators: +e.target.value } })} />
-        </Field>
-      </div>
-      <div className="row2">
-        <Field label="Cycle time (s)" help={s.cycle ? "Derived from the breakdown below — edit the components to change it." : undefined}>
-          <input type="number" value={s.cycleTimeSec} disabled={!!s.cycle} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { cycleTimeSec: +e.target.value } })} />
-        </Field>
-        <Field label="Changeover (min)">
-          <input type="number" value={s.changeoverMin} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { changeoverMin: +e.target.value } })} />
-        </Field>
-      </div>
-      <CycleBreakdownEditor api={api} s={s} />
-      <div className="row2">
-        <Field label="Ergonomic risk">
-          <select value={s.ergoRisk} onChange={(e) => up({ ergoRisk: e.target.value })}>
-            {ERGO.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Shift hours (override)" help="Leave blank to use the cell default.">
-          <input type="number" value={s.shiftHours ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { shiftHours: e.target.value === "" ? undefined : +e.target.value } })} />
-        </Field>
-      </div>
-      <Field label="Utilities (comma-sep)">
-        <input value={(s.utilities ?? []).join(", ")} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { utilities: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } })} />
-      </Field>
-      <Field label="Notes">
-        <textarea style={{ minHeight: 42, resize: "vertical" }} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_STATION", id: s.id, patch: { notes: e.target.value } })} />
-      </Field>
 
-      <div className="lab" style={{ margin: "12px 0 6px" }}>
-        Connections
-      </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginBottom: 6 }}>Outgoing flows from this step:</div>
-      {outFlows.map((f, i) => (
-        <div key={i} className="card" style={{ padding: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, marginBottom: 6 }}>
-            <span>→ {f.to}</span>
-            <button className="btn sm" style={{ borderColor: RED, color: RED }} onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}>
-              ×
-            </button>
+        <Stack gap={4}>
+          <TextField id="cfg-name" labelText="Name" value={s.name} onFocus={api.checkpoint} onChange={(v) => live({ name: v })} />
+          <div className="fk-inline">
+            <TextField
+              id="cfg-rename"
+              labelText="Station id (rename)"
+              placeholder={s.id}
+              helperText="Renaming rewrites every flow that references this station."
+              value={renameVal}
+              onChange={setRenameVal}
+            />
+            <Button
+              size="sm"
+              kind="secondary"
+              onClick={() => {
+                const nid = renameVal.trim();
+                if (!nid) return;
+                if (m.stations.some((x) => x.id === nid)) { toast("That id is already taken", "err"); return; }
+                api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
+                setSel(nid);
+                setRenameVal("");
+              }}
+            >
+              Rename
+            </Button>
           </div>
-          <div className="row2">
-            <Field label="Volume">
-              <input type="number" value={f.volume} onFocus={api.checkpoint} onChange={(e) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { volume: +e.target.value } })} />
-            </Field>
-            <Field label="Transport">
-              <select value={f.transport} onChange={(e) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { transport: e.target.value as Flow["transport"] } })}>
-                {TRANSPORT.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <select value={addTo} style={{ flex: 1 }} onChange={(e) => setAddTo(e.target.value)}>
-          <option value="" disabled>
-            add flow to…
-          </option>
-          {m.stations.filter((x) => x.id !== s.id).map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
+          <FieldRow>
+            <SelectField id="cfg-role" labelText="Role (I/O flexible)" value={s.role} options={ROLES} onChange={(v) => up({ role: v })} />
+            <SelectField id="cfg-type" labelText="Type" value={s.type} options={STATION_TYPES} onChange={(v) => up({ type: v })} />
+          </FieldRow>
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Footprint &amp; ports</SectionLabel>
+          <FieldRow>
+            <NumberField id="cfg-w" label="Width" value={s.w} min={1} onFocus={api.checkpoint} onChange={(v) => live({ w: Math.max(1, Number(v) || 1) })} />
+            <NumberField id="cfg-h" label="Height" value={s.h} min={1} onFocus={api.checkpoint} onChange={(v) => live({ h: Math.max(1, Number(v) || 1) })} />
+          </FieldRow>
+          <CellShapeEditor api={api} station={s} />
+          <FieldRow>
+            <SelectField id="cfg-in" labelText="IN port" helperText="Edge material enters." value={s.inSide ?? "left"} options={SIDES} onChange={(v) => up({ inSide: v as Side })} />
+            <SelectField id="cfg-out" labelText="OUT port" helperText="Edge material exits." value={s.outSide ?? "right"} options={SIDES} onChange={(v) => up({ outSide: v as Side })} />
+          </FieldRow>
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Throughput</SectionLabel>
+          <FieldRow>
+            <NumberField id="cfg-cap" label="Capacity/shift" value={s.capacityPerShift} min={0} onFocus={api.checkpoint} onChange={(v) => live({ capacityPerShift: Number(v) || 0 })} />
+            <NumberField id="cfg-ops" label="Operators" value={s.operators} min={0} onFocus={api.checkpoint} onChange={(v) => live({ operators: Number(v) || 0 })} />
+          </FieldRow>
+          <FieldRow>
+            <NumberField
+              id="cfg-parallel"
+              label="Parallel units (×N)"
+              helperText="Identical lanes; capacity scales ×N."
+              value={s.parallelUnits ?? 1}
+              min={1}
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ parallelUnits: Math.max(1, Math.round(Number(v) || 1)) })}
+            />
+            {outFlows.length > 1 ? (
+              <SelectField
+                id="cfg-split"
+                labelText="Split mode"
+                helperText="distribute = share; fork = full count."
+                value={s.splitMode ?? "distribute"}
+                options={SPLIT_MODES}
+                onChange={(v) => up({ splitMode: v })}
+              />
+            ) : (
+              <div />
+            )}
+          </FieldRow>
+          {inCount > 1 ? (
+            <SelectField
+              id="cfg-merge"
+              labelText="Merge mode"
+              helperText="sum = rates add; assemble = one of each input."
+              value={s.mergeMode ?? "sum"}
+              options={MERGE_MODES}
+              onChange={(v) => up({ mergeMode: v })}
+            />
+          ) : null}
+          <FieldRow>
+            <SelectField id="cfg-scrapside" labelText="Scrap port" value={s.scrapSide ?? "bottom"} options={SIDES} onChange={(v) => up({ scrapSide: v as Side })} />
+            <NumberField
+              id="cfg-scraprate"
+              label="Scrap rate (%)"
+              helperText="Shown in Balance ▸ Yield; not graded."
+              value={Math.round((s.scrapRate ?? 0) * 100)}
+              min={0}
+              max={100}
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ scrapRate: Math.max(0, Math.min(100, Number(v) || 0)) / 100 })}
+            />
+          </FieldRow>
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Cycle time</SectionLabel>
+          <FieldRow>
+            <NumberField
+              id="cfg-cycle"
+              label="Cycle time (s)"
+              helperText={s.cycle ? "Derived from the breakdown below." : undefined}
+              value={s.cycleTimeSec}
+              min={0}
+              disabled={!!s.cycle}
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ cycleTimeSec: Number(v) || 0 })}
+            />
+            <NumberField id="cfg-changeover" label="Changeover (min)" value={s.changeoverMin} min={0} onFocus={api.checkpoint} onChange={(v) => live({ changeoverMin: Number(v) || 0 })} />
+          </FieldRow>
+          <CycleBreakdownEditor api={api} s={s} />
+          <FieldRow>
+            <SelectField id="cfg-ergo" labelText="Ergonomic risk" value={s.ergoRisk} options={ERGO} onChange={(v) => up({ ergoRisk: v })} />
+            <NumberField
+              id="cfg-shifthours"
+              label="Shift hours (override)"
+              helperText="Blank = cell default."
+              value={s.shiftHours ?? ""}
+              min={0}
+              allowEmpty
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ shiftHours: v === "" ? undefined : Number(v) || 0 })}
+            />
+          </FieldRow>
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Automation &amp; placement</SectionLabel>
+          <FieldRow>
+            <SelectField id="cfg-auto" labelText="Automation state" value={s.auto} options={AUTO} onChange={(v) => up({ auto: v })} />
+            <SelectField
+              id="cfg-autooverride"
+              labelText="Automate? (override)"
+              value={s.autoOverride ?? "auto"}
+              onChange={(v) => up({ autoOverride: v === "auto" ? null : v })}
+            >
+              <SelectItem value="auto" text="heuristic" />
+              <SelectItem value="yes" text="force yes" />
+              <SelectItem value="no" text="force no" />
+            </SelectField>
+          </FieldRow>
+          <Toggle
+            id="cfg-fixed"
+            size="sm"
+            labelText="Placement"
+            labelA="Movable"
+            labelB="Fixed — won't be moved"
+            toggled={!!s.fixed}
+            onToggle={(checked) => up({ fixed: checked })}
+          />
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Cost</SectionLabel>
+          <FieldRow>
+            <NumberField
+              id="cfg-capex"
+              label="Equipment capex"
+              helperText="One-time equipment cost (Cost tab)."
+              value={s.capex ?? 0}
+              min={0}
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ capex: Math.max(0, Number(v) || 0) })}
+            />
+            <NumberField
+              id="cfg-autocapex"
+              label="Automation capex"
+              helperText="Cost to automate — drives ROI payback."
+              value={s.automationCapex ?? 0}
+              min={0}
+              onFocus={api.checkpoint}
+              onChange={(v) => live({ automationCapex: Math.max(0, Number(v) || 0) })}
+            />
+          </FieldRow>
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Notes</SectionLabel>
+          <TextField
+            id="cfg-utils"
+            labelText="Utilities (comma-sep)"
+            value={(s.utilities ?? []).join(", ")}
+            onFocus={api.checkpoint}
+            onChange={(v) => live({ utilities: v.split(",").map((x) => x.trim()).filter(Boolean) })}
+          />
+          <TextAreaField id="cfg-notes" labelText="Notes" rows={3} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(v) => live({ notes: v })} />
+        </Stack>
+
+        <Stack gap={4}>
+          <SectionLabel>Connections</SectionLabel>
+          <Footnote>Outgoing flows from this step:</Footnote>
+          {outFlows.map((f, i) => (
+            <Tile key={i} className="ak-row">
+              <div className="ak-row__head">
+                <span>→ {f.to}</span>
+                <Button
+                  kind="ghost"
+                  className="fk-danger"
+                  hasIconOnly
+                  size="sm"
+                  iconDescription={`Remove flow to ${f.to}`}
+                  tooltipPosition="left"
+                  renderIcon={TrashCan}
+                  onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}
+                />
+              </div>
+              <FieldRow>
+                <NumberField
+                  id={`flow-vol-${i}`}
+                  label="Volume"
+                  value={f.volume}
+                  min={0}
+                  onFocus={api.checkpoint}
+                  onChange={(v) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { volume: Number(v) || 0 } })}
+                />
+                <SelectField
+                  id={`flow-transport-${i}`}
+                  labelText="Transport"
+                  value={f.transport}
+                  options={TRANSPORT}
+                  onChange={(v) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { transport: v as Flow["transport"] } })}
+                />
+              </FieldRow>
+            </Tile>
           ))}
-        </select>
-        <button className="btn sm" onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
-          Add
-        </button>
-      </div>
+          <div className="fk-inline">
+            <SelectField id="cfg-addflow" labelText="Add flow to…" value={addTo} onChange={setAddTo}>
+              <SelectItem value="" text="Select a step…" disabled />
+              {m.stations.filter((x) => x.id !== s.id).map((x) => (
+                <SelectItem key={x.id} value={x.id} text={x.name} />
+              ))}
+            </SelectField>
+            <Button size="sm" kind="secondary" renderIcon={Add} onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
+              Add
+            </Button>
+          </div>
+        </Stack>
+      </Stack>
     </div>
   );
 }
@@ -1038,19 +1122,18 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
 
   if (!s.cycle) {
     return (
-      <div style={{ margin: "2px 0 10px" }}>
-        <button
-          className="btn sm"
+      <div>
+        <Button
+          kind="tertiary"
+          size="sm"
           onClick={() => {
             api.checkpoint();
             api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: seedBreakdown(s) });
           }}
         >
           Decompose cycle
-        </button>
-        <span style={{ fontSize: 10.5, color: TEXTD, marginLeft: 8 }}>
-          split {s.cycleTimeSec}s into value-add & waste
-        </span>
+        </Button>
+        <Footnote>split {s.cycleTimeSec}s into value-add &amp; waste</Footnote>
       </div>
     );
   }
@@ -1060,46 +1143,46 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
   const vaPct = total > 0 ? Math.round((va / total) * 100) : 0;
 
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span className="lab" style={{ margin: 0 }}>
-          Cycle breakdown
-          <HelpPopover text="Only value-add transforms the part. The other four classes are waste — the cycle time is their sum." />
-        </span>
-        <button
-          className="btn sm"
-          title="Discard the split and go back to a single cycle time"
-          onClick={() => {
-            api.checkpoint();
-            api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: undefined });
-          }}
-        >
-          Reset
-        </button>
-      </div>
-
-      {CYCLE_KEYS.map((k) => (
-        <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-          <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, flex: "0 0 auto" }} />
-          <span style={{ fontSize: 11, flex: 1, color: k === "valueAddSec" ? "var(--text)" : TEXTD }}>{CYCLE_LABELS[k]}</span>
-          <input
-            type="number"
-            min={0}
-            style={{ width: 74, flex: "0 0 auto" }}
-            value={(s.cycle as CycleBreakdown)[k]}
-            onFocus={api.checkpoint}
-            onChange={(e) => api.live({ type: "PATCH_CYCLE_BREAKDOWN", id: s.id, patch: { [k]: Math.max(0, +e.target.value) } })}
-          />
+    <Tile className="ak-breakdown">
+      <Stack gap={4}>
+        <div className="ak-row__head">
+          <SectionLabel help="Only value-add transforms the part. The other four classes are waste — the cycle time is their sum.">
+            Cycle breakdown
+          </SectionLabel>
+          <Button
+            kind="ghost"
+            size="sm"
+            onClick={() => {
+              api.checkpoint();
+              api.live({ type: "SET_CYCLE_BREAKDOWN", id: s.id, cycle: undefined });
+            }}
+          >
+            Reset
+          </Button>
         </div>
-      ))}
 
-      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + LINE, marginTop: 8, paddingTop: 7, fontSize: 11 }}>
-        <span>Total cycle</span>
-        <span>
-          <b>{total}s</b> <span style={{ color: vaPct >= 60 ? TEAL : vaPct >= 30 ? AMBER : RED }}>· {vaPct}% value-add</span>
-        </span>
-      </div>
-    </div>
+        <Stack gap={3}>
+          {CYCLE_KEYS.map((k) => (
+            <NumberField
+              key={k}
+              id={`cyc-${k}`}
+              label={CYCLE_LABELS[k]}
+              value={(s.cycle as CycleBreakdown)[k]}
+              min={0}
+              onFocus={api.checkpoint}
+              onChange={(v) => api.live({ type: "PATCH_CYCLE_BREAKDOWN", id: s.id, patch: { [k]: Math.max(0, Number(v) || 0) } })}
+            />
+          ))}
+        </Stack>
+
+        <div className="ak-kv ak-breakdown__total">
+          <span className="ak-kv__k">Total cycle</span>
+          <span className="ak-kv__v">
+            <b>{total}s</b> · {vaPct}% value-add
+          </span>
+        </div>
+      </Stack>
+    </Tile>
   );
 }
 

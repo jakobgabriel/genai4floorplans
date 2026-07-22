@@ -31,15 +31,14 @@ function inspect(stationName: string) {
   fireEvent.click(screen.getAllByText(stationName)[0]);
 }
 
-/** The opaque "Cycle time (s)" input, located via its field label. */
+/** The opaque "Cycle time (s)" input, located via its Carbon field label. */
 function cycleField(): HTMLInputElement {
-  const label = screen.getByText(/Cycle time \(s\)/).closest("label") as HTMLElement;
-  return label.querySelector("input") as HTMLInputElement;
+  return screen.getByLabelText(/Cycle time \(s\)/) as HTMLInputElement;
 }
 
-/** The five breakdown inputs, scoped to the breakdown card. */
+/** The five breakdown inputs, scoped to the breakdown tile. */
 function breakdownInputs(): HTMLInputElement[] {
-  const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+  const card = screen.getByText("Cycle breakdown").closest(".ak-breakdown") as HTMLElement;
   return within(card).getAllByRole("spinbutton") as HTMLInputElement[];
 }
 
@@ -92,7 +91,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".ak-breakdown") as HTMLElement;
     const inputs = breakdownInputs();
     expect(inputs).toHaveLength(5); // valueAdd, handling, walk, wait, setup
 
@@ -143,7 +142,7 @@ describe("cycle decomposition UI", () => {
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
 
-    const card = screen.getByText("Cycle breakdown").closest(".card") as HTMLElement;
+    const card = screen.getByText("Cycle breakdown").closest(".ak-breakdown") as HTMLElement;
     fireEvent.click(within(card).getByRole("button", { name: "Reset" }));
 
     expect(screen.queryByText("Cycle breakdown")).toBeNull();
