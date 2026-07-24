@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 
 // Minimal dependency-free hash router. Routes are the part after '#':
-// "/" (editor), "/compare", "/site", "/admin", "/archive". Deep links and the
+// "/" (editor), "/report", "/compare", "/site", "/admin", "/archive". Deep links and the
 // browser back/forward button work because we just read/write location.hash.
-export type Route = "/" | "/compare" | "/site" | "/admin" | "/archive";
+export type Route = "/" | "/report" | "/compare" | "/site" | "/admin" | "/archive";
 
 function current(): Route {
   const h = (window.location.hash.slice(1) || "/") as Route;
-  return (["/", "/compare", "/site", "/admin", "/archive"] as string[]).includes(h) ? h : "/";
+  return (["/", "/report", "/compare", "/site", "/admin", "/archive"] as string[]).includes(h) ? h : "/";
 }
 
 export function useHashRoute(): [Route, (r: Route) => void] {
   const [route, setRoute] = useState<Route>(current);
   useEffect(() => {
-    const on = () => setRoute(current());
+    const on = () => {
+      setRoute(current());
+      // A hash change does not reset scroll, so a page opened from a scrolled
+      // one started part-way down — the report opened with its own cover
+      // already hidden behind its sticky header.
+      window.scrollTo({ top: 0 });
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);

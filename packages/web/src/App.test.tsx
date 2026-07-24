@@ -68,6 +68,20 @@ describe("App", () => {
     expect(screen.getAllByText(/Hydrobuchse/).length).toBeGreaterThan(0);
   });
 
+  it("opens the assessment report as its own page", async () => {
+    const { container } = renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByRole("button", { name: "Export ▾" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open report" }));
+    // hashchange is async.
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Assessment report" })).toBeTruthy());
+    const heads = [...container.querySelectorAll(".rep__secTitle")].map((h) => h.textContent);
+    expect(heads).toEqual(["1The brief", "2The concept", "3The layout", "4The assessment", "5What is still open"]);
+    // Read-only: the panels' editors have no place in a document.
+    expect(screen.queryByText("Rating weights")).toBeNull();
+    expect(screen.getByRole("button", { name: /Print/ })).toBeTruthy();
+  });
+
   it("switches between side-panel groups without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));

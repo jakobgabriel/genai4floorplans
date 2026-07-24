@@ -92,7 +92,9 @@ export function analysisPath(api: FlowPlanApi): AnalysisReading[] {
       tone: chain.islands > 0 ? "red" : band(r.scores.auto),
     },
     cost: {
-      value: `${c.currency}${c.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      // Both fraction digits pinned: money with one decimal ("$3.2") reads as a
+      // rounded-off number rather than a price.
+      value: `${c.currency}${c.costPerPart.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       sub: `per part · ${c.currency}${c.capexTotal.toLocaleString()} capex`,
       // Cost has no target to score against, so it stays neutral rather than
       // inventing a threshold.

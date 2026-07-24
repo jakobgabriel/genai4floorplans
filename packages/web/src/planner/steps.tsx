@@ -24,6 +24,7 @@ import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { COMPLEXITY_LABELS, USE_CASES, type CycleKnowledge, type UseCase, type UseCaseId } from "./usecases";
 import { ConceptTable } from "./ConceptTable";
 import { analysisPath, type AnalysisStepId } from "../components/analysisPath";
+import { navigate } from "../store/useHashRoute";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { money, moneyWhole, num } from "../format";
 
@@ -395,6 +396,15 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
             <p className="glance__q">{s.question}</p>
           </ClickableTile>
         ))}
+      </div>
+      {/* The end of the flow: concepts compared, cell designed, now write it
+          down. The report is a separate page rather than more of this one
+          because it is the artefact that leaves the tool. */}
+      <div className="glance__foot">
+        <Button onClick={() => navigate("/report")}>Open the full report</Button>
+        <p className="glance__footNote">
+          The brief, the concepts compared, the layout and the whole assessment as one printable document.
+        </p>
       </div>
     </section>
   );

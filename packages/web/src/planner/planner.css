@@ -393,6 +393,19 @@
   max-width: none;
 }
 
+.glance__foot {
+  margin-top: var(--cds-spacing-06);
+  padding-top: var(--cds-spacing-05);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+
+.glance__footNote {
+  margin: var(--cds-spacing-03) 0 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.43;
+}
+
 .glance__q {
   margin: auto 0 0;
   color: var(--cds-text-secondary);

@@ -5,7 +5,6 @@ import { parseModelText } from "@flowplan/core/io/json";
 import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
-import { openReport } from "./io/report";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
@@ -24,6 +23,7 @@ import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { ComparePage } from "./pages/ComparePage";
+import { ReportPage } from "./pages/ReportPage";
 import { SitePage } from "./pages/SitePage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
@@ -154,8 +154,10 @@ export function App() {
   const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
-    () => (step === "concepts" || step === "summary" ? rankCandidates(generateCandidates(brief)) : []),
-    [step, demand, briefSteps],
+    // The report records which concepts were compared, so it needs them
+    // regenerated even when the stepper has moved on to Refine.
+    () => (step === "concepts" || step === "summary" || route === "/report" ? rankCandidates(generateCandidates(brief)) : []),
+    [step, route, demand, briefSteps],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
   const useCase = useCaseId ? USE_CASES.find((u) => u.id === useCaseId) ?? null : null;
@@ -415,6 +417,21 @@ export function App() {
 
   // Dedicated pages (hash routes). They render full-screen with their own back
   // navigation; all hooks above have already run, so these early returns are safe.
+  if (route === "/report")
+    return (
+      <div className="wrap">
+        <ReportPage
+          api={api}
+          // Only a concept that was actually carried into the workspace counts
+          // as "taken" — the pre-selected top rank on Concepts does not.
+          picked={candidates.find((c) => c.id === loadedCandidate.current) ?? null}
+          candidates={candidates}
+          useCase={useCase}
+          demand={demand}
+          briefSteps={briefSteps}
+        />
+      </div>
+    );
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -464,7 +481,9 @@ export function App() {
                 if (!ok) toast("Switch to the Actual view to export the layout", "warn");
               },
             },
-            { label: "Open report", onClick: () => openReport(model) },
+            // The report is a page in the app now, not a hand-written HTML
+            // popup — same content, but themed, printable and linkable.
+            { label: "Open report", onClick: () => navigate("/report") },
           ]}
         />
         <button className="btn" onClick={() => setShowSettings(true)} title="Settings">
