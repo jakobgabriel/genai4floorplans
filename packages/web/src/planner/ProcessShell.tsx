@@ -13,10 +13,19 @@ interface Props {
   reached: FlowStep[];
   onGoto: (step: FlowStep) => void;
   actions?: ReactNode;
+  /**
+   * Pin the shell to the viewport instead of letting content grow it.
+   *
+   * The wizard steps scroll like a normal page, but the editor is a fixed
+   * three-column workbench: the canvas can only fill the space between the
+   * rails if that space is bounded by the window rather than by whichever side
+   * panel happens to be tallest.
+   */
+  fill?: boolean;
   children: ReactNode;
 }
 
-export function ProcessShell({ step, reached, onGoto, actions, children }: Props) {
+export function ProcessShell({ step, reached, onGoto, actions, fill, children }: Props) {
   const index = FLOW_STEPS.indexOf(step);
 
   return (
@@ -28,7 +37,7 @@ export function ProcessShell({ step, reached, onGoto, actions, children }: Props
         <HeaderGlobalBar>{actions}</HeaderGlobalBar>
       </Header>
 
-      <div className="shell">
+      <div className={"shell" + (fill ? " shell--fill" : "")}>
         <nav className="shell__steps" aria-label="Planning process">
           <ProgressIndicator
             currentIndex={index}

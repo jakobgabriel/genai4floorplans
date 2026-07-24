@@ -61,11 +61,37 @@ interface Props {
 }
 
 export function LayoutCanvas(props: Props) {
-  const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell, interactive } = props;
+  const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell: cellProp, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const baseW = model.gridW * cell + PAD * 2;
-  const baseH = model.gridH * cell + PAD * 2;
+
+  // The canvas fills the space it is given rather than being a fixed
+  // gridW*cell rectangle floating in it. `cell` is now a density *hint*: the
+  // measured stage decides the real cell size, so the plan grows to use the
+  // window instead of leaving dead background to the right and below.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r && r.width > 0 && r.height > 0) setBox({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Unmeasured (first paint, and jsdom in tests) falls back to the old fixed
+  // size, so nothing depends on layout having happened.
+  const fitted = box
+    ? Math.min((box.w - PAD * 2) / model.gridW, (box.h - PAD * 2) / model.gridH)
+    : cellProp;
+  const cell = Math.max(10, Math.min(80, fitted));
+  const W = box ? box.w : model.gridW * cell + PAD * 2;
+  const H = box ? box.h : model.gridH * cell + PAD * 2;
+  const baseW = W;
+  const baseH = H;
 
   const [zoom, setZoom] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
@@ -190,18 +216,42 @@ export function LayoutCanvas(props: Props) {
   const cpNodes = new Set(cp);
   for (let i = 0; i < cp.length - 1; i++) cpEdges.add(cp[i] + ">" + cp[i + 1]);
 
+  // The grid rules the whole visible surface, not just the gridW*gridH extent,
+  // so panning and zooming never expose bare background. The floor rect below
+  // is what marks where stations may actually be placed.
+  const floorW = model.gridW * cell;
+  const floorH = model.gridH * cell;
   const gridLines = [];
-  for (let i = 0; i <= model.gridW; i++)
-    gridLines.push(
-      <line key={"v" + i} x1={PAD + i * cell} y1={PAD} x2={PAD + i * cell} y2={PAD + model.gridH * cell} stroke={LINE} strokeWidth={0.5} opacity={0.5} />,
-    );
-  for (let j = 0; j <= model.gridH; j++)
-    gridLines.push(
-      <line key={"h" + j} x1={PAD} y1={PAD + j * cell} x2={PAD + model.gridW * cell} y2={PAD + j * cell} stroke={LINE} strokeWidth={0.5} opacity={0.5} />,
-    );
+  {
+    const i0 = Math.floor((off.x - PAD) / cell);
+    const i1 = Math.ceil((off.x + vbW - PAD) / cell);
+    const j0 = Math.floor((off.y - PAD) / cell);
+    const j1 = Math.ceil((off.y + vbH - PAD) / cell);
+    // Zoomed far out the extended grid would be thousands of lines; past that
+    // it is visual mush anyway, so fall back to ruling the floor only.
+    const tooDense = i1 - i0 > 400 || j1 - j0 > 400;
+    const [a0, a1, b0, b1] = tooDense ? [0, model.gridW, 0, model.gridH] : [i0, i1, j0, j1];
+    const y1 = tooDense ? PAD : off.y;
+    const y2 = tooDense ? PAD + floorH : off.y + vbH;
+    const x1 = tooDense ? PAD : off.x;
+    const x2 = tooDense ? PAD + floorW : off.x + vbW;
+    // Every 5th line is heavier, so distances on the floor can be read off the
+    // grid instead of counted cell by cell.
+    const major = (n: number) => n % 5 === 0;
+    for (let i = a0; i <= a1; i++)
+      gridLines.push(
+        <line key={"v" + i} x1={PAD + i * cell} y1={y1} x2={PAD + i * cell} y2={y2}
+          stroke={LINE} strokeWidth={major(i) ? 1 : 0.5} opacity={major(i) ? 1 : 0.6} />,
+      );
+    for (let j = b0; j <= b1; j++)
+      gridLines.push(
+        <line key={"h" + j} x1={x1} y1={PAD + j * cell} x2={x2} y2={PAD + j * cell}
+          stroke={LINE} strokeWidth={major(j) ? 1 : 0.5} opacity={major(j) ? 1 : 0.6} />,
+      );
+  }
 
   return (
-    <div>
+    <div className="lc">
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
         {interactive && zoom !== 1 ? (
@@ -210,8 +260,10 @@ export function LayoutCanvas(props: Props) {
           </button>
         ) : null}
       </div>
+      <div className="lc__stage" ref={stageRef}>
       <svg
         ref={svgRef}
+        className="lc__svg"
         viewBox={`${off.x} ${off.y} ${vbW} ${vbH}`}
         width={baseW}
         height={baseH}
@@ -226,7 +278,11 @@ export function LayoutCanvas(props: Props) {
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
+        {/* The placeable floor. Now that the grid rules the whole surface this is
+            what tells you where a station can actually go. */}
+        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
         {gridLines}
+        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
 
         {(template ?? []).map((t, i) => (
           <g key={"t" + i}>
@@ -446,6 +502,7 @@ export function LayoutCanvas(props: Props) {
             })
           : null}
       </svg>
+      </div>
     </div>
   );
 }

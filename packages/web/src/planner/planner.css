@@ -11,6 +11,15 @@
   background: var(--cds-background);
 }
 
+/* Editor only. `min-height: 100vh` lets the tallest side panel grow the shell
+   past the window, which pushed the canvas column taller than the viewport and
+   left it unable to size itself to the space actually on screen. */
+.shell--fill {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .shell__steps {
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);

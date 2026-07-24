@@ -331,7 +331,7 @@ export function App() {
   let canvasInner;
   if (view === "actual") {
     canvasInner = (
-      <div>
+      <div className="canvas__stage">
         <LayoutCanvas
           model={model}
           stations={model.stations}
@@ -388,7 +388,7 @@ export function App() {
     );
   } else if (view === "improved") {
     canvasInner = (
-      <div>
+      <div className="canvas__stage">
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
         <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
@@ -401,10 +401,14 @@ export function App() {
       </div>
     );
   } else if (view === "dag") {
-    canvasInner = <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />;
+    canvasInner = (
+      <div className="canvas__stage canvas__stage--scroll">
+        <DagView model={model} chain={api.chain} selId={selId} onSelect={selectAndInspect} criticalPath={rating.balance.criticalPath} />
+      </div>
+    );
   } else {
     canvasInner = (
-      <div className="splitWrap">
+      <div className="canvas__stage splitWrap">
         <LayoutCanvas model={model} stations={model.stations} flows={model.flows} chain={api.chain} selId={selId} label="ACTUAL" badge={TEAL} cell={CELL - 4} onSelect={setSel} />
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL - 4} onSelect={setSel} />
       </div>
@@ -610,7 +614,7 @@ export function App() {
   );
 
   return (
-    <ProcessShell step={step} reached={reached} onGoto={goTo}>
+    <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
       {step === "situation" ? (
         <SituationStep
           hasCell={api.cells.length > 0}

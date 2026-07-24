@@ -273,14 +273,61 @@ main {
   display: flex;
   flex: 1;
   min-width: 0;
+  min-height: 0;
 }
+/* The canvas column is a flex chain down to the SVG so the drawing surface
+   claims every pixel between the two rails, the toolbar and the legend. It used
+   to be a scroll box holding a fixed gridW*cell rectangle, which left dead
+   background to the right and below on any reasonably sized window. */
 .canvas {
   flex: 1 1 auto;
-  padding: var(--sp-06);
-  overflow: auto;
+  padding: var(--sp-05);
+  overflow: hidden;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   /* Darkest layer, so the two rails read as raised panels either side of it. */
   background: var(--cds-background);
+}
+.canvas__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* DAG and the improved-view commentary are content-height, not fill-height. */
+.canvas__stage--scroll {
+  overflow: auto;
+}
+.lc {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.lc__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 12rem;
+  min-width: 0;
+}
+/* Absolute fill means the stage's size comes from the flex chain above rather
+   than from the SVG, so measuring it can't feed back into its own size. */
+.lc__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  /* Darker than the floor rect drawn inside, so the placeable area reads as a
+     shop floor sitting on the surrounding surface. */
+  background: var(--cds-background);
+}
+.splitWrap > .lc {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .side {
   width: 360px;
@@ -290,6 +337,11 @@ main {
   overflow: auto;
   display: flex;
   flex-direction: column;
+  /* Carbon's .cds--visually-hidden labels are absolutely positioned. Without a
+     positioned ancestor here their containing block is the viewport, so they
+     escape this panel's clip and stretch the document — which is what made the
+     whole page scroll behind a shell that is exactly one viewport tall. */
+  position: relative;
 }
 .layoutTitle {
   font-weight: 600;
@@ -566,8 +618,12 @@ input[type="range"] {
 }
 .splitWrap {
   display: flex;
+  /* Explicit: this shares .canvas__stage, which is a column. Both views must sit
+     side by side to be comparable. */
+  flex-direction: row;
   gap: var(--sp-06);
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ---------- tiles & status ---------- */
@@ -757,6 +813,7 @@ code {
   border-right: 1px solid var(--cds-border-strong-01);
   background: var(--cds-layer-01);
   overflow: auto;
+  position: relative;
 }
 .explorer {
   padding: var(--sp-05);
@@ -847,7 +904,10 @@ code {
   background: var(--cds-interactive);
 }
 
-.side.collapsed {
+.side.collapsed,
+/* Without this the collapsed explorer kept its 300px basis and went on stealing
+   that width from the canvas while showing only the vertical rail button. */
+.explorer-side.collapsed {
   width: auto;
   flex: 0 0 auto;
 }
