@@ -13,7 +13,7 @@ import {
   Toggle,
 } from "@carbon/react";
 import { Add, Draw, TrashCan } from "@carbon/icons-react";
-import { Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
+import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { makeStation } from "@flowplan/core/store/reducer";
@@ -59,8 +59,57 @@ const KPI_HELP: Record<string, string> = {
   "Automation coherence": "100 − (auto-islands ÷ links). An auto-island is two automated steps joined by a manual handoff.",
 };
 
+/** Process steps in the cell. Every readout below is derived from these. */
+export function stepCount(api: FlowPlanApi): number {
+  return api.model.stations.filter((s) => s.role === "process").length;
+}
+
+/**
+ * The readout tabs' empty state, plus the action that resolves it.
+ *
+ * An empty cell scores 100/100 grade A on Rating, 100/100 balance, 100% rolled
+ * yield and $0 per part — not because the plan is good but because there is no
+ * plan. Every readout tab therefore checks `stepCount` first and renders this
+ * instead of a fabricated verdict.
+ */
+export function NoSteps({
+  reads,
+  api,
+  setSel,
+  setTab,
+}: {
+  reads: string;
+  api: FlowPlanApi;
+  setSel: (id: string | null) => void;
+  setTab: (t: Tab) => void;
+}) {
+  return (
+    <div className="pad ak-panel">
+      <EmptyState
+        title="Nothing to analyse yet"
+        body={<>This cell has no process steps, so there is no {reads} to report. Add the first step and this tab fills in as you build.</>}
+        action={
+          <Button
+            size="sm"
+            renderIcon={Add}
+            onClick={() => {
+              const ns = makeStation(api.model);
+              api.commit({ type: "ADD_STATION", station: ns });
+              setSel(ns.id);
+              setTab("inspect");
+            }}
+          >
+            Add the first process step
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
 export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
   const r = api.rating;
+  if (stepCount(api) === 0) return <NoSteps reads="rating" api={api} setSel={setSel} setTab={setTab} />;
   const kpis: Array<[string, number | null, number]> = [
     ["Material flow cost", r.actual.flowCost, r.scores.flowCost],
     ["Total travel effort", r.actual.travel, r.scores.travel],
@@ -269,6 +318,7 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
 
 export function BalancePanel({ api, setSel, setTab }: PanelProps) {
   const bal = api.rating.balance;
+  if (stepCount(api) === 0) return <NoSteps reads="line balance" api={api} setSel={setSel} setTab={setTab} />;
   const advice = bottleneckAdvice(bal, api.model.stations);
   const maxRate = bal.maxRate || 1;
   const bottleneck = bal.bottleneck;
@@ -715,6 +765,7 @@ const LINK_TAG: Record<string, "red" | "green" | "blue" | "gray"> = {
 
 export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
   const chain = api.chain;
+  if (stepCount(api) === 0) return <NoSteps reads="automation chaining" api={api} setSel={setSel} setTab={setTab} />;
   return (
     <div className="pad ak-panel">
       <Stack gap={6}>

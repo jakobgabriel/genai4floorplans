@@ -992,6 +992,7 @@ code {
 .ak-metric,
 .ak-row,
 .ak-breakdown,
+.ak-empty,
 .wl-el {
   background: var(--cds-layer-02);
 }
@@ -1003,6 +1004,57 @@ code {
 /* Metric tile: a headline figure in a Carbon Tile. */
 .ak-metric {
   padding: var(--sp-05);
+}
+
+/* Empty state: what a readout tab shows before there is anything to read out. */
+.ak-empty {
+  padding: var(--sp-06) var(--sp-05);
+}
+.ak-empty__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--sp-03);
+}
+.ak-empty__body {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+.ak-empty__action {
+  margin-top: var(--sp-05);
+}
+
+/* Empty canvas: the layout is a blank rectangle until the first step exists, so
+   the call to action lives on the canvas rather than only in the side rail. */
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-04);
+  text-align: center;
+  pointer-events: none;
+  padding: var(--sp-05);
+}
+.canvas-empty__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+.canvas-empty__body {
+  font-size: 0.8125rem;
+  color: var(--cds-text-helper);
+  margin: 0;
+  max-width: 40ch;
+  line-height: 1.4;
+}
+.canvas-empty .cds--btn {
+  pointer-events: auto;
 }
 .ak-metric__label {
   font-size: 0.75rem;

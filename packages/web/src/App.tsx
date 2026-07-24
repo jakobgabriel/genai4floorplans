@@ -6,7 +6,7 @@ import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
 import { openReport } from "./io/report";
-import { cloneStation } from "@flowplan/core/store/reducer";
+import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
 import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
@@ -299,6 +299,30 @@ export function App() {
 
   const improvedModel = { ...model, stations: rating.optimized };
 
+  // An empty layout is an empty grey rectangle, and the only way to add a step
+  // is a button buried in the Flow tab. Put the first action on the canvas the
+  // user is looking at.
+  const emptyCanvas =
+    model.stations.length === 0 ? (
+      <div className="canvas-empty">
+        <p className="canvas-empty__title">This cell is empty</p>
+        <p className="canvas-empty__body">
+          Add process steps to lay them out, connect them and see the rating, balance and cost fill in.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => {
+            const ns = makeStation(model);
+            api.commit({ type: "ADD_STATION", station: ns });
+            setSel(ns.id);
+            setTab("inspect");
+          }}
+        >
+          Add the first process step
+        </Button>
+      </div>
+    ) : null;
+
   // §4: the optimizer's output is a proposal, not a write. Recomputed with the
   // rating; dismissal is cleared whenever a genuinely new one appears.
   const proposal = useMemo(() => makePlacementProposal(model, rating), [model, rating]);
@@ -487,6 +511,7 @@ export function App() {
             </div>
           </div>
           {canvasInner}
+          {emptyCanvas}
           <div className="legend">
             <span>
               role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output

@@ -1,7 +1,7 @@
 import { ClickableTile, NumberInput, Stack, Tag } from "@carbon/react";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
-import type { PanelProps } from "./panels";
+import { NoSteps, stepCount, type PanelProps } from "./panels";
 import { Footnote, MetricTile, SectionLabel } from "./analysisKit";
 
 // Cost & ROI panel. Informational — reuses costAnalysis (which reuses the flow
@@ -13,6 +13,7 @@ const verdictTag = (v: string): "green" | "blue" | "red" => (v === "Automate" ? 
 
 export function CostPanel({ api, setSel, setTab }: PanelProps) {
   const c = costAnalysis(api.model);
+  if (stepCount(api) === 0) return <NoSteps reads="cost" api={api} setSel={setSel} setTab={setTab} />;
   const cc = api.model.costConfig ?? {};
   const cfg = {
     laborCostPerHour: cc.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,

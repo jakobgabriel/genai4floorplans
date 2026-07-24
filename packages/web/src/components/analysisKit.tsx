@@ -135,6 +135,25 @@ export function SectionLabel({ children, help }: { children: ReactNode; help?: s
   );
 }
 
+/**
+ * What a readout tab shows when it has nothing to read out.
+ *
+ * The alternative — rendering the engines' output for an empty cell — is worse
+ * than blank: with no steps there is nothing misplaced and nothing unbalanced,
+ * so every score comes back perfect and the tab confidently reports a blank
+ * plan as an A-grade one. This names the real state and carries the action that
+ * ends it.
+ */
+export function EmptyState({ title, body, action }: { title: string; body: ReactNode; action?: ReactNode }) {
+  return (
+    <Tile className="ak-empty">
+      <h3 className="ak-empty__title">{title}</h3>
+      <p className="ak-empty__body">{body}</p>
+      {action ? <div className="ak-empty__action">{action}</div> : null}
+    </Tile>
+  );
+}
+
 /** Muted explanatory footnote under a section. */
 export function Footnote({ children }: { children: ReactNode }) {
   return <p className="ak-footnote">{children}</p>;
