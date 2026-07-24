@@ -324,6 +324,76 @@
   }
 }
 
+/* ---------- analysis at a glance ----------
+ * The Analysis panel's six stages, in the same order, on the summary. */
+
+.glance {
+  margin-top: var(--cds-spacing-07);
+  padding-top: var(--cds-spacing-06);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+
+.glance__h {
+  font-size: 1.25rem;
+}
+
+.glance__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--cds-spacing-05);
+}
+
+.glance__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-05);
+}
+
+.glance__head {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+}
+
+.glance__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+
+.glance__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.glance__value {
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.25;
+}
+
+/* Carbon's Tag caps its own width, which truncated the one-line reading. */
+.glance__tile .cds--tag {
+  margin: 0;
+  max-width: none;
+}
+
+.glance__q {
+  margin: auto 0 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.34;
+}
+
 /* Inferred-value marker. Everything the tool guessed is labelled, so a guess is
    never mistaken for something the planner supplied. */
 .planner__inferred {

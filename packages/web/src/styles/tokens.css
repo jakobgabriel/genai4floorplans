@@ -334,7 +334,10 @@ main {
   flex: 0 0 360px;
   border-left: 1px solid var(--cds-border-strong-01);
   background: var(--cds-layer-01);
-  overflow: auto;
+  /* The panel below the tabbar owns the scrolling (see `.side > div`). If the
+     rail scrolled too, a sticky header inside the panel would drift off the top
+     of the rail as the rail itself scrolled. */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   /* Carbon's .cds--visually-hidden labels are absolutely positioned. Without a
@@ -475,10 +478,115 @@ svg {
   padding: var(--sp-06) var(--sp-05);
 }
 
+/* ---------- analysis path ----------
+ * The readout is one page read top to bottom, not a set of sibling tabs. The nav
+ * jumps within it instead of swapping its contents, so the numbering is the
+ * order the assessment is meant to be read in. */
+
+.an__nav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  /* Wraps rather than scrolls: a half-visible stage reads as a broken nav, and
+     the whole point is that the six stages are visible as a set. */
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 var(--sp-04);
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.an__nav .chip {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  white-space: nowrap;
+  font-size: 0.75rem;
+  padding: var(--sp-03) var(--sp-03);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--cds-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+.an__nav .chip:hover {
+  color: var(--cds-text-primary);
+}
+.an__nav .chip.on {
+  color: var(--cds-text-primary);
+  border-bottom-color: var(--cds-interactive);
+  font-weight: 600;
+}
+.an__navNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  font-size: 0.625rem;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+.an__nav .chip.on .an__navNum {
+  background: var(--cds-interactive);
+  color: var(--cds-text-on-color);
+}
+
+/* Clears the sticky nav for the scrollIntoView path (the summary tiles jump
+   straight to a stage), which cannot measure the nav's wrapped height. */
+.an__sec {
+  scroll-margin-top: 5rem;
+}
+.an__secHead {
+  margin-bottom: var(--sp-05);
+  padding-bottom: var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.an__secTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-03);
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--cds-text-primary);
+}
+.an__secNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+.an__secQ {
+  margin: var(--sp-02) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.34;
+  color: var(--cds-text-secondary);
+}
+
 /* The rail's scrolling region, below the sticky tabs. */
 .side > .pad,
 .side > div:not(.tabbar) {
   overflow-y: auto;
+  /* Flex items floor at their content height, so without this the panel grew
+     `.side` instead of scrolling inside it — and a sticky header in the panel
+     then scrolled out of view along with the rail. */
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Carbon's .cds--visually-hidden labels are absolutely positioned; they need a
+     containing block here or they escape this clip and stretch the rail. */
+  position: relative;
 }
 
 /* ---------- rating widgets ---------- */

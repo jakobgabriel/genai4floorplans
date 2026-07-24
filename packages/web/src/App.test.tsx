@@ -36,15 +36,31 @@ describe("App", () => {
     expect(screen.getByText("Actual-state rating")).toBeTruthy();
   });
 
-  it("switches between side-panel tabs without error", () => {
+  it("reads the whole analysis as one page, in path order", () => {
+    const { container } = renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    // Analysis is one page: every stage is on screen at once, no tab switching.
+    const heads = [...container.querySelectorAll(".an__secTitle")].map((h) => h.textContent);
+    expect(heads).toEqual([
+      "1Verdict",
+      "2Flow & layout",
+      "3Balance & bottleneck",
+      "4Yield",
+      "5Automation",
+      "6Cost",
+    ]);
+    // Each stage rendered its body, not just its heading.
+    expect(screen.getByText(/Where the cost sits/)).toBeTruthy();
+    expect(screen.getByText(/Throughput per step/)).toBeTruthy();
+    expect(screen.getByText(/Automation chaining/)).toBeTruthy();
+    expect(screen.getByText(/Cost & ROI/)).toBeTruthy();
+  });
+
+  it("switches between side-panel groups without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    // Balance is a sub-tab under the Insights group (active by default).
-    fireEvent.click(screen.getByRole("button", { name: "Balance" }));
-    expect(screen.getByText(/Line balance & bottleneck/)).toBeTruthy();
-    // Automation is its own top-level group button.
-    fireEvent.click(screen.getByRole("button", { name: "Automation" }));
-    expect(screen.getByText(/Automation chaining/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Build" }));
+    expect(screen.getByRole("button", { name: "Configure" })).toBeTruthy();
     // Schema lives behind the "?" help icon.
     fireEvent.click(screen.getByRole("button", { name: "?" }));
     expect(screen.getByText(/Data model/)).toBeTruthy();
@@ -65,7 +81,6 @@ describe("App", () => {
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByText("⊟ DAG"));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Balance" }));
     expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
 
@@ -94,8 +109,9 @@ describe("App", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByText("⊟ DAG"));
-    // click a DAG node to select + open Configure
-    fireEvent.click(screen.getByText("CNC Turning"));
+    // click a DAG node to select + open Configure. The name also appears in the
+    // Analysis page's per-step lists, and the canvas precedes the rail.
+    fireEvent.click(screen.getAllByText("CNC Turning")[0]);
     expect(screen.getByText(/Footprint shape/)).toBeTruthy();
   });
 });

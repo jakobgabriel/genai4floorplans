@@ -34,20 +34,17 @@ import { AiChatPanel } from "./components/AiChatPanel";
 import { ProposalPanel } from "./components/ProposalPanel";
 import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
-import { CostPanel } from "./components/CostPanel";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
 import {
-  AutomationPanel,
-  BalancePanel,
   ConfigurePanel,
   FlowPanel,
-  RatingPanel,
   SchemaPanel,
   type PanelProps,
   type Tab,
 } from "./components/panels";
+import { AnalysisPanel } from "./components/AnalysisPanel";
 import { AMBER, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
@@ -55,13 +52,14 @@ const CELL = 30;
 
 // Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
 // sub-tab row when a group has >1 panel. Schema is reached via the "?" help icon.
-type Group = "insights" | "build" | "automation" | "chat";
+//
+// Reading and building are the only two things done here, so there are only two
+// groups plus the assistant. Analysis used to be four of these buttons — Rating,
+// Balance, Cost, Automation — which left the reader to sequence the assessment
+// themselves; it is now one page read top to bottom.
+type Group = "analysis" | "build" | "chat";
 const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[] }[] = [
-  { id: "insights", label: "Insights", tabs: [
-    { tab: "rating", label: "Rating" },
-    { tab: "balance", label: "Balance" },
-    { tab: "cost", label: "Cost" },
-  ] },
+  { id: "analysis", label: "Analysis", tabs: [{ tab: "analysis", label: "Analysis" }] },
   { id: "build", label: "Build", tabs: [
     // Workload leads: the spec's flow is workload → balancer → stations (§11),
     // so the product-free input comes before the things derived from it.
@@ -69,20 +67,19 @@ const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[
     { tab: "flow", label: "Flow" },
     { tab: "inspect", label: "Configure" },
   ] },
-  { id: "automation", label: "Automation", tabs: [{ tab: "auto", label: "Automation" }] },
   { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "💬 AI Chat" }] },
 ];
 const GROUP_OF: Record<Tab, Group | undefined> = {
-  rating: "insights", balance: "insights", cost: "insights",
+  analysis: "analysis",
   workload: "build", flow: "build", inspect: "build",
-  auto: "automation", chat: "chat", schema: undefined,
+  chat: "chat", schema: undefined,
 };
 
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
   const [view, setView] = useState<View>("actual");
-  const [tab, setTab] = useState<Tab>("rating");
+  const [tab, setTab] = useState<Tab>("analysis");
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
@@ -125,7 +122,7 @@ export function App() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
   // Remember the last sub-tab visited per group, so returning to a group restores it.
-  const lastSubTab = useRef<Record<Group, Tab>>({ insights: "rating", build: "flow", automation: "auto", chat: "chat" });
+  const lastSubTab = useRef<Record<Group, Tab>>({ analysis: "analysis", build: "flow", chat: "chat" });
 
   const { model, rating } = api;
 
@@ -563,13 +560,10 @@ export function App() {
               </div>
             ) : null}
           </div>
-          {tab === "rating" && <RatingPanel {...panelProps} />}
-          {tab === "balance" && <BalancePanel {...panelProps} />}
+          {tab === "analysis" && <AnalysisPanel {...panelProps} />}
           {tab === "workload" && <WorkloadPanel {...panelProps} />}
           {tab === "flow" && <FlowPanel {...panelProps} />}
-          {tab === "auto" && <AutomationPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "cost" && <CostPanel {...panelProps} />}
           {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
           </>
@@ -596,7 +590,7 @@ export function App() {
             loadedCandidate.current = picked.id;
             setSel(null);
             setView("actual");
-            setTab("rating");
+            setTab("analysis");
             toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
@@ -659,7 +653,20 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} useCase={useCase} /> : null}
+      {step === "summary" ? (
+        <SummaryStep
+          picked={picked}
+          useCase={useCase}
+          api={api}
+          // The glance tiles are entry points, not decoration: opening one goes
+          // back to the editor with the Analysis panel scrolled to that stage.
+          onOpenAnalysis={(id) => {
+            setTab("analysis");
+            goTo("refine");
+            requestAnimationFrame(() => document.getElementById("an-" + id)?.scrollIntoView?.({ block: "start" }));
+          }}
+        />
+      ) : null}
 
       {step !== "refine" ? stepNav : null}
 

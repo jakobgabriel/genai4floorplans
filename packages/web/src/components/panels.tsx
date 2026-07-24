@@ -38,7 +38,9 @@ import {
   saveScenario,
 } from "../store/scenarios";
 
-export type Tab = "rating" | "balance" | "flow" | "auto" | "inspect" | "cost" | "chat" | "schema" | "workload";
+// "analysis" is the whole readout — verdict, flow, balance, yield, automation
+// and cost read as one page rather than five sibling tabs.
+export type Tab = "analysis" | "flow" | "inspect" | "chat" | "schema" | "workload";
 
 export interface PanelProps {
   api: FlowPlanApi;
@@ -108,9 +110,9 @@ export function NoSteps({
   );
 }
 
-export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
+/** Stage 1 of the analysis path: the grade, what drove it, and what would move it. */
+export function VerdictSection({ api, setView, setSel, setTab }: PanelProps) {
   const r = api.rating;
-  if (stepCount(api) === 0) return <NoSteps reads="rating" api={api} setSel={setSel} setTab={setTab} />;
   const kpis: Array<[string, number | null, number]> = [
     ["Material flow cost", r.actual.flowCost, r.scores.flowCost],
     ["Total travel effort", r.actual.travel, r.scores.travel],
@@ -121,31 +123,41 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
     ["Automation coherence", null, r.scores.auto],
   ];
   return (
-    <div className="pad ak-panel">
-      <Stack gap={6}>
-        <Tile className="ak-metric">
-          <div className="ak-metric__label">Actual-state rating</div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-05)" }}>
-            <span className="ak-metric__value">
-              {r.composite.toFixed(0)}
-              <span className="ak-metric__unit">/100</span>
-            </span>
-            <Tag type={scoreTag(r.composite)} size="lg">
-              Grade {r.letter}
-            </Tag>
-          </div>
-        </Tile>
+    <Stack gap={6}>
+      <Tile className="ak-metric">
+        <div className="ak-metric__label">Actual-state rating</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-05)" }}>
+          <span className="ak-metric__value">
+            {r.composite.toFixed(0)}
+            <span className="ak-metric__unit">/100</span>
+          </span>
+          <Tag type={scoreTag(r.composite)} size="lg">
+            Grade {r.letter}
+          </Tag>
+        </div>
+      </Tile>
 
-        <Stack gap={4}>
-          {kpis.map(([lbl, val, sc]) => (
-            <KpiMeter key={lbl} label={lbl} score={sc} raw={val != null ? val.toFixed(0) : undefined} help={KPI_HELP[lbl]} />
-          ))}
-        </Stack>
+      <Stack gap={4}>
+        {kpis.map(([lbl, val, sc]) => (
+          <KpiMeter key={lbl} label={lbl} score={sc} raw={val != null ? val.toFixed(0) : undefined} help={KPI_HELP[lbl]} />
+        ))}
+      </Stack>
 
-        <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
+      <ImprovementList api={api} setSel={setSel} setTab={setTab} setView={setView} />
+    </Stack>
+  );
+}
 
-        <Stack gap={4}>
-          <SectionLabel>Where the cost sits</SectionLabel>
+/** Stage 2: where the material cost actually comes from, and how it is weighted. */
+export function FlowCostSection({ api }: { api: FlowPlanApi }) {
+  const r = api.rating;
+  return (
+    <Stack gap={6}>
+      <Stack gap={4}>
+        <SectionLabel>Where the cost sits</SectionLabel>
+        {r.pareto.length === 0 ? (
+          <Footnote>No material flows drawn yet — connect the steps on the canvas and the cost lanes appear here.</Footnote>
+        ) : (
           <Stack gap={3}>
             {r.pareto.slice(0, 5).map((p, i) => (
               <ShareBar
@@ -163,11 +175,11 @@ export function RatingPanel({ api, setView, setSel, setTab }: PanelProps) {
               />
             ))}
           </Stack>
-        </Stack>
-
-        <WeightsEditor api={api} />
+        )}
       </Stack>
-    </div>
+
+      <WeightsEditor api={api} />
+    </Stack>
   );
 }
 
@@ -317,17 +329,14 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
   );
 }
 
-export function BalancePanel({ api, setSel, setTab }: PanelProps) {
+/** Stage 3: what caps the line, and what the cycle time is spent on. */
+export function BalanceSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
   const bal = api.rating.balance;
-  if (stepCount(api) === 0) return <NoSteps reads="line balance" api={api} setSel={setSel} setTab={setTab} />;
   const advice = bottleneckAdvice(bal, api.model.stations);
   const maxRate = bal.maxRate || 1;
   const bottleneck = bal.bottleneck;
   return (
-    <div className="pad ak-panel">
       <Stack gap={6}>
-        <SectionLabel>Line balance &amp; bottleneck</SectionLabel>
-
         <MetricTile
           label="Line output (constrained by bottleneck)"
           value={bal.lineOut.toLocaleString()}
@@ -382,9 +391,7 @@ export function BalancePanel({ api, setSel, setTab }: PanelProps) {
 
         <CycleSection api={api} setSel={setSel} setTab={setTab} />
         <ParallelSection api={api} setSel={setSel} setTab={setTab} />
-        <YieldSection api={api} />
       </Stack>
-    </div>
   );
 }
 
@@ -521,12 +528,12 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
   );
 }
 
-function YieldSection({ api }: { api: FlowPlanApi }) {
+/** Stage 4: how much of what the line starts comes out good. */
+export function YieldSection({ api }: { api: FlowPlanApi }) {
   const y = yieldAnalysis(api.model.stations, api.model.flows);
   const withScrap = y.steps.filter((s) => s.scrapRate > 0);
   return (
     <Stack gap={4}>
-      <SectionLabel>Yield &amp; scrap</SectionLabel>
       <MetricTile
         label="Rolled throughput yield"
         value={`${y.rolledYield}%`}
@@ -842,11 +849,10 @@ const LINK_TAG: Record<string, "red" | "green" | "blue" | "gray"> = {
   mixed: "blue",
 };
 
-export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
+/** Stage 5: which steps could run themselves, and where the chains break. */
+export function AutomationSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
   const chain = api.chain;
-  if (stepCount(api) === 0) return <NoSteps reads="automation chaining" api={api} setSel={setSel} setTab={setTab} />;
   return (
-    <div className="pad ak-panel">
       <Stack gap={6}>
         <Stack gap={4}>
           <SectionLabel>Automation chaining</SectionLabel>
@@ -909,7 +915,6 @@ export function AutomationPanel({ api, setSel, setTab }: PanelProps) {
           </Footnote>
         </Stack>
       </Stack>
-    </div>
   );
 }
 

@@ -23,6 +23,8 @@ import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { COMPLEXITY_LABELS, USE_CASES, type CycleKnowledge, type UseCase, type UseCaseId } from "./usecases";
 import { ConceptTable } from "./ConceptTable";
+import { analysisPath, type AnalysisStepId } from "../components/analysisPath";
+import type { FlowPlanApi } from "../store/useFlowPlan";
 import { money, moneyWhole, num } from "../format";
 
 // Individual stages of the planning process. Each is a plain presentational
@@ -364,12 +366,70 @@ export function ConceptsStep({
 
 // ---- summary --------------------------------------------------------------
 
-export function SummaryStep({ picked, useCase }: { picked: Candidate | null; useCase: UseCase | null }) {
+/**
+ * The six stages of the analysis path as one at-a-glance grid.
+ *
+ * Same order, same figures and same wording as the Analysis page, so the plan is
+ * read the same way whether you are standing in the editor or looking at the
+ * summary. Each tile opens the stage it summarises.
+ */
+function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: AnalysisStepId) => void }) {
+  const path = analysisPath(api);
+  return (
+    <section className="glance">
+      <h3 className="planner__h2 glance__h">How this cell reads</h3>
+      <p className="planner__sub">
+        The same six questions the Analysis panel answers, top to bottom. Open any one to see the working.
+      </p>
+      <div className="glance__grid">
+        {path.map((s, i) => (
+          <ClickableTile key={s.id} className="glance__tile" onClick={() => onOpen?.(s.id)}>
+            <div className="glance__head">
+              <span className="glance__num">{i + 1}</span>
+              <span className="glance__label">{s.label}</span>
+            </div>
+            <div className="glance__value">{s.value}</div>
+            <Tag type={s.tone} size="sm">
+              {s.sub}
+            </Tag>
+            <p className="glance__q">{s.question}</p>
+          </ClickableTile>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function SummaryStep({
+  picked,
+  useCase,
+  api,
+  onOpenAnalysis,
+}: {
+  picked: Candidate | null;
+  useCase: UseCase | null;
+  api: FlowPlanApi;
+  onOpenAnalysis?: (id: AnalysisStepId) => void;
+}) {
+  const hasCell = api.model.stations.some((s) => s.role === "process");
   if (!picked) {
     return (
       <section className="planner">
-        <h2 className="planner__h2">Nothing chosen yet</h2>
-        <p className="planner__sub">Go back to Concepts and pick an option.</p>
+        {hasCell ? (
+          <>
+            <h2 className="planner__h2">{api.model.name}</h2>
+            <p className="planner__sub">
+              This summary reads the cell currently open in the editor. Pick a concept in Concepts to compare it against a
+              costed starting point.
+            </p>
+            <AnalysisGlance api={api} onOpen={onOpenAnalysis} />
+          </>
+        ) : (
+          <>
+            <h2 className="planner__h2">Nothing chosen yet</h2>
+            <p className="planner__sub">Go back to Concepts and pick an option.</p>
+          </>
+        )}
       </section>
     );
   }
@@ -419,6 +479,8 @@ export function SummaryStep({ picked, useCase }: { picked: Candidate | null; use
         title="This is a starting point, not a plan"
         subtitle="Concept costs are planning heuristics and layouts are template placements. Refine the layout before quoting."
       />
+
+      {hasCell ? <AnalysisGlance api={api} onOpen={onOpenAnalysis} /> : null}
 
       {useCase ? <p className="planner__lifecycle">{useCase.lifecycle}</p> : null}
     </section>

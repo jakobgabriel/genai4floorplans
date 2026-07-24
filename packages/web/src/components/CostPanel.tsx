@@ -1,7 +1,8 @@
 import { ClickableTile, NumberInput, Stack, Tag } from "@carbon/react";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
-import { NoSteps, stepCount, type PanelProps } from "./panels";
+import type { Tab } from "./panels";
+import type { FlowPlanApi } from "../store/useFlowPlan";
 import { Footnote, MetricTile, SectionLabel } from "./analysisKit";
 
 // Cost & ROI panel. Informational — reuses costAnalysis (which reuses the flow
@@ -11,9 +12,9 @@ import { Footnote, MetricTile, SectionLabel } from "./analysisKit";
 // Carbon's Tag palette only, no bespoke cost-colour thresholds.
 const verdictTag = (v: string): "green" | "blue" | "red" => (v === "Automate" ? "green" : v === "Consider" ? "blue" : "red");
 
-export function CostPanel({ api, setSel, setTab }: PanelProps) {
+/** Stage 6 of the analysis path: what a part costs, and what automation buys. */
+export function CostSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
   const c = costAnalysis(api.model);
-  if (stepCount(api) === 0) return <NoSteps reads="cost" api={api} setSel={setSel} setTab={setTab} />;
   const cc = api.model.costConfig ?? {};
   const cfg = {
     laborCostPerHour: cc.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,
@@ -28,7 +29,6 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
     </div>
   );
   return (
-    <div className="pad ak-panel">
       <Stack gap={6}>
         <Stack gap={4}>
           <SectionLabel>Cost &amp; ROI</SectionLabel>
@@ -104,6 +104,5 @@ export function CostPanel({ api, setSel, setTab }: PanelProps) {
           </Footnote>
         </Stack>
       </Stack>
-    </div>
   );
 }

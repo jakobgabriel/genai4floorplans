@@ -17,11 +17,10 @@ function loadSample() {
   fireEvent.click(screen.getByText("Start from the sample cell"));
 }
 
-// Balance is a sub-tab of the Insights group; selecting a station switches the
-// side panel to Build/Configure, so the group has to be re-opened first.
+// Balance is stage 3 of the single Analysis page; selecting a station switches
+// the side panel to Build/Configure, so Analysis has to be re-opened first.
 function openBalance() {
-  fireEvent.click(screen.getByRole("button", { name: "Insights" }));
-  fireEvent.click(screen.getByRole("button", { name: "Balance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
@@ -103,7 +102,7 @@ describe("cycle decomposition UI", () => {
     expect(screen.getByText(/75% value-add/)).toBeTruthy();
   });
 
-  it("surfaces the line ratio and waste backlog on the Balance tab", () => {
+  it("surfaces the line ratio and waste backlog in the Balance stage", () => {
     loadSample();
     inspect("Assembly");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
