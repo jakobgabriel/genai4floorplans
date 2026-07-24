@@ -1408,6 +1408,27 @@ button.fk-listrow__main {
   color: var(--cds-text-on-color);
 }
 
+/* ---------- variants (scenarios) ----------
+ * Saving is a toolbar action, so its modal is the one place variants are saved,
+ * loaded and deleted. */
+
+.modal.scn {
+  max-width: 34rem;
+}
+/* `.modal .btn` stretches plain buttons full width for the stacked confirm
+   dialogs; this modal uses Carbon buttons in rows, so the footer aligns them
+   itself rather than inheriting that. */
+.scn__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+/* Saved-at, trailing its variant's name in both the menu and the list. */
+.scn__when {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  margin-left: var(--sp-03);
+}
+
 /* Cycle-breakdown editor tile. */
 .ak-breakdown {
   padding: var(--sp-05);

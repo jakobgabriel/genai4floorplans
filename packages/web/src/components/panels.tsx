@@ -29,14 +29,7 @@ import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
 import { CYCLE_COL, TEXTD } from "./colors";
 import { useToast } from "./ui";
-import { ConfirmDialog } from "./ConfirmDialog";
 import type { CanvasMode } from "./LayoutCanvas";
-import {
-  deleteScenario,
-  listScenarios,
-  loadScenario,
-  saveScenario,
-} from "../store/scenarios";
 
 // "analysis" is the whole readout — verdict, flow, balance, yield, automation
 // and cost read as one page rather than five sibling tabs.
@@ -564,84 +557,6 @@ export function YieldSection({ api }: { api: FlowPlanApi }) {
   );
 }
 
-function ScenarioSection({ api }: { api: FlowPlanApi }) {
-  const { toast } = useToast();
-  const [name, setName] = useState("");
-  const [tick, setTick] = useState(0);
-  // Both scenario actions are unrecoverable: loading resets the store, which
-  // clears past and future, so Ctrl+Z cannot bring the current layout back; and
-  // deleting drops the entry from localStorage outright. Neither was confirmed.
-  const [pending, setPending] = useState<{ kind: "load" | "delete"; name: string } | null>(null);
-  const scenarios = listScenarios();
-  const doLoad = (n: string) => {
-    const m = loadScenario(n);
-    if (m) { api.reset(m); toast("Loaded “" + n + "”"); }
-  };
-  const save = () => {
-    const n = name.trim() || api.model.name || "Variant";
-    saveScenario(n, api.model);
-    setName("");
-    setTick((t) => t + 1);
-    toast("Saved scenario “" + n + "”");
-  };
-  return (
-    <Stack gap={4}>
-      <SectionLabel>Scenarios (compare variants)</SectionLabel>
-      <div className="fk-inline">
-        <TextField id="scenario-name" labelText="Variant name" placeholder="name this variant…" value={name} onChange={setName} />
-        <Button size="sm" kind="secondary" onClick={save}>
-          Save
-        </Button>
-      </div>
-      {scenarios.length === 0 ? (
-        <Footnote>Save the current layout as a named variant to compare alternatives.</Footnote>
-      ) : (
-        <Stack gap={2}>
-          {scenarios.map((s) => (
-            <div key={s.name + tick} className="fk-listrow">
-              <Button
-                kind="ghost"
-                size="sm"
-                className="fk-listrow__main"
-                onClick={() => (api.canUndo ? setPending({ kind: "load", name: s.name }) : doLoad(s.name))}
-              >
-                {s.name}
-              </Button>
-              <Button
-                kind="ghost"
-                className="fk-danger"
-                hasIconOnly
-                size="sm"
-                iconDescription={`Delete ${s.name}`}
-                tooltipPosition="left"
-                renderIcon={TrashCan}
-                onClick={() => setPending({ kind: "delete", name: s.name })}
-              />
-            </div>
-          ))}
-        </Stack>
-      )}
-      {pending ? (
-        <ConfirmDialog
-          title={pending.kind === "load" ? "Replace the current layout?" : "Delete scenario"}
-          message={
-            pending.kind === "load"
-              ? `Loading “${pending.name}” replaces the layout you are working on, and undo history is cleared — this cannot be undone. Save the current layout as a variant first if you want to keep it.`
-              : `Delete the scenario “${pending.name}”? This cannot be undone.`
-          }
-          confirmLabel={pending.kind === "load" ? "Replace" : "Delete"}
-          danger
-          onConfirm={() => {
-            if (pending.kind === "load") doLoad(pending.name);
-            else { deleteScenario(pending.name); setTick((t) => t + 1); toast("Deleted “" + pending.name + "”"); }
-          }}
-          onClose={() => setPending(null)}
-        />
-      ) : null}
-    </Stack>
-  );
-}
-
 function LayoutSettings({ api }: { api: FlowPlanApi }) {
   const m = api.model;
   return (
@@ -837,7 +752,6 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
 
         <LayoutSettings api={api} />
         <NoGoSection api={api} mode={mode} setMode={setMode} />
-        <ScenarioSection api={api} />
       </Stack>
     </div>
   );

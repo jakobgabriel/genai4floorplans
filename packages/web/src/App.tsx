@@ -29,6 +29,7 @@ import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { ScenarioControls } from "./components/ScenarioBar";
 import { StationTooltip } from "./components/StationTooltip";
 import { AiChatPanel } from "./components/AiChatPanel";
 import { ProposalPanel } from "./components/ProposalPanel";
@@ -438,6 +439,8 @@ export function App() {
         <button className="btn sm" onClick={() => navigate("/site")} title="Site overview across all layouts">
           Site
         </button>
+        <span className="hsep" />
+        <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
         <span className="hsep" />
         <button className="btn sm" onClick={api.undo} disabled={!api.canUndo} title="Undo (Ctrl/Cmd+Z)">
           ↺

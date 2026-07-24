@@ -56,6 +56,18 @@ describe("App", () => {
     expect(screen.getByText(/Cost & ROI/)).toBeTruthy();
   });
 
+  it("saves a variant from the toolbar and lists it in the Variants menu", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Start from the sample cell"));
+    // Saving is a toolbar action — reachable without opening any panel.
+    fireEvent.click(screen.getByRole("button", { name: /Save variant/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Variants \(1\)/ }));
+    expect(screen.getByRole("menuitem", { name: /Manage variants/ })).toBeTruthy();
+    expect(screen.getAllByText(/Hydrobuchse/).length).toBeGreaterThan(0);
+  });
+
   it("switches between side-panel groups without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));

@@ -286,13 +286,19 @@
 .editorbar {
   display: flex;
   align-items: center;
+  /* Wraps rather than scrolls horizontally. `overflow-x: auto` computes
+     `overflow-y` to `auto` as well, which clipped every dropdown in this bar —
+     Export, ⋯ and Variants all opened invisibly below its bottom edge. */
+  flex-wrap: wrap;
   gap: var(--cds-spacing-03);
-  padding: 0 var(--cds-spacing-05);
+  padding: var(--cds-spacing-02) var(--cds-spacing-05);
   min-height: 3rem;
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);
-  overflow-x: auto;
   flex: 0 0 auto;
+  /* Above the canvas, so an open menu paints over it. */
+  position: relative;
+  z-index: 5;
 }
 
 .shell__body > main {
