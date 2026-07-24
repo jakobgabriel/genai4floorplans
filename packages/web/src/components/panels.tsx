@@ -12,11 +12,11 @@ import {
   Tile,
   Toggle,
 } from "@carbon/react";
-import { Add, Draw, TrashCan } from "@carbon/icons-react";
+import { Add, Copy, Draw, TrashCan } from "@carbon/icons-react";
 import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
-import { makeStation } from "@flowplan/core/store/reducer";
+import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
 import type { CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
@@ -29,6 +29,7 @@ import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
 import { CYCLE_COL, TEXTD } from "./colors";
 import { useToast } from "./ui";
+import { ConfirmDialog } from "./ConfirmDialog";
 import type { CanvasMode } from "./LayoutCanvas";
 import {
   deleteScenario,
@@ -560,7 +561,15 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [tick, setTick] = useState(0);
+  // Both scenario actions are unrecoverable: loading resets the store, which
+  // clears past and future, so Ctrl+Z cannot bring the current layout back; and
+  // deleting drops the entry from localStorage outright. Neither was confirmed.
+  const [pending, setPending] = useState<{ kind: "load" | "delete"; name: string } | null>(null);
   const scenarios = listScenarios();
+  const doLoad = (n: string) => {
+    const m = loadScenario(n);
+    if (m) { api.reset(m); toast("Loaded “" + n + "”"); }
+  };
   const save = () => {
     const n = name.trim() || api.model.name || "Variant";
     saveScenario(n, api.model);
@@ -587,7 +596,7 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
                 kind="ghost"
                 size="sm"
                 className="fk-listrow__main"
-                onClick={() => { const m = loadScenario(s.name); if (m) { api.reset(m); toast("Loaded “" + s.name + "”"); } }}
+                onClick={() => (api.canUndo ? setPending({ kind: "load", name: s.name }) : doLoad(s.name))}
               >
                 {s.name}
               </Button>
@@ -599,12 +608,29 @@ function ScenarioSection({ api }: { api: FlowPlanApi }) {
                 iconDescription={`Delete ${s.name}`}
                 tooltipPosition="left"
                 renderIcon={TrashCan}
-                onClick={() => { deleteScenario(s.name); setTick((t) => t + 1); }}
+                onClick={() => setPending({ kind: "delete", name: s.name })}
               />
             </div>
           ))}
         </Stack>
       )}
+      {pending ? (
+        <ConfirmDialog
+          title={pending.kind === "load" ? "Replace the current layout?" : "Delete scenario"}
+          message={
+            pending.kind === "load"
+              ? `Loading “${pending.name}” replaces the layout you are working on, and undo history is cleared — this cannot be undone. Save the current layout as a variant first if you want to keep it.`
+              : `Delete the scenario “${pending.name}”? This cannot be undone.`
+          }
+          confirmLabel={pending.kind === "load" ? "Replace" : "Delete"}
+          danger
+          onConfirm={() => {
+            if (pending.kind === "load") doLoad(pending.name);
+            else { deleteScenario(pending.name); setTick((t) => t + 1); toast("Deleted “" + pending.name + "”"); }
+          }}
+          onClose={() => setPending(null)}
+        />
+      ) : null}
     </Stack>
   );
 }
@@ -681,6 +707,58 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
   );
 }
 
+/**
+ * The station the graph already implies should hold a missing I/O role: the one
+ * nothing flows into is the input, the one nothing flows out of is the output.
+ *
+ * "No input area defined" and "No output area defined" are the only validation
+ * errors that arrive without a station id, so they were the only ones rendered
+ * without a "Fix this step" button — the two hardest issues to act on were the
+ * two with no way to act. Suggesting a concrete station turns each into one
+ * click (undoable like any other edit).
+ */
+function roleCandidate(api: FlowPlanApi, role: "input" | "output"): Station | null {
+  const stations = api.model.stations.filter((s) => s.role === "process");
+  if (stations.length === 0) return null;
+  const linked = new Set(api.model.flows.map((f) => (role === "input" ? f.to : f.from)));
+  return stations.find((s) => !linked.has(s.id)) ?? stations[0];
+}
+
+function MissingRoleIssue({
+  api,
+  issue,
+  setSel,
+  setTab,
+}: {
+  api: FlowPlanApi;
+  issue: { sev: string; msg: string };
+  setSel: (id: string | null) => void;
+  setTab: (t: Tab) => void;
+}) {
+  const { toast } = useToast();
+  const role = issue.msg.includes("input area") ? "input" : issue.msg.includes("output area") ? "output" : null;
+  const target = role ? roleCandidate(api, role) : null;
+  const kind = issue.sev === "err" ? "error" : "warning";
+  if (!role || !target) return <InlineNotification kind={kind} lowContrast hideCloseButton title={issue.msg} />;
+  return (
+    <Stack gap={2}>
+      <InlineNotification kind={kind} lowContrast hideCloseButton title={issue.msg} />
+      <Button
+        kind="ghost"
+        size="sm"
+        onClick={() => {
+          api.commit({ type: "UPDATE_STATION", id: target.id, patch: { role } });
+          setSel(target.id);
+          setTab("inspect");
+          toast(`${target.name} is now the ${role} area`);
+        }}
+      >
+        Make “{target.name}” the {role} area
+      </Button>
+    </Stack>
+  );
+}
+
 export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
   const { toast } = useToast();
   const v = api.validation;
@@ -710,7 +788,8 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
                   </Button>
                 </Stack>
               ) : (
-                <InlineNotification key={i} kind={it.sev === "err" ? "error" : "warning"} lowContrast hideCloseButton title={it.msg} />
+                // Coupled to the two id-less messages in the validate engine.
+                <MissingRoleIssue key={i} api={api} issue={it} setSel={setSel} setTab={setTab} />
               ),
             )
           )}
@@ -895,7 +974,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
     return (
       <div className="pad ak-panel">
         <Footnote>
-          Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add a step to create new ones.
+          Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add process step to create new ones.
         </Footnote>
       </div>
     );
@@ -909,14 +988,30 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
       <Stack gap={6}>
         <div className="ak-row__head">
           <SectionLabel>Configure · {s.id}</SectionLabel>
-          <Button
-            kind="danger--tertiary"
-            size="sm"
-            renderIcon={TrashCan}
-            onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}
-          >
-            Delete
-          </Button>
+          <div className="fk-inline">
+            {/* Duplicating a station was reachable only through Ctrl+D, which is
+                advertised nowhere in the UI. */}
+            <Button
+              kind="ghost"
+              size="sm"
+              renderIcon={Copy}
+              onClick={() => {
+                const clone = cloneStation(m, s);
+                api.commit({ type: "ADD_STATION", station: clone });
+                setSel(clone.id);
+              }}
+            >
+              Duplicate
+            </Button>
+            <Button
+              kind="danger--tertiary"
+              size="sm"
+              renderIcon={TrashCan}
+              onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}
+            >
+              Delete
+            </Button>
+          </div>
         </div>
 
         <Stack gap={4}>
@@ -1237,6 +1332,19 @@ function CycleBreakdownEditor({ api, s }: { api: FlowPlanApi; s: Station }) {
   );
 }
 
+// Mirrors the keydown handler in App. These were undiscoverable: the shortcuts
+// were implemented but written down nowhere in the app.
+const SHORTCUTS: Array<[string, string]> = [
+  ["Ctrl/Cmd + Z", "Undo"],
+  ["Ctrl/Cmd + Shift + Z", "Redo"],
+  ["Ctrl/Cmd + D", "Duplicate the selected station"],
+  ["Ctrl/Cmd + C / V", "Copy / paste a station"],
+  ["Delete / Backspace", "Delete the selected station"],
+  ["Arrow keys", "Nudge the selected station one grid unit"],
+  ["Esc", "Clear the selection and leave draw mode"],
+  ["1 / 2 / 3 / 4", "Actual · Improved · Both · DAG view"],
+];
+
 export function SchemaPanel() {
   const tbl = (rows: Array<[string, string, string, number?]>) => (
     <table className="schemaTbl">
@@ -1262,8 +1370,24 @@ export function SchemaPanel() {
     </table>
   );
   return (
-    <div className="pad">
-      <div className="lab" style={{ marginBottom: 8 }}>
+    <div className="pad ak-panel">
+      <Stack gap={3}>
+        <SectionLabel>Keyboard shortcuts</SectionLabel>
+        <Footnote>
+          Every shortcut below has a button somewhere in the UI except the view keys and nudging — this is the only place
+          they are written down.
+        </Footnote>
+        <Stack gap={2}>
+          {SHORTCUTS.map(([keys, what]) => (
+            <div className="ak-shortcut" key={keys}>
+              <kbd className="ak-kbd">{keys}</kbd>
+              <span>{what}</span>
+            </div>
+          ))}
+        </Stack>
+      </Stack>
+
+      <div className="lab" style={{ margin: "20px 0 8px" }}>
         Data model
       </div>
       <div style={{ fontSize: 11.5, color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>

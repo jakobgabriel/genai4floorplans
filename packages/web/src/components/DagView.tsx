@@ -132,7 +132,11 @@ export function DagView({ model, chain, selId, onSelect, criticalPath = [] }: { 
         <span style={{ color: TEALD }}>arrows = material direction</span>
       </div>
       <div className="hint" style={{ borderTop: "1px solid " + LINE, paddingTop: 8 }}>
-        {dag.layers} layer(s) · click a node to configure it.
+        {dag.nodes.length === 0
+          ? "No steps yet — add process steps and connect them to see the flow graph."
+          : model.flows.length === 0
+            ? `${dag.nodes.length} step(s), no connections yet — draw flows from the Build ▸ Flow tab to lay out the graph.`
+            : `${dag.layers} layer(s) · click a node to configure it.`}
       </div>
     </div>
   );

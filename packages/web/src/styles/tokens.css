@@ -1006,6 +1006,29 @@ code {
   padding: var(--sp-05);
 }
 
+/* Keyboard shortcut reference: key cap on the left, prose on the right. */
+.ak-shortcut {
+  display: grid;
+  grid-template-columns: 10.5rem 1fr;
+  align-items: baseline;
+  gap: var(--sp-04);
+  font-size: 0.8125rem;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-02) 0;
+}
+
+.ak-kbd {
+  justify-self: start;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.6875rem;
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+}
+
 /* Empty state: what a readout tab shows before there is anything to read out. */
 .ak-empty {
   padding: var(--sp-06) var(--sp-05);
