@@ -394,7 +394,7 @@ export function App() {
       <div className="canvas__stage">
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
         <div className="u-row u-row--wrap">
-          <span style={{ fontSize: 12, color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
+          <span className="u-caption" style={{ color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
         </div>
         <div className="u-caption">
           {proposal

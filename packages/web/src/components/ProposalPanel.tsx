@@ -27,7 +27,7 @@ export function ProposalPanel({ proposal, model, onAcceptAll, onDismiss }: Propo
   const pct = proposal.flowCostDeltaPct;
 
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8, fontSize: 11.5 }}>
+    <div className="u-row u-row--wrap">
       <span style={{ color: TEXT }}>
         {n} move{n === 1 ? "" : "s"} proposed
       </span>

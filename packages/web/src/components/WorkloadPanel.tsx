@@ -38,7 +38,7 @@ function ConfidenceDot({ c }: { c: Confidence }) {
   return (
     <span
       title={`${c} confidence`}
-      style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: col, marginRight: 5, flex: "0 0 auto" }}
+      className="ak-dot" style={{ background: col }}
     />
   );
 }

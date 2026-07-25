@@ -427,7 +427,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
           <div className="legend">
             {CYCLE_KEYS.map((k) => (
               <span key={k} className="u-row">
-                <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, display: "inline-block" }} />
+                <span className="ak-swatch" style={{ background: CYCLE_COL[k] }} />
                 {CYCLE_LABELS[k]}
               </span>
             ))}
@@ -1313,7 +1313,7 @@ export function SchemaPanel() {
         The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields
         fill with defaults on import, and older files are migrated forward automatically.
       </div>
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div className="u-caption">
         <code>root</code>
       </div>
       {tbl([
@@ -1328,7 +1328,7 @@ export function SchemaPanel() {
         ["flows", "array", "material movements"],
         ["noGoZones", "array", "blocked rects {x,y,w,h}"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div className="u-caption">
         <code>station</code>
       </div>
       {tbl([
@@ -1360,7 +1360,7 @@ export function SchemaPanel() {
         ["utilities", "string[]", "power, air, coolant…"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 11, marginBottom: 6 }}>
+      <div className="u-caption">
         <code>flow</code>
       </div>
       {tbl([

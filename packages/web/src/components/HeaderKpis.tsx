@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { cycleAnalysis } from "@flowplan/core/engine/cycle";
-import { TEXTD, scoreColor } from "./colors";
+import { scoreColor } from "./colors";
 import { money, num } from "../format";
 
 // Always-on headline metrics. The point is that every edit — dragging a
@@ -18,13 +18,13 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
 
   const kpi = (label: string, value: string, color?: string, title?: string) => (
     <div style={{ lineHeight: 1.15 }} title={title}>
-      <div style={{ fontSize: 8.5, color: TEXTD, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: color ?? "var(--text-primary)" }}>{value}</div>
+      <div className="hkpi__label">{label}</div>
+      <div className="hkpi__value" style={color ? { color } : undefined}>{value}</div>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: 16, flexWrap: "wrap" }}>
+    <div className="hkpi">
       {kpi("Grade", String(rating.letter), scoreColor(rating.composite), `Composite ${rating.composite.toFixed(1)}/100`)}
       {kpi("Output", num(rating.balance.lineOut) + "/sh", undefined, "Line output, constrained by the bottleneck")}
       {kpi(

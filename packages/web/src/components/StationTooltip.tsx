@@ -6,7 +6,7 @@ import { AUTO_COL, ERGO_COL } from "./colors";
 export function StationTooltip({ station, x, y, shiftHours }: { station: Station; x: number; y: number; shiftHours: number }) {
   const rate = stationRate(station, shiftHours);
   const row = (k: string, v: string) => (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+    <div className="u-row u-row--between">
       <span className="u-muted">{k}</span>
       <span>{v}</span>
     </div>

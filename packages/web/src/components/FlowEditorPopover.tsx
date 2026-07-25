@@ -37,7 +37,7 @@ export function FlowEditorPopover({
       }}
     >
       <div className="u-row u-row--between">
-        <span style={{ fontSize: 11.5 }}>
+        <span className="u-caption">
           {f.from} → {f.to}
         </span>
         <CloseButton onClick={onClose} />

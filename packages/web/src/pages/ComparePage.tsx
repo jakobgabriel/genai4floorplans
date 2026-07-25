@@ -9,7 +9,7 @@ import { PageHead } from "../components/PageHead";
 import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
 import { BarChart, Stat, type Bar } from "../components/charts";
-import { scoreColor, TEAL, TEXTD } from "../components/colors";
+import { scoreColor, TEAL } from "../components/colors";
 
 // Dedicated full-page scenario comparison: a KPI table (best-in-column),
 // summary stats, and charts across the current layout + all saved scenarios.
@@ -99,7 +99,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
               <tr key={x.name}>
                 <td style={{ color: x.isCurrent ? TEAL : undefined }}>
                   {x.name}
-                  {x.folderId ? <span style={{ color: TEXTD, fontSize: 10 }}> · 🗀 {folderPath(x.folderId)}</span> : null}
+                  {x.folderId ? <span className="u-caption"> · {folderPath(x.folderId)}</span> : null}
                 </td>
                 <td style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</td>
                 {cols.map((c) => {

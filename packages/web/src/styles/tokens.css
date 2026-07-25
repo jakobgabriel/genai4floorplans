@@ -69,6 +69,9 @@
   --text-primary: var(--cds-text-primary);
   --text-muted: var(--cds-text-secondary);
   --accent: var(--cds-interactive);
+  /* Carbon scopes --cds-focus to its theme class, so at :root it is empty and
+     `outline: 2px solid var(--cds-focus)` silently fell back to currentColor. */
+  --focus: var(--cds-focus, #ffffff);
   --danger: var(--cds-button-danger-primary);
 
   /* Data-encoding colours. Chromatic on purpose: they carry *categorical*
@@ -124,10 +127,19 @@ svg text {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 
-/* Carbon focus: a 2px ring, everywhere, no exceptions. */
+/* Focus: a 2px ring, everywhere, no exceptions.
+   `:where()` has zero specificity, so Carbon's own 1px button focus was winning
+   on every Carbon button — which was most of them. This matches its specificity
+   so the ring is the same weight on a Carbon button as on a plain one. */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--cds-focus);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
+}
+.cds--btn.cds--btn:focus-visible,
+.cds--btn.cds--btn:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  box-shadow: none;
 }
 
 button {
@@ -156,6 +168,40 @@ button {
 .logo span {
   color: var(--cds-text-secondary);
   font-weight: 400;
+}
+
+/* Header KPI strip: label over figure, repeated. */
+.hkpi {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.hkpi__label {
+  font-size: var(--type-caption-size);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+}
+.hkpi__value {
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
+}
+
+/* Legend swatches. */
+.ak-swatch {
+  display: inline-block;
+  width: var(--sp-3);
+  height: var(--sp-3);
+  border-radius: var(--radius-none);
+}
+.ak-dot {
+  display: inline-block;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  flex: 0 0 auto;
+  margin-right: var(--sp-1);
+  border-radius: var(--radius-round);
 }
 
 /* ---------- utilities ----------
