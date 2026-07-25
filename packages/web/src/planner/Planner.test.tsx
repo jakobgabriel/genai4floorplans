@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
 
@@ -156,6 +156,22 @@ describe("planner — parts & demand", () => {
     expect(screen.queryByText("10,000")).toBeNull();
     // Peak and program are both the surviving year's 1,000.
     expect(screen.getAllByText("1,000").length).toBe(2);
+  });
+
+  it("builds a routing from the process library instead of typing it", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
+
+    const pick = document.querySelector(".parts__picker") as HTMLElement;
+    fireEvent.click(within(pick).getByRole("button", { name: /Add — Load \/ unload/ }));
+    expect(row(0)[1].value).toBe("Load / unload 15");
+
+    fireEvent.click(within(pick).getByRole("button", { name: /Add — Press/ }));
+    expect(row(0)[1].value).toBe("Load / unload 15 > Press 30");
+
+    fireEvent.click(within(pick).getByRole("button", { name: "Done" }));
+    expect(document.querySelector(".parts__picker")).toBeNull();
   });
 
   it("Back from the first stage returns to the start screen", () => {

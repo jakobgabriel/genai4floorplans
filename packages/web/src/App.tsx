@@ -20,8 +20,10 @@ import { Add, ChartLine, Folders, Help, Redo, SidePanelClose, Undo } from "@carb
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
-import { Explorer } from "./components/Explorer";
+import { SidePanel, useSideTab } from "./components/SidePanel";
 import { Resizer } from "./components/Resizer";
+import { useLibrary } from "./store/library";
+import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/library";
 import { AnalysisPage } from "./pages/AnalysisPage";
 import { AssistantPage } from "./pages/AssistantPage";
 import { ComparePage } from "./pages/ComparePage";
@@ -103,18 +105,24 @@ export function App() {
   const [showReset, setShowReset] = useState(false);
   const [route] = useHashRoute();
   // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
-  const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") === "1");
+  // Shut unless the planner left it open. It overlays the canvas now, so a
+  // drawer that opens itself on arrival is a drawer in the way.
+  const [explorerCollapsed, setExplorerCollapsed] = useState(() => localStorage.getItem("flowplan_explorer_collapsed") !== "0");
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
   useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
   useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
   // Drag-resizable sidebar widths (persisted).
   const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
-  const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 300));
+  const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 320));
   const [configWidth, setConfigWidth] = useState(() => numOr("flowplan_config_w", 360));
   useEffect(() => { localStorage.setItem("flowplan_explorer_w", String(explorerWidth)); }, [explorerWidth]);
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
+  // The process library — what this plant knows how to do. Outlives any one
+  // cell, so it is persisted separately from the workspace.
+  const lib = useLibrary();
+  const [sideTab, setSideTab] = useSideTab();
 
   const { model, rating } = api;
 
@@ -122,6 +130,19 @@ export function App() {
     setSel(id);
     if (id) setTab("inspect");
   }, []);
+
+  // Place a library process on the canvas, carrying its numbers. "Add process
+  // step" used to hand back a blank "New Step" at 30s every time.
+  const addProcessStep = useCallback(
+    (p: LibraryProcess) => {
+      const st = stationFromProcess(api.model, p);
+      api.commit({ type: "ADD_STATION", station: st });
+      setSel(st.id);
+      setTab("inspect");
+      toast(`Added ${p.name} (${p.cycleTimeSec}s)`);
+    },
+    [api, toast],
+  );
 
   // ---- derived planning data ----------------------------------------------
   // The parts are the brief. Everything the generator needs comes out of them:
@@ -266,7 +287,11 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [api, selId, model.stations, showSettings]);
 
-  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode };
+  const openLibrary = useCallback(() => {
+    setExplorerCollapsed(false);
+    setSideTab("processes");
+  }, [setSideTab]);
+  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, openLibrary };
 
   function vBtn(k: View, l: string) {
     return (
@@ -498,21 +523,24 @@ export function App() {
 
   const editorBody = (
       <main>
-        <aside
-          className={"explorer-side" + (explorerCollapsed ? " collapsed" : "")}
-          style={explorerCollapsed ? undefined : { flexBasis: explorerWidth, width: explorerWidth }}
-        >
-          {explorerCollapsed ? (
-            <div className="rail">
-              <Btn size="compact" variant="ghost" className="rail-btn" onClick={() => setExplorerCollapsed(false)}>
-                Workspace
-              </Btn>
-            </div>
-          ) : (
-            <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
-          )}
-        </aside>
-        {explorerCollapsed ? null : <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />}
+        {/* An overlay, not a column. Closed, it takes no width at all — the
+            collapsed state used to leave a vertical rail strip still standing
+            beside the canvas. */}
+        {explorerCollapsed ? null : (
+          <aside className="explorer-side" style={{ width: explorerWidth }}>
+            <SidePanel
+              api={api}
+              lib={lib}
+              tab={sideTab}
+              setTab={setSideTab}
+              onClose={() => setExplorerCollapsed(true)}
+              onUseProcess={addProcessStep}
+            />
+            {/* Inside the drawer, riding its right edge — as a flex sibling it
+                would sit at x=0 now that the drawer floats over the canvas. */}
+            <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />
+          </aside>
+        )}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
@@ -653,7 +681,9 @@ export function App() {
 
   return (
     <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
-      {step === "demand" ? <DemandStep values={demand} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} /> : null}
+      {step === "demand" ? (
+        <DemandStep values={demand} lib={lib} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} />
+      ) : null}
 
       {step === "concepts" ? (
         <ConceptsStep

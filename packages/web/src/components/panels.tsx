@@ -12,7 +12,7 @@ import {
   Tile,
   Toggle,
 } from "@carbon/react";
-import { Add, Copy, Draw, TrashCan } from "@carbon/icons-react";
+import { Add, Catalog, Copy, Draw, TrashCan } from "@carbon/icons-react";
 import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -43,6 +43,38 @@ export interface PanelProps {
   setView: (v: "actual" | "improved" | "split") => void;
   mode: CanvasMode;
   setMode: (m: CanvasMode) => void;
+  /** Open the drawer on the process library. Absent on the full-width pages,
+   *  which have no drawer to open. */
+  openLibrary?: () => void;
+}
+
+/**
+ * Adding a step, the two ways round.
+ *
+ * "Add process step" used to be one button handing back `makeStation` — "New
+ * Step", machine, 30s, one operator — so the first thing anyone did after
+ * adding a step was retype every field. Picking from the library is the
+ * default now; the blank step stays for work the library has no entry for.
+ */
+function AddStepButtons({ api, setSel, setTab, openLibrary }: Pick<PanelProps, "api" | "setSel" | "setTab" | "openLibrary">) {
+  const blank = () => {
+    const ns = makeStation(api.model);
+    api.commit({ type: "ADD_STATION", station: ns });
+    setSel(ns.id);
+    setTab("inspect");
+  };
+  return (
+    <div className="pnl-addstep">
+      {openLibrary ? (
+        <Button kind="secondary" size="sm" renderIcon={Catalog} onClick={openLibrary}>
+          Add from library
+        </Button>
+      ) : null}
+      <Button kind={openLibrary ? "ghost" : "secondary"} size="sm" renderIcon={Add} onClick={blank}>
+        Blank step
+      </Button>
+    </div>
+  );
 }
 
 const KPI_HELP: Record<string, string> = {
@@ -694,7 +726,7 @@ function MissingRoleIssue({
   );
 }
 
-export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
+export function FlowPanel({ api, setSel, setTab, mode, setMode, openLibrary }: PanelProps) {
   const { toast } = useToast();
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
@@ -749,19 +781,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode }: PanelProps) {
           <Footnote>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</Footnote>
         </Stack>
 
-        <Button
-          kind="secondary"
-          size="sm"
-          renderIcon={Add}
-          onClick={() => {
-            const ns = makeStation(api.model);
-            api.commit({ type: "ADD_STATION", station: ns });
-            setSel(ns.id);
-            setTab("inspect");
-          }}
-        >
-          Add process step
-        </Button>
+        <AddStepButtons api={api} setSel={setSel} setTab={setTab} openLibrary={openLibrary} />
 
         <LayoutSettings api={api} />
         <NoGoSection api={api} mode={mode} setMode={setMode} />
@@ -896,7 +916,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
   );
 }
 
-export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
+export function ConfigurePanel({ api, selId, setSel, setTab, openLibrary }: PanelProps) {
   const { toast } = useToast();
   const m = api.model;
   const s = m.stations.find((x) => x.id === selId);
@@ -910,19 +930,7 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
         <EmptyState
           title="No step selected"
           body="Select a step on the layout to configure it."
-          action={
-            <Button
-              size="sm"
-              renderIcon={Add}
-              onClick={() => {
-                const ns = makeStation(api.model);
-                api.commit({ type: "ADD_STATION", station: ns });
-                setSel(ns.id);
-              }}
-            >
-              Add a process step
-            </Button>
-          }
+          action={<AddStepButtons api={api} setSel={setSel} setTab={setTab} openLibrary={openLibrary} />}
         />
       </div>
     );

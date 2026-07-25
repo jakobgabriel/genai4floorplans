@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn, IconBtn } from "./Btn";
-import { Archive, Checkmark, Close, SidePanelClose } from "@carbon/icons-react";
+import { Archive, Checkmark, Close } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
@@ -154,7 +154,9 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
   );
 }
 
-export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: () => void }) {
+// The head — title and close — belongs to the drawer now, since the drawer has
+// two tabs and this is one of them.
+export function Explorer({ api }: { api: FlowPlanApi }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [edit, setEdit] = useState<Edit>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -191,11 +193,7 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
   };
 
   return (
-    <div className="explorer">
-        <div className="explorer-head">
-          <h2 className="explorer-title">Workspace</h2>
-          <IconBtn size="compact" icon={SidePanelClose} label="Collapse sidebar" tooltipPosition="left" onClick={onCollapse} />
-        </div>
+    <div className="explorer-pane">
         <div className="explorer-actions">
           <Btn size="compact" variant="ghost" onClick={() => ctx.startNew(null)}>
             New folder

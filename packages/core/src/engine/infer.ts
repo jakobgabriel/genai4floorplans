@@ -18,6 +18,10 @@ import type { ErgonomicLoad, WasteClass, WorkClass, WorkElement } from "../model
 export interface CapabilityHint {
   /** Capability id the keyword maps to. */
   capabilityId: string;
+  /** What a planner calls it. Names the seeded process-library entry, so the
+   *  catalog behind inference and the catalog a planner picks from stay one
+   *  list rather than two that drift. */
+  label: string;
   category: "join" | "form" | "cut" | "inspect" | "handle" | "mark" | "test" | "transport" | "surface";
   classification: WorkClass;
   wasteClass?: WasteClass;
@@ -37,6 +41,11 @@ export interface CapabilityHint {
 export const CAPABILITY_HINTS: CapabilityHint[] = [
   {
     capabilityId: "cut.machining",
+    // Not "Machining": the keyword list has the operations, not the family, so
+    // a step named "Machining" matches nothing and classifies as unknown. Every
+    // label here has to be a name this catalog can recognise back — see the
+    // round-trip test in model/library.test.ts.
+    label: "CNC machining",
     category: "cut",
     classification: "VA",
     attendedFraction: 0.2,
@@ -46,6 +55,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "form.press",
+    label: "Press",
     category: "form",
     classification: "VA",
     attendedFraction: 0.3,
@@ -55,6 +65,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "join.weld",
+    label: "Weld",
     category: "join",
     classification: "VA",
     attendedFraction: 0.6,
@@ -64,6 +75,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "join.assemble",
+    label: "Assembly",
     category: "join",
     classification: "VA",
     attendedFraction: 1,
@@ -73,6 +85,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "inspect.visual",
+    label: "Visual inspection",
     category: "inspect",
     classification: "NNVA",
     attendedFraction: 1,
@@ -82,6 +95,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "test.function",
+    label: "Function test",
     category: "test",
     classification: "NNVA",
     attendedFraction: 0.4,
@@ -91,6 +105,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "surface.finish",
+    label: "Deburr / clean",
     category: "surface",
     classification: "NNVA",
     attendedFraction: 0.7,
@@ -100,6 +115,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "mark.identify",
+    label: "Marking",
     category: "mark",
     classification: "NNVA",
     attendedFraction: 0.5,
@@ -109,6 +125,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "handle.load",
+    label: "Load / unload",
     category: "handle",
     classification: "NNVA",
     attendedFraction: 1,
@@ -118,6 +135,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "handle.pack",
+    label: "Pack",
     category: "handle",
     classification: "NNVA",
     attendedFraction: 1,
@@ -127,6 +145,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "transport.move",
+    label: "Transport",
     category: "transport",
     classification: "NVA",
     wasteClass: "transport",
@@ -137,6 +156,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "wait.queue",
+    label: "Wait / buffer",
     category: "handle",
     classification: "NVA",
     wasteClass: "waiting",
@@ -150,6 +170,7 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
 /** Fallback when no keyword matches — deliberately unopinionated. */
 export const UNKNOWN_HINT: CapabilityHint = {
   capabilityId: "unknown",
+  label: "Unspecified step",
   category: "handle",
   classification: "VA",
   attendedFraction: 1,

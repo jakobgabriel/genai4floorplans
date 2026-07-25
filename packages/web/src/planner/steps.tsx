@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Button,
   ClickableTile,
@@ -19,7 +19,9 @@ import { CONCEPTS } from "@flowplan/core/engine/concepts";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { ConceptTable } from "./ConceptTable";
-import { Add, Subtract, TrashCan } from "@carbon/icons-react";
+import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
+import { LibraryPanel } from "../components/LibraryPanel";
+import type { LibraryApi } from "../store/library";
 import { Footnote, SectionLabel } from "../components/analysisKit";
 import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import { formatRouting, parseRouting } from "./parseSteps";
@@ -119,9 +121,11 @@ export interface DemandValues {
 
 export function DemandStep({
   values,
+  lib,
   onChange,
 }: {
   values: DemandValues;
+  lib: LibraryApi;
   onChange: (patch: Partial<DemandValues>) => void;
 }) {
   const derived = useMemo(() => derivePortfolio(values.parts), [values.parts]);
@@ -153,6 +157,7 @@ export function DemandStep({
       <PartTable
         parts={values.parts}
         years={values.programYears}
+        lib={lib}
         // Shortening the program drops the years it removes. The derivation
         // reads its length from the longest demand curve, so a retained-but-
         // hidden year would keep counting toward the program volume that
@@ -209,15 +214,21 @@ const MAX_PROGRAM_YEARS = 25;
 function PartTable({
   parts,
   years,
+  lib,
   onYears,
   onChange,
 }: {
   parts: Part[];
   years: number;
+  lib: LibraryApi;
   onYears: (y: number) => void;
   onChange: (p: Part[]) => void;
 }) {
   const derived = useMemo(() => derivePortfolio(parts), [parts]);
+  // Which row is building its routing from the library, if any. Resolved
+  // against the live list so appending a step re-reads the row it just changed.
+  const [pickFor, setPickFor] = useState<string | null>(null);
+  const picking = parts.find((p) => p.id === pickFor) ?? null;
   // No second cap here. The column count used to be `min(years, 10)`, which
   // silently truncated a longer program: you could ask for twelve years, see
   // ten, and have no way to enter demand for the last two.
@@ -302,15 +313,28 @@ function PartTable({
                   />
                 </td>
                 <td>
-                  <TextInput
-                    id={"rt-" + part.id}
-                    labelText="Routing"
-                    hideLabel
-                    size="sm"
-                    placeholder="Load 5 > Press 10 > Weld 20"
-                    value={formatRouting(part.steps)}
-                    onChange={(e) => patch(part.id, { steps: parseRouting(e.target.value) })}
-                  />
+                  <div className="parts__routing">
+                    <TextInput
+                      id={"rt-" + part.id}
+                      labelText="Routing"
+                      hideLabel
+                      size="sm"
+                      placeholder="Load 5 > Press 10 > Weld 20"
+                      value={formatRouting(part.steps)}
+                      onChange={(e) => patch(part.id, { steps: parseRouting(e.target.value) })}
+                    />
+                    {/* Typing a routing from memory is what the library exists
+                        to stop. The field stays — this is the other way in. */}
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      hasIconOnly
+                      renderIcon={Catalog}
+                      iconDescription={`Build ${part.partNumber}'s routing from the library`}
+                      tooltipPosition="left"
+                      onClick={() => setPickFor(pickFor === part.id ? null : part.id)}
+                    />
+                  </div>
                 </td>
                 {Array.from({ length: cols }, (_, y) => (
                   <td key={y}>
@@ -346,6 +370,23 @@ function PartTable({
           Add a part
         </Button>
       </div>
+
+      {picking ? (
+        <div className="parts__picker">
+          <div className="parts__pickerHead">
+            <SectionLabel>Add a step to {picking.partNumber}</SectionLabel>
+            <Button kind="ghost" size="sm" onClick={() => setPickFor(null)}>
+              Done
+            </Button>
+          </div>
+          <LibraryPanel
+            lib={lib}
+            useLabel="Add"
+            onUse={(p) => patch(picking.id, { steps: picking.steps.concat([{ name: p.name, cycleTimeSec: p.cycleTimeSec }]) })}
+          />
+        </div>
+      ) : null}
+
       {derived ? <PortfolioReadout d={derived} /> : null}
       {derived && derived.ignored.length > 0 ? (
         <InlineNotification

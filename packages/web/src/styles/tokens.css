@@ -380,6 +380,8 @@ main {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  /* The containing block for the left drawer, which overlays the canvas. */
+  position: relative;
 }
 /* The canvas column is a flex chain down to the SVG so the drawing surface
    claims every pixel between the two rails, the toolbar and the legend. It used
@@ -1019,16 +1021,58 @@ code {
   gap: 1px;
 }
 
+/* An overlay over the canvas, not a column beside it. As a column it took its
+   width from the drawing surface on every screen, and closing it left a
+   vertical rail strip that still did. The canvas is now full width whenever
+   the drawer is shut, which is most of the time. */
 .explorer-side {
-  width: 300px;
-  flex: 0 0 300px;
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 20;
   border-right: 1px solid var(--cds-border-strong-01);
   background: var(--cds-layer-01);
-  overflow: auto;
-  position: relative;
+  box-shadow: var(--shadow-2, 0 0 12px rgba(0, 0, 0, 0.45));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
+/* The drawer's own resize handle, pinned to its right edge. */
+.explorer-side > .resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+}
+/* The drawer is a column: a fixed head, then the scrolling pane under it, so
+   the tabs stay put while a long library scrolls. */
 .explorer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
   padding: var(--sp-4);
+}
+.explorer-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* Carbon's absolutely-positioned assistive text escapes a scroll container
+     that is not itself a containing block. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* The library does not scroll as a whole — its search box and its footer stay
+   put and only the list between them moves. */
+.lib {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.side-tabs {
+  display: flex;
+  gap: 1px;
 }
 .explorer-title {
   margin: 0;
@@ -1055,6 +1099,123 @@ code {
 .explorer-tree.drop {
   outline: 2px solid var(--cds-focus);
   outline-offset: -2px;
+}
+
+/* ---------- process library ---------- */
+
+.lib__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  margin-top: var(--sp-3);
+}
+.lib__item {
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.lib__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+}
+/* The name is the row's own disclosure, so the whole label is the hit target
+   rather than a chevron the width of a fingernail. */
+.lib__disclose {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: none;
+  border: 0;
+  padding: var(--sp-2) 0;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-size: var(--type-body-size);
+  text-align: left;
+  cursor: pointer;
+}
+.lib__disclose:hover {
+  color: var(--cds-link-primary);
+}
+.lib__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib__sec {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+}
+.lib__edit {
+  padding: 0 0 var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.lib__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--sp-3);
+}
+.lib__editFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.lib__foot {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+.lib__empty {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-body);
+  padding: var(--sp-4) 0;
+}
+
+/* The same list under the parts matrix, for building a routing from it.
+   Inline rather than a pop-over: the table is its own scroll container, and a
+   floating panel anchored to a cell inside it has nowhere safe to sit. */
+.parts__picker {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
+  max-height: 26rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pnl-addstep {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+}
+
+/* The field and its library button share the cell, so the button does not
+   become another column the year headers have to align around. */
+.parts__routing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.parts__routing .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.parts__pickerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 .tree-row,
 .tree-leaf {
@@ -1122,10 +1283,7 @@ code {
   background: var(--cds-interactive);
 }
 
-.side.collapsed,
-/* Without this the collapsed explorer kept its 300px basis and went on stealing
-   that width from the canvas while showing only the vertical rail button. */
-.explorer-side.collapsed {
+.side.collapsed {
   width: auto;
   flex: 0 0 auto;
 }
