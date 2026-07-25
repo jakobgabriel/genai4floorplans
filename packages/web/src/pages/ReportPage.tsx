@@ -12,9 +12,10 @@ import { costAnalysis } from "@flowplan/core/engine/cost";
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { findImprovements } from "@flowplan/core/engine/improve";
-import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
-import type { UseCase } from "../planner/usecases";
+import type { Candidate } from "@flowplan/core/engine/generate";
+import type { PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import type { DemandValues } from "../planner/steps";
+import { formatRouting } from "../planner/parseSteps";
 
 /**
  * The assessment as a document.
@@ -40,16 +41,15 @@ export function ReportPage({
   api,
   picked,
   candidates,
-  useCase,
   demand,
-  briefSteps,
+  portfolio,
 }: {
   api: FlowPlanApi;
   picked: Candidate | null;
   candidates: Candidate[];
-  useCase: UseCase | null;
   demand: DemandValues;
-  briefSteps: ProcessStep[];
+  /** What the parts derive to — null when the cell was built by hand. */
+  portfolio: PortfolioDerivation | null;
 }) {
   const model = api.model;
   const r = api.rating;
@@ -60,7 +60,7 @@ export function ReportPage({
   const process = model.stations.filter((s) => s.role === "process");
   const path = analysisPath(api);
   const improvements = findImprovements(model);
-  const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
+  const perShift = portfolio && demand.annualShifts > 0 ? portfolio.peakVolume / demand.annualShifts : 0;
   const printed = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
   if (process.length === 0) {
@@ -84,7 +84,6 @@ export function ReportPage({
         <div>
           <h2 className="rep__title">{model.name}</h2>
           <p className="rep__meta">
-            {useCase ? useCase.label + " · " : ""}
             {demand.name} · {printed}
           </p>
         </div>
@@ -115,40 +114,63 @@ export function ReportPage({
         ))}
       </div>
 
+      {/* The brief is the part list. A single annual figure used to stand here,
+          but the cell is sized against the busiest year of a portfolio now, so
+          printing one averaged number would not be the number it was sized on. */}
       <Section n="1" title="The brief">
-        {useCase ? <Footnote>{useCase.gives}</Footnote> : null}
         <dl className="rep__facts">
-          <Fact k="Product" v={demand.name} />
-          <Fact k="Annual volume" v={num(demand.annualVolume) + " parts"} />
-          <Fact k="Program" v={demand.programYears + " years"} />
+          <Fact k="Program" v={demand.name} />
+          <Fact k="Sized for" v={portfolio ? num(portfolio.peakVolume) + " parts, year " + portfolio.peakYear : "—"} />
+          <Fact k="Program volume" v={portfolio ? num(portfolio.programVolume) + " parts" : "—"} />
+          <Fact k="Program length" v={demand.programYears + " years"} />
           <Fact k="Shifts / year" v={num(demand.annualShifts)} />
           <Fact k="Shift length" v={demand.shiftHours + " h"} />
           <Fact k="Demand / shift" v={num(perShift) + " parts"} />
         </dl>
-        {briefSteps.length > 0 ? (
+        {portfolio ? (
           <>
-            <SectionLabel>Process steps given ({briefSteps.length})</SectionLabel>
+            <SectionLabel>Parts on this cell ({portfolio.years} program years)</SectionLabel>
             <table className="rep__table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Step</th>
-                  <th className="rep__numCol">Cycle</th>
+                  <th>Part number</th>
+                  <th>Routing</th>
+                  {Array.from({ length: portfolio.years }, (_, y) => (
+                    <th key={y} className="rep__numCol">
+                      Yr {y + 1}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {briefSteps.map((s, i) => (
-                  <tr key={s.name + i}>
-                    <td>{i + 1}</td>
-                    <td>{s.name}</td>
-                    <td className="rep__numCol">{s.cycleTimeSec}s</td>
+                {demand.parts.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.partNumber}</td>
+                    <td>{formatRouting(p.steps)}</td>
+                    {Array.from({ length: portfolio.years }, (_, y) => (
+                      <td key={y} className="rep__numCol">
+                        {num(p.demandByYear[y] ?? 0)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
+                <tr className="rep__rowPick">
+                  <td>Total</td>
+                  <td>
+                    {portfolio.steps.length} steps · {portfolio.modes.length} mix
+                    {portfolio.modes.length === 1 ? "" : "es"}
+                  </td>
+                  {portfolio.totalByYear.map((t, y) => (
+                    <td key={y} className="rep__numCol">
+                      {num(t)}
+                    </td>
+                  ))}
+                </tr>
               </tbody>
             </table>
           </>
         ) : (
-          <Footnote>No process list was entered — the cell below was built by hand rather than from a brief.</Footnote>
+          <Footnote>No parts were listed — the cell below was built by hand rather than from a brief.</Footnote>
         )}
       </Section>
 

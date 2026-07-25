@@ -85,85 +85,27 @@
   max-width: 55ch;
 }
 
-/* ---------- use-case tiles ---------- */
+/* ---------- start screen ---------- */
 
-.planner__grid {
-  row-gap: var(--sp-4);
-  margin-bottom: var(--sp-5);
+/* Centred, because it is the only thing on the page — there is no stepper
+   above it and no canvas beside it. */
+.planner--start {
+  margin-top: 12vh;
 }
 
-.planner__tile {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: var(--sp-5);
-}
-
-.planner__tileHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-3);
-}
-
-.planner__tileHead h3 {
-  font-size: var(--type-section-size);
-  font-weight: 400;
-  line-height: var(--lh-snug);
-  margin: 0;
-}
-
-.planner__q {
-  color: var(--cds-text-primary);
-  font-size: var(--type-body-size);
-  line-height: var(--lh-body);
-  margin: 0 0 var(--sp-4);
-}
-
-.planner__meta {
-  color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  line-height: var(--lh-snug);
-  margin: 0 0 var(--sp-2);
-}
-
-.planner__meta b {
-  color: var(--cds-text-primary);
-  font-weight: 600;
-}
-
-.planner__caveat {
-  color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  line-height: var(--lh-snug);
-  margin: var(--sp-2) 0 0;
-  padding-left: var(--sp-3);
-  border-left: 2px solid var(--cds-support-warning);
-}
-
-.planner__lifecycle {
-  margin: auto 0 0;
-  padding-top: var(--sp-4);
-  color: var(--cds-text-placeholder);
-  text-transform: uppercase;
-  letter-spacing: 0.32px;
-  font-size: var(--type-caption-size);
-}
-
-/* The three direct routes in, above the use-case tiles. */
+/* The ways in, on one row. They were secondary links under five tall use-case
+   tiles; they are the screen now. */
 .planner__escape {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--sp-2);
-  margin-bottom: var(--sp-5);
   padding-bottom: var(--sp-5);
   border-bottom: 1px solid var(--cds-border-subtle-01);
 }
 
-/* Unbuilt cases stay named and stay explained — hiding them would be dishonest
-   — but they are no longer full tiles competing with the ones that work. */
+/* What is not built stays named and stays explained — hiding it would be
+   dishonest — but it is a line, not a tile you can evaluate and click. */
 .planner__later {
   margin-top: var(--sp-5);
   padding-top: var(--sp-4);
@@ -182,6 +124,9 @@
 /* Product mix, on the demand step. */
 .planner__mix {
   margin-top: var(--sp-5);
+  /* The Program fields follow, so the block needs a bottom edge too — without
+     it the section label sat directly on the Add-a-part row. */
+  margin-bottom: var(--sp-6);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--cds-border-subtle-01);
 }

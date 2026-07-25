@@ -29,6 +29,45 @@ export function ProcessShell({ step, reached, onGoto, actions, fill, children }:
   const index = FLOW_STEPS.indexOf(step);
 
   return (
+    <AppFrame actions={actions} fill={fill}>
+      <nav className="shell__steps" aria-label="Planning process">
+        <ProgressIndicator
+          currentIndex={index}
+          spaceEqually
+          onChange={(i: number) => {
+            const target = FLOW_STEPS[i];
+            if (target && reached.includes(target)) onGoto(target);
+          }}
+        >
+          {FLOW_STEPS.map((s) => (
+            <ProgressStep key={s} label={STEP_META[s].label} disabled={!reached.includes(s)} />
+          ))}
+        </ProgressIndicator>
+      </nav>
+
+      <div className="shell__body">{children}</div>
+    </AppFrame>
+  );
+}
+
+/**
+ * The theme, the header and the page background — everything the shell is
+ * apart from the stepper.
+ *
+ * The start screen needs the frame but not the stepper: before you have chosen
+ * to plan something or to open something, there is no stage to be on, and a
+ * progress bar showing four stages you have not entered is a decoration.
+ */
+export function AppFrame({
+  actions,
+  fill,
+  children,
+}: {
+  actions?: ReactNode;
+  fill?: boolean;
+  children: ReactNode;
+}) {
+  return (
     <Theme theme="g100">
       <Header aria-label="FlowPlan">
         <HeaderName href="#" prefix="Flow">
@@ -36,25 +75,7 @@ export function ProcessShell({ step, reached, onGoto, actions, fill, children }:
         </HeaderName>
         <HeaderGlobalBar>{actions}</HeaderGlobalBar>
       </Header>
-
-      <div className={"shell" + (fill ? " shell--fill" : "")}>
-        <nav className="shell__steps" aria-label="Planning process">
-          <ProgressIndicator
-            currentIndex={index}
-            spaceEqually
-            onChange={(i: number) => {
-              const target = FLOW_STEPS[i];
-              if (target && reached.includes(target)) onGoto(target);
-            }}
-          >
-            {FLOW_STEPS.map((s) => (
-              <ProgressStep key={s} label={STEP_META[s].label} disabled={!reached.includes(s)} />
-            ))}
-          </ProgressIndicator>
-        </nav>
-
-        <div className="shell__body">{children}</div>
-      </div>
+      <div className={"shell" + (fill ? " shell--fill" : "")}>{children}</div>
     </Theme>
   );
 }

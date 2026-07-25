@@ -3,7 +3,6 @@ import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
-import { USE_CASES } from "./usecases";
 
 function renderApp() {
   render(
@@ -13,11 +12,23 @@ function renderApp() {
   );
 }
 
-/** Walk the guided flow to the concepts step. */
+/** The inputs of one part row: part number, routing, then one per program year. */
+function row(i: number): HTMLInputElement[] {
+  return [...[...document.querySelectorAll("tbody tr")][i].querySelectorAll("input")] as HTMLInputElement[];
+}
+
+/** Give the seeded row a routing and a demand — the precondition for Continue. */
+function fillFirstPart(routing = "Load 5 > Press 10", year1 = "1000") {
+  const cells = row(0);
+  fireEvent.change(cells[1], { target: { value: routing } });
+  fireEvent.change(cells[2], { target: { value: year1 } });
+}
+
+/** Walk the guided flow from the start screen to the concepts stage. */
 function toConcepts() {
-  fireEvent.click(screen.getByText("Plan a new process"));
-  fireEvent.click(screen.getByRole("button", { name: "Continue" })); // demand
-  fireEvent.click(screen.getByRole("button", { name: "Continue" })); // process
+  fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+  fillFirstPart();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
 beforeEach(() => {
@@ -29,123 +40,100 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("planner — entry", () => {
-  it("opens on the use case question, not on a rating", () => {
+  it("opens on the two things you can do, not on a rating", () => {
     renderApp();
-    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Plan a new cell" })).toBeTruthy();
     expect(screen.queryByText("Actual-state rating")).toBeNull();
-  });
-
-  it("offers every buildable lifecycle case and states what each needs", () => {
-    renderApp();
-    const ready = USE_CASES.filter((u) => u.availability !== "unavailable");
-    ready.forEach((u) => expect(screen.getByText(u.label)).toBeTruthy());
-    expect(screen.getAllByText(/You need:/).length).toBe(ready.length);
-  });
-
-  it("marks unbuilt and partial cases honestly instead of hiding them", () => {
-    renderApp();
-    // Unbuilt cases are named and explained, but are no longer choosable tiles
-    // competing with the ones that work.
-    expect(screen.getByText("Not built yet")).toBeTruthy();
-    USE_CASES.filter((u) => u.availability === "unavailable").forEach((u) =>
-      expect(screen.getByText(u.label)).toBeTruthy(),
-    );
-    expect(screen.getByText("Partial")).toBeTruthy();
-    expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
-  });
-
-  it("asks for the parts on the demand step, before concepts are generated", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    // Single-part by default — listing parts is opt-in, not a form to fill in.
-    expect(screen.getByText("Parts this cell will make")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "List the parts" }));
-    expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
-  });
-
-  it("derives the sizing volume, the program and the mix from the parts", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "List the parts" }));
-
-    // Part 1: presses, ramping to a peak in year 2.
-    fireEvent.change(screen.getByDisplayValue("PN-001"), { target: { value: "A" } });
-    fireEvent.change(screen.getByPlaceholderText(/Load 5/), { target: { value: "Load 5 > Press 10" } });
-    const yearsOf = (row: number) =>
-      [...document.querySelectorAll("tbody tr")][row].querySelectorAll("input");
-    fireEvent.change(yearsOf(0)[2], { target: { value: "1000" } });
-    fireEvent.change(yearsOf(0)[3], { target: { value: "4000" } });
-
-    // Part 2: welds instead — a different work content, so a second mix.
-    fireEvent.click(screen.getByRole("button", { name: "Add a part" }));
-    fireEvent.change(screen.getByDisplayValue("PN-002"), { target: { value: "B" } });
-    const r1 = yearsOf(1);
-    fireEvent.change(r1[1], { target: { value: "Load 5 > Weld 20" } });
-    fireEvent.change(yearsOf(1)[2], { target: { value: "1000" } });
-
-    // Sized against year 2 (4000), not year 1 and not an average.
-    expect(screen.getByText("Sized for")).toBeTruthy();
-    expect(screen.getByText("4,000")).toBeTruthy();
-    // Program counts every part and every year: 1000 + 4000 + 1000.
-    expect(screen.getByText("6,000")).toBeTruthy();
-    // Two distinct routings collapse to two mixes over a three-step union.
-    expect(screen.getByText("Distinct mixes")).toBeTruthy();
+    // No stepper before there is anything to step through.
+    expect(screen.queryByText("Parts & demand")).toBeNull();
   });
 
   it("keeps direct entry points for people who don't want the guided path", () => {
     renderApp();
     expect(screen.getByRole("button", { name: "Open the sample cell" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start blank" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Import a JSON model" })).toBeTruthy();
   });
 
-  it("sends an existing-model case straight to the Refine stage", () => {
+  it("names what is not built instead of offering it as a choice", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Improve a planned cell"));
-    // Skips demand/process/concepts entirely — that case already has a layout.
+    expect(screen.getByText("Not built yet")).toBeTruthy();
+    expect(screen.getByText("Monitor serial production")).toBeTruthy();
+    expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
+  });
+
+  it("opens the sample cell straight into the editor", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
   });
 });
 
+describe("planner — parts & demand", () => {
+  it("asks for the parts first, with one row already there to fill in", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    expect(screen.getByRole("heading", { name: "What does this cell make?" })).toBeTruthy();
+    // The matrix is the input, not an opt-in: a row is present on arrival.
+    expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
+  });
+
+  it("blocks Continue until a part carries both a routing and a demand", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    const cont = () => screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
+    expect(cont().disabled).toBe(true);
+
+    fireEvent.change(row(0)[1], { target: { value: "Load 5 > Press 10" } });
+    expect(cont().disabled).toBe(true); // routing but no demand
+
+    fireEvent.change(row(0)[2], { target: { value: "1000" } });
+    expect(cont().disabled).toBe(false);
+  });
+
+  it("derives the sizing volume, the program and the mix from the parts", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+
+    // Part 1: presses, ramping to a peak in year 2.
+    fireEvent.change(screen.getByDisplayValue("PN-001"), { target: { value: "A" } });
+    fireEvent.change(row(0)[1], { target: { value: "Load 5 > Press 10" } });
+    fireEvent.change(row(0)[2], { target: { value: "1000" } });
+    fireEvent.change(row(0)[3], { target: { value: "4000" } });
+
+    // Part 2: welds instead — a different work content, so a second mix.
+    fireEvent.click(screen.getByRole("button", { name: "Add a part" }));
+    fireEvent.change(screen.getByDisplayValue("PN-002"), { target: { value: "B" } });
+    fireEvent.change(row(1)[1], { target: { value: "Load 5 > Weld 20" } });
+    fireEvent.change(row(1)[2], { target: { value: "1000" } });
+
+    // Sized against year 2 (4000), not year 1 and not an average.
+    expect(screen.getByText("Sized for")).toBeTruthy();
+    expect(screen.getByText("4,000")).toBeTruthy();
+    // Program counts every part and every year: 1000 + 4000 + 1000.
+    expect(screen.getByText("6,000")).toBeTruthy();
+    expect(screen.getByText("Distinct mixes")).toBeTruthy();
+  });
+
+  it("shows the union routing and what was inferred from it, without a Process step", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fillFirstPart("Load 5 > Press 10 > Weld 20");
+    // What the old Process step previewed now reads under the parts that produced it.
+    expect(screen.getByText(/3 steps · 35s total work content/)).toBeTruthy();
+    expect(screen.getByLabelText("Inferred work elements")).toBeTruthy();
+    expect(screen.getByText("Everything but the names was inferred")).toBeTruthy();
+  });
+
+  it("Back from the first stage returns to the start screen", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("button", { name: "Plan a new cell" })).toBeTruthy();
+  });
+});
+
 describe("planner — guided flow", () => {
-  it("asks only demand questions first, and derives takt live", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    expect(screen.getByText("How many, and for how long?")).toBeTruthy();
-    // 250,000 / 460 shifts = 543/shift; 8h shift => 53.0s takt
-    expect(screen.getByText("543/shift")).toBeTruthy();
-    expect(screen.getByText("53.0s")).toBeTruthy();
-    expect(screen.getByText("1,250,000 parts")).toBeTruthy();
-  });
-
-  it("recomputes the derived figures when volume changes", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.change(screen.getByLabelText("Annual volume (good parts)"), { target: { value: "92000" } });
-    expect(screen.getByText("200/shift")).toBeTruthy();
-  });
-
-  it("offers an estimate path when cycle times are unknown", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-    fireEvent.click(screen.getByLabelText("Not yet — estimate from complexity"));
-    expect(screen.getByText("These are estimates")).toBeTruthy();
-    // 5 steps × 35s moderate default
-    expect(screen.getByText(/5 steps · 175s total work content/)).toBeTruthy();
-
-    fireEvent.click(screen.getByLabelText(/Complex —/));
-    expect(screen.getByText(/5 steps · 300s total work content/)).toBeTruthy();
-  });
-
-  it("blocks Continue when there are no steps", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.change(screen.getByLabelText("Process steps"), { target: { value: "" } });
-    expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
   it("ranks concepts by fully loaded cost, showing the capex split", () => {
     renderApp();
     toConcepts();
@@ -183,19 +171,22 @@ describe("planner — guided flow", () => {
     expect(screen.getByText("Loaded cost/part")).toBeTruthy();
   });
 
-  it("Back from the first step returns to the use case picker", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a new process"));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
-  });
-
   it("keeps the stepper available from inside the editor", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
-    fireEvent.click(screen.getByText("Situation"));
-    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
+    fireEvent.click(screen.getByText("Parts & demand"));
+    expect(screen.getByRole("heading", { name: "What does this cell make?" })).toBeTruthy();
+  });
+
+  it("runs in four stages, not six", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
+    ["Parts & demand", "Concepts", "Refine", "Summary"].forEach((s) =>
+      expect(screen.getByText(s)).toBeTruthy(),
+    );
+    expect(screen.queryByText("Situation")).toBeNull();
+    expect(screen.queryByText("Process")).toBeNull();
   });
 });

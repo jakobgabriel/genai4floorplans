@@ -10,12 +10,10 @@ import type { Station } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
-import { ProcessShell } from "./planner/ProcessShell";
-import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
+import { AppFrame, ProcessShell } from "./planner/ProcessShell";
+import { StartScreen, DemandStep, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
-import { parseSteps } from "./planner/parseSteps";
-import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
-import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
 import { Add, ChartLine, Folders, Help, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
@@ -77,19 +75,25 @@ export function App() {
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
   const [proposalDismissed, setProposalDismissed] = useState(false);
   const hadModel = !!localStorage.getItem("flowplan_model");
-  const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : "situation");
-  const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : ["situation"]);
+  // The start screen sits outside the stepper: until you have chosen to plan
+  // something or to open something, there is no stage to be on.
+  const [started, setStarted] = useState(hadModel);
+  const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : FLOW_STEPS[0]);
+  const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : [FLOW_STEPS[0]]);
   const goTo = useCallback((s: FlowStep) => {
+    setStarted(true);
     setStep(s);
     setReached((r) => widen(r, reachedThrough(s)));
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
-  const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8, parts: [] });
-  const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
-  const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
-  const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
-  const [complexity, setComplexity] = useState("moderate");
+  const [demand, setDemand] = useState<DemandValues>({
+    name: "New product",
+    programYears: DEFAULT_PROGRAM_YEARS,
+    annualShifts: 460,
+    shiftHours: 8,
+    // One row so the required table is never an empty frame with an Add button.
+    parts: [{ id: "part-1", partNumber: "PN-001", steps: [], demandByYear: [] }],
+  });
   const [pickedId, setPickedId] = useState<string | null>(null);
   // Which candidate has already been loaded into the workspace, so advancing
   // to Refine twice does not create duplicate cells.
@@ -120,45 +124,32 @@ export function App() {
   }, []);
 
   // ---- derived planning data ----------------------------------------------
-  const briefSteps: CoreStep[] = useMemo(() => {
-    if (knowledge === "known") return parseSteps(paste);
-    const sec = COMPLEXITY_SEC[complexity] ?? 35;
-    return stepNames
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((n) => ({ name: n, cycleTimeSec: sec }));
-  }, [knowledge, paste, stepNames, complexity]);
-
-  // When parts are listed they are the source of truth: the cell is sized
-  // against the busiest year rather than an averaged annual figure, capex is
-  // amortised over every part and every year, and the routing and mix modes are
-  // derived rather than typed. With no parts, the single-product path stands.
+  // The parts are the brief. Everything the generator needs comes out of them:
+  // the cell is sized against the busiest year rather than an averaged annual
+  // figure, capex is amortised over every part and every year, and the routing
+  // and mix modes are derived rather than typed. Null until a part carries both
+  // a routing and demand — which is what the Continue button waits for.
   const portfolio = useMemo(() => derivePortfolio(demand.parts), [demand.parts]);
-  const brief: GenerateBrief = portfolio
-    ? {
-        ...demand,
-        steps: portfolio.steps,
-        annualVolume: portfolio.peakVolume,
-        // programYears is only ever used as `annualVolume x programYears` to
-        // amortise capex, so the real program volume goes in as an equivalent.
-        programYears: portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
-        variantModes: portfolio.modes,
-      }
-    : { ...demand, steps: briefSteps };
-  // Whatever the brief was actually sized against — the portfolio's peak year
-  // when parts are listed, the single annual figure when they are not.
-  const sizingVolume = portfolio ? portfolio.peakVolume : demand.annualVolume;
-  const perShift = demand.annualShifts > 0 ? sizingVolume / demand.annualShifts : 0;
+  const brief: GenerateBrief = {
+    ...demand,
+    steps: portfolio ? portfolio.steps : [],
+    annualVolume: portfolio ? portfolio.peakVolume : 0,
+    // programYears is only ever used as `annualVolume x programYears` to
+    // amortise capex, so the real program volume goes in as an equivalent.
+    programYears:
+      portfolio && portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
+    variantModes: portfolio ? portfolio.modes : undefined,
+  };
+  // What the brief was actually sized against: the portfolio's peak year.
+  const perShift = portfolio && demand.annualShifts > 0 ? portfolio.peakVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
     // The report records which concepts were compared, so it needs them
     // regenerated even when the stepper has moved on to Refine.
     () => (step === "concepts" || step === "summary" || route === "/report" ? rankCandidates(generateCandidates(brief)) : []),
-    [step, route, demand, briefSteps],
+    [step, route, demand],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
-  const useCase = useCaseId ? USE_CASES.find((u) => u.id === useCaseId) ?? null : null;
 
   // ---- flow drawing: pick source then target
   const pickStation = useCallback(
@@ -415,9 +406,8 @@ export function App() {
           // as "taken" — the pre-selected top rank on Concepts does not.
           picked={candidates.find((c) => c.id === loadedCandidate.current) ?? null}
           candidates={candidates}
-          useCase={useCase}
           demand={demand}
-          briefSteps={briefSteps}
+          portfolio={portfolio}
         />
       </div>
     );
@@ -594,10 +584,13 @@ export function App() {
 
   const stepNav = (
     <div className="planner__actions">
+      {/* Back off the first stage returns to the start screen rather than being
+          a dead button — leaving the flow is the only thing "before" it. */}
       <Btn
         variant="secondary"
-        onClick={() => goTo(FLOW_STEPS[Math.max(0, FLOW_STEPS.indexOf(step) - 1)])}
-        disabled={step === "situation"}
+        onClick={() =>
+          step === FLOW_STEPS[0] ? setStarted(false) : goTo(FLOW_STEPS[FLOW_STEPS.indexOf(step) - 1])
+        }
       >
         Back
       </Btn>
@@ -618,8 +611,10 @@ export function App() {
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
         }}
         disabled={
-          (step === "demand" && !(demand.annualVolume > 0)) ||
-          (step === "process" && !portfolio && briefSteps.length === 0) ||
+          // The parts are the precondition, not an optional refinement: without
+          // at least one carrying a routing and a demand there is nothing to
+          // size a concept against.
+          (step === "demand" && !portfolio) ||
           (step === "concepts" && !picked)
         }
       >
@@ -634,38 +629,31 @@ export function App() {
     </div>
   );
 
-  return (
-    <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
-      {step === "situation" ? (
-        <SituationStep
-          // Only when there is work of the user's own to go back to. On a first
-          // run the app seeds the sample, so `cells.length > 0` was always true
-          // and "Skip to the editor" just duplicated "Open the sample cell".
+  // Before anything is opened or planned there is no stage to be on, so the
+  // start screen renders outside the shell — no stepper, no Back/Continue.
+  if (!started) {
+    return (
+      <AppFrame>
+        <StartScreen
+          // Only when there is work of the planner's own to go back to. On a
+          // first run the app seeds the sample, so a `cells.length` test was
+          // always true and just duplicated "Open the sample cell".
           hasCell={hadModel}
-          onSkip={() => goTo("refine")}
-          onPick={(id) => { setUseCaseId(id); const uc = USE_CASES.find((u) => u.id === id); goTo(uc && uc.steps.length > 1 ? "demand" : "refine"); }}
+          onOpen={() => goTo("refine")}
+          onPlan={() => goTo("demand")}
           onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
           onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
           onImport={() => fileRef.current?.click()}
         />
-      ) : null}
+        {/* The editor tree's copy of this input is not mounted here. */}
+        <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={importFile} />
+      </AppFrame>
+    );
+  }
 
+  return (
+    <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
       {step === "demand" ? <DemandStep values={demand} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} /> : null}
-
-      {step === "process" ? (
-        <ProcessStepView
-          knowledge={knowledge}
-          setKnowledge={setKnowledge}
-          paste={paste}
-          setPaste={setPaste}
-          names={stepNames}
-          setNames={setStepNames}
-          complexity={complexity}
-          setComplexity={setComplexity}
-          steps={portfolio ? portfolio.steps : briefSteps}
-          fromParts={!!portfolio}
-        />
-      ) : null}
 
       {step === "concepts" ? (
         <ConceptsStep
@@ -687,7 +675,6 @@ export function App() {
       {step === "summary" ? (
         <SummaryStep
           picked={picked}
-          useCase={useCase}
           api={api}
           // The glance tiles are entry points, not decoration: opening one goes
           // back to the editor with the Analysis panel scrolled to that stage.
