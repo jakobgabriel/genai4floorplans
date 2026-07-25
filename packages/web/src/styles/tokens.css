@@ -2462,3 +2462,74 @@ button.fk-listrow__main {
 .xover__table {
   width: 100%;
 }
+
+/* ---------- decision weights & sensitivity ---------- */
+
+.dw {
+  margin: var(--sp-4) 0;
+  padding: var(--sp-4);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.dw__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.dw__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-4);
+}
+.dw__row .cds--slider__range-label {
+  display: none;
+}
+.planner__weightsBar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.sens__at {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  margin-right: var(--sp-2);
+}
+.rec__inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  max-width: 42rem;
+}
+.rec__take {
+  margin: var(--sp-4) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+/* The weighted score, leading its row. */
+.planner__conceptCell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.planner__score {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  padding: 2px var(--sp-2);
+  text-align: center;
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
+  color: var(--cds-text-primary);
+  background: var(--cds-layer-02);
+  border-left: 2px solid var(--cds-interactive);
+}
+.planner__criteria {
+  color: var(--cds-text-placeholder);
+}

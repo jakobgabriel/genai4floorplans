@@ -1,6 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { CONCEPTS, CONCEPT_KINDS, conceptFit, rankConcepts } from "./concepts";
-import { conceptCrossover, conceptCrossoverRanges, filterCandidates, generateCandidates, rankCandidates, type GenerateBrief } from "./generate";
+import {
+  DECISION_WEIGHTS,
+  conceptCrossover,
+  conceptCrossoverRanges,
+  filterCandidates,
+  generateCandidates,
+  normalizeDecisionWeights,
+  rankByDecision,
+  rankCandidates,
+  scoreCandidates,
+  sensitivity,
+  type GenerateBrief,
+} from "./generate";
 import { validateFlow } from "./validate";
 import { hasCollision } from "./geometry";
 
@@ -252,5 +264,99 @@ describe("conceptCrossoverRanges", () => {
 
   it("returns nothing for a brief with no steps, rather than sweeping an empty cell", () => {
     expect(conceptCrossoverRanges({ ...brief(), steps: [] }, opts)).toEqual([]);
+  });
+});
+
+// The ranking used to be loaded cost per part and nothing else — one defensible
+// objective out of several, never stated, with conceptFit computed and ignored.
+describe("the decision score", () => {
+  const ONLY_COST = { cost: 1, capex: 0, fit: 0, operators: 0, flexibility: 0 };
+
+  it("reproduces the old cost-only ranking exactly when only cost is weighted", () => {
+    const byCost = rankCandidates(generateCandidates(brief()));
+    const byWeights = rankByDecision(generateCandidates(brief()), ONLY_COST);
+    expect(byWeights.map((c) => c.id)).toEqual(byCost.map((c) => c.id));
+  });
+
+  it("moves the winner when the weights move", () => {
+    const cands = generateCandidates(brief());
+    const cheapest = rankByDecision(cands.slice(), ONLY_COST)[0];
+    const leanest = rankByDecision(cands.slice(), { cost: 0, capex: 1, fit: 0, operators: 0, flexibility: 0 })[0];
+    // Lowest cost per part and lowest capital exposure are not the same choice,
+    // which is the entire reason a single-metric sort was the wrong shape.
+    expect(leanest.metrics.capexTotal).toBeLessThanOrEqual(cheapest.metrics.capexTotal);
+  });
+
+  it("makes the viable-volume band count, so editing it changes the order", () => {
+    const cands = generateCandidates(brief());
+    const byFit = rankByDecision(cands.slice(), { cost: 0, capex: 0, fit: 1, operators: 0, flexibility: 0 });
+    expect(byFit[0].metrics.conceptFit).toBeGreaterThanOrEqual(byFit[byFit.length - 1].metrics.conceptFit);
+  });
+
+  it("shows the per-criterion scores, so the number can be argued with", () => {
+    const c = scoreCandidates(generateCandidates(brief()))[0];
+    expect(c.metrics.criteria).toBeTruthy();
+    Object.values(c.metrics.criteria!).forEach((v) => {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
+    });
+    expect(c.metrics.decisionScore).toBeGreaterThanOrEqual(0);
+    expect(c.metrics.decisionScore).toBeLessThanOrEqual(100);
+  });
+
+  it("scores a criterion flat when it cannot separate anything, instead of dividing by zero", () => {
+    const one = generateCandidates(brief()).slice(0, 1);
+    const scored = scoreCandidates(one);
+    expect(Number.isFinite(scored[0].metrics.decisionScore!)).toBe(true);
+    expect(scored[0].metrics.decisionScore).toBe(100);
+  });
+
+  it("normalizes weights and survives all-zero", () => {
+    const n = normalizeDecisionWeights({ cost: 2, capex: 2, fit: 0, operators: 0, flexibility: 0 });
+    expect(n.cost + n.capex + n.fit + n.operators + n.flexibility).toBeCloseTo(1);
+    expect(normalizeDecisionWeights({ cost: 0, capex: 0, fit: 0, operators: 0, flexibility: 0 })).toEqual(DECISION_WEIGHTS);
+  });
+
+  it("keeps candidates that miss demand last whatever the weights", () => {
+    const ranked = rankByDecision(generateCandidates({ ...brief(), annualVolume: 5000000 }));
+    const firstMiss = ranked.findIndex((c) => !c.metrics.meetsDemand);
+    if (firstMiss >= 0) expect(ranked.slice(firstMiss).every((c) => !c.metrics.meetsDemand)).toBe(true);
+  });
+});
+
+// A brief is a set of estimates. Ranking them once says nothing about whether
+// the winner survives being wrong about any single one of them.
+describe("sensitivity", () => {
+  it("varies each factor on its own and reports whether the answer holds", () => {
+    const s = sensitivity(brief());
+    expect(s.rows.map((r) => r.factor)).toEqual([
+      "Annual demand",
+      "Labour rate",
+      "Capex amortisation years",
+      "Shifts per year",
+    ]);
+    expect(s.baseWinner).toBeTruthy();
+    expect(s.flipCount).toBe(s.rows.filter((r) => r.flips).length);
+  });
+
+  it("counts a factor as flipping when either end differs from the base, not just from each other", () => {
+    // Both ends can land on the same concept while the middle sits on another —
+    // lane rounding makes the cost curve non-monotonic — and that is still a
+    // ranking that does not survive being wrong.
+    const s = sensitivity(brief());
+    s.rows.forEach((r) => {
+      const differs = r.lowWinner !== r.highWinner || r.lowWinner !== s.baseWinner || r.highWinner !== s.baseWinner;
+      expect(r.flips).toBe(differs);
+    });
+  });
+
+  it("widens with the spread", () => {
+    const tight = sensitivity(brief(), DECISION_WEIGHTS, 1);
+    // A 1% wobble should not move the answer as much as a 50% one.
+    expect(tight.flipCount).toBeLessThanOrEqual(sensitivity(brief(), DECISION_WEIGHTS, 50).flipCount);
+  });
+
+  it("returns no rows for a brief with no steps", () => {
+    expect(sensitivity({ ...brief(), steps: [] }).rows).toEqual([]);
   });
 });

@@ -31,7 +31,10 @@ export function ConceptTable({
     <StructuredListWrapper selection ariaLabel="Manufacturing concepts" className="planner__table">
       <StructuredListHead>
         <StructuredListRow head>
-          <StructuredListCell head>Concept</StructuredListCell>
+          {/* Six columns, matching the body. A seventh for the score overflowed
+              the list and pushed Notes onto a second header line — the score
+              leads the Concept cell instead. */}
+          <StructuredListCell head>Score · concept</StructuredListCell>
           <StructuredListCell head>Cost / part</StructuredListCell>
           <StructuredListCell head>Capex</StructuredListCell>
           <StructuredListCell head>Operators</StructuredListCell>
@@ -56,9 +59,33 @@ export function ConceptTable({
                 }
               }}
             >
+              {/* The weighted score leads the row rather than taking a column
+                  of its own: a seventh column overflowed the list and pushed
+                  Notes onto a second header line. */}
               <StructuredListCell>
-                <b>{c.conceptLabel}</b>
-                <div className="planner__cellSub">{FORM_LABELS[c.form]} · {m.stations} steps · {m.parallelUnits} units</div>
+                <div className="planner__conceptCell">
+                  {m.decisionScore == null ? null : (
+                    <span
+                      className="planner__score"
+                      title="Weighted score. Criteria: cost · capex · fit · manning · flexibility"
+                    >
+                      {m.decisionScore.toFixed(0)}
+                    </span>
+                  )}
+                  <span>
+                    <b>{c.conceptLabel}</b>
+                    <div className="planner__cellSub">
+                      {FORM_LABELS[c.form]} · {m.stations} steps · {m.parallelUnits} units
+                    </div>
+                    {m.criteria ? (
+                      <div className="planner__cellSub planner__criteria">
+                        cost {Math.round(m.criteria.cost)} · capex {Math.round(m.criteria.capex)} · fit{" "}
+                        {Math.round(m.criteria.fit)} · manning {Math.round(m.criteria.operators)} · flex{" "}
+                        {Math.round(m.criteria.flexibility)}
+                      </div>
+                    ) : null}
+                  </span>
+                </div>
               </StructuredListCell>
               <StructuredListCell>
                 <b>{money(cur, m.loadedCostPerPart)}</b>

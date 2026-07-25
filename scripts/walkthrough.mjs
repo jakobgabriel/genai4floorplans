@@ -180,9 +180,21 @@ async function run() {
   await expect(page.getByRole("heading", { name: "Which concept?" }), "concepts stage");
   await shot("plan-concepts", "Stage 2: every concept × form, ranked by fully loaded cost", { full: true });
 
+  await page.getByRole("button", { name: /What counts as best/ }).click();
+  await expect(page.locator(".dw"), "decision weights editor");
+  await shot("plan-weights", "What 'best' means, as five weights — cost alone reproduces the old ranking");
+  await page.getByRole("button", { name: /Hide the weighting/ }).click();
+
   await page.getByRole("button", { name: /Where does this flip/ }).click();
   await expect(page.locator(".xover__band"), "crossover band");
   await shot("plan-crossover", "Where the winner changes, how close each call is, and where the catalog runs out", {
+    full: true,
+    settle: 600,
+  });
+
+  await page.getByRole("button", { name: /How fragile is this/ }).click();
+  await expect(page.locator(".xover").last(), "sensitivity table");
+  await shot("plan-sensitivity", "Whether the winner survives being wrong about any single input", {
     full: true,
     settle: 600,
   });
@@ -201,9 +213,51 @@ async function run() {
   await shot("refine-layouts", "The drawer overlays the canvas and holds layouts only");
   await page.getByRole("button", { name: "Close the panel" }).click();
 
+  // ---- layout editing, proven rather than assumed ------------------------
+  console.log("\n5b. Editing the layout");
+  // A movable process step. Index 1 in DOM order: [Incoming, ...process, Shipping],
+  // and the I/O areas are fixed so they will not drag. Grabbed and measured by
+  // the SAME index — reading a different node than the one dragged reports a
+  // failure that is the script's, not the app's.
+  const STATION_IX = 1;
+  const movable = page.locator("svg [data-station-id]").nth(STATION_IX);
+  const posOf = () =>
+    page.evaluate((i) => {
+      const el = document.querySelectorAll("svg [data-station-id]")[i];
+      return el ? `${el.getAttribute("data-station-x")},${el.getAttribute("data-station-y")}` : null;
+    }, STATION_IX);
+  const before = await posOf();
+  const box = await movable.boundingBox();
+  if (!box) problems.push("layout: no station to drag");
+  else {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 130, box.y + box.height / 2 + 70, { steps: 14 });
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+  }
+  const after = await posOf();
+  if (before && before === after) problems.push(`layout: dragging a station did not move it (stayed at ${before})`);
+  else console.log(`  station moved ${before} -> ${after}`);
+  await shot("refine-dragged", "A station dragged on the canvas — the layout is still editable by hand");
+
+  // Dragging selects the station, which swings the rail to Element — the form
+  // templates live on Flow.
+  await page.getByRole("tab", { name: "Flow" }).click();
+  await page.getByRole("button", { name: "U-cell", exact: true }).click();
+  await page.waitForTimeout(200);
+  const afterTemplate = await posOf();
+  if (afterTemplate === after) problems.push("layout: applying a cell form did not rearrange the steps");
+  await shot("refine-template", "A cell form re-applied, rearranging the movable steps");
+
   await page.getByRole("button", { name: "Analysis" }).click();
   await expect(page.getByRole("heading", { name: "Analysis" }), "analysis page");
   await shot("analysis", "The whole assessment at full width, in path order", { full: true });
+
+  // ---- the recommender, for the cell that is open ------------------------
+  await page.goto(BASE + "/#/recommend", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Concept recommendations" }), "recommend heading");
+  await shot("recommend", "Concepts for the cell you already have, from the steps on its canvas", { full: true });
 
   await page.goto(BASE + "/#/report", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Assessment report" }), "report page");

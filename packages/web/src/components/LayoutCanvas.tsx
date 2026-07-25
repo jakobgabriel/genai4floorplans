@@ -407,6 +407,12 @@ export function LayoutCanvas(props: Props) {
           return (
             <g
               key={s.id}
+              // Addressable from outside: the walkthrough drags one of these to
+              // prove the layout is still editable by hand, and there was no
+              // stable handle on a station to grab.
+              data-station-id={s.id}
+              data-station-x={s.x}
+              data-station-y={s.y}
               style={{ cursor: mode === "flow" ? "crosshair" : interactive ? (s.fixed ? "not-allowed" : "grab") : "pointer" }}
               onPointerDown={(e) => onStationDown(e, s)}
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}

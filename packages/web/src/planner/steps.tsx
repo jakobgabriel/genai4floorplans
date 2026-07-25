@@ -18,6 +18,10 @@ import {
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
 import { Crossover } from "./Crossover";
+import { Sensitivity } from "./Sensitivity";
+import { DecisionWeightsEditor } from "./DecisionWeights";
+import type { DecisionWeightsApi } from "../store/decisionWeights";
+import { Btn } from "../components/Btn";
 import { ConceptTable } from "./ConceptTable";
 import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
 import { LibraryPicker } from "../components/LibraryPicker";
@@ -594,6 +598,7 @@ export function ConceptsStep({
   perShift,
   peakYear,
   brief,
+  weightsApi,
 }: {
   candidates: Candidate[];
   selectedId: string | null;
@@ -601,9 +606,11 @@ export function ConceptsStep({
   perShift: number;
   /** Set when the volume came from a part portfolio's busiest year. */
   peakYear?: number;
-  /** The brief the candidates came from, for the crossover sweep. */
+  /** The brief the candidates came from, for the crossover and sensitivity sweeps. */
   brief: GenerateBrief;
+  weightsApi: DecisionWeightsApi;
 }) {
+  const [showWeights, setShowWeights] = useState(false);
   return (
     <section className="planner planner--wide">
       <h2 className="planner__h2">Which concept?</h2>
@@ -611,15 +618,31 @@ export function ConceptsStep({
         Sized for {num(perShift)} parts/shift{peakYear ? `, the year-${peakYear} peak` : ""}. Cost per part is fully
         loaded — operating cost plus equipment amortised over the program.
       </p>
+      {/* The ranking is a weighted judgement, not a fact, so the weighting is
+          one click away from the table it produced. */}
+      <div className="planner__weightsBar">
+        <Btn size="compact" variant="ghost" onClick={() => setShowWeights((v) => !v)}>
+          {showWeights ? "Hide the weighting" : "What counts as best"}
+        </Btn>
+        <Footnote>
+          {weightsApi.isDefault
+            ? "Ranked on cost, capital exposure, how well the concept suits the volume, manning and flexibility."
+            : "Ranked on your weighting, not the shipped one."}
+        </Footnote>
+      </div>
+      {showWeights ? <DecisionWeightsEditor api={weightsApi} /> : null}
+
       <ConceptTable candidates={candidates} selectedId={selectedId} onSelect={onSelect} />
-      {/* The table answers "what is cheapest at this volume". Demand is a
-          forecast, so the question after it is always "and where does that
-          change?" */}
+
+      {/* The table answers "what is best at this volume". Demand is a forecast,
+          so the two questions after it are always "where does that change?" and
+          "does it survive being wrong?" */}
       <Crossover
         brief={brief}
         atVolume={brief.annualVolume}
         currency={candidates[0]?.cost.currency ?? "$"}
       />
+      <Sensitivity brief={brief} weights={weightsApi.weights} />
     </section>
   );
 }

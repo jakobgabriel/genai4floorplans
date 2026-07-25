@@ -35,6 +35,7 @@ flowchart TD
     SUMMARY -->|Back to the editor| REFINE
   end
 
+  REFINE --> RECO["Concept recommendations<br/>#/recommend"]:::page
   REFINE --> ANALYSIS[Analysis<br/>#/analysis]:::page
   REFINE --> REPORT[Assessment report<br/>#/report]:::page
   REFINE --> COMPARE[Compare variants<br/>#/compare]:::page
@@ -46,6 +47,7 @@ flowchart TD
 
   LIB -.->|steps feed routings and stations| DEMAND
   CON -.->|profiles the sweep ranks| CONCEPTS
+  CON -.->|and the same sweep, for the open cell| RECO
 
   classDef entry fill:#0f62fe,stroke:#0f62fe,color:#fff
   classDef stage fill:#262626,stroke:#8d8d8d,color:#f4f4f4
@@ -96,7 +98,7 @@ flowchart TD
     TOPO --> SCORE[buildRating + costAnalysis]
   end
 
-  SCORE --> RANK[rankCandidates<br/>by loaded cost per part]
+  SCORE --> RANK["rankByDecision<br/>weighted, not cost alone"]
   RANK --> PICK([The concept you choose])
   PICK --> MODEL[(Model — the cell)]
 
@@ -197,10 +199,13 @@ Worth being precise, because it looks like more than it is.
 ```mermaid
 flowchart LR
   B[Brief] --> S["generateCandidates<br/>every concept × every form<br/>~11 candidates, exhaustive"]
-  S --> R["rankCandidates<br/>sorted on ONE metric"]
-  R --> W([Winner])
+  S --> R["rankByDecision<br/>weighted across five criteria"]
+  R --> W(["Winner"])
   S --> X["conceptCrossoverRanges<br/>the same sweep across a volume range"]
   X --> SEG[Where the winner changes<br/>+ margin over the runner-up]
+  S --> SN["sensitivity<br/>each input varied on its own"]
+  SN --> FR[Does the winner survive<br/>being wrong about one thing?]
+  W2["DecisionWeights<br/>cost · capex · fit · manning · flex"] --> R
 ```
 
 **It is fully deterministic, and that is deliberate.** The candidate space is
@@ -210,15 +215,33 @@ always gives the same ranking. A search algorithm here would be slower,
 non-reproducible, and could not find anything enumeration misses — so
 "make the recommendation dynamic" should not mean making the *search* dynamic.
 
-**What it is not:**
+**What decides the order.** Five criteria, each min-max normalised across the
+candidate set and combined by weights you can see and move
+(`DecisionWeights`, editable on the Concepts stage and the recommender):
+
+| Criterion | Default | Reads |
+|---|---|---|
+| Cost per part | 50% | `loadedCostPerPart` — operating plus amortised capex |
+| Capital exposure | 15% | `capexTotal` |
+| Suits the volume | 20% | `conceptFit` against the band you set on the Concepts page |
+| Manning | 10% | operators |
+| Flexibility | 5% | total changeover minutes across the line |
+
+Put everything on cost per part and the order is exactly what this tool gave
+before the weights existed — there is a test asserting that. Candidates that
+cannot make the demand still sort last whatever the weighting.
+
+**What it is still not:**
 
 | | |
 |---|---|
-| Single objective | `rankCandidates` sorts on `loadedCostPerPart` and nothing else passes a different key. Capex exposure, flexibility, ramp-up risk and ergonomics are computed and displayed but do not enter the order. |
-| `conceptFit` does not rank | The viable-volume band you can edit on the Concepts page drives the "Off-volume" tag and a line of rationale. It is **not** in the sort. Widening a band changes the labels, not the winner. |
 | No learning | Nothing feeds back from built cells. That needs the monitoring app, which is not built. |
+| One-at-a-time sensitivity | Each factor is varied alone. Interactions between them need a design of experiments. |
+| No mix uncertainty | Demand, labour rate, program length and shift pattern are swept; what happens if the part mix itself changes is not. |
 
-**What answers "how confident is this":** the crossover. One demand figure in
+**What answers "how confident is this":** two things.
+
+**The crossover.** One demand figure in
 and one ranking out is the wrong shape for an RFQ, where demand is a forecast.
 `conceptCrossoverRanges` re-runs the whole sweep across the volume axis, bisects
 each boundary, and reports three things the ranked table cannot:
@@ -229,6 +252,14 @@ each boundary, and reports three things the ranked table cannot:
   single ranked list hides that entirely;
 - where the catalog runs out — above some volume nothing makes the demand on one
   line, which is a finding rather than an empty result.
+
+**Sensitivity.** Demand, labour rate, program length and shift pattern each
+varied ±30% on their own, reporting whether the winning concept survives. A
+factor counts as changing the answer when *either* end differs from the base,
+not only when the two ends differ from each other — lane rounding makes the cost
+curve step rather than slope, so both ends can land on the same concept while
+the middle sits on another. When every factor flips, the ranking is not a
+recommendation and the page says so.
 
 ---
 
@@ -286,5 +317,5 @@ outlive any one layout, and resetting to the sample does not touch them.
 | Batch / WIP costing | Not built. The Workshop form has the layout consequences of batch transfer; the WIP and lead time it buys are uncosted, so its real penalty is understated. |
 | Per-team catalogs | Not built. Both catalogs are per-browser localStorage, not stored on `Team`. |
 | Pattern library (spec §30–35) | Not built. |
-| Multi-criteria ranking | Not built. The order is loaded cost per part alone — see §5. |
-| Sensitivity / what-if | Only across volume, via the crossover. Labour rate, program length and mix uncertainty are not swept. |
+| Mix-uncertainty sensitivity | Not built. Demand, labour rate, program length and shifts are swept; a change in the part mix itself is not. |
+| Interaction effects | Not built. Sensitivity varies one factor at a time. |

@@ -13,11 +13,11 @@ import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 import { AppFrame, ProcessShell } from "./planner/ProcessShell";
 import { StartScreen, DemandStep, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
-import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief } from "@flowplan/core/engine/generate";
+import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankByDecision, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
-import { Add, ChartLine, Close, Folders, Help, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Add, ChartLine, Close, Folders, Help, Idea, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
@@ -27,6 +27,8 @@ import { useLibrary } from "./store/library";
 import { LibraryPage } from "./pages/LibraryPage";
 import { ConceptsPage } from "./pages/ConceptsPage";
 import { useConcepts } from "./store/concepts";
+import { useDecisionWeights } from "./store/decisionWeights";
+import { RecommendPage } from "./pages/RecommendPage";
 import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/library";
 import { AnalysisPage } from "./pages/AnalysisPage";
 import { AssistantPage } from "./pages/AssistantPage";
@@ -129,6 +131,9 @@ export function App() {
   // The concept catalog the sweep ranks against — the planner's, if they have
   // edited it, rather than the archetypes the app ships with.
   const conceptApi = useConcepts();
+  // What "best" means when ranking concepts. The order used to be loaded cost
+  // per part and nothing else, stated nowhere.
+  const weightsApi = useDecisionWeights();
 
   const { model, rating } = api;
 
@@ -174,8 +179,11 @@ export function App() {
   const candidates = useMemo(
     // The report records which concepts were compared, so it needs them
     // regenerated even when the stepper has moved on to Refine.
-    () => (step === "concepts" || step === "summary" || route === "/report" ? rankCandidates(generateCandidates(brief)) : []),
-    [step, route, demand, conceptApi.concepts],
+    () =>
+      step === "concepts" || step === "summary" || route === "/report"
+        ? rankByDecision(generateCandidates(brief), weightsApi.weights)
+        : [],
+    [step, route, demand, conceptApi.concepts, weightsApi.weights],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
 
@@ -450,6 +458,14 @@ export function App() {
   // door, and useful with no cell open at all.
   if (route === "/library") return <div className="wrap"><LibraryPage lib={lib} /></div>;
   if (route === "/concepts") return <div className="wrap"><ConceptsPage api={conceptApi} /></div>;
+  // Concepts for the cell that is actually open, rather than only on the way
+  // past in the planning flow.
+  if (route === "/recommend")
+    return (
+      <div className="wrap">
+        <RecommendPage api={api} concepts={conceptApi.concepts} weightsApi={weightsApi} />
+      </div>
+    );
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -481,6 +497,11 @@ export function App() {
       {/* Analysis and the assistant left the rail; they are reachable here. */}
       <Btn size="compact" icon={ChartLine} onClick={() => navigate("/analysis")} title="The full assessment">
         Analysis
+      </Btn>
+      {/* Not "Concepts" — the stepper already has a stage by that name, and
+          this is the verb, not the stage. */}
+      <Btn size="compact" icon={Idea} onClick={() => navigate("/recommend")} title="Concepts for this cell's work content">
+        Recommend
       </Btn>
       <span className="hsep" />
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
@@ -710,6 +731,7 @@ export function App() {
           perShift={perShift}
           peakYear={portfolio?.peakYear}
           brief={brief}
+          weightsApi={weightsApi}
         />
       ) : null}
 

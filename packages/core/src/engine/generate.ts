@@ -77,6 +77,10 @@ export interface CandidateMetrics {
   /** 0–100 suitability of the concept for this annual volume. */
   conceptFit: number;
   valueAddPct: number;
+  /** Weighted 0–100 score across every criterion. Set by `scoreCandidates`. */
+  decisionScore?: number;
+  /** The per-criterion 0–100 scores that made it, so the number can be argued with. */
+  criteria?: { cost: number; capex: number; fit: number; operators: number; flexibility: number };
 }
 
 export interface Candidate {
@@ -93,7 +97,15 @@ export interface Candidate {
   rationale: string;
 }
 
-export type RankBy = "loadedCostPerPart" | "composite" | "costPerPart" | "capexTotal" | "lineOut" | "operators" | "conceptFit";
+export type RankBy =
+  | "loadedCostPerPart"
+  | "composite"
+  | "costPerPart"
+  | "capexTotal"
+  | "lineOut"
+  | "operators"
+  | "conceptFit"
+  | "decisionScore";
 
 const MINIMIZE: RankBy[] = ["loadedCostPerPart", "costPerPart", "capexTotal", "operators"];
 
@@ -326,8 +338,10 @@ export function rankCandidates(candidates: Candidate[], by: RankBy = "loadedCost
   return candidates.slice().sort((a, b) => {
     // Candidates that cannot make the demand always sort last, whatever the metric.
     if (a.metrics.meetsDemand !== b.metrics.meetsDemand) return a.metrics.meetsDemand ? -1 : 1;
-    const av = a.metrics[by];
-    const bv = b.metrics[by];
+    // decisionScore is only present once scoreCandidates has run; ranking by it
+    // beforehand sorts on nothing rather than throwing.
+    const av = a.metrics[by] ?? 0;
+    const bv = b.metrics[by] ?? 0;
     if (av === bv) return a.id.localeCompare(b.id); // stable, deterministic
     return min ? av - bv : bv - av;
   });
@@ -491,4 +505,227 @@ export function conceptCrossoverRanges(brief: GenerateBrief, opts: CrossoverOpti
     });
   }
   return segs;
+}
+
+// ---------------------------------------------------------------------------
+// The decision score
+// ---------------------------------------------------------------------------
+
+/**
+ * How much each criterion matters when ranking concepts.
+ *
+ * The ranking used to be `loadedCostPerPart` and nothing else. That is one
+ * defensible objective out of several and it was never stated: capex exposure,
+ * how well the concept suits the volume, manning and changeover burden were all
+ * computed, all displayed, and none of them touched the order. A transfer line
+ * could win on cost per part and be the wrong decision at that volume with that
+ * mix uncertainty, and the tool would not say so.
+ *
+ * Weights are the fix, not a different hardcoded objective: the criteria are
+ * named, the numbers are yours, and the winner changes when you change them.
+ * Set everything but `cost` to zero and you get the old behaviour exactly.
+ */
+export interface DecisionWeights {
+  /** Loaded cost per part. Lower is better. */
+  cost: number;
+  /** Total capital exposure. Lower is better. */
+  capex: number;
+  /** How well the concept suits the annual volume — its viable band. */
+  fit: number;
+  /** Operators required. Lower is better. */
+  operators: number;
+  /** Changeover burden across the line. Lower is better — a proxy for how
+   *  cheaply the cell copes with a mix it was not planned for. */
+  flexibility: number;
+}
+
+export const DECISION_WEIGHTS: DecisionWeights = {
+  cost: 0.5,
+  capex: 0.15,
+  fit: 0.2,
+  operators: 0.1,
+  flexibility: 0.05,
+};
+
+/** Normalize to sum 1, so a UI can let the sliders go anywhere. */
+export function normalizeDecisionWeights(w: DecisionWeights): DecisionWeights {
+  const sum = w.cost + w.capex + w.fit + w.operators + w.flexibility;
+  if (!(sum > 0)) return { ...DECISION_WEIGHTS };
+  return {
+    cost: w.cost / sum,
+    capex: w.capex / sum,
+    fit: w.fit / sum,
+    operators: w.operators / sum,
+    flexibility: w.flexibility / sum,
+  };
+}
+
+/** Total changeover minutes across a candidate's process steps. */
+function changeoverBurden(c: Candidate): number {
+  return c.model.stations.filter((s) => s.role === "process").reduce((a, s) => a + (s.changeoverMin ?? 0), 0);
+}
+
+/**
+ * Score every candidate 0–100 against the weights, in place.
+ *
+ * Each criterion is min-max normalised across the candidate set, so the scores
+ * say "best of what is on offer here" rather than pretending to an absolute
+ * scale. A criterion where every candidate is identical contributes nothing
+ * rather than dividing by zero.
+ */
+export function scoreCandidates(candidates: Candidate[], weights: DecisionWeights = DECISION_WEIGHTS): Candidate[] {
+  if (candidates.length === 0) return candidates;
+  const w = normalizeDecisionWeights(weights);
+
+  const raw = candidates.map((c) => ({
+    cost: c.metrics.loadedCostPerPart,
+    capex: c.metrics.capexTotal,
+    fit: c.metrics.conceptFit,
+    operators: c.metrics.operators,
+    flexibility: changeoverBurden(c),
+  }));
+
+  const norm = (key: keyof DecisionWeights, lowerIsBetter: boolean) => {
+    const vals = raw.map((r) => r[key]);
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    // Everything equal ⇒ the criterion cannot separate anything. Score it flat
+    // rather than 0 or NaN, so it neither rewards nor punishes.
+    if (!(hi > lo)) return vals.map(() => 100);
+    return vals.map((v) => ((lowerIsBetter ? hi - v : v - lo) / (hi - lo)) * 100);
+  };
+
+  const parts = {
+    cost: norm("cost", true),
+    capex: norm("capex", true),
+    fit: norm("fit", false),
+    operators: norm("operators", true),
+    flexibility: norm("flexibility", true),
+  };
+
+  candidates.forEach((c, i) => {
+    c.metrics.decisionScore = +(
+      parts.cost[i] * w.cost +
+      parts.capex[i] * w.capex +
+      parts.fit[i] * w.fit +
+      parts.operators[i] * w.operators +
+      parts.flexibility[i] * w.flexibility
+    ).toFixed(1);
+    c.metrics.criteria = {
+      cost: +parts.cost[i].toFixed(1),
+      capex: +parts.capex[i].toFixed(1),
+      fit: +parts.fit[i].toFixed(1),
+      operators: +parts.operators[i].toFixed(1),
+      flexibility: +parts.flexibility[i].toFixed(1),
+    };
+  });
+  return candidates;
+}
+
+/** Score, then rank by the weighted decision score. */
+export function rankByDecision(candidates: Candidate[], weights: DecisionWeights = DECISION_WEIGHTS): Candidate[] {
+  return rankCandidates(scoreCandidates(candidates, weights), "decisionScore");
+}
+
+// ---------------------------------------------------------------------------
+// Sensitivity
+// ---------------------------------------------------------------------------
+
+export interface SensitivityRow {
+  /** What was varied. */
+  factor: string;
+  /** Human-readable low and high settings. */
+  lowLabel: string;
+  highLabel: string;
+  lowWinner: string;
+  highWinner: string;
+  /** True when the winning concept is not the same at both ends. */
+  flips: boolean;
+}
+
+export interface SensitivityResult {
+  /** The winner at the brief as entered. */
+  baseWinner: string;
+  rows: SensitivityRow[];
+  /** How many factors change the answer on their own. */
+  flipCount: number;
+}
+
+/**
+ * Does the answer survive being wrong about one thing?
+ *
+ * A brief is a set of estimates — the demand is a forecast, the labour rate is
+ * a planning figure, the program length is a negotiation. Ranking them once and
+ * reporting a winner says nothing about whether that winner holds if any single
+ * one of them is off, which is the question a steering committee actually asks.
+ *
+ * Each factor is varied on its own, low and high, and the winning CONCEPT is
+ * compared. Deliberately one-at-a-time: an interaction study needs a design of
+ * experiments and this is meant to answer "how fragile is this" in one glance.
+ */
+export function sensitivity(
+  brief: GenerateBrief,
+  weights: DecisionWeights = DECISION_WEIGHTS,
+  spreadPct = 30,
+): SensitivityResult {
+  const k = spreadPct / 100;
+  const winnerOf = (b: GenerateBrief) => {
+    const ranked = rankByDecision(filterCandidates(generateCandidates(b), { meetsDemandOnly: true }), weights);
+    return ranked[0]?.conceptLabel ?? "—";
+  };
+  const baseWinner = winnerOf(brief);
+  if (brief.steps.length === 0) return { baseWinner, rows: [], flipCount: 0 };
+
+  const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
+  const labour = brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour;
+  const years = brief.programYears ?? DEFAULT_PROGRAM_YEARS;
+
+  const factors: Array<{ factor: string; lo: GenerateBrief; hi: GenerateBrief; loLabel: string; hiLabel: string }> = [
+    {
+      factor: "Annual demand",
+      lo: { ...brief, annualVolume: Math.round(brief.annualVolume * (1 - k)) },
+      hi: { ...brief, annualVolume: Math.round(brief.annualVolume * (1 + k)) },
+      loLabel: `${Math.round(brief.annualVolume * (1 - k)).toLocaleString()}/yr`,
+      hiLabel: `${Math.round(brief.annualVolume * (1 + k)).toLocaleString()}/yr`,
+    },
+    {
+      factor: "Labour rate",
+      lo: { ...brief, laborCostPerHour: +(labour * (1 - k)).toFixed(2) },
+      hi: { ...brief, laborCostPerHour: +(labour * (1 + k)).toFixed(2) },
+      loLabel: `${(labour * (1 - k)).toFixed(0)}/h`,
+      hiLabel: `${(labour * (1 + k)).toFixed(0)}/h`,
+    },
+    {
+      // Not "program length": in the planning flow this field carries the
+      // amortisation-equivalent years (program volume ÷ peak volume), not the
+      // calendar length of the program.
+      factor: "Capex amortisation years",
+      lo: { ...brief, programYears: Math.max(1, +(years * (1 - k)).toFixed(1)) },
+      hi: { ...brief, programYears: +(years * (1 + k)).toFixed(1) },
+      loLabel: `${Math.max(1, +(years * (1 - k)).toFixed(1))} yr`,
+      hiLabel: `${(years * (1 + k)).toFixed(1)} yr`,
+    },
+    {
+      factor: "Shifts per year",
+      lo: { ...brief, annualShifts: Math.max(1, Math.round(shifts * (1 - k))) },
+      hi: { ...brief, annualShifts: Math.round(shifts * (1 + k)) },
+      loLabel: `${Math.max(1, Math.round(shifts * (1 - k)))}`,
+      hiLabel: `${Math.round(shifts * (1 + k))}`,
+    },
+  ];
+
+  const rows = factors.map((f) => {
+    const lowWinner = winnerOf(f.lo);
+    const highWinner = winnerOf(f.hi);
+    return {
+      factor: f.factor,
+      lowLabel: f.loLabel,
+      highLabel: f.hiLabel,
+      lowWinner,
+      highWinner,
+      flips: lowWinner !== highWinner || lowWinner !== baseWinner || highWinner !== baseWinner,
+    };
+  });
+
+  return { baseWinner, rows, flipCount: rows.filter((r) => r.flips).length };
 }
