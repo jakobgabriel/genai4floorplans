@@ -93,11 +93,24 @@ export function stationsFromAssignment(
   opts: StationBuildOptions = {},
 ): Station[] {
   const byId = new Map(elements.map((e) => [e.id, e]));
+  const modes = variantModes && variantModes.length ? variantModes : null;
   // Worst-mode seconds per element, matching what the assignment sized against.
   const worstOf = (el: WorkElement) => {
-    const modes = variantModes && variantModes.length ? variantModes : null;
     if (!modes) return el.time.seconds;
     return Math.max(...modes.map((m) => el.time.seconds * (m.elementOverrides[el.id] ?? 1)));
+  };
+  // Share-weighted seconds — what the element costs on an average part, which
+  // is what the cell actually runs. Shares are normalised so a mix that does
+  // not quite sum to 1 still weights proportionally rather than scaling the
+  // whole cell up or down.
+  const shareSum = modes ? modes.reduce((a, m) => a + Math.max(0, m.share), 0) : 0;
+  const mixOf = (el: WorkElement) => {
+    if (!modes || shareSum <= 0) return el.time.seconds;
+    const w = modes.reduce(
+      (a, m) => a + el.time.seconds * (m.elementOverrides[el.id] ?? 1) * (Math.max(0, m.share) / shareSum),
+      0,
+    );
+    return w;
   };
 
   return assignment.stations.map((st, i) => {
@@ -123,6 +136,9 @@ export function stationsFromAssignment(
       auto: autoState(attended),
       operators: st.operators,
       cycle: breakdownOf(els, worstOf),
+      // Sized for the worst mode above; runs at the mix. Both are recorded so
+      // utilisation is not reported against a part the cell rarely makes.
+      mixCycleSec: modes ? +els.reduce((a, e) => a + mixOf(e), 0).toFixed(1) : undefined,
       capacityPerShift: 0, // cycle-bound
       changeoverMin: opts.changeoverMin ?? 10,
       ergoRisk: ergo,

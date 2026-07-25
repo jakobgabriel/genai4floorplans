@@ -1,13 +1,17 @@
 import type { CycleBreakdown, Flow, Station } from "../model/types";
 import { CYCLE_KEYS, DEFAULT_SHIFT_HOURS } from "../model/types";
 import { topoOrder } from "./dag";
-import { CYCLE_LABELS, effectiveCycleSec } from "./cycle";
+import { CYCLE_LABELS, effectiveCycleSec, mixCycleSec } from "./cycle";
 
 export interface BalanceStep {
   id: string;
   name: string;
   rate: number;
+  /** The cycle the step runs at across the mix. Drives rate and utilisation. */
   cycle: number;
+  /** The worst-mode cycle the step was sized for. Equal to `cycle` when there
+   *  is no mix; larger when the heaviest part is heavier than the average. */
+  sizedCycle: number;
   util: number;
   units: number;
 }
@@ -48,9 +52,15 @@ function shiftSeconds(hours: number): number {
 
 // Effective parts/shift one resource at a step can output (cycle- or capacity-
 // bound). Multiply by parallelUnits for the step's full capacity (see capacityOf).
+//
+// Rated on the *mix* cycle, not the worst mode. A cell that makes a mix does not
+// make its heaviest part all day, so rating every step against that part
+// understates throughput and reports the whole line as saturated. The worst mode
+// still governs how many stations were bought — that is `effectiveCycleSec`, and
+// `BalanceStep.sizedCycle` carries it so the sizing basis stays visible.
 export function stationRate(s: Station, shiftHours: number = DEFAULT_SHIFT_HOURS): number {
   const hours = s.shiftHours ?? shiftHours;
-  const cycleSec = effectiveCycleSec(s);
+  const cycleSec = mixCycleSec(s);
   const byCycle =
     cycleSec > 0
       ? Math.floor((3600 / cycleSec) * hours * Math.max(1, s.operators))
@@ -93,7 +103,7 @@ export function bottleneckAdvice(bal: BalanceResult, stations: Station[]): strin
   }
   if (st && st.changeoverMin > 30) tips.push(`Reduce changeover (${st.changeoverMin} min) with SMED — it eats into available run time.`);
   if (st) {
-    const cyc = effectiveCycleSec(st);
+    const cyc = mixCycleSec(st);
     if (st.cycle) {
       // Decomposed: name the largest non-value-add class instead of the vague
       // "shorten cycle time" — that is the whole point of decomposing.
@@ -202,7 +212,15 @@ export function balanceAnalysis(
     const cap = capacity[s.id];
     const t = T[s.id] ?? 0;
     const rate = isFinite(cap) ? Math.round(cap) : 0;
-    return { id: s.id, name: s.name, cycle: effectiveCycleSec(s), units: Math.max(1, s.parallelUnits ?? 1), rate, util: rate > 0 ? Math.round((t / cap) * 100) : 0 };
+    return {
+      id: s.id,
+      name: s.name,
+      cycle: +mixCycleSec(s).toFixed(1),
+      sizedCycle: +effectiveCycleSec(s).toFixed(1),
+      units: Math.max(1, s.parallelUnits ?? 1),
+      rate,
+      util: rate > 0 ? Math.round((t / cap) * 100) : 0,
+    };
   });
   const finite = steps.filter((x) => x.rate > 0);
   const maxRate = finite.length ? Math.max(...finite.map((x) => x.rate)) : 0;
@@ -221,7 +239,7 @@ export function balanceAnalysis(
   const parent: Record<string, string | null> = {};
   order.forEach((id) => {
     const s = byId[id];
-    const cyc = s?.role === "process" ? effectiveCycleSec(s) : 0;
+    const cyc = s?.role === "process" ? mixCycleSec(s) : 0;
     let best = -Infinity;
     let par: string | null = null;
     inFlows[id].forEach((f) => {

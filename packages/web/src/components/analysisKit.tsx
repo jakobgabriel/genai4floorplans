@@ -68,12 +68,15 @@ export function ShareBar({
   value,
   figure,
   emphasis,
+  sub,
   onClick,
 }: {
   label: ReactNode;
   value: number;
   figure?: ReactNode;
   emphasis?: ReactNode;
+  /** A caption under the bar, for detail that would crowd the head line. */
+  sub?: ReactNode;
   onClick?: () => void;
 }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
@@ -94,6 +97,7 @@ export function ShareBar({
         {figure != null ? <span className="ak-share__figure">{figure}</span> : null}
       </div>
       <ProgressBar label={labelText} hideLabel size="small" value={pct} max={100} />
+      {sub != null ? <div className="ak-share__sub">{sub}</div> : null}
     </div>
   );
 }

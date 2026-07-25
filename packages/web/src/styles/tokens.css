@@ -1638,6 +1638,12 @@ code {
   flex: 0 0 auto;
 }
 .ak-meter__raw,
+.ak-share__sub {
+  margin-top: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+}
 .ak-share__figure {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   font-size: var(--type-caption-size);

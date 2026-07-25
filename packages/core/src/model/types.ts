@@ -84,6 +84,20 @@ export interface Station {
   energyKw?: number;
   /** Value-add / non-value-add split of cycleTimeSec. Absent ⇒ not decomposed. */
   cycle?: CycleBreakdown;
+  /**
+   * The cycle this station actually runs at across the part mix — the
+   * share-weighted average over the variant modes.
+   *
+   * `cycleTimeSec` / `cycle` hold the *worst* mode, because that is what the
+   * station had to be sized for: it must clear takt on the heaviest part it
+   * sees. But the cell does not run the heaviest part all day, so utilisation,
+   * throughput and cost per part are all read off this instead. Reporting them
+   * on the worst mode makes a mixed cell look permanently saturated and hides
+   * the headroom the mix actually gives it.
+   *
+   * Absent ⇒ single-model: there is one mode, so the two are the same number.
+   */
+  mixCycleSec?: number;
   /** Capability ids this resource provides (spec §3.4). Drives gate 1 coverage:
    *  a cell needs capabilities, resources provide them, and it is the N:M
    *  relation that generates alternatives. Absent ⇒ provides nothing declared. */

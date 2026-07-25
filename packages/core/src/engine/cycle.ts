@@ -13,6 +13,17 @@ export function effectiveCycleSec(s: Station): number {
   return s.cycle ? sumCycle(s.cycle) : s.cycleTimeSec;
 }
 
+/**
+ * The cycle the station runs at across the mix, for utilisation and throughput.
+ *
+ * Falls back to the sized cycle when there is no mix, so single-model cells are
+ * unchanged and every existing caller keeps its meaning.
+ */
+export function mixCycleSec(s: Station): number {
+  const sized = effectiveCycleSec(s);
+  return s.mixCycleSec != null && s.mixCycleSec > 0 ? s.mixCycleSec : sized;
+}
+
 /** True when the station's cycle has been split into components. */
 export function isDecomposed(s: Station): boolean {
   return s.cycle != null;

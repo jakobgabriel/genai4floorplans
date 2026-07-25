@@ -359,6 +359,10 @@ export function BalanceSection({ api, setSel, setTab }: { api: FlowPlanApi; setS
           <Stack gap={3}>
             {bal.steps.map((x) => {
               const isBn = bottleneck && x.id === bottleneck.id;
+              // A mixed cell is sized for its heaviest part but runs the mix.
+              // Where those differ, say so on the step rather than letting the
+              // reader assume the one number covers both.
+              const overSized = x.sizedCycle > x.cycle + 0.05;
               return (
                 <ShareBar
                   key={x.id}
@@ -372,6 +376,9 @@ export function BalanceSection({ api, setSel, setTab }: { api: FlowPlanApi; setS
                       </Tag>
                     ) : undefined
                   }
+                  // Under the bar rather than beside the name: the rail is
+                  // narrow, and a second tag on the head line crushed it.
+                  sub={overSized ? `runs at ${x.cycle}s · sized for ${x.sizedCycle}s` : undefined}
                 />
               );
             })}
@@ -380,6 +387,12 @@ export function BalanceSection({ api, setSel, setTab }: { api: FlowPlanApi; setS
             Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units. Low-util
             steps are starved by the bottleneck — that's spare capacity, not a problem to fix.
           </Footnote>
+          {bal.steps.some((x) => x.sizedCycle > x.cycle + 0.05) ? (
+            <Footnote>
+              Rates are the mix average. Stations are sized for the heaviest part they see, so the worst-case
+              cycle is higher than the one the cell runs at — that gap is the headroom the mix buys.
+            </Footnote>
+          ) : null}
         </Stack>
 
         <CycleSection api={api} setSel={setSel} setTab={setTab} />
