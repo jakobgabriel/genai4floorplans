@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceSummary, type User } from "../admin/adminApi";
-import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
+import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
 import { TEAL, TEXTD } from "../components/colors";
 
@@ -17,16 +18,19 @@ export function AdminPage() {
   }, []);
 
   const head = (
-    <div className="page-head">
-      <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
-      <h1 className="page-title">Admin · teams &amp; workspaces</h1>
-      {user ? (
-        <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", color: TEXTD, fontSize: 12 }}>
-          {user.email}
-          <button className="btn sm" onClick={() => adminApi.logout().then(() => setUser(null))}>Sign out</button>
-        </span>
-      ) : null}
-    </div>
+    <PageHead
+      title="Admin · teams &amp; workspaces"
+      actions={
+        user ? (
+          <>
+            <span className="page-head__who">{user.email}</span>
+            <Btn size="compact" variant="ghost" onClick={() => adminApi.logout().then(() => setUser(null))}>
+              Sign out
+            </Btn>
+          </>
+        ) : undefined
+      }
+    />
   );
 
   if (user === undefined) return <div className="page">{head}<p style={{ color: TEXTD }}>Checking session…</p></div>;
@@ -61,13 +65,13 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
       ) : null}
       <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
       <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button className="btn on" disabled={busy || !email || password.length < 8} onClick={submit}>
+      <div className="fk-inlineActions">
+        <Btn variant="primary" disabled={busy || !email || password.length < 8} onClick={submit}>
           {mode === "login" ? "Sign in" : "Register"}
-        </button>
-        <button className="btn sm" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
           {mode === "login" ? "Need an account?" : "Have an account?"}
-        </button>
+        </Btn>
       </div>
       <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
     </div>
@@ -100,13 +104,13 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
         <div className="layoutTitle">Teams</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
-          <button className="btn sm" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</button>
+          <Btn size="compact" variant="ghost" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Btn>
         </div>
         {teams.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No teams yet — create one (you become its owner).</p> : null}
         {teams.map((t) => (
-          <button key={t.id} className={"btn sm" + (sel === t.id ? " on" : "")} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 4 }} onClick={() => select(t.id)}>
+          <Btn key={t.id} size="compact" selected={sel === t.id} className="admin-teamrow" onClick={() => select(t.id)}>
             {t.name}
-          </button>
+          </Btn>
         ))}
       </div>
 
@@ -126,7 +130,11 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
-                    <td><button className="btn sm danger" onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</button></td>
+                    <td>
+                      <Btn size="compact" variant="danger" onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>
+                        Remove
+                      </Btn>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -159,7 +167,7 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
       <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1 }} />
       <select value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
-      <button className="btn sm" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</button>
+      <Btn size="compact" variant="ghost" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );
 }
@@ -169,7 +177,7 @@ function NewWorkspace({ teamId, onDone, fail }: { teamId: string; onDone: () => 
   return (
     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
       <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
-      <button className="btn sm" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</button>
+      <Btn size="compact" variant="ghost" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );
 }

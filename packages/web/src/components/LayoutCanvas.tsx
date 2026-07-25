@@ -1,3 +1,4 @@
+import { Btn } from "./Btn";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
@@ -255,9 +256,9 @@ export function LayoutCanvas(props: Props) {
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
         {interactive && zoom !== 1 ? (
-          <button className="btn sm" style={{ marginLeft: 10 }} onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
-            reset zoom
-          </button>
+          <Btn size="compact" variant="ghost" onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
+            Reset zoom
+          </Btn>
         ) : null}
       </div>
       <div className="lc__stage" ref={stageRef}>

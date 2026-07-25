@@ -1,9 +1,9 @@
+import { Btn } from "./Btn";
 import type { Flow } from "@flowplan/core/model/types";
 import { TRANSPORT } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { Field } from "./ui";
 import { CloseButton } from "./CloseButton";
-import { RED } from "./colors";
 
 // Inline editor for a flow selected on the canvas.
 export function FlowEditorPopover({
@@ -93,16 +93,17 @@ export function FlowEditorPopover({
           />
         </Field>
       ) : null}
-      <button
-        className="btn sm"
-        style={{ width: "100%", borderColor: RED, color: RED, marginTop: 4 }}
+      <Btn
+        size="compact"
+        variant="danger"
+        className="fk-full"
         onClick={() => {
           api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to });
           onClose();
         }}
       >
         Delete flow
-      </button>
+      </Btn>
     </div>
   );
 }

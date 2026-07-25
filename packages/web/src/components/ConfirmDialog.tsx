@@ -1,3 +1,5 @@
+import { Btn } from "./Btn";
+
 // An in-app confirmation modal — replaces window.confirm so destructive actions
 // don't rely on a browser dialog. Backdrop-click and Cancel dismiss; the primary
 // button runs onConfirm then closes.
@@ -21,11 +23,13 @@ export function ConfirmDialog({
       <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
         <h2>{title}</h2>
         <p>{message}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className={"btn" + (danger ? " danger" : "")} onClick={() => { onConfirm(); onClose(); }}>
+        <div className="modal__actions">
+          <Btn variant="ghost" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>
             {confirmLabel}
-          </button>
+          </Btn>
         </div>
       </div>
     </div>

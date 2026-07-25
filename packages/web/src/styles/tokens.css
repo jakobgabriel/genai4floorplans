@@ -152,77 +152,68 @@ button {
   font-weight: 400;
 }
 
-/* ---------- buttons: Carbon geometry ---------- */
+/* ---------- buttons ----------
+ * There is no button CSS here any more. Every button in the app is
+ * `components/Btn.tsx`, which is Carbon's — so hover, active, focus-visible,
+ * disabled and loading all come from the design system. What remains below is
+ * only geometry the app imposes on top. */
 
-.btn {
-  background: var(--cds-layer-02);
-  color: var(--cds-text-primary);
-  border: 1px solid transparent;
-  padding: 0 var(--sp-4);
-  min-height: 2rem;
-  border-radius: var(--radius-none);
-  font-size: var(--type-body-size);
-  letter-spacing: 0.16px;
-  display: inline-flex;
+/* Icon-only buttons get a 44x44 target on touch. On a mouse a 44px toolbar
+   button is just a tall toolbar, so the requirement is scoped to the input that
+   actually needs it. */
+@media (pointer: coarse) {
+  .cds--btn--icon-only {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* Full-width action inside a narrow panel or popover. */
+.fk-full.cds--btn {
+  width: 100%;
+  max-width: none;
+  justify-content: space-between;
+}
+
+/* Actions in a row: secondary first, primary last. */
+.fk-inlineActions,
+.modal__actions {
+  display: flex;
   align-items: center;
   gap: var(--sp-2);
-  transition: background var(--dur) var(--ease);
 }
-.btn:hover:not(:disabled) {
-  background: var(--cds-layer-hover-02);
-}
-.btn:disabled {
-  background: var(--cds-button-disabled);
-  color: var(--cds-text-disabled);
-  cursor: not-allowed;
-}
-.btn.on {
-  background: var(--cds-interactive);
-  color: var(--cds-text-on-color);
-  border-color: var(--cds-interactive);
-}
-.btn.on:hover:not(:disabled) {
-  background: var(--cds-button-primary-hover);
-}
-.btn.sm {
-  min-height: 1.5rem;
-  padding: 0 var(--sp-3);
-  font-size: var(--type-caption-size);
-}
-.btn.danger {
-  background: transparent;
-  border-color: var(--cds-button-danger-secondary);
-  color: var(--cds-button-danger-secondary);
-}
-.btn.danger:hover:not(:disabled) {
-  background: var(--cds-button-danger-primary);
-  color: var(--cds-text-on-color);
+.modal__actions {
+  justify-content: flex-end;
+  margin-top: var(--sp-5);
 }
 
-.btn-close {
-  flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  line-height: var(--lh-tight);
-  font-size: var(--type-body-size);
-  display: inline-flex;
-  align-items: center;
+/* The rail's vertical re-open button. */
+.rail-btn.cds--btn {
+  writing-mode: vertical-rl;
+  min-height: 6rem;
   justify-content: center;
-  background: transparent;
-  color: var(--cds-text-primary);
-  border: 1px solid transparent;
-  border-radius: var(--radius-none);
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
 }
-.btn-close:hover {
-  background: var(--cds-layer-hover-01);
+
+/* The toolbar's layout button truncates rather than wrapping — a two-line
+   button makes the whole bar taller. */
+.editorbar__cell.cds--btn {
+  max-width: 16rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.editorbar__cell .cds--btn__icon {
+  flex: 0 0 auto;
+  margin-left: var(--sp-2);
 }
 
 .views {
   display: flex;
-  gap: 1px;
+  gap: 0;
+}
+.views .chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: var(--sp-2) var(--sp-4);
 }
 .spacer {
   flex: 1;
@@ -445,26 +436,17 @@ svg {
   gap: 0;
   background: var(--cds-layer-accent-01);
 }
-.grouptabs .btn {
+.grouptabs .chip {
   flex: 1;
   min-width: 0;
   min-height: 2.5rem;
-  padding: 0 var(--sp-2);
-  font-size: var(--type-caption-size);
-  white-space: nowrap;
   background: var(--cds-layer-accent-01);
-  border-bottom: 2px solid transparent;
-  justify-content: center;
 }
-.grouptabs .btn.on {
+.grouptabs .chip.on {
   background: var(--cds-layer-01);
-  color: var(--cds-text-primary);
-  border-bottom-color: var(--cds-interactive);
 }
 .grouptabs .help-tab {
   flex: 0 0 auto;
-  width: 2.5rem;
-  padding: 0;
 }
 .subtabs {
   display: flex;
@@ -472,11 +454,18 @@ svg {
   padding: 0 var(--sp-4);
   border-bottom: 1px solid var(--cds-border-subtle-01);
 }
-.subtabs .chip {
+/* One tab affordance, used by the view switcher, the group tabs, the sub-tabs
+   and the analysis nav. Underline marks the selected one. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   flex: 1;
   text-align: center;
+  font-family: inherit;
   font-size: var(--type-caption-size);
-  padding: var(--sp-2) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   border: 0;
   border-bottom: 2px solid transparent;
   color: var(--cds-text-secondary);
@@ -484,13 +473,13 @@ svg {
   cursor: pointer;
   transition: color var(--dur) var(--ease);
 }
-.subtabs .chip:hover {
+.chip:hover {
   color: var(--cds-text-primary);
 }
-.subtabs .chip.on {
+.chip.on {
   color: var(--cds-text-primary);
   border-bottom-color: var(--cds-interactive);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .pad {
@@ -945,6 +934,12 @@ code {
 .explorer {
   padding: var(--sp-4);
 }
+.explorer-title {
+  margin: 0;
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
 .explorer-head {
   display: flex;
   align-items: center;
@@ -1042,10 +1037,6 @@ code {
   display: flex;
   flex-direction: column;
   padding: var(--sp-2);
-}
-.rail-btn {
-  writing-mode: vertical-rl;
-  min-height: 6rem;
 }
 
 /* ---------- pages (Compare / Site / Archive / Admin) ---------- */

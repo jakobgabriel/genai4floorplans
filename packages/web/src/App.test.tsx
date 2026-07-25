@@ -87,18 +87,18 @@ describe("App", () => {
   it("switches between side-panel groups without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByRole("button", { name: "Build" }));
-    expect(screen.getByRole("button", { name: "Configure" })).toBeTruthy();
-    // Schema lives behind the "?" help icon.
-    fireEvent.click(screen.getByRole("button", { name: "?" }));
-    expect(screen.getByText(/Data model/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Build" }));
+    expect(screen.getByRole("tab", { name: "Configure" })).toBeTruthy();
+    // Schema lives behind the help icon in the tab bar.
+    fireEvent.click(screen.getByRole("button", { name: /Data model reference/ }));
+    expect(screen.getAllByText(/Data model/).length).toBeGreaterThan(0);
   });
 
   it("generates AI proposals from the AI Chat group", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
-    fireEvent.click(screen.getByRole("button", { name: "AI Chat" }));
-    fireEvent.click(screen.getByText(/Propose layout improvements/));
+    fireEvent.click(screen.getByRole("tab", { name: "AI Chat" }));
+    fireEvent.click(screen.getByRole("button", { name: /Propose improvements/ }));
     // a strategist proposal card appears (engine-scored, offline)
     await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
   });
@@ -119,7 +119,7 @@ describe("App", () => {
     // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
-    fireEvent.click(screen.getByText("← Editor"));
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
     await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
   });
 
@@ -129,7 +129,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "⋯" }));
     fireEvent.click(screen.getByText("Compare variants"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
-    fireEvent.click(screen.getByText("← Editor"));
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
     await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
   });
 

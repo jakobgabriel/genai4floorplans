@@ -16,7 +16,8 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { parseSteps } from "./planner/parseSteps";
 import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
 import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
-import { Button } from "@carbon/react";
+import { Btn, IconBtn, TabBtn } from "./components/Btn";
+import { Add, Folders, Help, Redo, Settings as SettingsIcon, SidePanelClose, Undo } from "@carbon/icons-react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
@@ -68,7 +69,7 @@ const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[
     { tab: "flow", label: "Flow" },
     { tab: "inspect", label: "Configure" },
   ] },
-  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "💬 AI Chat" }] },
+  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "AI Chat" }] },
 ];
 const GROUP_OF: Record<Tab, Group | undefined> = {
   analysis: "analysis",
@@ -281,9 +282,9 @@ export function App() {
 
   function vBtn(k: View, l: string) {
     return (
-      <button className={"btn" + (view === k ? " on" : "")} onClick={() => setView(k)}>
+      <TabBtn selected={view === k} onClick={() => setView(k)}>
         {l}
-      </button>
+      </TabBtn>
     );
   }
   // The active group follows the active tab (so in-panel deep-links to Configure
@@ -309,8 +310,10 @@ export function App() {
         <p className="canvas-empty__body">
           Add process steps to lay them out, connect them and see the rating, balance and cost fill in.
         </p>
-        <Button
-          size="sm"
+        <Btn
+          variant="primary"
+          size="compact"
+          icon={Add}
           onClick={() => {
             const ns = makeStation(model);
             api.commit({ type: "ADD_STATION", station: ns });
@@ -319,7 +322,7 @@ export function App() {
           }}
         >
           Add the first process step
-        </Button>
+        </Btn>
       </div>
     ) : null;
 
@@ -441,32 +444,32 @@ export function App() {
     <div className="editorbar">
       <HeaderKpis api={api} />
       <div className="spacer" />
-      <Button size="sm" kind="primary" onClick={() => goTo("summary")}>
+      {/* One primary per view: leaving the editor is it. */}
+      <Btn variant="primary" size="compact" onClick={() => goTo("summary")}>
         Continue to summary
-      </Button>
+      </Btn>
       <span className="hsep" />
-        <button
-          className={"btn sm" + (explorerCollapsed ? "" : " on")}
-          onClick={() => setExplorerCollapsed((v) => !v)}
-          title="Toggle the workspace sidebar"
-          style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
-          🗂 {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
-        </button>
-        <button className="btn sm" onClick={() => navigate("/site")} title="Site overview across all layouts">
-          Site
-        </button>
-        <span className="hsep" />
-        <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
-        <span className="hsep" />
-        <button className="btn sm" onClick={api.undo} disabled={!api.canUndo} title="Undo (Ctrl/Cmd+Z)">
-          ↺
-        </button>
-        <button className="btn sm" onClick={api.redo} disabled={!api.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)">
-          ↻
-        </button>
-        <span className="hsep" />
-        <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
+      <Btn
+        size="compact"
+        variant="ghost"
+        pressed={!explorerCollapsed}
+        icon={Folders}
+        className="editorbar__cell"
+        title="Toggle the workspace sidebar"
+        onClick={() => setExplorerCollapsed((v) => !v)}
+      >
+        {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
+      </Btn>
+      <Btn size="compact" variant="ghost" onClick={() => navigate("/site")} title="Site overview across all layouts">
+        Site
+      </Btn>
+      <span className="hsep" />
+      <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
+      <span className="hsep" />
+      <IconBtn size="compact" icon={Undo} label="Undo (Ctrl/Cmd+Z)" disabled={!api.canUndo} onClick={api.undo} />
+      <IconBtn size="compact" icon={Redo} label="Redo (Ctrl/Cmd+Shift+Z)" disabled={!api.canRedo} onClick={api.redo} />
+      <span className="hsep" />
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
         <Menu
           label="Export ▾"
           title="Load, export & report"
@@ -486,9 +489,7 @@ export function App() {
             { label: "Open report", onClick: () => navigate("/report") },
           ]}
         />
-        <button className="btn" onClick={() => setShowSettings(true)} title="Settings">
-          ⚙
-        </button>
+        <IconBtn size="compact" icon={SettingsIcon} label="Settings" onClick={() => setShowSettings(true)} />
         <Menu
           label="⋯"
           title="More actions"
@@ -515,9 +516,9 @@ export function App() {
         >
           {explorerCollapsed ? (
             <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setExplorerCollapsed(false)} title="Show workspace sidebar">
-                🗂 Workspace
-              </button>
+              <Btn size="compact" variant="ghost" className="rail-btn" onClick={() => setExplorerCollapsed(false)}>
+                Workspace
+              </Btn>
             </div>
           ) : (
             <Explorer api={api} onCollapse={() => setExplorerCollapsed(true)} />
@@ -552,32 +553,43 @@ export function App() {
         >
           {configCollapsed ? (
             <div className="rail">
-              <button className="btn sm rail-btn" onClick={() => setConfigCollapsed(false)} title="Show config panel">
-                ⚙ Config
-              </button>
+              <Btn size="compact" variant="ghost" className="rail-btn" onClick={() => setConfigCollapsed(false)}>
+                Config
+              </Btn>
             </div>
           ) : (
           <>
           <div className="tabbar">
             <div className="grouptabs">
               {TAB_GROUPS.map((g) => (
-                <button key={g.id} className={"btn" + (activeGroup === g.id ? " on" : "")} onClick={() => selectGroup(g.id)}>
+                <TabBtn key={g.id} selected={activeGroup === g.id} onClick={() => selectGroup(g.id)}>
                   {g.label}
-                </button>
+                </TabBtn>
               ))}
-              <button className={"btn help-tab" + (tab === "schema" ? " on" : "")} title="Data model / schema reference" onClick={() => setTab("schema")}>
-                ?
-              </button>
-              <button className="btn help-tab" title="Collapse config panel" onClick={() => setConfigCollapsed(true)}>
-                ▶
-              </button>
+              <IconBtn
+                size="compact"
+                icon={Help}
+                label="Data model reference"
+                tooltipPosition="left"
+                selected={tab === "schema"}
+                className="help-tab"
+                onClick={() => setTab("schema")}
+              />
+              <IconBtn
+                size="compact"
+                icon={SidePanelClose}
+                label="Collapse config panel"
+                tooltipPosition="left"
+                className="help-tab"
+                onClick={() => setConfigCollapsed(true)}
+              />
             </div>
             {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
               <div className="subtabs">
                 {TAB_GROUPS.find((g) => g.id === activeGroup)!.tabs.map((t) => (
-                  <button key={t.tab} className={"chip" + (tab === t.tab ? " on" : "")} onClick={() => selectSubTab(activeGroup, t.tab)}>
+                  <TabBtn key={t.tab} selected={tab === t.tab} onClick={() => selectSubTab(activeGroup, t.tab)}>
                     {t.label}
-                  </button>
+                  </TabBtn>
                 ))}
               </div>
             ) : null}
@@ -596,14 +608,15 @@ export function App() {
 
   const stepNav = (
     <div className="planner__actions">
-      <Button
-        kind="secondary"
+      <Btn
+        variant="secondary"
         onClick={() => goTo(FLOW_STEPS[Math.max(0, FLOW_STEPS.indexOf(step) - 1)])}
         disabled={step === "situation"}
       >
         Back
-      </Button>
-      <Button
+      </Btn>
+      <Btn
+        variant="primary"
         onClick={() => {
           // Leaving Concepts loads the chosen candidate, so Refine edits the
           // generated cell rather than whatever was open before.
@@ -625,7 +638,7 @@ export function App() {
         }
       >
         {step === "concepts" ? "Refine this layout" : "Continue"}
-      </Button>
+      </Btn>
     </div>
   );
 

@@ -1,8 +1,10 @@
 import { Fragment, useMemo, type ReactNode } from "react";
+import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
 import { BarChart, Stat, type Bar } from "../components/charts";
 import { scoreColor, TEAL, TEXTD } from "../components/colors";
 
@@ -48,10 +50,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
-        <h1 className="page-title">Site overview</h1>
-      </div>
+      <PageHead title="Site overview" />
 
       <div className="stat-strip">
         <Stat label="Layouts" value={String(rows.length)} />
@@ -93,7 +92,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
                     <td>{cur}{r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                     <td>
                       {r.id === api.activeId ? <span style={{ color: TEXTD }}>active</span> : (
-                        <button className="btn sm" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</button>
+                        <Btn size="compact" variant="ghost" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</Btn>
                       )}
                     </td>
                   </tr>

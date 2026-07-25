@@ -1,7 +1,9 @@
-import { Button, Tag, Tile } from "@carbon/react";
+import { Tag, Tile } from "@carbon/react";
 import { Printer } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
+import { Btn } from "../components/Btn";
 import { LayoutCanvas } from "../components/LayoutCanvas";
 import { Footnote, KpiMeter, SectionLabel, ShareBar, scoreTag } from "../components/analysisKit";
 import { analysisPath } from "../components/analysisPath";
@@ -68,7 +70,7 @@ export function ReportPage({
         <Tile className="rep__empty">
           <h2 className="rep__emptyTitle">Nothing to report</h2>
           <p>This cell has no process steps, so an empty plan would score a perfect grade.</p>
-          <Button onClick={() => navigate("/")}>Back to the editor</Button>
+          <Btn variant="primary" onClick={() => navigate("/")}>Back to the editor</Btn>
         </Tile>
       </div>
     );
@@ -407,15 +409,15 @@ export function ReportPage({
 
 function ReportHead() {
   return (
-    <div className="page-head rep__head">
-      <button className="btn sm" onClick={() => navigate("/")}>
-        ← Editor
-      </button>
-      <h1 className="page-title">Assessment report</h1>
-      <span className="rep__headSpacer" />
-      <Button size="sm" renderIcon={Printer} onClick={() => window.print()}>
-        Print / Save PDF
-      </Button>
+    <div className="rep__head">
+      <PageHead
+        title="Assessment report"
+        actions={
+          <Btn variant="primary" size="compact" icon={Printer} onClick={() => window.print()}>
+            Print
+          </Btn>
+        }
+      />
     </div>
   );
 }

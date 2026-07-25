@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Btn } from "./Btn";
 
 // A small dropdown menu: a button that toggles a popover list of actions. Closes
 // on item-select, outside-click, and Escape. Unlike the modals (which close from
@@ -44,9 +45,9 @@ export function Menu({
 
   return (
     <div className="menu" ref={ref}>
-      <button className="btn" title={title} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <Btn size="compact" title={title} pressed={open} onClick={() => setOpen((v) => !v)}>
         {label}
-      </button>
+      </Btn>
       {open ? (
         <div className={"menu-pop" + (align === "left" ? " left" : "")} role="menu">
           {items.map((it, i) => (

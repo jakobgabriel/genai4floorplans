@@ -1,6 +1,7 @@
+import { Btn } from "./Btn";
 import type { Model } from "@flowplan/core/model/types";
 import { isProposalStale, type PlacementProposal } from "@flowplan/core/engine/proposal";
-import { AMBER, TEAL, TEALD, TEXT, TEXTD } from "./colors";
+import { AMBER, TEAL, TEXT, TEXTD } from "./colors";
 
 // Spec §4 — proposals are accepted per-item or wholesale, always explicitly.
 //
@@ -41,12 +42,12 @@ export function ProposalPanel({ proposal, model, onAcceptAll, onDismiss }: Propo
         </span>
       ) : null}
 
-      <button className="btn sm" style={{ borderColor: TEALD, color: TEAL }} onClick={onAcceptAll}>
+      <Btn size="compact" variant="primary" onClick={onAcceptAll}>
         Accept all {n}
-      </button>
-      <button className="btn sm" style={{ color: TEXTD }} onClick={onDismiss}>
+      </Btn>
+      <Btn size="compact" variant="ghost" onClick={onDismiss}>
         Dismiss
-      </button>
+      </Btn>
     </div>
   );
 }

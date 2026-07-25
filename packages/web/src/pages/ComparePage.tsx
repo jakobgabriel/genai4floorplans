@@ -5,6 +5,8 @@ import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { listScenarios, loadScenario } from "../store/scenarios";
 import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
+import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
 import { BarChart, Stat, type Bar } from "../components/charts";
 import { scoreColor, TEAL, TEXTD } from "../components/colors";
@@ -48,7 +50,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
   if (rated.length <= 1) {
     return (
       <div className="page">
-        <PageHead />
+        <PageHead title="Compare variants" />
         <p style={{ color: TEXTD }}>Save a variant from the toolbar to compare it here.</p>
       </div>
     );
@@ -62,7 +64,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
 
   return (
     <div className="page">
-      <PageHead />
+      <PageHead title="Compare variants" />
       <div className="stat-strip">
         <Stat label="Scenarios" value={String(rated.length)} />
         <Stat label="Best score" value={best.rating.composite.toFixed(0)} sub={best.name} color={scoreColor(best.rating.composite)} />
@@ -113,15 +115,16 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
                   {x.isCurrent ? (
                     <span style={{ color: TEXTD }}>—</span>
                   ) : (
-                    <button
-                      className="btn sm"
+                    <Btn
+                      size="compact"
+                      variant="ghost"
                       onClick={() => {
                         const m = loadScenario(x.name);
                         if (m) { api.reset(m); toast("Loaded “" + x.name + "”"); navigate("/"); }
                       }}
                     >
                       Load
-                    </button>
+                    </Btn>
                   )}
                 </td>
               </tr>
@@ -134,11 +137,4 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
   );
 }
 
-function PageHead() {
-  return (
-    <div className="page-head">
-      <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
-      <h1 className="page-title">Compare variants</h1>
-    </div>
-  );
-}
+

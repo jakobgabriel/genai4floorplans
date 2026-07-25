@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Btn } from "./Btn";
 import { type AiProviderId, type Settings, saveSettings } from "../store/settings";
 import { Field } from "./ui";
 import { TEXTD } from "./colors";
@@ -66,21 +67,20 @@ export function SettingsModal({ initial, onClose, onSaved }: { initial: Settings
             </div>
           </>
         ) : null}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn" style={{ flex: 1 }} onClick={onClose}>
+        <div className="modal__actions">
+          <Btn variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            className="btn on"
-            style={{ flex: 1 }}
+          </Btn>
+          <Btn
+            variant="primary"
             onClick={() => {
               saveSettings(s);
               onSaved(s);
               onClose();
             }}
           >
-            Save
-          </button>
+            Save settings
+          </Btn>
         </div>
       </div>
     </div>

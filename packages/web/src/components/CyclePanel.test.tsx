@@ -20,7 +20,7 @@ function loadSample() {
 // Balance is stage 3 of the single Analysis page; selecting a station switches
 // the side panel to Build/Configure, so Analysis has to be re-opened first.
 function openBalance() {
-  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station

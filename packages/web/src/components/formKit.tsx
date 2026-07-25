@@ -120,6 +120,7 @@ export function TextAreaField({
   value,
   rows,
   helperText,
+  placeholder,
   onFocus,
   onChange,
 }: {
@@ -128,11 +129,21 @@ export function TextAreaField({
   value: string;
   rows?: number;
   helperText?: string;
+  placeholder?: string;
   onFocus?: () => void;
   onChange: (v: string) => void;
 }) {
   return (
-    <TextArea id={id} labelText={labelText} helperText={helperText} rows={rows ?? 3} value={value} onFocus={onFocus} onChange={(e) => onChange(e.target.value)} />
+    <TextArea
+      id={id}
+      labelText={labelText}
+      helperText={helperText}
+      placeholder={placeholder}
+      rows={rows ?? 3}
+      value={value}
+      onFocus={onFocus}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }
 

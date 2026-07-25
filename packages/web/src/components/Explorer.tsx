@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Btn, IconBtn } from "./Btn";
+import { Archive, Checkmark, Close, SidePanelClose } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
@@ -116,8 +118,8 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         {ctx.confirmId === folder.id ? (
           <span className="tree-confirm">
             Archive&nbsp;+&nbsp;contents?
-            <button className="btn sm danger" title="Confirm archive" onClick={() => { ctx.api.archiveFolder(folder.id); ctx.setConfirmId(null); }}>✓</button>
-            <button className="btn sm" title="Cancel" onClick={() => ctx.setConfirmId(null)}>✗</button>
+            <IconBtn size="compact" variant="danger" icon={Checkmark} label="Confirm archive" onClick={() => { ctx.api.archiveFolder(folder.id); ctx.setConfirmId(null); }} />
+            <IconBtn size="compact" icon={Close} label="Cancel" onClick={() => ctx.setConfirmId(null)} />
           </span>
         ) : (
           <Menu
@@ -191,15 +193,19 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
   return (
     <div className="explorer">
         <div className="explorer-head">
-          <h2 style={{ margin: 0, fontSize: 14 }}>Workspace</h2>
-          <button className="btn sm" onClick={onCollapse} title="Collapse sidebar">◀</button>
+          <h2 className="explorer-title">Workspace</h2>
+          <IconBtn size="compact" icon={SidePanelClose} label="Collapse sidebar" tooltipPosition="left" onClick={onCollapse} />
         </div>
         <div className="explorer-actions">
-          <button className="btn sm" onClick={() => ctx.startNew(null)}>＋ Folder</button>
-          <button className="btn sm" onClick={() => api.addCell(blankModel(), undefined, null)}>＋ Layout</button>
-          <button className="btn sm" onClick={() => navigate("/archive")} title="Archived layouts & folders">
-            🗄 {api.archivedCells.length + api.archivedFolders.length || ""}
-          </button>
+          <Btn size="compact" variant="ghost" onClick={() => ctx.startNew(null)}>
+            New folder
+          </Btn>
+          <Btn size="compact" variant="ghost" onClick={() => api.addCell(blankModel(), undefined, null)}>
+            New layout
+          </Btn>
+          <Btn size="compact" variant="ghost" icon={Archive} onClick={() => navigate("/archive")}>
+            Archive{api.archivedCells.length + api.archivedFolders.length ? ` (${api.archivedCells.length + api.archivedFolders.length})` : ""}
+          </Btn>
         </div>
         <div
           className={"explorer-tree" + (dropTarget === ROOT ? " drop" : "")}

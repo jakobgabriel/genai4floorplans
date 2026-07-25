@@ -62,7 +62,7 @@ describe("Explorer", () => {
     const api = makeApi();
     const promptSpy = vi.spyOn(window, "prompt");
     render(<Explorer api={api} onCollapse={() => {}} />);
-    fireEvent.click(screen.getByText("＋ Folder"));
+    fireEvent.click(screen.getByRole("button", { name: "New folder" }));
     const input = screen.getByPlaceholderText("Folder name");
     fireEvent.change(input, { target: { value: "New line" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -117,7 +117,7 @@ describe("Explorer", () => {
     fireEvent.click(screen.getAllByTitle("Folder actions")[0]);
     fireEvent.click(screen.getByText("Archive (with contents)"));
     // inline "Archive + contents? ✓ ✗" appears; clicking ✓ archives recursively
-    fireEvent.click(screen.getByTitle("Confirm archive"));
+    fireEvent.click(screen.getByRole("button", { name: /Confirm archive/ }));
     expect(api.archiveFolder).toHaveBeenCalledWith("f1");
     expect(confirmSpy).not.toHaveBeenCalled();
   });

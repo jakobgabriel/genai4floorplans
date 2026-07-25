@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Button, Stack } from "@carbon/react";
-import { TrashCan } from "@carbon/icons-react";
+import { Stack } from "@carbon/react";
+import { Btn, IconBtn } from "./Btn";
+import { Save, TrashCan } from "@carbon/icons-react";
 import { Footnote, SectionLabel } from "./analysisKit";
 import { TextField } from "./formKit";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -74,9 +75,9 @@ export function ScenarioControls({ api, onCompare }: { api: FlowPlanApi; onCompa
 
   return (
     <>
-      <button className="btn sm" onClick={() => setOpen(true)} title="Save this layout as a named variant">
-        💾 Save variant
-      </button>
+      <Btn size="compact" icon={Save} onClick={() => setOpen(true)}>
+        Save variant
+      </Btn>
       <Menu
         label={`Variants${scenarios.length ? ` (${scenarios.length})` : ""} ▾`}
         title="Load, manage and compare saved variants"
@@ -160,9 +161,9 @@ function ScenarioModal({
               value={name}
               onChange={setName}
             />
-            <Button size="md" onClick={() => onSave(clean)}>
+            <Btn variant="primary" onClick={() => onSave(clean)}>
               Save variant
-            </Button>
+            </Btn>
           </div>
           <Stack gap={3}>
             <SectionLabel>Saved variants</SectionLabel>
@@ -172,17 +173,15 @@ function ScenarioModal({
               <Stack gap={2}>
                 {scenarios.map((s) => (
                   <div key={s.name} className="fk-listrow">
-                    <Button kind="ghost" size="sm" className="fk-listrow__main" onClick={() => onLoad(s.name)}>
+                    <Btn size="compact" variant="ghost" className="fk-listrow__main" onClick={() => onLoad(s.name)}>
                       {s.name} <span className="scn__when">{ago(s.savedAt)}</span>
-                    </Button>
-                    <Button
-                      kind="ghost"
-                      className="fk-danger"
-                      hasIconOnly
-                      size="sm"
-                      iconDescription={`Delete ${s.name}`}
+                    </Btn>
+                    <IconBtn
+                      size="compact"
+                      variant="danger"
+                      icon={TrashCan}
+                      label={`Delete ${s.name}`}
                       tooltipPosition="left"
-                      renderIcon={TrashCan}
                       onClick={() => onDelete(s.name)}
                     />
                   </div>
@@ -190,10 +189,10 @@ function ScenarioModal({
               </Stack>
             )}
           </Stack>
-          <div className="scn__foot">
-            <Button kind="secondary" size="md" onClick={onClose}>
+          <div className="modal__actions">
+            <Btn variant="ghost" onClick={onClose}>
               Done
-            </Button>
+            </Btn>
           </div>
         </Stack>
       </div>

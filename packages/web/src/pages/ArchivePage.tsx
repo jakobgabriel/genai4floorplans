@@ -1,6 +1,7 @@
 import { useMemo } from "react";
+import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
-import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
 import { ConfirmableButton } from "../components/ConfirmableButton";
 import { TEXTD } from "../components/colors";
 
@@ -22,10 +23,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
-        <h1 className="page-title">Archive</h1>
-      </div>
+      <PageHead title="Archive" />
 
       {empty ? (
         <p style={{ color: TEXTD }}>Nothing archived. Archive a layout or folder from the workspace sidebar.</p>
@@ -42,7 +40,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                       <td>🗀 {f.name}</td>
                       <td style={{ color: TEXTD }}>{folderName(f.parentId) || "Workspace root"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn sm" onClick={() => api.restoreFolder(f.id)}>Restore</button>
+                        <Btn size="compact" variant="ghost" onClick={() => api.restoreFolder(f.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeFolder(f.id)} />
                       </td>
                     </tr>
@@ -64,7 +62,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                       <td>▦ {c.name}</td>
                       <td style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn sm" onClick={() => api.restoreCell(c.id)}>Restore</button>
+                        <Btn size="compact" variant="ghost" onClick={() => api.restoreCell(c.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeCell(c.id)} />
                       </td>
                     </tr>
