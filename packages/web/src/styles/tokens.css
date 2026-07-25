@@ -292,9 +292,10 @@ button {
 }
 
 /* The toolbar's layout button truncates rather than wrapping — a two-line
-   button makes the whole bar taller. */
+   button makes the whole bar taller. The cell name is also in the Explorer and
+   on the report, so the toolbar copy can be short. */
 .editorbar__cell.cds--btn {
-  max-width: 16rem;
+  max-width: 10rem;
   white-space: nowrap;
   overflow: hidden;
 }

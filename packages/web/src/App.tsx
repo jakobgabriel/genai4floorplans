@@ -460,10 +460,6 @@ export function App() {
       >
         {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
       </Btn>
-      <Btn size="compact" variant="ghost" onClick={() => navigate("/site")} title="Site overview across all layouts">
-        Site
-      </Btn>
-      <span className="hsep" />
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
       <span className="hsep" />
       <IconBtn size="compact" icon={Undo} label="Undo (Ctrl/Cmd+Z)" disabled={!api.canUndo} onClick={api.undo} />
