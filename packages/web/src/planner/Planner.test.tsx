@@ -125,6 +125,39 @@ describe("planner — parts & demand", () => {
     expect(screen.getByText("Everything but the names was inferred")).toBeTruthy();
   });
 
+  it("adds and removes demand years from the table itself, past the old cap of ten", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    const yearCols = () => document.querySelectorAll("thead th.parts__num").length;
+    expect(yearCols()).toBe(5);
+
+    const more = screen.getByRole("button", { name: /One year more/ });
+    for (let i = 0; i < 8; i++) fireEvent.click(more);
+    // The column count used to be min(years, 10), so 13 years showed 10 and the
+    // last three could not be entered at all.
+    expect(yearCols()).toBe(13);
+    expect(screen.getByText("13 program years")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /One year fewer/ }));
+    expect(yearCols()).toBe(12);
+  });
+
+  it("counts demand in every year it shows, and only those", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.change(row(0)[1], { target: { value: "Press 10" } });
+    fireEvent.change(row(0)[2], { target: { value: "1000" } });
+    fireEvent.change(row(0)[6], { target: { value: "9000" } }); // year 5
+
+    expect(screen.getByText("10,000")).toBeTruthy(); // program total
+    // Shortening the program drops the years it hides rather than letting them
+    // keep counting toward the volume that amortises capex.
+    fireEvent.click(screen.getByRole("button", { name: /One year fewer/ }));
+    expect(screen.queryByText("10,000")).toBeNull();
+    // Peak and program are both the surviving year's 1,000.
+    expect(screen.getAllByText("1,000").length).toBe(2);
+  });
+
   it("Back from the first stage returns to the start screen", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));

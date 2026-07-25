@@ -52,6 +52,10 @@
   padding: var(--sp-6) var(--sp-5) var(--sp-4);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   flex: 0 0 auto;
+  /* A flex item's min-width is auto, so a wide child — the parts table at a
+     twelve-year program — grows the step past the shell and scrolls the whole
+     page sideways instead of scrolling inside its own container. */
+  min-width: 0;
 }
 
 .planner--wide {
@@ -135,6 +139,11 @@
    scrolls sideways rather than squeezing the routing. */
 .parts {
   margin-top: var(--sp-3);
+  /* Carbon's icon-only buttons carry an absolutely-positioned assistive-text
+     span. Without a positioned ancestor inside the scroller its containing
+     block is the page, so it sits at the table's unclipped width and scrolls
+     the whole document sideways. */
+  position: relative;
 }
 .parts__table {
   width: 100%;
@@ -156,9 +165,16 @@
 .parts__table td.parts__num {
   text-align: right;
 }
+/* Pinned, because a long program scrolls the year columns and a demand figure
+   with no part number beside it is unreadable. */
 .parts__table th:first-child,
 .parts__table td:first-child {
   min-width: 9rem;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--cds-background);
+  padding-right: var(--sp-3);
 }
 .parts__table th:nth-child(2),
 .parts__table td:nth-child(2) {
@@ -181,6 +197,29 @@
   display: flex;
   gap: var(--sp-2);
   margin-top: var(--sp-2);
+}
+
+/* Routing help on the left, the year-column control on the right — the thing
+   that adds a column sits on the table whose columns it adds. */
+.planner__mixHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-3);
+}
+
+.parts__years {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: 0 0 auto;
+}
+
+.parts__yearsLab {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
 }
 
 /* The unit a derived figure is measured in — "incl. capex", "as generated" —

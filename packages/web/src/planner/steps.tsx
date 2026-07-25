@@ -19,7 +19,7 @@ import { CONCEPTS } from "@flowplan/core/engine/concepts";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { ConceptTable } from "./ConceptTable";
-import { Add, TrashCan } from "@carbon/icons-react";
+import { Add, Subtract, TrashCan } from "@carbon/icons-react";
 import { Footnote, SectionLabel } from "../components/analysisKit";
 import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import { formatRouting, parseRouting } from "./parseSteps";
@@ -150,7 +150,21 @@ export function DemandStep({
         concepts are sized against the busiest year and balanced against the real mix.
       </p>
 
-      <PartTable parts={values.parts} years={values.programYears} onChange={(parts) => onChange({ parts })} />
+      <PartTable
+        parts={values.parts}
+        years={values.programYears}
+        // Shortening the program drops the years it removes. The derivation
+        // reads its length from the longest demand curve, so a retained-but-
+        // hidden year would keep counting toward the program volume that
+        // amortises capex — a number affecting the answer from off-screen.
+        onYears={(programYears) =>
+          onChange({
+            programYears,
+            parts: values.parts.map((p) => ({ ...p, demandByYear: p.demandByYear.slice(0, programYears) })),
+          })
+        }
+        onChange={(parts) => onChange({ parts })}
+      />
 
       <SectionLabel>Program</SectionLabel>
       <Grid condensed>
@@ -162,7 +176,6 @@ export function DemandStep({
             onChange={(e) => onChange({ name: e.target.value })}
           />
         </Column>
-        {numField("pl-years", "Program years", "programYears", 1, "Demand columns above.")}
         {numField("pl-shifts", "Shifts per year", "annualShifts", 1)}
         {numField("pl-hours", "Shift hours", "shiftHours", 1)}
       </Grid>
@@ -171,6 +184,9 @@ export function DemandStep({
     </section>
   );
 }
+
+/** A program longer than this is not a program, it is a typo. */
+const MAX_PROGRAM_YEARS = 25;
 
 /**
  * The part portfolio, asked at the point the flow asks "how many".
@@ -193,14 +209,19 @@ export function DemandStep({
 function PartTable({
   parts,
   years,
+  onYears,
   onChange,
 }: {
   parts: Part[];
   years: number;
+  onYears: (y: number) => void;
   onChange: (p: Part[]) => void;
 }) {
   const derived = useMemo(() => derivePortfolio(parts), [parts]);
-  const cols = Math.max(1, Math.min(years, 10));
+  // No second cap here. The column count used to be `min(years, 10)`, which
+  // silently truncated a longer program: you could ask for twelve years, see
+  // ten, and have no way to enter demand for the last two.
+  const cols = Math.max(1, Math.min(years, MAX_PROGRAM_YEARS));
 
   const patch = (id: string, p: Partial<Part>) => onChange(parts.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const setDemand = (part: Part, y: number, v: number) => {
@@ -219,10 +240,40 @@ function PartTable({
 
   return (
     <section className="planner__mix">
-      <Footnote>
-        Routing: steps separated by <code>&gt;</code>, each with its cycle in seconds — <code>Load 5 &gt; Press 10</code>.
-        Leave a time out and it is inferred from the step name. One row is a single-product cell.
-      </Footnote>
+      {/* The year count lives on the table it governs. It used to be a
+          "Program years" field in a group below, so the control that adds a
+          column was not visible from the columns. */}
+      <div className="planner__mixHead">
+        <Footnote>
+          Routing: steps separated by <code>&gt;</code>, each with its cycle in seconds —{" "}
+          <code>Load 5 &gt; Press 10</code>. Leave a time out and it is inferred from the step name.
+        </Footnote>
+        <div className="parts__years">
+          <span className="parts__yearsLab">
+            {cols} program year{cols === 1 ? "" : "s"}
+          </span>
+          <Button
+            kind="ghost"
+            size="sm"
+            hasIconOnly
+            renderIcon={Subtract}
+            iconDescription="One year fewer"
+            tooltipPosition="bottom"
+            disabled={cols <= 1}
+            onClick={() => onYears(cols - 1)}
+          />
+          <Button
+            kind="ghost"
+            size="sm"
+            hasIconOnly
+            renderIcon={Add}
+            iconDescription="One year more"
+            tooltipPosition="bottom"
+            disabled={cols >= MAX_PROGRAM_YEARS}
+            onClick={() => onYears(cols + 1)}
+          />
+        </div>
+      </div>
       <div className="parts u-scroll-x">
         <table className="parts__table">
           <thead>
