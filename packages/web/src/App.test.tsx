@@ -61,7 +61,9 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Start from the sample cell"));
     // Saving is a toolbar action — reachable without opening any panel.
     fireEvent.click(screen.getByRole("button", { name: /Save variant/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    // Both the toolbar button and the dialog's say "Save variant"; the dialog is later in the DOM.
+    const saves = screen.getAllByRole("button", { name: "Save variant" });
+    fireEvent.click(saves[saves.length - 1]);
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByRole("button", { name: /^Variants \(1\)/ }));
     expect(screen.getByRole("menuitem", { name: /Manage variants/ })).toBeTruthy();
@@ -125,8 +127,8 @@ describe("App", () => {
     renderApp();
     fireEvent.click(screen.getByText("Start from the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "⋯" }));
-    fireEvent.click(screen.getByText("Compare scenarios"));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
+    fireEvent.click(screen.getByText("Compare variants"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
     fireEvent.click(screen.getByText("← Editor"));
     await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
   });

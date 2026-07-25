@@ -49,7 +49,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
     return (
       <div className="page">
         <PageHead />
-        <p style={{ color: TEXTD }}>Save a few variants (Flow ▸ Scenarios) to compare them here side by side with charts and statistics.</p>
+        <p style={{ color: TEXTD }}>Save a variant from the toolbar to compare it here.</p>
       </div>
     );
   }
@@ -128,7 +128,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
             ))}
           </tbody>
         </table>
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Teal = best in column. Grades/KPIs are recomputed by the engine for each saved layout.</div>
+        <div style={{ fontSize: 10.5, color: TEXTD }}>Teal marks the best in each column. Every layout is re-rated by the engine.</div>
       </div>
     </div>
   );
@@ -138,7 +138,7 @@ function PageHead() {
   return (
     <div className="page-head">
       <button className="btn sm" onClick={() => navigate("/")}>← Editor</button>
-      <h1 className="page-title">Compare scenarios</h1>
+      <h1 className="page-title">Compare variants</h1>
     </div>
   );
 }

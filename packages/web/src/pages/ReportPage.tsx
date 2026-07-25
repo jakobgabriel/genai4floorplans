@@ -66,12 +66,8 @@ export function ReportPage({
       <div className="page rep">
         <ReportHead />
         <Tile className="rep__empty">
-          <h2 className="rep__emptyTitle">There is nothing to report yet</h2>
-          <p>
-            This cell has no process steps, so every number below would be derived from an empty plan — a blank layout
-            scores a perfect grade because there is nothing in it to be wrong. Design the cell first; the report fills in
-            from the same engines the editor uses.
-          </p>
+          <h2 className="rep__emptyTitle">Nothing to report</h2>
+          <p>This cell has no process steps, so an empty plan would score a perfect grade.</p>
           <Button onClick={() => navigate("/")}>Back to the editor</Button>
         </Tile>
       </div>
@@ -117,7 +113,7 @@ export function ReportPage({
         ))}
       </div>
 
-      <Section n="1" title="The brief" lead="What was asked for, before any layout existed.">
+      <Section n="1" title="The brief">
         {useCase ? <Footnote>{useCase.gives}</Footnote> : null}
         <dl className="rep__facts">
           <Fact k="Product" v={demand.name} />
@@ -154,11 +150,7 @@ export function ReportPage({
         )}
       </Section>
 
-      <Section
-        n="2"
-        title="The concept"
-        lead={picked ? "What was compared, and which starting point was taken." : "No concept was generated for this cell."}
-      >
+      <Section n="2" title="The concept">
         {picked ? (
           <>
             <Tile className="rep__pick">
@@ -235,7 +227,7 @@ export function ReportPage({
         </div>
       </Section>
 
-      <Section n="4" title="The assessment" lead="How the cell as drawn scores, and where the numbers come from.">
+      <Section n="4" title="The assessment">
         <SectionLabel>Rating breakdown</SectionLabel>
         <div className="rep__meters">
           <KpiMeter label="Material flow cost" score={r.scores.flowCost} raw={r.actual.flowCost.toFixed(0)} />
@@ -408,11 +400,7 @@ export function ReportPage({
         )}
       </Section>
 
-      <Footnote>
-        Every figure above is recomputed by the same engines the editor uses, from the layout as it stands now. Concept
-        costs and automation verdicts are planning heuristics — they rank options and flag candidates, they do not quote
-        a line.
-      </Footnote>
+      <Footnote>Recomputed from the layout as it stands now, by the engines the editor uses.</Footnote>
     </div>
   );
 }
@@ -432,7 +420,7 @@ function ReportHead() {
   );
 }
 
-function Section({ n, title, lead, children }: { n: string; title: string; lead: string; children: React.ReactNode }) {
+function Section({ n, title, lead, children }: { n: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section className="rep__sec">
       <header className="rep__secHead">
@@ -440,7 +428,7 @@ function Section({ n, title, lead, children }: { n: string; title: string; lead:
           <span className="rep__num">{n}</span>
           {title}
         </h3>
-        <p className="rep__secLead">{lead}</p>
+        {lead ? <p className="rep__secLead">{lead}</p> : null}
       </header>
       {children}
     </section>

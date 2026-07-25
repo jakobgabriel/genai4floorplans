@@ -70,7 +70,7 @@ export function ScenarioControls({ api, onCompare }: { api: FlowPlanApi; onCompa
           onClick: () => askLoad(s.name),
         }));
   items.push({ label: "Manage variants…", onClick: () => setOpen(true) });
-  items.push({ label: "Compare variants side by side", onClick: onCompare });
+  items.push({ label: "Compare variants", onClick: onCompare });
 
   return (
     <>
@@ -149,26 +149,25 @@ function ScenarioModal({
       <div className="modal scn" onClick={(e) => e.stopPropagation()}>
         <h2>Variants</h2>
         <p>
-          A variant is a named snapshot of this layout. Save one before trying something risky, then load it back or put
-          two side by side.
+          A named snapshot of this layout, to load back or compare.
         </p>
         <Stack gap={5}>
           <div className="fk-inline">
             <TextField
               id="scenario-name"
-              labelText="Save the current layout as"
+              labelText="Name"
               placeholder="name this variant…"
               value={name}
               onChange={setName}
             />
             <Button size="md" onClick={() => onSave(clean)}>
-              Save
+              Save variant
             </Button>
           </div>
           <Stack gap={3}>
             <SectionLabel>Saved variants</SectionLabel>
             {scenarios.length === 0 ? (
-              <Footnote>Nothing saved yet. The first save is the one worth making — it is your way back.</Footnote>
+              <Footnote>No variants saved yet.</Footnote>
             ) : (
               <Stack gap={2}>
                 {scenarios.map((s) => (

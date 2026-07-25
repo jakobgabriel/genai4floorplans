@@ -53,9 +53,7 @@ export function SituationStep({
     <section className="planner">
       <header className="planner__head">
         <h1 className="planner__title">What are you planning?</h1>
-        <p className="planner__sub">
-          Pick the situation. FlowPlan asks only for what that case needs — nothing else.
-        </p>
+        <p className="planner__sub">The steps that follow are only the ones that case needs.</p>
         {hasCell ? (
           <Button kind="ghost" size="sm" onClick={onSkip}>
             Skip to the editor →
@@ -223,7 +221,7 @@ export function ProcessStepView({
         <TextArea
           id="pl-steps"
           labelText="Process steps"
-          helperText="One per line: name then cycle seconds. Paste straight from Excel — tab, comma or semicolon all work."
+          helperText="One per line: name then cycle seconds. Tab, comma or semicolon separated."
           rows={8}
           value={paste}
           onChange={(e) => setPaste(e.target.value)}
@@ -233,7 +231,7 @@ export function ProcessStepView({
           <TextArea
             id="pl-stepnames"
             labelText="Process steps"
-            helperText="One step name per line. Cycle times are estimated — replace them once you have real data."
+            helperText="One name per line. Cycle times are estimated until you enter real ones."
             rows={8}
             value={names}
             onChange={(e) => setNames(e.target.value)}
@@ -357,8 +355,8 @@ export function ConceptsStep({
     <section className="planner planner--wide">
       <h2 className="planner__h2">Which concept?</h2>
       <p className="planner__sub">
-        {candidates.length} options for {num(perShift)} parts/shift. Cost per part is fully loaded — operating cost plus
-        equipment amortised over {programYears} years.
+        Sized for {num(perShift)} parts/shift. Cost per part is fully loaded — operating cost plus equipment amortised
+        over {programYears} years.
       </p>
       <ConceptTable candidates={candidates} selectedId={selectedId} onSelect={onSelect} />
     </section>
@@ -379,9 +377,7 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
   return (
     <section className="glance">
       <h3 className="planner__h2 glance__h">How this cell reads</h3>
-      <p className="planner__sub">
-        The same six questions the Analysis panel answers, top to bottom. Open any one to see the working.
-      </p>
+      <p className="planner__sub">Open any one to see the working.</p>
       <div className="glance__grid">
         {path.map((s, i) => (
           <ClickableTile key={s.id} className="glance__tile" onClick={() => onOpen?.(s.id)}>
@@ -393,7 +389,7 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
             <Tag type={s.tone} size="sm">
               {s.sub}
             </Tag>
-            <p className="glance__q">{s.question}</p>
+            {s.question ? <p className="glance__q">{s.question}</p> : null}
           </ClickableTile>
         ))}
       </div>
@@ -401,10 +397,8 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
           down. The report is a separate page rather than more of this one
           because it is the artefact that leaves the tool. */}
       <div className="glance__foot">
-        <Button onClick={() => navigate("/report")}>Open the full report</Button>
-        <p className="glance__footNote">
-          The brief, the concepts compared, the layout and the whole assessment as one printable document.
-        </p>
+        <Button onClick={() => navigate("/report")}>Open report</Button>
+        <p className="glance__footNote">Printable, and records the concepts you compared.</p>
       </div>
     </section>
   );
@@ -428,16 +422,13 @@ export function SummaryStep({
         {hasCell ? (
           <>
             <h2 className="planner__h2">{api.model.name}</h2>
-            <p className="planner__sub">
-              This summary reads the cell currently open in the editor. Pick a concept in Concepts to compare it against a
-              costed starting point.
-            </p>
+            <p className="planner__sub">Pick a concept to compare this against a costed starting point.</p>
             <AnalysisGlance api={api} onOpen={onOpenAnalysis} />
           </>
         ) : (
           <>
-            <h2 className="planner__h2">Nothing chosen yet</h2>
-            <p className="planner__sub">Go back to Concepts and pick an option.</p>
+            <h2 className="planner__h2">No concept chosen</h2>
+            <p className="planner__sub">Pick one on the Concepts step.</p>
           </>
         )}
       </section>

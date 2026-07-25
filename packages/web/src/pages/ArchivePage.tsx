@@ -28,7 +28,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
       </div>
 
       {empty ? (
-        <p style={{ color: TEXTD }}>Nothing archived. Archive a layout or folder from the workspace sidebar to recover it here later.</p>
+        <p style={{ color: TEXTD }}>Nothing archived. Archive a layout or folder from the workspace sidebar.</p>
       ) : (
         <>
           {api.archivedFolders.length > 0 ? (
@@ -49,7 +49,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   ))}
                 </tbody>
               </table>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a folder brings back the folder; restore its layouts individually below. Permanent delete removes the folder and everything still archived inside it.</div>
+              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a folder brings back the folder only — restore its layouts below. Permanent delete removes both.</div>
             </div>
           ) : null}
 
@@ -71,7 +71,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   ))}
                 </tbody>
               </table>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>A restored layout returns to its folder (or the root if that folder is gone).</div>
+              <div style={{ fontSize: 10.5, color: TEXTD }}>A restored layout returns to its folder, or to the root if that folder is gone.</div>
             </div>
           ) : null}
         </>

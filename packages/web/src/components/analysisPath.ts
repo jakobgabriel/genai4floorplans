@@ -20,17 +20,20 @@ export interface AnalysisStepMeta {
   label: string;
   /** Section heading on the Analysis page. */
   title: string;
-  /** The question this stage answers, in the reader's words. */
-  question: string;
+  /** The question this stage answers — only where the title does not already
+   *  say it. "What caps the output?" under "Balance & bottleneck" is the title
+   *  again; "Where does the material cost come from?" under "Flow & layout" is
+   *  not, because the title does not mention cost. */
+  question?: string;
 }
 
 export const ANALYSIS_PATH: AnalysisStepMeta[] = [
-  { id: "verdict", label: "Verdict", title: "Verdict", question: "How good is this cell, and what would move it?" },
-  { id: "flow", label: "Flow", title: "Flow & layout", question: "Where does the material cost come from?" },
-  { id: "balance", label: "Balance", title: "Balance & bottleneck", question: "What caps the output?" },
-  { id: "yield", label: "Yield", title: "Yield", question: "How much of what we start finishes good?" },
-  { id: "automation", label: "Automation", title: "Automation", question: "What could run itself?" },
-  { id: "cost", label: "Cost", title: "Cost", question: "What does a part cost to make?" },
+  { id: "verdict", label: "Verdict", title: "Verdict", question: "The grade, and what would move it." },
+  { id: "flow", label: "Flow", title: "Flow & layout", question: "Where the material cost comes from." },
+  { id: "balance", label: "Balance", title: "Balance & bottleneck" },
+  { id: "yield", label: "Yield", title: "Yield" },
+  { id: "automation", label: "Automation", title: "Automation" },
+  { id: "cost", label: "Cost", title: "Cost" },
 ];
 
 /** Carbon Tag palette only — no bespoke thresholds colours. */

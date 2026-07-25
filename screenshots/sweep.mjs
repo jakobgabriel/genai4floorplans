@@ -30,7 +30,7 @@ if (await ts.count()) {
 }
 await page.screenshot({ path: `${OUT}/${TAG}-6-summary.png`, fullPage: true });
 
-const or = page.getByRole("button", { name: "Open the full report" });
+const or = page.getByRole("button", { name: "Open report" });
 if (await or.count()) {
   await or.first().click();
   await page.waitForTimeout(1200);

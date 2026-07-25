@@ -493,7 +493,7 @@ export function App() {
           label="⋯"
           title="More actions"
           items={[
-            { label: "Compare scenarios", onClick: () => navigate("/compare") },
+            { label: "Compare variants", onClick: () => navigate("/compare") },
             { label: "Site overview", onClick: () => navigate("/site") },
             { label: "Archived items", onClick: () => navigate("/archive") },
             { label: "Admin (teams & workspaces)", onClick: () => navigate("/admin") },

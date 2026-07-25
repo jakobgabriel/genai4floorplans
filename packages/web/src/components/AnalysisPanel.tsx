@@ -106,7 +106,7 @@ export function AnalysisPanel(props: PanelProps) {
                   <span className="an__secNum">{i + 1}</span>
                   {s.title}
                 </h3>
-                <p className="an__secQ">{s.question}</p>
+                {s.question ? <p className="an__secQ">{s.question}</p> : null}
               </header>
               {body[s.id]}
             </section>
