@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "./ui";
 
@@ -17,10 +17,11 @@ function loadSample() {
   fireEvent.click(screen.getByText("Open the sample cell"));
 }
 
-// Balance is stage 3 of the single Analysis page; selecting a station switches
-// the side panel to Build/Configure, so Analysis has to be re-opened first.
-function openBalance() {
-  fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
+// Balance lives on the Analysis page now, not in the editor rail, so opening it
+// is a hash navigation and has to be awaited.
+async function openBalance() {
+  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Analysis" })).toBeTruthy());
 }
 
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
@@ -53,14 +54,14 @@ afterEach(cleanup);
 // than the engine directly, so a broken prop hand-off or dead reducer branch
 // fails here even though the engine tests stay green.
 describe("cycle decomposition UI", () => {
-  it("prompts to decompose when no step has a breakdown", () => {
+  it("prompts to decompose when no step has a breakdown", async () => {
     loadSample();
-    openBalance();
+    await openBalance();
     expect(screen.getByText(/Value add vs waste/)).toBeTruthy();
     expect(screen.getByText(/No step has a cycle breakdown yet/)).toBeTruthy();
   });
 
-  it("offers a Decompose button on a process step and not on I/O areas", () => {
+  it("offers a Decompose button on a process step and not on I/O areas", async () => {
     loadSample();
     inspect("CNC Turning");
     expect(screen.getByRole("button", { name: /Decompose cycle/ })).toBeTruthy();
@@ -102,7 +103,7 @@ describe("cycle decomposition UI", () => {
     expect(screen.getByText(/75% value-add/)).toBeTruthy();
   });
 
-  it("surfaces the line ratio and waste backlog in the Balance stage", () => {
+  it("surfaces the line ratio and waste backlog in the Balance stage", async () => {
     loadSample();
     inspect("Assembly");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
@@ -112,7 +113,7 @@ describe("cycle decomposition UI", () => {
     fireEvent.change(inputs[1], { target: { value: "30" } }); // handling
     fireEvent.change(inputs[3], { target: { value: "20" } }); // wait
 
-    openBalance();
+    await openBalance();
     // 50 / 100 => 50% value-add across the one decomposed step.
     expect(screen.getByText(/Value-add ratio \(decomposed steps only\)/)).toBeTruthy();
     expect(screen.getByText("Waste backlog (largest first)")).toBeTruthy();
@@ -122,7 +123,7 @@ describe("cycle decomposition UI", () => {
 
   // CNC Turning is the sample's bottleneck (685/shift vs Assembly's 909), so it
   // is the station bottleneckAdvice reports on.
-  it("bottleneck advice names the dominant waste class once decomposed", () => {
+  it("bottleneck advice names the dominant waste class once decomposed", async () => {
     loadSample();
     inspect("CNC Turning");
     fireEvent.click(screen.getByRole("button", { name: /Decompose cycle/ }));
@@ -131,7 +132,7 @@ describe("cycle decomposition UI", () => {
     fireEvent.change(inputs[0], { target: { value: "20" } }); // value add
     fireEvent.change(inputs[1], { target: { value: "30" } }); // handling dominates
 
-    openBalance();
+    await openBalance();
     // 30s of a 50s cycle = 60% handling.
     expect(screen.getByText(/Cycle is 50s, of which 30s \(60%\) is handling/)).toBeTruthy();
   });

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
 // Minimal dependency-free hash router. Routes are the part after '#':
-// "/" (editor), "/report", "/compare", "/site", "/admin", "/archive". Deep links and the
-// browser back/forward button work because we just read/write location.hash.
-export type Route = "/" | "/report" | "/compare" | "/site" | "/admin" | "/archive";
+// "/" (editor), "/analysis", "/assistant", "/report", "/compare", "/site",
+// "/admin", "/archive". Deep links and the browser back/forward button work
+// because we just read/write location.hash.
+export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive";
 
 function current(): Route {
   const h = (window.location.hash.slice(1) || "/") as Route;
-  return (["/", "/report", "/compare", "/site", "/admin", "/archive"] as string[]).includes(h) ? h : "/";
+  return (["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive"] as string[]).includes(h) ? h : "/";
 }
 
 export function useHashRoute(): [Route, (r: Route) => void] {

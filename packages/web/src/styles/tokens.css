@@ -1193,6 +1193,34 @@ code {
   background: var(--cds-layer-01);
   padding: var(--sp-4);
 }
+/* ---------- analysis page ----------
+ * Given the full width, the six stages are sections in a two-column read
+ * instead of a numbered single column with a jump-nav. The nav only ever
+ * existed to survive a 360px rail. */
+
+.anp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: var(--sp-6);
+  align-items: start;
+}
+.anp__sec--wide {
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.anp__h {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--type-section-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
+/* The panels were written for a narrow rail and set their own padding. */
+.anp .pad,
+.asp .pad {
+  padding: 0;
+}
+
 /* ---------- assessment report ----------
  * A document, not a dashboard: one column, numbered sections, generous rhythm,
  * and no controls inside the content. */

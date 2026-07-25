@@ -18,12 +18,14 @@ import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "
 import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
-import { Add, Folders, Help, Redo, Settings as SettingsIcon, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Add, ChartLine, Folders, Help, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
+import { AnalysisPage } from "./pages/AnalysisPage";
+import { AssistantPage } from "./pages/AssistantPage";
 import { ComparePage } from "./pages/ComparePage";
 import { ReportPage } from "./pages/ReportPage";
 import { SitePage } from "./pages/SitePage";
@@ -33,9 +35,7 @@ import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ScenarioControls } from "./components/ScenarioBar";
 import { StationTooltip } from "./components/StationTooltip";
-import { AiChatPanel } from "./components/AiChatPanel";
 import { ProposalPanel } from "./components/ProposalPanel";
-import { WorkloadPanel } from "./components/WorkloadPanel";
 import { makePlacementProposal } from "@flowplan/core/engine/proposal";
 import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
@@ -47,42 +47,29 @@ import {
   type PanelProps,
   type Tab,
 } from "./components/panels";
-import { AnalysisPanel } from "./components/AnalysisPanel";
 import { AMBER, RED, TEAL } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
 
-// Side-panel tabs grouped for a calmer rail: one button per group, plus a slim
-// sub-tab row when a group has >1 panel. Schema is reached via the "?" help icon.
+// The editor rail edits the thing on the canvas: the flow between steps, and
+// the step you have selected. Nothing else.
 //
-// Reading and building are the only two things done here, so there are only two
-// groups plus the assistant. Analysis used to be four of these buttons — Rating,
-// Balance, Cost, Automation — which left the reader to sequence the assessment
-// themselves; it is now one page read top to bottom.
-type Group = "analysis" | "build" | "chat";
-const TAB_GROUPS: { id: Group; label: string; tabs: { tab: Tab; label: string }[] }[] = [
-  { id: "analysis", label: "Analysis", tabs: [{ tab: "analysis", label: "Analysis" }] },
-  { id: "build", label: "Build", tabs: [
-    // Workload leads: the spec's flow is workload → balancer → stations (§11),
-    // so the product-free input comes before the things derived from it.
-    { tab: "workload", label: "Workload" },
-    { tab: "flow", label: "Flow" },
-    { tab: "inspect", label: "Configure" },
-  ] },
-  { id: "chat", label: "AI Chat", tabs: [{ tab: "chat", label: "AI Chat" }] },
+// It used to carry the whole assessment as well — six analysis stages with
+// their own jump-nav, inside 360px, beside a Workload tab and an AI Chat tab.
+// Five things competing in a column too narrow for any of them, and the same
+// assessment already existed on the Summary step and in the report. Analysis
+// and the assistant are full-width pages now; the rail is two tabs.
+const RAIL_TABS: { tab: Tab; label: string }[] = [
+  { tab: "flow", label: "Flow" },
+  { tab: "inspect", label: "Element" },
 ];
-const GROUP_OF: Record<Tab, Group | undefined> = {
-  analysis: "analysis",
-  workload: "build", flow: "build", inspect: "build",
-  chat: "chat", schema: undefined,
-};
 
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
   const [view, setView] = useState<View>("actual");
-  const [tab, setTab] = useState<Tab>("analysis");
+  const [tab, setTab] = useState<Tab>("flow");
   const [selId, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<CanvasMode>("select");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
@@ -124,8 +111,6 @@ export function App() {
   useEffect(() => { localStorage.setItem("flowplan_config_w", String(configWidth)); }, [configWidth]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const clipboard = useRef<Station | null>(null);
-  // Remember the last sub-tab visited per group, so returning to a group restores it.
-  const lastSubTab = useRef<Record<Group, Tab>>({ analysis: "analysis", build: "flow", chat: "chat" });
 
   const { model, rating } = api;
 
@@ -133,13 +118,6 @@ export function App() {
     setSel(id);
     if (id) setTab("inspect");
   }, []);
-
-  // Keep the per-group memory in sync however the tab changed (incl. in-panel
-  // deep-links like Balance → Configure), so re-opening a group restores it.
-  useEffect(() => {
-    const g = GROUP_OF[tab];
-    if (g) lastSubTab.current[g] = tab;
-  }, [tab]);
 
   // ---- derived planning data ----------------------------------------------
   const briefSteps: CoreStep[] = useMemo(() => {
@@ -306,17 +284,6 @@ export function App() {
       </TabBtn>
     );
   }
-  // The active group follows the active tab (so in-panel deep-links to Configure
-  // still light up the right group). Schema (via "?") belongs to no group.
-  const activeGroup = GROUP_OF[tab];
-  function selectGroup(g: Group) {
-    setTab(lastSubTab.current[g]);
-  }
-  function selectSubTab(g: Group, k: Tab) {
-    lastSubTab.current[g] = k;
-    setTab(k);
-  }
-
   const improvedModel = { ...model, stations: rating.optimized };
 
   // An empty layout is an empty grey rectangle, and the only way to add a step
@@ -403,7 +370,7 @@ export function App() {
             : mode === "nogo"
               ? "No-go mode: drag a rectangle. Esc to exit."
               : proposal && !proposalDismissed
-                ? "Drag movable stations · scroll to zoom · click an amber dashed ghost to accept that move · tap to configure"
+                ? "Drag movable stations · scroll to zoom · click an amber ghost to accept that move"
                 : "Drag movable stations · scroll to zoom · click a step to configure it"}
         </div>
       </div>
@@ -454,6 +421,13 @@ export function App() {
         />
       </div>
     );
+  if (route === "/analysis") return <div className="wrap"><AnalysisPage {...panelProps} /></div>;
+  if (route === "/assistant")
+    return (
+      <div className="wrap">
+        <AssistantPage api={api} settings={settings} openSettings={() => setShowSettings(true)} />
+      </div>
+    );
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -481,6 +455,12 @@ export function App() {
       >
         {cellName.length > 22 ? cellName.slice(0, 21).trimEnd() + "…" : cellName}
       </Btn>
+      <span className="hsep" />
+      {/* Analysis and the assistant left the rail; they are reachable here. */}
+      <Btn size="compact" icon={ChartLine} onClick={() => navigate("/analysis")} title="The full assessment">
+        Analysis
+      </Btn>
+      <span className="hsep" />
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
       <span className="hsep" />
       <IconBtn size="compact" icon={Undo} label="Undo (Ctrl/Cmd+Z)" disabled={!api.canUndo} onClick={api.undo} />
@@ -506,11 +486,12 @@ export function App() {
             { label: "Open report", onClick: () => navigate("/report") },
           ]}
         />
-        <IconBtn size="compact" icon={SettingsIcon} label="Settings" onClick={() => setShowSettings(true)} />
         <Menu
           label="⋯"
           title="More actions"
           items={[
+            { label: "Assistant", onClick: () => navigate("/assistant") },
+            { label: "Settings", onClick: () => setShowSettings(true) },
             { label: "Compare variants", onClick: () => navigate("/compare") },
             { label: "Site overview", onClick: () => navigate("/site") },
             { label: "Archived items", onClick: () => navigate("/archive") },
@@ -578,9 +559,9 @@ export function App() {
           <>
           <div className="tabbar">
             <div className="grouptabs">
-              {TAB_GROUPS.map((g) => (
-                <TabBtn key={g.id} selected={activeGroup === g.id} onClick={() => selectGroup(g.id)}>
-                  {g.label}
+              {RAIL_TABS.map((t) => (
+                <TabBtn key={t.tab} selected={tab === t.tab} onClick={() => setTab(t.tab)}>
+                  {t.label}
                 </TabBtn>
               ))}
               <IconBtn
@@ -601,21 +582,9 @@ export function App() {
                 onClick={() => setConfigCollapsed(true)}
               />
             </div>
-            {activeGroup && (TAB_GROUPS.find((g) => g.id === activeGroup)?.tabs.length ?? 0) > 1 ? (
-              <div className="subtabs">
-                {TAB_GROUPS.find((g) => g.id === activeGroup)!.tabs.map((t) => (
-                  <TabBtn key={t.tab} selected={tab === t.tab} onClick={() => selectSubTab(activeGroup, t.tab)}>
-                    {t.label}
-                  </TabBtn>
-                ))}
-              </div>
-            ) : null}
           </div>
-          {tab === "analysis" && <AnalysisPanel {...panelProps} />}
-          {tab === "workload" && <WorkloadPanel {...panelProps} />}
           {tab === "flow" && <FlowPanel {...panelProps} />}
           {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "chat" && <AiChatPanel api={api} settings={settings} openSettings={() => setShowSettings(true)} />}
           {tab === "schema" && <SchemaPanel />}
           </>
           )}

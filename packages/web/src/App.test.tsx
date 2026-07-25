@@ -28,26 +28,30 @@ describe("App", () => {
     expect(screen.getByText("Start blank")).toBeTruthy();
   });
 
-  it("loads the sample cell and shows its rating + stations", () => {
+  it("loads the sample cell and opens the editor on its flow", () => {
     renderApp();
     fireEvent.click(screen.getByText("Open the sample cell"));
-    // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    // The rail edits the cell; the assessment is not in it.
+    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Element" })).toBeTruthy();
+    expect(screen.queryByText("Actual-state rating")).toBeNull();
   });
 
-  it("reads the whole analysis as one page, in path order", () => {
+  it("reads the whole analysis on its own page, in path order", async () => {
     const { container } = renderApp();
     fireEvent.click(screen.getByText("Open the sample cell"));
-    // Analysis is one page: every stage is on screen at once, no tab switching.
-    const heads = [...container.querySelectorAll(".an__secTitle")].map((h) => h.textContent);
+    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Analysis" })).toBeTruthy());
+
+    const heads = [...container.querySelectorAll(".anp__h")].map((h) => h.textContent);
     expect(heads).toEqual([
-      "1Verdict",
-      "2Flow & layout",
-      "3Balance & bottleneck",
-      "4Yield",
-      "5Automation",
-      "6Cost",
+      "Verdict",
+      "Flow & layout",
+      "Balance & bottleneck",
+      "Yield",
+      "Automation",
+      "Cost",
     ]);
     // Each stage rendered its body, not just its heading.
     expect(screen.getByText(/Where the cost sits/)).toBeTruthy();
@@ -84,32 +88,35 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /Print/ })).toBeTruthy();
   });
 
-  it("switches between side-panel groups without error", () => {
+  it("switches between the two rail tabs without error", () => {
     renderApp();
     fireEvent.click(screen.getByText("Open the sample cell"));
-    fireEvent.click(screen.getByRole("tab", { name: "Build" }));
-    expect(screen.getByRole("tab", { name: "Configure" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Element" }));
+    expect(screen.getByText("No step selected")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Flow" }));
+    expect(screen.getByText(/Draw connections/)).toBeTruthy();
     // Schema lives behind the help icon in the tab bar.
     fireEvent.click(screen.getByRole("button", { name: /Data model reference/ }));
     expect(screen.getAllByText(/Data model/).length).toBeGreaterThan(0);
   });
 
-  it("generates AI proposals from the AI Chat group", async () => {
+  it("generates AI proposals from the assistant page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("Open the sample cell"));
-    fireEvent.click(screen.getByRole("tab", { name: "AI Chat" }));
+    fireEvent.click(screen.getByRole("button", { name: "⋯" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Assistant" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Assistant" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /Propose improvements/ }));
     // a strategist proposal card appears (engine-scored, offline)
     await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
   });
 
-  it("renders the DAG view and the Yield panel", () => {
+  it("renders the DAG view", () => {
     renderApp();
     fireEvent.click(screen.getByText("Open the sample cell"));
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByText("⊟ DAG"));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
-    expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
   });
 
   it("navigates to the dedicated Site overview page", async () => {
@@ -121,7 +128,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy());
   });
 
   it("navigates to the dedicated Compare page", async () => {
@@ -131,7 +138,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Compare variants"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByText("Actual-state rating")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy());
   });
 
   it("opens the freeform footprint editor without crashing", () => {

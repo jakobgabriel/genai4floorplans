@@ -102,7 +102,7 @@ describe("planner — entry", () => {
     renderApp();
     fireEvent.click(screen.getByText("Improve a planned cell"));
     // Skips demand/process/concepts entirely — that case already has a layout.
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
   });
 });
 
@@ -167,7 +167,7 @@ describe("planner — guided flow", () => {
     toConcepts();
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor is a stage of the process, not a separate destination.
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // ...and the process stepper is still present around it.
     expect(screen.getByText("Refine")).toBeTruthy();
     expect(screen.getByText("Summary")).toBeTruthy();
@@ -193,7 +193,7 @@ describe("planner — guided flow", () => {
   it("keeps the stepper available from inside the editor", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
-    expect(screen.getByText("Actual-state rating")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
     fireEvent.click(screen.getByText("Situation"));
     expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
