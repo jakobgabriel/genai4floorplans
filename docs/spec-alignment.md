@@ -224,7 +224,7 @@ gaps that were not being tracked at all:
 | §26 performance budgets | No budgets declared, none measured. Canvas is DOM/SVG; §26 says SVG will not sustain 16 ms at tier L |
 | §27 incremental recomputation | Full recompute on edit; no dirty set |
 | §28 continuous validation | `engine/validate.ts` exists but is not wired as in-place, non-blocking, at-the-violation rendering |
-| §29 layer architecture | **Violated.** `engine/concepts.ts` `CONCEPTS` is a TypeScript constant; §29 and §35 both require rules-as-data |
+| §29 layer architecture | **Partly resolved.** The concept catalog is data now — `ConceptProfile[]`, passed into `generateCandidates`, edited on `#/concepts` and persisted; `CONCEPT_DEFAULTS` is a starting point rather than the only possible answer. The rating weights and the capability catalog behind inference are still constants. |
 | **§30–35 pattern library** | **Entirely unbuilt** |
 | §36 canvas + parameter rail + pattern palette | Partial. `LayoutCanvas`, `DagView`, `CyclePanel` exist; no pattern palette, no live testfit on parameter change |
 | §37 overlays | Not built. No overlay system at all |

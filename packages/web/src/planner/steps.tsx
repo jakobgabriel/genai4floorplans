@@ -15,7 +15,6 @@ import {
   TextInput,
   Tile,
 } from "@carbon/react";
-import { CONCEPTS } from "@flowplan/core/engine/concepts";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { ConceptTable } from "./ConceptTable";
@@ -56,6 +55,7 @@ import { money, moneyWhole, num } from "../format";
 export function StartScreen({
   onPlan,
   onLibrary,
+  onConcepts,
   onSample,
   onBlank,
   onImport,
@@ -63,9 +63,12 @@ export function StartScreen({
   onOpen,
   cellCount,
   processCount,
+  conceptCount,
+  conceptsEdited,
 }: {
   onPlan: () => void;
   onLibrary: () => void;
+  onConcepts: () => void;
   onSample: () => void;
   onBlank: () => void;
   onImport: () => void;
@@ -74,6 +77,8 @@ export function StartScreen({
   onOpen: () => void;
   cellCount: number;
   processCount: number;
+  conceptCount: number;
+  conceptsEdited: boolean;
 }) {
   return (
     <section className="planner planner--start">
@@ -101,6 +106,16 @@ export function StartScreen({
           body="The steps this plant knows how to do — cycle, manning, changeover, capex, footprint, and any field of your own. Kept once, reused in every routing and every cell."
           meta={processCount === 0 ? "Empty — nothing is seeded" : `${processCount} process${processCount === 1 ? "" : "es"}`}
           onClick={onLibrary}
+        />
+        <PortalTile
+          title="Manufacturing concepts"
+          body="The archetypes every comparison is generated from — bench, cell, flow line, transfer line, job shop. Their cycle multipliers, manning and capex decide the ranking, so they are here to be corrected rather than trusted."
+          meta={
+            conceptCount === 0
+              ? "None defined — the planner has nothing to compare"
+              : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
+          }
+          onClick={onConcepts}
         />
         <PortalTile
           title={hasCell ? "Open a layout" : "See an example"}
@@ -705,9 +720,9 @@ export function SummaryStep({
           lowContrast
           hideCloseButton
           title="Outside the usual volume range"
-          subtitle={`${picked.conceptLabel} normally suits ${num(CONCEPTS[picked.concept].viableVolume[0])}–${num(
-            CONCEPTS[picked.concept].viableVolume[1],
-          )} parts/year. Treat this as a comparison point, not a recommendation.`}
+          subtitle={`${picked.conceptLabel} normally suits ${num(picked.profile.viableVolume[0])}–${num(
+            picked.profile.viableVolume[1],
+          )} parts/year — a band you can change on the Concepts page. Treat this as a comparison point, not a recommendation.`}
         />
       ) : null}
 

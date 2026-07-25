@@ -147,7 +147,13 @@ export function IconBtn({
   tooltipPosition = "bottom",
   onClick,
 }: IconBtnProps) {
-  const kind = selected === undefined ? KIND[variant] : selected ? "primary" : "ghost";
+  // Carbon's icon-only Button accepts only primary/secondary/ghost/tertiary —
+  // the danger kinds are rejected outright, and passing `danger--tertiary`
+  // logged a propType warning on every render and fell back to a plain button
+  // with no destructive signal at all. A ghost carrying the destructive colour
+  // is the icon-only equivalent.
+  const danger = variant === "danger" && selected === undefined;
+  const kind = selected === undefined ? (danger ? "ghost" : KIND[variant]) : selected ? "primary" : "ghost";
   return (
     <Button
       hasIconOnly
@@ -157,7 +163,7 @@ export function IconBtn({
       iconDescription={label}
       tooltipPosition={tooltipPosition}
       disabled={disabled}
-      className={className}
+      className={[className, danger ? "btn--dangerIcon" : ""].filter(Boolean).join(" ") || undefined}
       aria-pressed={selected}
       onClick={onClick}
     />

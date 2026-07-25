@@ -2366,3 +2366,13 @@ button.fk-listrow__main {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* An icon-only destructive action. Carbon's icon-only Button refuses the
+   danger kinds, so the colour is applied here rather than lost. */
+.cds--btn.btn--dangerIcon {
+  color: var(--cds-text-error);
+}
+.cds--btn.btn--dangerIcon:hover:not(:disabled) {
+  background: var(--cds-button-danger-primary);
+  color: var(--cds-text-on-color);
+}

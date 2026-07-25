@@ -25,6 +25,8 @@ import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { useLibrary } from "./store/library";
 import { LibraryPage } from "./pages/LibraryPage";
+import { ConceptsPage } from "./pages/ConceptsPage";
+import { useConcepts } from "./store/concepts";
 import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/library";
 import { AnalysisPage } from "./pages/AnalysisPage";
 import { AssistantPage } from "./pages/AssistantPage";
@@ -124,6 +126,9 @@ export function App() {
   // The process library — what this plant knows how to do. Outlives any one
   // cell, so it is persisted separately from the workspace.
   const lib = useLibrary();
+  // The concept catalog the sweep ranks against — the planner's, if they have
+  // edited it, rather than the archetypes the app ships with.
+  const conceptApi = useConcepts();
 
   const { model, rating } = api;
 
@@ -161,6 +166,7 @@ export function App() {
     programYears:
       portfolio && portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
     variantModes: portfolio ? portfolio.modes : undefined,
+    conceptCatalog: conceptApi.concepts,
   };
   // What the brief was actually sized against: the portfolio's peak year.
   const perShift = portfolio && demand.annualShifts > 0 ? portfolio.peakVolume / demand.annualShifts : 0;
@@ -169,7 +175,7 @@ export function App() {
     // The report records which concepts were compared, so it needs them
     // regenerated even when the stepper has moved on to Refine.
     () => (step === "concepts" || step === "summary" || route === "/report" ? rankCandidates(generateCandidates(brief)) : []),
-    [step, route, demand],
+    [step, route, demand, conceptApi.concepts],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
 
@@ -443,6 +449,7 @@ export function App() {
   // The library is a destination in its own right — reachable from the front
   // door, and useful with no cell open at all.
   if (route === "/library") return <div className="wrap"><LibraryPage lib={lib} /></div>;
+  if (route === "/concepts") return <div className="wrap"><ConceptsPage api={conceptApi} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -506,6 +513,7 @@ export function App() {
           title="More actions"
           items={[
             { label: "Process library", onClick: () => navigate("/library") },
+            { label: "Manufacturing concepts", onClick: () => navigate("/concepts") },
             { label: "Assistant", onClick: () => navigate("/assistant") },
             { label: "Settings", onClick: () => setShowSettings(true) },
             { label: "Compare variants", onClick: () => navigate("/compare") },
@@ -633,7 +641,10 @@ export function App() {
             loadedCandidate.current = picked.id;
             setSel(null);
             setView("actual");
-            setTab("analysis");
+            // "analysis" stopped being a rail tab when the assessment moved to
+            // its own page; leaving it selected here left the rail rendering
+            // nothing at all — Flow and Element present, neither chosen.
+            setTab("flow");
             toast(`Loaded ${picked.conceptLabel} (${FORM_LABELS[picked.form]}).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
@@ -672,6 +683,9 @@ export function App() {
           onOpen={() => goTo("refine")}
           onPlan={() => goTo("demand")}
           onLibrary={() => navigate("/library")}
+          onConcepts={() => navigate("/concepts")}
+          conceptCount={conceptApi.concepts.length}
+          conceptsEdited={!conceptApi.isPristine}
           onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
           onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
           onImport={() => fileRef.current?.click()}
@@ -709,11 +723,11 @@ export function App() {
         <SummaryStep
           picked={picked}
           api={api}
-          // The glance tiles are entry points, not decoration: opening one goes
-          // back to the editor with the Analysis panel scrolled to that stage.
+          // The glance tiles are entry points, not decoration: opening one
+          // goes to the Analysis page, scrolled to that stage. It used to
+          // select an "analysis" rail tab, which no longer exists.
           onOpenAnalysis={(id) => {
-            setTab("analysis");
-            goTo("refine");
+            navigate("/analysis");
             requestAnimationFrame(() => document.getElementById("an-" + id)?.scrollIntoView?.({ block: "start" }));
           }}
         />

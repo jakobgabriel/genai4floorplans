@@ -4,7 +4,7 @@ import { normalizeFlow, normalizeStation } from "../model/defaults";
 import type { CellForm } from "./templates";
 import { cellTopology } from "./topology";
 import { clampToGrid } from "./geometry";
-import { CONCEPTS, CONCEPT_KINDS, conceptFit, type ConceptKind } from "./concepts";
+import { CONCEPTS, byKind, conceptFit, type ConceptCatalog, type ConceptKind, type ConceptProfile } from "./concepts";
 import { buildRating, type Letter, type Rating } from "./rating";
 import { costAnalysis, type CostResult } from "./cost";
 import { buildWorkloadStations } from "./generateCell";
@@ -44,6 +44,10 @@ export interface GenerateBrief {
   programYears?: number;
   /** Mix modes for mixed-model balancing (spec §3.2). */
   variantModes?: VariantMode[];
+  /** The concept catalog to sweep. Defaults to the one the app ships with —
+   *  pass the planner's edited catalog to rank against their own machine park
+   *  rather than against the shipped archetypes. */
+  conceptCatalog?: ConceptProfile[];
 }
 
 export const DEFAULT_PROGRAM_YEARS = 5;
@@ -79,6 +83,8 @@ export interface Candidate {
   id: string;
   concept: ConceptKind;
   conceptLabel: string;
+  /** The profile this candidate was built from. */
+  profile: ConceptProfile;
   form: CellForm;
   model: Model;
   rating: Rating;
@@ -111,8 +117,7 @@ function gridFor(n: number): { gridW: number; gridH: number } {
 }
 
 /** Build one concept x form candidate model, sized for demand. */
-function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number): Model {
-  const p = CONCEPTS[concept];
+function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, perShiftTarget: number): Model {
   const shiftHours = brief.shiftHours ?? DEFAULT_SHIFT_HOURS;
   const grid = gridFor(brief.steps.length);
 
@@ -209,7 +214,7 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
     stations: chain,
     flows,
     noGoZones: [],
-    conceptKind: concept,
+    conceptKind: p.kind,
     costConfig: {
       annualShifts: brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts,
       laborCostPerHour: brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,
@@ -224,8 +229,7 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
 
 // ---- generation -----------------------------------------------------------
 
-function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
-  const p = CONCEPTS[concept];
+function rationaleFor(p: ConceptProfile, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
   const bits: string[] = [p.blurb];
   if (!m.meetsDemand) {
     bits.push(`Falls short of demand — ${m.lineOut.toLocaleString()}/shift against ${Math.round(perShiftTarget).toLocaleString()} needed.`);
@@ -253,13 +257,15 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
   if (brief.steps.length === 0) return [];
   const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
   const perShiftTarget = brief.annualVolume > 0 ? brief.annualVolume / shifts : 0;
-  const kinds = brief.concepts?.length ? brief.concepts : CONCEPT_KINDS;
+  const catalog: ConceptCatalog = brief.conceptCatalog ? byKind(brief.conceptCatalog) : CONCEPTS;
+  const kinds = brief.concepts?.length ? brief.concepts.filter((k) => catalog[k]) : Object.keys(catalog);
   const currency = brief.currency ?? DEFAULT_COST_CONFIG.currency;
 
   const out: Candidate[] = [];
   kinds.forEach((concept) => {
-    CONCEPTS[concept].forms.forEach((form) => {
-      const model = buildModel(brief, concept, form, perShiftTarget);
+    const profile = catalog[concept];
+    profile.forms.forEach((form) => {
+      const model = buildModel(brief, profile, form, perShiftTarget);
       // restarts: 0 keeps the sweep deterministic and fast — the candidate is a
       // starting point, and the user can run the full optimizer on the winner.
       const rating = buildRating(model, { restarts: 0 });
@@ -290,20 +296,23 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
         stations: procs.length,
         parallelUnits,
         meetsDemand: perShiftTarget <= 0 || rating.balance.lineOut >= Math.floor(perShiftTarget),
-        conceptFit: conceptFit(concept, brief.annualVolume),
+        conceptFit: conceptFit(concept, brief.annualVolume, catalog),
         valueAddPct: totalSec > 0 ? +((vaSec / totalSec) * 100).toFixed(1) : 0,
       };
 
       out.push({
         id: `${concept}-${form}`,
         concept,
-        conceptLabel: CONCEPTS[concept].label,
+        conceptLabel: profile.label,
+        // The candidate carries the profile it was built from, so nothing
+        // downstream has to look the concept up in a catalog it may not have.
+        profile,
         form,
         model,
         rating,
         cost,
         metrics,
-        rationale: rationaleFor(concept, metrics, perShiftTarget, currency),
+        rationale: rationaleFor(profile, metrics, perShiftTarget, currency),
       });
     });
   });
