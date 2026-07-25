@@ -51,8 +51,8 @@ describe("nothing is seeded", () => {
 
   it("says so, and offers the built-in catalog as an import rather than a default", async () => {
     await openLibrary();
-    expect(screen.getByText("Your library is empty")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Import the 12 built-in operations/ }));
+    expect(screen.getByText("Library is empty")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Import 12 built-in operations/ }));
     await waitFor(() => expect(stored().processes.length).toBe(12));
     // Imported entries are ordinary ones — nothing marks them as not yours.
     expect(stored().processes.every((p: Record<string, unknown>) => !("seeded" in p))).toBe(true);
@@ -67,7 +67,7 @@ describe("nothing is seeded", () => {
 describe("editing a process", () => {
   it("fills a new entry in from its name, using the same catalog inference uses", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "MIG weld" } });
     fireEvent.change(screen.getByLabelText("Cycle (s)"), { target: { value: "72" } });
     await waitFor(() => expect(stored().processes[0].cycleTimeSec).toBe(72));
@@ -76,7 +76,7 @@ describe("editing a process", () => {
 
   it("carries every process-intrinsic field the station editor has", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     // The answer to "does the library cover what the process UI configures".
     [
       "Cycle (s)",
@@ -100,7 +100,7 @@ describe("editing a process", () => {
 describe("the extendable half", () => {
   it("takes fields the tool does not model, and keeps them", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     fireEvent.click(screen.getByRole("button", { name: /Add a field/ }));
     fireEvent.change(screen.getByLabelText("Field"), { target: { value: "Tool no." } });
     fireEvent.change(screen.getByLabelText("Value"), { target: { value: "T-4471" } });
@@ -111,7 +111,7 @@ describe("the extendable half", () => {
 describe("tags", () => {
   it("groups processes, and a process carries as many as it belongs to", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
 
     fireEvent.change(screen.getByLabelText("New tag"), { target: { value: "Joining" } });
@@ -130,7 +130,7 @@ describe("tags", () => {
 
   it("renames a tag in place rather than making you retag everything", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
     fireEvent.change(screen.getByLabelText("New tag"), { target: { value: "Joining" } });
     fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));
@@ -142,7 +142,7 @@ describe("tags", () => {
 
   it("detaches a deleted tag from every process carrying it", async () => {
     await openLibrary();
-    fireEvent.click(screen.getByRole("button", { name: /Add your first process/ }));
+    fireEvent.click(screen.getByRole("button", { name: "New process" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
     fireEvent.change(screen.getByLabelText("New tag"), { target: { value: "Joining" } });
     fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));

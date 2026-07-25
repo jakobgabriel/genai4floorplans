@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { InlineNotification, Tag } from "@carbon/react";
+import { Tag } from "@carbon/react";
 import { conceptCrossoverRanges, type CrossoverSegment, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { Btn } from "../components/Btn";
 import { Footnote, SectionLabel } from "../components/analysisKit";
@@ -56,17 +56,13 @@ export function Crossover({ brief, atVolume, currency }: { brief: GenerateBrief;
     return (
       <div className="xover__ask">
         <Btn size="compact" onClick={() => setOpen(true)}>
-          Where does this flip?
+          Volume crossover
         </Btn>
-        <Footnote>
-          Sweeps the volume axis and shows which concept wins where, and how close the call is at each point. Takes a
-          moment — it runs the whole comparison at every sample.
-        </Footnote>
       </div>
     );
   }
 
-  if (segs.length === 0) return <Footnote>Nothing to sweep — the parts carry no routing.</Footnote>;
+  if (segs.length === 0) return <Footnote>No routing.</Footnote>;
 
   const lo = segs[0].from;
   const hi = Math.max(atVolume * 2, segs[segs.length - 1].to ?? segs[segs.length - 1].from * 4);
@@ -81,7 +77,7 @@ export function Crossover({ brief, atVolume, currency }: { brief: GenerateBrief;
 
   return (
     <div className="xover">
-      <SectionLabel>Where the answer changes</SectionLabel>
+      <SectionLabel>Volume crossover</SectionLabel>
 
       <div className="xover__band" role="img" aria-label="Winning concept by annual volume">
         {segs.map((s) => {
@@ -112,9 +108,9 @@ export function Crossover({ brief, atVolume, currency }: { brief: GenerateBrief;
         <thead>
           <tr>
             <th>Annual volume</th>
-            <th>Cheapest concept</th>
-            <th className="rep__numCol">Best cost/part</th>
-            <th className="rep__numCol">Margin over the next concept</th>
+            <th>Concept</th>
+            <th className="rep__numCol">Cost/part</th>
+            <th className="rep__numCol">Margin</th>
           </tr>
         </thead>
         <tbody>
@@ -131,7 +127,7 @@ export function Crossover({ brief, atVolume, currency }: { brief: GenerateBrief;
                     {s.winnerLabel}
                   </>
                 ) : (
-                  <em>nothing meets demand</em>
+                  <em>none viable</em>
                 )}
               </td>
               <td className="rep__numCol">{s.winner ? money(currency, s.costPerPart) : "—"}</td>
@@ -149,31 +145,15 @@ export function Crossover({ brief, atVolume, currency }: { brief: GenerateBrief;
         </tbody>
       </table>
 
-      {tossy.length > 0 ? (
-        <InlineNotification
-          kind="warning"
-          lowContrast
-          hideCloseButton
-          title={`Too close to call ${tossy.length === 1 ? "in one band" : `in ${tossy.length} bands`}`}
-          subtitle={`${tossy
-            .map((s) => `${s.winnerLabel} leads by ${s.minMarginPct.toFixed(1)}% between ${num(s.from)} and ${s.to ? num(s.to) : "∞"}`)
-            .join("; ")}. A gap that small is inside the error of the concept assumptions — treat those stretches as a tie and decide on something the tool does not model.`}
-        />
-      ) : null}
-
       {segs.some((s) => !s.winner) ? (
-        <InlineNotification
-          kind="info"
-          lowContrast
-          hideCloseButton
-          title="Your catalog runs out"
-          subtitle={`Above ${num(segs.find((s) => !s.winner)!.from)}/yr no concept in the catalog makes the demand on a single line. That is a real answer: it needs a second line, a different concept, or a band on the Concepts page that is wrong.`}
-        />
+        <Footnote>
+          No concept viable above {num(segs.find((s) => !s.winner)!.from)}/yr on a single line.
+        </Footnote>
       ) : null}
-
       <Footnote>
-        Swept at twelve log-spaced volumes with each boundary bisected five times, against the concept catalog as you
-        have it. Deterministic — the same brief always gives the same chart.
+        {tossy.length > 0
+          ? `Margin under ${COIN_TOSS_PCT}% in ${tossy.length} band${tossy.length === 1 ? "" : "s"}. 12 samples, boundaries bisected ×5.`
+          : "12 samples, boundaries bisected ×5."}
       </Footnote>
       <Btn size="compact" variant="ghost" onClick={() => setOpen(false)}>
         Hide

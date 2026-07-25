@@ -53,7 +53,7 @@ describe("the concept catalog is data", () => {
     );
     // Unlike the library, an empty catalog leaves nothing to compare — so the
     // defaults are a visible position, not a hidden constant.
-    expect(screen.getByText(/Unchanged from what the app ships with/)).toBeTruthy();
+    expect(screen.getByText("As shipped")).toBeTruthy();
   });
 
   it("shows every assumption behind a ranking, not just the label", async () => {
@@ -76,7 +76,7 @@ describe("the concept catalog is data", () => {
     fireEvent.click(listRow("U-cell"));
     fireEvent.change(screen.getByLabelText("Capex per station"), { target: { value: "60000" } });
     await waitFor(() => expect(stored().find((c: { kind: string }) => c.kind === "cell").capexPerStation).toBe(60000));
-    expect(screen.getByText(/Edited — the planner ranks against these/)).toBeTruthy();
+    expect(screen.getByText("Edited")).toBeTruthy();
   });
 
   it("takes a concept the app has never heard of", async () => {
@@ -104,7 +104,7 @@ describe("the concept catalog is data", () => {
     fireEvent.click(listRow("Job shop"));
     fireEvent.click(screen.getByRole("button", { name: /Delete Job shop/ }));
     await waitFor(() => expect(stored()).toHaveLength(4));
-    fireEvent.click(screen.getByRole("button", { name: /Restore the shipped ones/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Restore defaults/ }));
     await waitFor(() => expect(stored()).toHaveLength(5));
   });
 });

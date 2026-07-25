@@ -78,10 +78,10 @@ async function run() {
   console.log("\n2. Process library");
   await page.getByText("Process library").first().click();
   await expect(page.getByRole("heading", { name: "Process library" }), "library heading");
-  await expect(page.getByText("Your library is empty"), "library empty state");
+  await expect(page.getByText("Library is empty"), "library empty state");
   await shot("library-empty", "Empty on arrival — nothing is seeded, and it says so");
 
-  await page.getByRole("button", { name: /Import the 12 built-in operations/ }).click();
+  await page.getByRole("button", { name: /Import 12 built-in operations/ }).click();
   await expect(page.locator(".lib-page__row").first(), "library rows after import");
   await shot("library-imported", "The built-in operations, imported as ordinary entries you own");
 
@@ -122,7 +122,7 @@ async function run() {
   await shot("library-search", "Search reaches the notes and your own fields, not just the name");
   await page.getByPlaceholder("Name, capability, note or custom field").fill("");
 
-  await page.getByRole("button", { name: /New process/ }).click();
+  await page.getByRole("button", { name: "New process" }).click();
   await page.getByLabel("Name").fill("Laser mark");
   await shot("library-new", "A new entry fills itself in from the name, using the inference catalog");
 
@@ -148,7 +148,7 @@ async function run() {
   console.log("\n4. Plan a cell");
   await page.goto(BASE + "/#/", { waitUntil: "networkidle" });
   await page.getByText("Plan a cell").first().click();
-  await expect(page.getByRole("heading", { name: "What does this cell make?" }), "demand step");
+  await expect(page.getByRole("heading", { name: "Parts & demand" }), "demand step");
   await shot("plan-demand-empty", "Stage 1: one part row, and Continue disabled until it carries work");
 
   const row = (i) => page.locator("tbody tr").nth(i).locator("input");
@@ -177,22 +177,22 @@ async function run() {
   // ---- 5. concepts, refine, summary --------------------------------------
   console.log("\n5. Concepts → Refine → Summary");
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Which concept?" }), "concepts stage");
+  await expect(page.getByRole("heading", { name: "Concept comparison" }), "concepts stage");
   await shot("plan-concepts", "Stage 2: every concept × form, ranked by fully loaded cost", { full: true });
 
-  await page.getByRole("button", { name: /What counts as best/ }).click();
+  await page.getByRole("button", { name: "Weights" }).click();
   await expect(page.locator(".dw"), "decision weights editor");
   await shot("plan-weights", "What 'best' means, as five weights — cost alone reproduces the old ranking");
-  await page.getByRole("button", { name: /Hide the weighting/ }).click();
+  await page.getByRole("button", { name: "Hide weights" }).click();
 
-  await page.getByRole("button", { name: /Where does this flip/ }).click();
+  await page.getByRole("button", { name: "Volume crossover" }).click();
   await expect(page.locator(".xover__band"), "crossover band");
   await shot("plan-crossover", "Where the winner changes, how close each call is, and where the catalog runs out", {
     full: true,
     settle: 600,
   });
 
-  await page.getByRole("button", { name: /How fragile is this/ }).click();
+  await page.getByRole("button", { name: "Sensitivity" }).click();
   await expect(page.locator(".xover").last(), "sensitivity table");
   await shot("plan-sensitivity", "Whether the winner survives being wrong about any single input", {
     full: true,
@@ -267,7 +267,7 @@ async function run() {
 
   await page.goto(BASE + "/#/", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Continue to summary" }).click();
-  await expect(page.getByText("This is a starting point, not a plan"), "summary stage");
+  await expect(page.getByText("Planning estimate"), "summary stage");
   await shot("plan-summary", "Stage 4: the decision, and what it costs", { full: true });
 
   // ---- 6. the other pages ------------------------------------------------

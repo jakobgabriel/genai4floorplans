@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
 import { loadDecisionWeights } from "../store/decisionWeights";
@@ -36,7 +36,7 @@ afterEach(cleanup);
 describe("concepts for the cell you already have", () => {
   it("is reachable from the editor toolbar, for a cell that never went through the planner", async () => {
     await openRecommend();
-    expect(screen.getByText(/process steps on/)).toBeTruthy();
+    expect(screen.getByText(/process steps/)).toBeTruthy();
   });
 
   it("takes its work content off the canvas, not from a parts list", async () => {
@@ -45,7 +45,7 @@ describe("concepts for the cell you already have", () => {
     // split across elements, so match the paragraph's own text.
     const intro = document.querySelector(".planner__sub")!.textContent ?? "";
     expect(intro).toMatch(/4 process steps/);
-    expect(intro).toMatch(/\d+s of work content/);
+    expect(intro).toMatch(/\d+s work content/);
   });
 
   it("seeds the demand from the cell's own output rather than opening on a blank", async () => {
@@ -90,11 +90,13 @@ describe("the weighting", () => {
 
   it("is editable from the recommender and persists", async () => {
     await openRecommend();
-    fireEvent.click(screen.getByRole("button", { name: /What counts as best/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Weights" }));
     await waitFor(() => expect(document.querySelector(".dw")).toBeTruthy());
     // Every criterion the ranking uses is named and adjustable.
-    ["Cost per part", "Capital exposure", "Suits the volume", "Manning", "Flexibility"].forEach((label) =>
-      expect(screen.getByText(new RegExp(label)), label).toBeTruthy(),
+    // Scoped to the weights panel — "Cost / part" is also a table column.
+    const dw = document.querySelector(".dw") as HTMLElement;
+    ["Cost / part", "Capex", "Volume fit", "Operators", "Flexibility"].forEach((label) =>
+      expect(within(dw).getByText(new RegExp(label)), label).toBeTruthy(),
     );
   });
 });

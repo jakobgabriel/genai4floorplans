@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { InlineNotification, Tile } from "@carbon/react";
+import { Tile } from "@carbon/react";
 import {
   DEFAULT_PROGRAM_YEARS,
   generateCandidates,
@@ -100,7 +100,7 @@ export function RecommendPage({
         <PageHead title="Concept recommendations" />
         <Tile className="lib-page__empty">
           <h2 className="lib-page__emptyTitle">This cell has no process steps</h2>
-          <p>There is no work content to recommend a concept for. Add steps on the canvas, or plan a cell from parts.</p>
+          <p>No work content to rank against.</p>
           <div className="lib-page__emptyActions">
             <Btn variant="primary" onClick={() => navigate("/")}>
               Back to the editor
@@ -117,25 +117,24 @@ export function RecommendPage({
         title="Concept recommendations"
         actions={
           <Btn size="compact" variant="ghost" onClick={() => setShowWeights((v) => !v)}>
-            {showWeights ? "Hide the weighting" : "What counts as best"}
+            {showWeights ? "Hide weights" : "Weights"}
           </Btn>
         }
       />
 
       <p className="planner__sub">
-        For the {process.length} process step{process.length === 1 ? "" : "s"} on <b>{model.name}</b> as it stands —{" "}
-        {num(process.reduce((a, s) => a + s.cycleTimeSec, 0))}s of work content. Change a cycle in the editor and this
-        changes with it.
+        {model.name} · {process.length} process step{process.length === 1 ? "" : "s"} ·{" "}
+        {num(process.reduce((a, s) => a + s.cycleTimeSec, 0))}s work content
       </p>
 
-      <SectionLabel>At what demand?</SectionLabel>
+      <SectionLabel>Demand</SectionLabel>
       <div className="rec__inputs">
         <NumberField
           id="rec-vol"
           label="Annual volume"
           value={annualVolume}
           min={1}
-          helperText="Seeded from this cell's own output"
+          helperText="From this cell's output"
           onChange={(v) => setVolume(Math.max(1, Number(v) || 1))}
         />
         <NumberField id="rec-shifts" label="Shifts per year" value={annualShifts} min={1} onChange={(v) => setShifts(Math.max(1, Number(v) || 1))} />
@@ -157,21 +156,15 @@ export function RecommendPage({
           >
             Open {picked.conceptLabel} ({FORM_LABELS[picked.form]}) as a new layout
           </Btn>
-          <Footnote>
-            Added beside the cell you have open, never over it — this page recommends, it does not overwrite work you
-            have been editing.
-          </Footnote>
+          <Footnote>Added as a new layout; the open cell is not modified.</Footnote>
         </div>
       ) : null}
 
       {model.conceptKind && picked && model.conceptKind !== picked.concept ? (
-        <InlineNotification
-          kind="info"
-          lowContrast
-          hideCloseButton
-          title="This cell was generated as a different concept"
-          subtitle={`It was built as ${model.conceptKind}, and at ${num(annualVolume)}/yr the ranking now favours ${picked.conceptLabel}. That usually means the demand moved, the catalog changed, or the cycles on the canvas have been edited since.`}
-        />
+        <Footnote>
+          This cell was generated as {model.conceptKind}; at {num(annualVolume)}/yr the ranking favours{" "}
+          {picked.conceptLabel}.
+        </Footnote>
       ) : null}
 
       <Crossover brief={brief} atVolume={annualVolume} currency={picked?.cost.currency ?? "$"} />

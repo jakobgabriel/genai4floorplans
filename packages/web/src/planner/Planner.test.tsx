@@ -64,11 +64,9 @@ describe("planner — entry", () => {
     expect(screen.getByRole("button", { name: "Import a JSON model" })).toBeTruthy();
   });
 
-  it("names what is not built instead of offering it as a choice", () => {
+  it("states what is not implemented rather than offering it as a choice", () => {
     renderApp();
-    expect(screen.getByText("Not built yet")).toBeTruthy();
-    expect(screen.getByText("Monitor serial production")).toBeTruthy();
-    expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
+    expect(screen.getByText(/Serial-production monitoring is not implemented/)).toBeTruthy();
   });
 
   it("opens the sample cell straight into the editor", () => {
@@ -82,7 +80,7 @@ describe("planner — parts & demand", () => {
   it("asks for the parts first, with one row already there to fill in", () => {
     renderApp();
     fireEvent.click(screen.getByText("Plan a cell"));
-    expect(screen.getByRole("heading", { name: "What does this cell make?" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Parts & demand" })).toBeTruthy();
     // The matrix is the input, not an opt-in: a row is present on arrival.
     expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
   });
@@ -131,7 +129,7 @@ describe("planner — parts & demand", () => {
     // What the old Process step previewed now reads under the parts that produced it.
     expect(screen.getByText(/3 steps · 35s total work content/)).toBeTruthy();
     expect(screen.getByLabelText("Inferred work elements")).toBeTruthy();
-    expect(screen.getByText("Everything but the names was inferred")).toBeTruthy();
+    expect(screen.getByText("Inferred fields")).toBeTruthy();
   });
 
   it("adds and removes demand years from the table itself, past the old cap of ten", () => {
@@ -205,7 +203,7 @@ describe("planner — guided flow", () => {
   it("ranks concepts by fully loaded cost, showing the capex split", () => {
     renderApp();
     toConcepts();
-    expect(screen.getByText("Which concept?")).toBeTruthy();
+    expect(screen.getByText("Concept comparison")).toBeTruthy();
     expect(screen.getByText(/fully\s+loaded/)).toBeTruthy();
     // Each row breaks the number into operating + amortised capex.
     expect(screen.getAllByText(/run \+ .* capex/).length).toBeGreaterThan(3);
@@ -235,7 +233,7 @@ describe("planner — guided flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor has a forward exit, not just an entrance.
     fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
-    expect(screen.getByText("This is a starting point, not a plan")).toBeTruthy();
+    expect(screen.getByText("Planning estimate")).toBeTruthy();
     expect(screen.getByText("Loaded cost/part")).toBeTruthy();
   });
 
@@ -245,7 +243,7 @@ describe("planner — guided flow", () => {
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
     fireEvent.click(screen.getByText("Parts & demand"));
-    expect(screen.getByRole("heading", { name: "What does this cell make?" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Parts & demand" })).toBeTruthy();
   });
 
   it("runs in four stages, not six", () => {

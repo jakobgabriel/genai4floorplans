@@ -43,10 +43,7 @@ export function LibraryPicker({
   if (lib.processes.length === 0) {
     return (
       <div className="lib">
-        <p className="lib__empty">
-          Your process library is empty, so there is nothing to pick. Build it once and every routing and every cell
-          can draw on it.
-        </p>
+        <p className="lib__empty">Process library is empty.</p>
         <Btn size="compact" onClick={() => navigate("/library")}>
           Open the library
         </Btn>
@@ -104,10 +101,10 @@ export function LibraryPicker({
 
       <div className="lib__foot">
         <Btn size="compact" variant="ghost" onClick={() => navigate("/library")}>
-          Edit the library
+          Edit library
         </Btn>
       </div>
-      <Footnote>Picks carry the process&rsquo;s cycle, type, ergonomics and scrap rate with them.</Footnote>
+      <Footnote>Carries cycle, type, ergonomics and scrap rate.</Footnote>
     </div>
   );
 }

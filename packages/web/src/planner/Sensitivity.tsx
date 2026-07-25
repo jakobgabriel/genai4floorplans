@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { InlineNotification, Tag } from "@carbon/react";
+import { Tag } from "@carbon/react";
 import { sensitivity, type DecisionWeights, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { Btn } from "../components/Btn";
 import { Footnote, SectionLabel } from "../components/analysisKit";
@@ -39,51 +39,30 @@ export function Sensitivity({
     return (
       <div className="xover__ask">
         <Btn size="compact" onClick={() => setOpen(true)}>
-          How fragile is this?
+          Sensitivity
         </Btn>
-        <Footnote>
-          Varies demand, labour rate, program length and shift pattern by ±{spreadPct}% one at a time, and reports
-          whether the winning concept changes.
-        </Footnote>
       </div>
     );
   }
 
-  if (!result || result.rows.length === 0) return <Footnote>Nothing to vary — the parts carry no routing.</Footnote>;
-
-  const all = result.flipCount === result.rows.length;
+  if (!result || result.rows.length === 0) return <Footnote>No routing.</Footnote>;
 
   return (
     <div className="xover">
-      <SectionLabel>How fragile is this?</SectionLabel>
-
-      <InlineNotification
-        kind={result.flipCount === 0 ? "success" : all ? "warning" : "info"}
-        lowContrast
-        hideCloseButton
-        title={
-          result.flipCount === 0
-            ? `${result.baseWinner} holds against every factor`
-            : all
-              ? `Every factor changes the answer`
-              : `${result.flipCount} of ${result.rows.length} factors change the answer`
-        }
-        subtitle={
-          result.flipCount === 0
-            ? `A ±${spreadPct}% error in any one of demand, labour rate, program length or shift pattern still leaves ${result.baseWinner} in front.`
-            : all
-              ? `At this brief the ranking is not a recommendation. A ±${spreadPct}% error in any single input puts a different concept in front, so the choice has to be made on something this tool does not model — or on a number you can pin down better first.`
-              : `The named factors below move the winner on their own. Pin those down before treating the ranking as a decision.`
-        }
-      />
+      <div className="sens__head">
+        <SectionLabel>Sensitivity ±{spreadPct}%</SectionLabel>
+        <Tag type={result.flipCount === 0 ? "green" : result.flipCount === result.rows.length ? "red" : "magenta"} size="sm">
+          {result.flipCount} of {result.rows.length} change the winner
+        </Tag>
+      </div>
 
       <table className="rep__table xover__table">
         <thead>
           <tr>
-            <th>If this is wrong</th>
+            <th>Factor</th>
             <th>−{spreadPct}%</th>
             <th>+{spreadPct}%</th>
-            <th className="rep__numCol">Holds?</th>
+            <th className="rep__numCol">Winner</th>
           </tr>
         </thead>
         <tbody>
@@ -107,9 +86,8 @@ export function Sensitivity({
       </table>
 
       <Footnote>
-        Base case: <b>{result.baseWinner}</b>. A factor counts as changing the answer when either end differs from the
-        base, not only when the two ends differ from each other — lane rounding makes the cost curve step rather than
-        slope, so both ends can land on the same concept while the middle sits on another.
+        Base case: {result.baseWinner}. One factor varied at a time; a factor counts as changing the winner when either
+        end differs from the base.
       </Footnote>
       <Btn size="compact" variant="ghost" onClick={() => setOpen(false)}>
         Hide

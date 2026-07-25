@@ -17,12 +17,13 @@ import { Footnote, SectionLabel } from "../components/analysisKit";
  * zero and you get exactly the old ranking back.
  */
 
-const CRITERIA: Array<{ key: keyof DecisionWeights; label: string; help: string }> = [
-  { key: "cost", label: "Cost per part", help: "Fully loaded — operating plus amortised capex. Lower wins." },
-  { key: "capex", label: "Capital exposure", help: "What you have to spend before the first part. Lower wins." },
-  { key: "fit", label: "Suits the volume", help: "How far inside its viable band the concept sits — the band you set on the Concepts page." },
-  { key: "operators", label: "Manning", help: "Operators the concept needs. Lower wins." },
-  { key: "flexibility", label: "Flexibility", help: "Total changeover minutes across the line — a proxy for coping with a mix it was not planned for. Lower wins." },
+/** Each weight's label and the metric it reads, shown as a tooltip. */
+const CRITERIA: Array<{ key: keyof DecisionWeights; label: string; metric: string }> = [
+  { key: "cost", label: "Cost / part", metric: "Loaded cost per part — operating plus amortised capex. Minimised." },
+  { key: "capex", label: "Capex", metric: "Total capital cost. Minimised." },
+  { key: "fit", label: "Volume fit", metric: "Concept fit against its viable band. Maximised." },
+  { key: "operators", label: "Operators", metric: "Operators required. Minimised." },
+  { key: "flexibility", label: "Flexibility", metric: "Total changeover minutes. Minimised." },
 ];
 
 export function DecisionWeightsEditor({ api }: { api: DecisionWeightsApi }) {
@@ -30,19 +31,19 @@ export function DecisionWeightsEditor({ api }: { api: DecisionWeightsApi }) {
   return (
     <div className="dw">
       <div className="dw__head">
-        <SectionLabel>What counts as best</SectionLabel>
+        <SectionLabel>Ranking weights</SectionLabel>
         {api.isDefault ? null : (
           <Btn size="compact" variant="ghost" onClick={api.reset}>
-            Reset the weighting
+            Reset
           </Btn>
         )}
       </div>
       <div className="dw__grid">
         {CRITERIA.map((c) => (
-          <div className="dw__row" key={c.key}>
+          <div className="dw__row" key={c.key} title={c.metric}>
             <Slider
               id={"dw-" + c.key}
-              labelText={`${c.label} — ${pct(c.key)}%`}
+              labelText={`${c.label} · ${pct(c.key)}%`}
               min={0}
               max={100}
               step={5}
@@ -50,14 +51,10 @@ export function DecisionWeightsEditor({ api }: { api: DecisionWeightsApi }) {
               onChange={({ value }: { value: number }) => api.set(c.key, value / 100)}
               hideTextInput
             />
-            <Footnote>{c.help}</Footnote>
           </div>
         ))}
       </div>
-      <Footnote>
-        Shown as shares of the total, so what you see is what the ranking uses. Put everything on cost per part and the
-        order is the one this tool gave before these existed.
-      </Footnote>
+      <Footnote>Normalised to 100%. Criteria are min-max scaled across the candidate set.</Footnote>
     </div>
   );
 }

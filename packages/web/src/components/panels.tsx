@@ -130,8 +130,8 @@ export function NoSteps({
   return (
     <div className="pad ak-panel">
       <EmptyState
-        title="Nothing to analyse yet"
-        body={<>This cell has no process steps, so there is no {reads} to report. Add the first step and this tab fills in as you build.</>}
+        title="No process steps"
+        body={<>Nothing to report for {reads}. Add a step to populate this view.</>}
         action={
           <Button
             size="sm"
@@ -197,7 +197,7 @@ export function FlowCostSection({ api }: { api: FlowPlanApi }) {
       <Stack gap={4}>
         <SectionLabel>Where the cost sits</SectionLabel>
         {r.pareto.length === 0 ? (
-          <Footnote>No material flows drawn yet — connect the steps on the canvas and the cost lanes appear here.</Footnote>
+          <Footnote>No material flows drawn.</Footnote>
         ) : (
           <Stack gap={3}>
             {r.pareto.slice(0, 5).map((p, i) => (
@@ -344,7 +344,7 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
       {open ? (
         <Stack gap={5}>
           <Footnote>
-            Re-weight the composite to match your priorities. Values are normalized to 100%; the grade updates live.
+            Normalised to 100%. The grade updates live.
           </Footnote>
           {WEIGHT_LABELS.map(([key, label]) => (
             <Slider
@@ -794,7 +794,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
               </Button>
             ))}
           </div>
-          <Footnote>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</Footnote>
+          <Footnote>Rearranges movable steps. Fixed and I/O stations are unaffected.</Footnote>
         </Stack>
 
         <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />
@@ -1345,10 +1345,7 @@ export function SchemaPanel() {
     <div className="pad ak-panel">
       <Stack gap={3}>
         <SectionLabel>Keyboard shortcuts</SectionLabel>
-        <Footnote>
-          Every shortcut below has a button somewhere in the UI except the view keys and nudging — this is the only place
-          they are written down.
-        </Footnote>
+
         <Stack gap={2}>
           {SHORTCUTS.map(([keys, what]) => (
             <div className="ak-shortcut" key={keys}>

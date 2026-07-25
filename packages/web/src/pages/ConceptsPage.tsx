@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, InlineNotification, SelectItem, Tag, Tile } from "@carbon/react";
+import { Button, SelectItem, Tag, Tile } from "@carbon/react";
 import { Add, Copy, TrashCan } from "@carbon/icons-react";
 import { rankConcepts, byKind, type ConceptProfile } from "@flowplan/core/engine/concepts";
 import { FORM_LABELS, type CellForm } from "@flowplan/core/engine/templates";
@@ -40,7 +40,7 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
         actions={
           <>
             <Btn size="compact" variant="ghost" onClick={() => api.restoreDefaults()}>
-              Restore the shipped ones
+              Restore defaults
             </Btn>
             <Btn
               variant="primary"
@@ -54,24 +54,16 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
         }
       />
 
-      <InlineNotification
-        kind="info"
-        lowContrast
-        hideCloseButton
-        title="These numbers decide the ranking"
-        subtitle="Every concept the planner compares is generated from the profile below — its cycle multiplier, manning, capex per station and volume band. They ship as coarse planning heuristics, not as costed engineering data for your plant. Correct them and the comparison is against your machine park instead of an average one."
-      />
-
       {api.concepts.length === 0 ? (
         <Tile className="lib-page__empty">
           <h2 className="lib-page__emptyTitle">No concepts</h2>
-          <p>With nothing here the planner has nothing to compare, and the Concepts stage comes out blank.</p>
+          <p>Concept comparison needs at least one profile.</p>
           <div className="lib-page__emptyActions">
             <Btn variant="primary" onClick={() => api.restoreDefaults()}>
-              Restore the five shipped concepts
+              Restore defaults
             </Btn>
             <Btn variant="secondary" onClick={() => setSel(api.add("New concept").kind)}>
-              Define one of your own
+              New concept
             </Btn>
           </div>
         </Tile>
@@ -117,11 +109,7 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
                 Add
               </Btn>
             </div>
-            <Footnote>
-              {api.isPristine
-                ? "Unchanged from what the app ships with."
-                : "Edited — the planner ranks against these, not the shipped defaults."}
-            </Footnote>
+            <Footnote>{api.isPristine ? "As shipped" : "Edited"}</Footnote>
           </section>
 
           <section className="lib-page__detail">
@@ -129,7 +117,6 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
               <ConceptEditor api={api} c={sel} onRemoved={() => setSel(null)} />
             ) : (
               <Tile className="lib-page__hint">
-                <p>Select a concept to see every assumption behind it.</p>
                 <VolumeLadder api={api} />
               </Tile>
             )}
@@ -146,7 +133,7 @@ function VolumeLadder({ api }: { api: ConceptApi }) {
   const rungs = [1000, 10000, 100000, 1000000];
   return (
     <>
-      <SectionLabel>What wins at what volume</SectionLabel>
+      <SectionLabel>Best fit by volume</SectionLabel>
       <table className="rep__table">
         <thead>
           <tr>
@@ -168,7 +155,7 @@ function VolumeLadder({ api }: { api: ConceptApi }) {
           })}
         </tbody>
       </table>
-      <Footnote>Fit is 100 inside the band and tapers to 0 one decade outside it.</Footnote>
+      <Footnote>Fit: 100 inside the band, 0 one decade outside.</Footnote>
     </>
   );
 }
@@ -202,20 +189,20 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
 
       <TextAreaField
         id={"c-blurb-" + c.kind}
-        labelText="What it is"
+        labelText="Description"
         value={c.blurb}
         rows={2}
         onChange={(v) => up({ blurb: v })}
       />
 
-      <SectionLabel>Where it applies</SectionLabel>
+      <SectionLabel>Volume band</SectionLabel>
       <div className="lib-page__grid">
         <NumberField
           id={"c-lo-" + c.kind}
           label="Viable from (parts/yr)"
           value={c.viableVolume[0]}
           min={0}
-          helperText="Below this the fit score tapers"
+          helperText="Fit tapers below"
           onChange={(v) => up({ viableVolume: [n0(v), c.viableVolume[1]] })}
         />
         <NumberField
@@ -227,7 +214,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         />
       </div>
       <div>
-        <SectionLabel>Layout forms it is generated in</SectionLabel>
+        <SectionLabel>Layout forms</SectionLabel>
         <div className="lib-page__tagPick" role="group" aria-label="Layout forms">
           {FORMS.map((f) => (
             <TabBtn key={f} selected={c.forms.includes(f)} onClick={() => toggleForm(f)}>
@@ -235,10 +222,10 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
             </TabBtn>
           ))}
         </div>
-        <Footnote>One candidate is generated per form, so this is how many options this concept contributes.</Footnote>
+        <Footnote>One candidate per form.</Footnote>
       </div>
 
-      <SectionLabel>How it runs</SectionLabel>
+      <SectionLabel>Operation</SectionLabel>
       <div className="lib-page__grid">
         <SelectField id={"c-auto-" + c.kind} labelText="Automation" value={c.auto} options={AUTO} onChange={(v) => up({ auto: v as ConceptProfile["auto"] })} />
         <SelectField id={"c-type-" + c.kind} labelText="Station type" value={c.stationType} options={STATION_TYPES} onChange={(v) => up({ stationType: v as ConceptProfile["stationType"] })} />
@@ -263,7 +250,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         </SelectField>
       </div>
 
-      <SectionLabel>What it does to the numbers</SectionLabel>
+      <SectionLabel>Cost model</SectionLabel>
       <div className="lib-page__grid">
         <NumberField
           id={"c-cf-" + c.kind}
@@ -271,7 +258,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
           value={c.cycleFactor}
           min={0}
           step={0.05}
-          helperText="× the quoted manual time"
+          helperText="× manual time"
           onChange={(v) => up({ cycleFactor: n0(v) })}
         />
         <NumberField
@@ -280,7 +267,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
           value={Math.round(c.handlingShare * 100)}
           min={0}
           max={100}
-          helperText="Of the resulting cycle"
+          helperText="of cycle"
           onChange={(v) => up({ handlingShare: Math.min(1, n0(v) / 100) })}
         />
         <NumberField id={"c-capex-" + c.kind} label="Capex per station" value={c.capexPerStation} min={0} onChange={(v) => up({ capexPerStation: n0(v) })} />
@@ -288,11 +275,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         <NumberField id={"c-chg-" + c.kind} label="Changeover (min)" value={c.changeoverMin} min={0} onChange={(v) => up({ changeoverMin: n0(v) })} />
       </div>
 
-      <SectionLabel>Your own fields</SectionLabel>
-      <Footnote>
-        Anything you track about this concept that the tool does not model — an internal standard number, an approving
-        engineer, a supplier framework. Stored and shown; never interpreted.
-      </Footnote>
+      <SectionLabel>Custom fields</SectionLabel>
       {(c.custom ?? []).map((f) => (
         <div className="lib-page__customRow" key={f.id}>
           <TextField id={"cf-l-" + f.id} labelText="Field" value={f.label} placeholder="Standard no." onChange={(v) => api.updateField(c.kind, f.id, { label: v })} />

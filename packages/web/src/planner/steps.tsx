@@ -89,10 +89,7 @@ export function StartScreen({
     <section className="planner planner--start">
       <header className="planner__head">
         <h1 className="planner__title">FlowPlan</h1>
-        <p className="planner__sub">
-          Size a manufacturing cell against the parts it has to make, compare concepts at that demand, and assess the
-          layout you pick.
-        </p>
+        <p className="planner__sub">Manufacturing cell sizing, concept comparison and layout assessment.</p>
       </header>
 
       {/* Two destinations, not one with a side door. The library used to be a
@@ -102,33 +99,29 @@ export function StartScreen({
       <div className="portal">
         <PortalTile
           title="Plan a cell"
-          body="List the parts and their demand, compare costed concepts at the busiest year, then refine the layout you pick and assess it."
+          body="Size a cell from its part demand, compare costed concepts, refine and assess the layout."
           meta="Parts & demand → Concepts → Refine → Summary"
           onClick={onPlan}
         />
         <PortalTile
           title="Process library"
-          body="The steps this plant knows how to do — cycle, manning, changeover, capex, footprint, and any field of your own. Kept once, reused in every routing and every cell."
-          meta={processCount === 0 ? "Empty — nothing is seeded" : `${processCount} process${processCount === 1 ? "" : "es"}`}
+          body="Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells."
+          meta={processCount === 0 ? "Empty" : `${processCount} process${processCount === 1 ? "" : "es"}`}
           onClick={onLibrary}
         />
         <PortalTile
           title="Manufacturing concepts"
-          body="The archetypes every comparison is generated from — bench, cell, flow line, transfer line, job shop. Their cycle multipliers, manning and capex decide the ranking, so they are here to be corrected rather than trusted."
+          body="Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex."
           meta={
             conceptCount === 0
-              ? "None defined — the planner has nothing to compare"
+              ? "None defined"
               : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
           }
           onClick={onConcepts}
         />
         <PortalTile
           title={hasCell ? "Open a layout" : "See an example"}
-          body={
-            hasCell
-              ? "Go back to the workspace and pick up a cell you have already drawn."
-              : "Open a worked cell with a real routing on it, and read the assessment it produces."
-          }
+          body={hasCell ? "Return to the workspace." : "A worked cell with a routing and a full assessment."}
           meta={hasCell ? `${cellCount} layout${cellCount === 1 ? "" : "s"} saved` : "Sample cell"}
           onClick={hasCell ? onOpen : onSample}
         />
@@ -149,10 +142,8 @@ export function StartScreen({
       </div>
 
       <div className="planner__later">
-        <SectionLabel>Not built yet</SectionLabel>
         <p className="planner__laterRow">
-          <b>Monitor serial production</b> — comparing a running cell against the approved plan needs time-series
-          storage and an MES/SCADA adapter. See docs/lifecycle-cases-implementation.md §6.
+          Serial-production monitoring is not implemented — see docs/lifecycle-cases-implementation.md §6.
         </p>
       </div>
     </section>
@@ -232,10 +223,10 @@ export function DemandStep({
 
   return (
     <section className="planner planner--wide">
-      <h2 className="planner__h2">What does this cell make?</h2>
+      <h2 className="planner__h2">Parts &amp; demand</h2>
       <p className="planner__sub">
-        A cell almost never makes one part. List them with their routings and the demand each carries, and the
-        concepts are sized against the busiest year and balanced against the real mix.
+        Part numbers, routings and demand per program year. The cell is sized on the busiest year and balanced across
+        the mix.
       </p>
 
       <PartTable
@@ -340,8 +331,7 @@ function PartTable({
           column was not visible from the columns. */}
       <div className="planner__mixHead">
         <Footnote>
-          Routing: steps separated by <code>&gt;</code>, each with its cycle in seconds —{" "}
-          <code>Load 5 &gt; Press 10</code>. Leave a time out and it is inferred from the step name.
+          Routing format: <code>Load 5 &gt; Press 10</code> — step name, cycle in seconds. Omit a time to infer it.
         </Footnote>
         <div className="parts__years">
           <span className="parts__yearsLab">
@@ -477,7 +467,7 @@ function PartTable({
           lowContrast
           hideCloseButton
           title={`Not counted: ${derived.ignored.join(", ")}`}
-          subtitle="A part needs both a routing and demand in at least one year."
+          subtitle="Requires a routing and demand in at least one year."
         />
       ) : null}
     </section>
@@ -537,7 +527,7 @@ function InferencePreview({ steps }: { steps: ProcessStep[] }) {
           lowContrast
           hideCloseButton
           title="Some steps were not recognised"
-          subtitle={`${inferred.unmatched.join(", ")} — these get generic defaults. Naming them after the operation (weld, press, inspect, pack) improves the result.`}
+          subtitle={`${inferred.unmatched.join(", ")} — generic defaults applied. Name steps after the operation (weld, press, inspect, pack) to match.`}
         />
       ) : null}
 
@@ -582,8 +572,8 @@ function InferencePreview({ steps }: { steps: ProcessStep[] }) {
         kind="info"
         lowContrast
         hideCloseButton
-        title="Everything but the names was inferred"
-        subtitle="Capability, work classification and operator binding come from the step name. They are starting values marked low confidence — correct them in the editor once the cell is generated."
+        title="Inferred fields"
+        subtitle="Capability, work class and operator binding are derived from the step name. Low confidence — correct in the editor."
       />
     </>
   );
@@ -613,22 +603,18 @@ export function ConceptsStep({
   const [showWeights, setShowWeights] = useState(false);
   return (
     <section className="planner planner--wide">
-      <h2 className="planner__h2">Which concept?</h2>
+      <h2 className="planner__h2">Concept comparison</h2>
       <p className="planner__sub">
-        Sized for {num(perShift)} parts/shift{peakYear ? `, the year-${peakYear} peak` : ""}. Cost per part is fully
-        loaded — operating cost plus equipment amortised over the program.
+        {num(perShift)} parts/shift{peakYear ? ` · year-${peakYear} peak` : ""} · cost per part fully loaded
+        (operating + amortised capex)
       </p>
       {/* The ranking is a weighted judgement, not a fact, so the weighting is
           one click away from the table it produced. */}
       <div className="planner__weightsBar">
         <Btn size="compact" variant="ghost" onClick={() => setShowWeights((v) => !v)}>
-          {showWeights ? "Hide the weighting" : "What counts as best"}
+          {showWeights ? "Hide weights" : "Weights"}
         </Btn>
-        <Footnote>
-          {weightsApi.isDefault
-            ? "Ranked on cost, capital exposure, how well the concept suits the volume, manning and flexibility."
-            : "Ranked on your weighting, not the shipped one."}
-        </Footnote>
+        <Footnote>{weightsApi.isDefault ? "Default weighting" : "Custom weighting"}</Footnote>
       </div>
       {showWeights ? <DecisionWeightsEditor api={weightsApi} /> : null}
 
@@ -685,7 +671,7 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
           because it is the artefact that leaves the tool. */}
       <div className="glance__foot">
         <Button onClick={() => navigate("/report")}>Open report</Button>
-        <p className="glance__footNote">Printable, and records the concepts you compared.</p>
+        <p className="glance__footNote">Printable record of the concepts compared.</p>
       </div>
     </section>
   );
@@ -727,7 +713,7 @@ export function SummaryStep({
       <h2 className="planner__h2">{picked.conceptLabel}</h2>
       <p className="planner__sub">{picked.rationale}</p>
 
-      <SectionLabel>The concept, as costed from the brief</SectionLabel>
+      <SectionLabel>Costed from the brief</SectionLabel>
       <Tile className="planner__derived">
         <div>
           <span className="planner__derivedLab">Loaded cost/part</span>
@@ -754,10 +740,10 @@ export function SummaryStep({
           kind="warning"
           lowContrast
           hideCloseButton
-          title="Outside the usual volume range"
+          title="Outside the concept's volume band"
           subtitle={`${picked.conceptLabel} normally suits ${num(picked.profile.viableVolume[0])}–${num(
             picked.profile.viableVolume[1],
-          )} parts/year — a band you can change on the Concepts page. Treat this as a comparison point, not a recommendation.`}
+          )} parts/year. Band editable on the Concepts page.`}
         />
       ) : null}
 
@@ -765,8 +751,8 @@ export function SummaryStep({
         kind="info"
         lowContrast
         hideCloseButton
-        title="This is a starting point, not a plan"
-        subtitle="Concept costs are planning heuristics and layouts are template placements. Refine the layout before quoting."
+        title="Planning estimate"
+        subtitle="Concept costs are heuristics; layouts are template placements. Refine before quoting."
       />
 
       {hasCell ? <AnalysisGlance api={api} onOpen={onOpenAnalysis} /> : null}

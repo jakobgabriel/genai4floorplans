@@ -70,7 +70,7 @@ export function LibraryPage({ lib }: { lib: LibraryApi }) {
       />
 
       {lib.processes.length === 0 ? (
-        <EmptyLibrary lib={lib} onAdded={setSel} />
+        <EmptyLibrary lib={lib} />
       ) : (
         <div className="lib-page__cols">
           <section className="lib-page__list">
@@ -132,7 +132,7 @@ export function LibraryPage({ lib }: { lib: LibraryApi }) {
               <ProcessEditor lib={lib} p={sel} onRemoved={() => setSel(null)} />
             ) : (
               <Tile className="lib-page__hint">
-                <p>Select a process to see everything it carries.</p>
+                <p>Select a process.</p>
                 <Footnote>
                   {lib.processes.length} process{lib.processes.length === 1 ? "" : "es"} ·{" "}
                   {lib.tags.length} tag{lib.tags.length === 1 ? "" : "s"}
@@ -146,31 +146,20 @@ export function LibraryPage({ lib }: { lib: LibraryApi }) {
   );
 }
 
-/** Nothing here yet — and an honest way out of that, rather than a seed. */
-function EmptyLibrary({ lib, onAdded }: { lib: LibraryApi; onAdded: (id: string) => void }) {
+/** Nothing here yet. Nothing is seeded; the built-ins are an explicit import. */
+function EmptyLibrary({ lib }: { lib: LibraryApi }) {
   return (
     <Tile className="lib-page__empty">
-      <h2 className="lib-page__emptyTitle">Your library is empty</h2>
-      <p>
-        A process here is a step this plant knows how to do — its cycle, what it costs to own, how much of it binds an
-        operator — kept once and reused in every routing and every cell.
-      </p>
-      <Footnote>
-        Nothing is seeded. A library that arrives full of somebody else&rsquo;s generic operations is one you have to
-        clean out before you can trust it.
-      </Footnote>
+      <h2 className="lib-page__emptyTitle">Library is empty</h2>
+      <p>A process carries its cycle, manning, changeover, capex and footprint, reused across routings and cells.</p>
+      {/* "New process" is already the page's primary action in the header;
+          repeating it here would be two identical buttons on one screen. */}
       <div className="lib-page__emptyActions">
-        <Btn variant="primary" icon={Add} onClick={() => onAdded(lib.add().id)}>
-          Add your first process
-        </Btn>
         <Btn variant="secondary" onClick={() => lib.importCapabilities()}>
-          Import the 12 built-in operations
+          Import 12 built-in operations
         </Btn>
       </div>
-      <Footnote>
-        The import brings in the operations the tool&rsquo;s own inference already recognises — press, weld, leak test
-        and so on. They arrive as ordinary entries you own and can edit or delete.
-      </Footnote>
+      <Footnote>Built-ins are the operations the step-name inference recognises. Imported as editable entries.</Footnote>
     </Tile>
   );
 }
@@ -199,7 +188,7 @@ function TagEditor({ lib }: { lib: LibraryApi }) {
         </div>
       ))}
       <div className="lib-page__tagNew">
-        <TextField id="tag-new" labelText="New tag" value={name} onChange={setName} placeholder="Joining, Fume extraction, Cell 4…" />
+        <TextField id="tag-new" labelText="New tag" value={name} onChange={setName} placeholder="Joining, Fume extraction…" />
         <Btn
           size="compact"
           icon={Add}
@@ -212,7 +201,7 @@ function TagEditor({ lib }: { lib: LibraryApi }) {
           Add tag
         </Btn>
       </div>
-      <Footnote>Deleting a tag detaches it from every process carrying it. The processes stay.</Footnote>
+      <Footnote>Deleting a tag detaches it from every process; the processes remain.</Footnote>
     </div>
   );
 }
@@ -240,7 +229,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
       <SectionLabel>Tags</SectionLabel>
       <div className="lib-page__tagPick">
         {lib.tags.length === 0 ? (
-          <Footnote>No tags yet. Add some under “Edit tags” to group your processes.</Footnote>
+          <Footnote>No tags defined. Add them under “Edit tags”.</Footnote>
         ) : (
           lib.tags.map((t) => (
             <TabBtn key={t.id} selected={p.tags.includes(t.id)} onClick={() => lib.toggleTag(p.id, t.id)}>
@@ -250,7 +239,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
         )}
       </div>
 
-      <SectionLabel>What the step is</SectionLabel>
+      <SectionLabel>Classification</SectionLabel>
       <div className="lib-page__grid">
         <SelectField id={"lp-role-" + p.id} labelText="Role" value={p.role} options={ROLES} onChange={(v) => up({ role: v as LibraryProcess["role"] })} />
         <SelectField id={"lp-type-" + p.id} labelText="Station type" value={p.type} options={STATION_TYPES} onChange={(v) => up({ type: v as LibraryProcess["type"] })} />
@@ -267,7 +256,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
         </SelectField>
       </div>
 
-      <SectionLabel>What it takes</SectionLabel>
+      <SectionLabel>Time &amp; manning</SectionLabel>
       <div className="lib-page__grid">
         <NumberField id={"lp-cyc-" + p.id} label="Cycle (s)" value={p.cycleTimeSec} min={0} onChange={(v) => up({ cycleTimeSec: n0(v) })} />
         <NumberField
@@ -291,7 +280,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
         />
       </div>
 
-      <SectionLabel>What it costs and occupies</SectionLabel>
+      <SectionLabel>Cost &amp; footprint</SectionLabel>
       <div className="lib-page__grid">
         <NumberField id={"lp-capex-" + p.id} label="Capex" value={p.capex} min={0} onChange={(v) => up({ capex: n0(v) })} />
         <NumberField id={"lp-acap-" + p.id} label="Cost to automate" value={p.automationCapex} min={0} onChange={(v) => up({ automationCapex: n0(v) })} />
@@ -309,11 +298,8 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
 
       <TextAreaField id={"lp-notes-" + p.id} labelText="Notes" value={p.notes} rows={2} onChange={(v) => up({ notes: v })} />
 
-      <SectionLabel>Your own fields</SectionLabel>
-      <Footnote>
-        Anything this plant tracks that the tool does not model — tool number, NC programme, supplier, approval. Stored
-        and carried onto the stations you place from this entry; never interpreted.
-      </Footnote>
+      <SectionLabel>Custom fields</SectionLabel>
+      <Footnote>Not interpreted by the tool. Carried onto stations placed from this entry.</Footnote>
       {p.custom.map((c) => (
         <div className="lib-page__customRow" key={c.id}>
           <TextField id={"cf-l-" + c.id} labelText="Field" value={c.label} placeholder="Tool no." onChange={(v) => lib.updateField(p.id, c.id, { label: v })} />
@@ -326,7 +312,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
       </Button>
 
       <Footnote>
-        Capability <code>{p.capabilityId}</code> — how the engine classifies this step when it appears in a routing.
+        Capability: <code>{p.capabilityId}</code>
       </Footnote>
     </div>
   );
