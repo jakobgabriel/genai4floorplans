@@ -4,11 +4,16 @@ import { useEffect, useState } from "react";
 // "/" (editor), "/analysis", "/assistant", "/report", "/compare", "/site",
 // "/admin", "/archive". Deep links and the browser back/forward button work
 // because we just read/write location.hash.
-export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive" | "/library" | "/concepts" | "/recommend";
+export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive" | "/library" | "/concepts" | "/recommend" | "/404";
+
+const KNOWN: string[] = ["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive", "/library", "/concepts", "/recommend"];
 
 function current(): Route {
-  const h = (window.location.hash.slice(1) || "/") as Route;
-  return (["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive", "/library", "/concepts", "/recommend"] as string[]).includes(h) ? h : "/";
+  const h = window.location.hash.slice(1) || "/";
+  if (KNOWN.includes(h)) return h as Route;
+  // A hash that matches no page is a broken link, not the editor. Route it to
+  // a not-found rather than folding it silently onto "/".
+  return "/404";
 }
 
 export function useHashRoute(): [Route, (r: Route) => void] {

@@ -1,8 +1,9 @@
-import { Btn } from "./Btn";
+import { Modal } from "@carbon/react";
 
-// An in-app confirmation modal — replaces window.confirm so destructive actions
-// don't rely on a browser dialog. Backdrop-click and Cancel dismiss; the primary
-// button runs onConfirm then closes.
+// An in-app confirmation dialog. Carbon's Modal is the container: it traps
+// focus, closes on Escape / backdrop / the X, and carries the right ARIA — the
+// hand-rolled overlay it replaced did none of that, and Delete/Escape leaked
+// through to the canvas behind it.
 export function ConfirmDialog({
   title,
   message,
@@ -19,19 +20,20 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <div className="modal__actions">
-          <Btn variant="ghost" onClick={onClose}>
-            Cancel
-          </Btn>
-          <Btn variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>
-            {confirmLabel}
-          </Btn>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      danger={danger}
+      modalHeading={title}
+      primaryButtonText={confirmLabel}
+      secondaryButtonText="Cancel"
+      onRequestClose={onClose}
+      onRequestSubmit={() => {
+        onConfirm();
+        onClose();
+      }}
+    >
+      <p>{message}</p>
+    </Modal>
   );
 }

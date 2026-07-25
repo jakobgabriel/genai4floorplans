@@ -35,6 +35,10 @@ export interface Workspace {
 }
 
 const KEY = "flowplan_workspace";
+// Bump when the persisted workspace shape changes incompatibly; branch on
+// `ws.version` below to migrate. Data written before this stamp reads as
+// version 0 and loads through the same tolerant path.
+const VERSION = 1;
 
 let counter = 0;
 function newId(prefix: string): string {
@@ -80,7 +84,7 @@ function migrateFolder(f: Folder): Folder {
 
 export function saveWorkspace(ws: Workspace): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(ws));
+    localStorage.setItem(KEY, JSON.stringify({ version: VERSION, ...ws }));
   } catch {
     /* ignore */
   }

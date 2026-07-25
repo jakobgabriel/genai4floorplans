@@ -21,6 +21,10 @@ import {
 // disagree with rather than a hidden constant.
 
 const KEY = "flowplan_concepts";
+// Bump when the persisted concept shape changes incompatibly; `migrate` already
+// forward-fills fields, so v1 covers today. A bare array (written before this
+// stamp) still loads as the legacy branch below.
+const VERSION = 1;
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${(++counter).toString(36)}`;
@@ -49,7 +53,11 @@ export function loadConcepts(): ConceptProfile[] {
       const parsed = JSON.parse(raw);
       // An emptied catalog is a real state — a planner may want only their own
       // concepts — so only a missing or unreadable entry falls back.
+      // Legacy: a bare array. Current: a versioned envelope { version, concepts }.
       if (Array.isArray(parsed)) return parsed.map(migrate);
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.concepts)) {
+        return (parsed.concepts as Partial<ConceptProfile>[]).map(migrate);
+      }
     }
   } catch {
     /* ignore */
@@ -59,7 +67,7 @@ export function loadConcepts(): ConceptProfile[] {
 
 export function saveConcepts(list: ConceptProfile[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(KEY, JSON.stringify({ version: VERSION, concepts: list }));
   } catch {
     /* ignore */
   }

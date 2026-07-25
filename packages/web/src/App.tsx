@@ -82,12 +82,17 @@ export function App() {
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
   const [proposalDismissed, setProposalDismissed] = useState(false);
-  const hadModel = !!localStorage.getItem("flowplan_model");
+  // Persisted across reloads. Once you have entered the app — opened a cell,
+  // planned one, imported one — a refresh returns you to it rather than to the
+  // front door. The old gate keyed off `flowplan_model`, a legacy autosave key
+  // nothing has written since the workspace replaced it, so it read false on
+  // every reload and bounced the planner back to the portal.
+  const resumed = localStorage.getItem("flowplan_started") === "1";
   // The start screen sits outside the stepper: until you have chosen to plan
   // something or to open something, there is no stage to be on.
-  const [started, setStarted] = useState(hadModel);
-  const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : FLOW_STEPS[0]);
-  const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : [FLOW_STEPS[0]]);
+  const [started, setStarted] = useState(resumed);
+  const [step, setStep] = useState<FlowStep>(resumed ? "refine" : FLOW_STEPS[0]);
+  const [reached, setReached] = useState<FlowStep[]>(resumed ? FLOW_STEPS.slice() : [FLOW_STEPS[0]]);
   const goTo = useCallback((s: FlowStep) => {
     setStarted(true);
     setStep(s);
@@ -117,6 +122,9 @@ export function App() {
   const [configCollapsed, setConfigCollapsed] = useState(() => localStorage.getItem("flowplan_config_collapsed") === "1");
   useEffect(() => { localStorage.setItem("flowplan_explorer_collapsed", explorerCollapsed ? "1" : "0"); }, [explorerCollapsed]);
   useEffect(() => { localStorage.setItem("flowplan_config_collapsed", configCollapsed ? "1" : "0"); }, [configCollapsed]);
+  // Remember that the app has been entered, so a reload resumes the editor
+  // rather than the portal; Back to the portal forgets it again.
+  useEffect(() => { localStorage.setItem("flowplan_started", started ? "1" : "0"); }, [started]);
   // Drag-resizable sidebar widths (persisted).
   const numOr = (k: string, d: number) => { const n = Number(localStorage.getItem(k)); return Number.isFinite(n) && n > 0 ? n : d; };
   const [explorerWidth, setExplorerWidth] = useState(() => numOr("flowplan_explorer_w", 320));
@@ -232,6 +240,11 @@ export function App() {
   // ---- keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // A dialog owns the keyboard while it is open: Escape closes it, Delete
+      // edits its fields. Without this, those keys also reached the canvas
+      // behind the dialog — Escape cleared the selection, Delete removed a
+      // station the planner could not even see.
+      if (document.querySelector(".cds--modal.is-visible")) return;
       const t = e.target as HTMLElement;
       const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
       const mod = e.metaKey || e.ctrlKey;
@@ -270,10 +283,8 @@ export function App() {
       }
       if (typing) return;
       if (e.key === "Escape") {
-        if (showSettings) {
-          setShowSettings(false);
-          return;
-        }
+        // The settings dialog closes itself on Escape now (Carbon Modal), and
+        // the guard above means we only get here with no dialog open.
         setMode("select");
         setFlowFirst(null);
         setSel(null);
@@ -300,7 +311,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [api, selId, model.stations, showSettings]);
+  }, [api, selId, model.stations]);
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, lib, onAddProcess: addProcessStep };
 
@@ -470,6 +481,20 @@ export function App() {
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
   if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
+  // A link that matches no page — show it as one, rather than dropping the
+  // planner onto whatever cell happens to be open.
+  if (route === "/404")
+    return (
+      <div className="wrap">
+        <div className="page">
+          <h1 className="page-title">Page not found</h1>
+          <p className="u-muted">That link doesn’t point to a page in this app.</p>
+          <Btn variant="primary" size="compact" onClick={() => navigate("/")}>
+            Back to the editor
+          </Btn>
+        </div>
+      </div>
+    );
 
   const cellName = api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts";
 
@@ -698,7 +723,7 @@ export function App() {
           // Only when there is work of the planner's own to go back to. On a
           // first run the app seeds the sample, so a `cells.length` test was
           // always true and just duplicated "Open the sample cell".
-          hasCell={hadModel}
+          hasCell={resumed}
           cellCount={api.cells.length}
           processCount={lib.processes.length}
           onOpen={() => goTo("refine")}

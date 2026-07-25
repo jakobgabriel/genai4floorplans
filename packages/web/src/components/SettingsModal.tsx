@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Btn } from "./Btn";
+import { Modal } from "@carbon/react";
 import { type AiProviderId, type Settings, saveSettings } from "../store/settings";
 import { Field } from "./ui";
 
@@ -27,11 +27,20 @@ export function SettingsModal({ initial, onClose, onSaved }: { initial: Settings
   const cloud = s.aiProvider === "offline" ? null : PROVIDER_META[s.aiProvider];
   const provider = s.aiProvider === "offline" ? null : s.aiProvider;
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Settings</h2>
-        <p>Configure AI Chat. The offline strategist always works; add a Claude or OpenAI key to use an LLM, scored by the same engine.</p>
-        <Field label="AI provider">
+    <Modal
+      open
+      modalHeading="Settings"
+      primaryButtonText="Save settings"
+      secondaryButtonText="Cancel"
+      onRequestClose={onClose}
+      onRequestSubmit={() => {
+        saveSettings(s);
+        onSaved(s);
+        onClose();
+      }}
+    >
+      <p>Configure AI Chat. The offline strategist always works; add a Claude or OpenAI key to use an LLM, scored by the same engine.</p>
+      <Field label="AI provider">
           <select value={s.aiProvider} onChange={(e) => setS({ ...s, aiProvider: e.target.value as AiProviderId })}>
             <option value="offline">Offline strategist (no key)</option>
             <option value="claude">Claude API</option>
@@ -66,22 +75,6 @@ export function SettingsModal({ initial, onClose, onSaved }: { initial: Settings
             </div>
           </>
         ) : null}
-        <div className="modal__actions">
-          <Btn variant="ghost" onClick={onClose}>
-            Cancel
-          </Btn>
-          <Btn
-            variant="primary"
-            onClick={() => {
-              saveSettings(s);
-              onSaved(s);
-              onClose();
-            }}
-          >
-            Save settings
-          </Btn>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

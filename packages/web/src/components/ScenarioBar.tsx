@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Stack } from "@carbon/react";
+import { Modal, Stack } from "@carbon/react";
 import { Btn, IconBtn } from "./Btn";
 import { Save, TrashCan } from "@carbon/icons-react";
 import { Footnote, SectionLabel } from "./analysisKit";
@@ -146,56 +146,51 @@ function ScenarioModal({
   const [name, setName] = useState(api.model.name || "Variant");
   const clean = name.trim() || api.model.name || "Variant";
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal scn" onClick={(e) => e.stopPropagation()}>
-        <h2>Variants</h2>
-        <p>
-          A named snapshot of this layout, to load back or compare.
-        </p>
-        <Stack gap={5}>
-          <div className="fk-inline">
-            <TextField
-              id="scenario-name"
-              labelText="Name"
-              placeholder="name this variant…"
-              value={name}
-              onChange={setName}
-            />
-            <Btn variant="primary" onClick={() => onSave(clean)}>
-              Save variant
-            </Btn>
-          </div>
-          <Stack gap={3}>
-            <SectionLabel>Saved variants</SectionLabel>
-            {scenarios.length === 0 ? (
-              <Footnote>No variants saved yet.</Footnote>
-            ) : (
-              <Stack gap={2}>
-                {scenarios.map((s) => (
-                  <div key={s.name} className="fk-listrow">
-                    <Btn size="compact" variant="ghost" className="fk-listrow__main" onClick={() => onLoad(s.name)}>
-                      {s.name} <span className="scn__when">{ago(s.savedAt)}</span>
-                    </Btn>
-                    <IconBtn
-                      size="compact"
-                      variant="danger"
-                      icon={TrashCan}
-                      label={`Delete ${s.name}`}
-                      tooltipPosition="left"
-                      onClick={() => onDelete(s.name)}
-                    />
-                  </div>
-                ))}
-              </Stack>
-            )}
-          </Stack>
-          <div className="modal__actions">
-            <Btn variant="ghost" onClick={onClose}>
-              Done
-            </Btn>
-          </div>
+    <Modal
+      open
+      className="scn"
+      modalHeading="Variants"
+      primaryButtonText="Save variant"
+      secondaryButtonText="Done"
+      onRequestClose={onClose}
+      // Save keeps the dialog open so you can name and save several in a row;
+      // Done (the secondary) is what closes it.
+      onRequestSubmit={() => onSave(clean)}
+    >
+      <p>A named snapshot of this layout, to load back or compare.</p>
+      <Stack gap={5}>
+        <TextField
+          id="scenario-name"
+          labelText="Name"
+          placeholder="name this variant…"
+          value={name}
+          onChange={setName}
+        />
+        <Stack gap={3}>
+          <SectionLabel>Saved variants</SectionLabel>
+          {scenarios.length === 0 ? (
+            <Footnote>No variants saved yet.</Footnote>
+          ) : (
+            <Stack gap={2}>
+              {scenarios.map((s) => (
+                <div key={s.name} className="fk-listrow">
+                  <Btn size="compact" variant="ghost" className="fk-listrow__main" onClick={() => onLoad(s.name)}>
+                    {s.name} <span className="scn__when">{ago(s.savedAt)}</span>
+                  </Btn>
+                  <IconBtn
+                    size="compact"
+                    variant="danger"
+                    icon={TrashCan}
+                    label={`Delete ${s.name}`}
+                    tooltipPosition="left"
+                    onClick={() => onDelete(s.name)}
+                  />
+                </div>
+              ))}
+            </Stack>
+          )}
         </Stack>
-      </div>
-    </div>
+      </Stack>
+    </Modal>
   );
 }

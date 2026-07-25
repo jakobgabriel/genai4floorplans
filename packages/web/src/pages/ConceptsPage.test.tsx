@@ -21,7 +21,12 @@ async function openConcepts() {
   await waitFor(() => expect(screen.getByRole("heading", { name: "Manufacturing concepts" })).toBeTruthy());
 }
 
-const stored = () => JSON.parse(localStorage.getItem("flowplan_concepts") ?? "null");
+// The catalog persists as a versioned envelope { version, concepts }; older
+// data was a bare array. Unwrap either so these assertions read the list.
+const stored = () => {
+  const raw = JSON.parse(localStorage.getItem("flowplan_concepts") ?? "null");
+  return Array.isArray(raw) ? raw : (raw?.concepts ?? null);
+};
 
 /** A concept in the list. Scoped, because "U-cell" is also a form label. */
 const listRow = (label: string) =>

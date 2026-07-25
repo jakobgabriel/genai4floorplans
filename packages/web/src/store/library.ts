@@ -25,6 +25,10 @@ import { CAPABILITY_HINTS } from "@flowplan/core/engine/infer";
 // an import they choose.
 
 const KEY = "flowplan_library";
+// Bump when the persisted library shape changes incompatibly; `migrateProcess`
+// already forward-fills fields, so v1 covers today. Legacy data (a bare array,
+// or an object with no version) still loads through the branches below.
+const VERSION = 1;
 
 let counter = 0;
 function newId(prefix: string): string {
@@ -78,7 +82,7 @@ export function loadLibrary(): ProcessLibrary {
 
 export function saveLibrary(lib: ProcessLibrary): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(lib));
+    localStorage.setItem(KEY, JSON.stringify({ version: VERSION, ...lib }));
   } catch {
     /* ignore */
   }

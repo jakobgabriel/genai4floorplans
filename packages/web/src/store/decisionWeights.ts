@@ -9,6 +9,10 @@ import { DECISION_WEIGHTS, normalizeDecisionWeights, type DecisionWeights } from
 // everything but `cost` to zero reproduces the old behaviour exactly.
 
 const KEY = "flowplan_decision_weights";
+// Bump when the persisted shape changes in a way older data can't satisfy;
+// `migrateWeights` then gets a case for the old version. Unversioned data
+// (written before this stamp existed) reads as version 0 and still loads.
+const VERSION = 1;
 
 export function loadDecisionWeights(): DecisionWeights {
   try {
@@ -46,7 +50,7 @@ export function useDecisionWeights(): DecisionWeightsApi {
   const [weights, setWeights] = useState<DecisionWeights>(() => loadDecisionWeights());
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(weights));
+      localStorage.setItem(KEY, JSON.stringify({ version: VERSION, ...weights }));
     } catch {
       /* ignore */
     }
