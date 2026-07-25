@@ -16,6 +16,7 @@ import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow
 import { parseSteps } from "./planner/parseSteps";
 import { COMPLEXITY_SEC, USE_CASES, type CycleKnowledge, type UseCaseId } from "./planner/usecases";
 import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
 import { Add, Folders, Help, Redo, Settings as SettingsIcon, SidePanelClose, Undo } from "@carbon/icons-react";
 import { HeaderKpis } from "./components/HeaderKpis";
@@ -97,7 +98,7 @@ export function App() {
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
   const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8, modes: [] });
+  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8, parts: [] });
   const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
   const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
   const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
@@ -151,8 +152,26 @@ export function App() {
       .map((n) => ({ name: n, cycleTimeSec: sec }));
   }, [knowledge, paste, stepNames, complexity]);
 
-  const brief: GenerateBrief = { ...demand, steps: briefSteps, variantModes: demand.modes.length ? demand.modes : undefined };
-  const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
+  // When parts are listed they are the source of truth: the cell is sized
+  // against the busiest year rather than an averaged annual figure, capex is
+  // amortised over every part and every year, and the routing and mix modes are
+  // derived rather than typed. With no parts, the single-product path stands.
+  const portfolio = useMemo(() => derivePortfolio(demand.parts), [demand.parts]);
+  const brief: GenerateBrief = portfolio
+    ? {
+        ...demand,
+        steps: portfolio.steps,
+        annualVolume: portfolio.peakVolume,
+        // programYears is only ever used as `annualVolume x programYears` to
+        // amortise capex, so the real program volume goes in as an equivalent.
+        programYears: portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
+        variantModes: portfolio.modes,
+      }
+    : { ...demand, steps: briefSteps };
+  // Whatever the brief was actually sized against — the portfolio's peak year
+  // when parts are listed, the single annual figure when they are not.
+  const sizingVolume = portfolio ? portfolio.peakVolume : demand.annualVolume;
+  const perShift = demand.annualShifts > 0 ? sizingVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
     // The report records which concepts were compared, so it needs them
@@ -631,7 +650,7 @@ export function App() {
         }}
         disabled={
           (step === "demand" && !(demand.annualVolume > 0)) ||
-          (step === "process" && briefSteps.length === 0) ||
+          (step === "process" && !portfolio && briefSteps.length === 0) ||
           (step === "concepts" && !picked)
         }
       >
@@ -674,7 +693,8 @@ export function App() {
           setNames={setStepNames}
           complexity={complexity}
           setComplexity={setComplexity}
-          steps={briefSteps}
+          steps={portfolio ? portfolio.steps : briefSteps}
+          fromParts={!!portfolio}
         />
       ) : null}
 
@@ -684,7 +704,7 @@ export function App() {
           selectedId={picked?.id ?? null}
           onSelect={setPickedId}
           perShift={perShift}
-          programYears={demand.programYears}
+          peakYear={portfolio?.peakYear}
         />
       ) : null}
 

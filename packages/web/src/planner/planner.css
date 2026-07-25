@@ -185,36 +185,52 @@
   padding-top: var(--sp-5);
   border-top: 1px solid var(--cds-border-subtle-01);
 }
-/* Name, share, remove. The remove button is icon-only, so its column is sized
-   to the 2.75rem touch target rather than left to `auto` — at `auto` it
-   collapsed and the icon overlapped the share field. */
-.planner__mixHead,
-.planner__mixRow {
-  display: grid;
-  grid-template-columns: 1fr 7rem 2.75rem;
-  align-items: center;
-  gap: var(--sp-2);
-}
-.planner__mixHead {
+/* The part table. Part number and routing take the width; the demand years are
+   narrow numeric columns that grow with the program length, so the table
+   scrolls sideways rather than squeezing the routing. */
+.parts {
   margin-top: var(--sp-3);
+}
+.parts__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.parts__table th {
+  text-align: left;
+  padding: 0 var(--sp-2) var(--sp-1) 0;
   color: var(--cds-text-secondary);
   font-size: var(--type-caption-size);
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
 }
-.planner__mixRow {
-  margin-top: var(--sp-2);
+.parts__table td {
+  padding: 0 var(--sp-2) var(--sp-2) 0;
+  vertical-align: top;
 }
-/* Carbon reserves helper-text space under a field; in a row of them that is a
-   ragged gap under every input. */
-.planner__mixRow .cds--form-item {
-  margin-bottom: 0;
+.parts__table th.parts__num,
+.parts__table td.parts__num {
+  text-align: right;
 }
-/* Carbon's NumberInput carries a 9.375rem min-width, which overran its grid
-   column and pushed the remove button underneath it. */
-.planner__mixRow .cds--number,
-.planner__mixRow .cds--number__input-wrapper,
-.planner__mixRow .cds--number input {
-  min-width: 0;
+.parts__table th:first-child,
+.parts__table td:first-child {
+  min-width: 9rem;
+}
+.parts__table th:nth-child(2),
+.parts__table td:nth-child(2) {
+  min-width: 18rem;
   width: 100%;
+}
+/* Demand years: wide enough for seven figures, no wider. Six-digit volumes are
+   ordinary here and were being clipped at 5rem. */
+.parts__table td:nth-child(n + 3) .cds--text-input {
+  min-width: 6.5rem;
+  width: 6.5rem;
+  text-align: right;
+}
+/* Carbon reserves helper-text space under every field; across a table row that
+   is a ragged gap under each one. */
+.parts__table .cds--form-item {
+  margin-bottom: 0;
 }
 .planner__mixFoot {
   display: flex;

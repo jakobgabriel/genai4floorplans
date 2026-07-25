@@ -54,21 +54,42 @@ describe("planner — entry", () => {
     expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
   });
 
-  it("asks about the product mix on the demand step, before concepts are generated", () => {
+  it("asks for the parts on the demand step, before concepts are generated", () => {
     renderApp();
     fireEvent.click(screen.getByText("Plan a new process"));
-    // Single-model by default — the mix is opt-in, not a form to fill in.
-    expect(screen.getByText("Product mix")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /carries more than one mix/ })).toBeTruthy();
+    // Single-part by default — listing parts is opt-in, not a form to fill in.
+    expect(screen.getByText("Parts this cell will make")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "List the parts" }));
+    expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /carries more than one mix/ }));
-    // Two modes at 50/50, both editable.
-    expect(screen.getByDisplayValue("Mix A")).toBeTruthy();
-    expect(screen.getByDisplayValue("Mix B")).toBeTruthy();
+  it("derives the sizing volume, the program and the mix from the parts", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    fireEvent.click(screen.getByRole("button", { name: "List the parts" }));
 
-    // Shares that do not total 100% are called out rather than silently used.
-    fireEvent.change(screen.getAllByDisplayValue("50")[0], { target: { value: "70" } });
-    expect(screen.getByText(/Shares total/)).toBeTruthy();
+    // Part 1: presses, ramping to a peak in year 2.
+    fireEvent.change(screen.getByDisplayValue("PN-001"), { target: { value: "A" } });
+    fireEvent.change(screen.getByPlaceholderText(/Load 5/), { target: { value: "Load 5 > Press 10" } });
+    const yearsOf = (row: number) =>
+      [...document.querySelectorAll("tbody tr")][row].querySelectorAll("input");
+    fireEvent.change(yearsOf(0)[2], { target: { value: "1000" } });
+    fireEvent.change(yearsOf(0)[3], { target: { value: "4000" } });
+
+    // Part 2: welds instead — a different work content, so a second mix.
+    fireEvent.click(screen.getByRole("button", { name: "Add a part" }));
+    fireEvent.change(screen.getByDisplayValue("PN-002"), { target: { value: "B" } });
+    const r1 = yearsOf(1);
+    fireEvent.change(r1[1], { target: { value: "Load 5 > Weld 20" } });
+    fireEvent.change(yearsOf(1)[2], { target: { value: "1000" } });
+
+    // Sized against year 2 (4000), not year 1 and not an average.
+    expect(screen.getByText("Sized for")).toBeTruthy();
+    expect(screen.getByText("4,000")).toBeTruthy();
+    // Program counts every part and every year: 1000 + 4000 + 1000.
+    expect(screen.getByText("6,000")).toBeTruthy();
+    // Two distinct routings collapse to two mixes over a three-step union.
+    expect(screen.getByText("Distinct mixes")).toBeTruthy();
   });
 
   it("keeps direct entry points for people who don't want the guided path", () => {
