@@ -190,7 +190,49 @@ same number. Two consequences worth knowing:
 
 ---
 
-## 5. What the assessment reads
+## 5. What the "recommendation" actually is
+
+Worth being precise, because it looks like more than it is.
+
+```mermaid
+flowchart LR
+  B[Brief] --> S["generateCandidates<br/>every concept × every form<br/>~11 candidates, exhaustive"]
+  S --> R["rankCandidates<br/>sorted on ONE metric"]
+  R --> W([Winner])
+  S --> X["conceptCrossoverRanges<br/>the same sweep across a volume range"]
+  X --> SEG[Where the winner changes<br/>+ margin over the runner-up]
+```
+
+**It is fully deterministic, and that is deliberate.** The candidate space is
+about eleven options, so the sweep enumerates all of them rather than searching;
+`buildRating` runs with `restarts: 0` to keep it reproducible. The same brief
+always gives the same ranking. A search algorithm here would be slower,
+non-reproducible, and could not find anything enumeration misses — so
+"make the recommendation dynamic" should not mean making the *search* dynamic.
+
+**What it is not:**
+
+| | |
+|---|---|
+| Single objective | `rankCandidates` sorts on `loadedCostPerPart` and nothing else passes a different key. Capex exposure, flexibility, ramp-up risk and ergonomics are computed and displayed but do not enter the order. |
+| `conceptFit` does not rank | The viable-volume band you can edit on the Concepts page drives the "Off-volume" tag and a line of rationale. It is **not** in the sort. Widening a band changes the labels, not the winner. |
+| No learning | Nothing feeds back from built cells. That needs the monitoring app, which is not built. |
+
+**What answers "how confident is this":** the crossover. One demand figure in
+and one ranking out is the wrong shape for an RFQ, where demand is a forecast.
+`conceptCrossoverRanges` re-runs the whole sweep across the volume axis, bisects
+each boundary, and reports three things the ranked table cannot:
+
+- where the winner changes, as a volume rather than a sample index;
+- **how close the call is** — the margin over the best *other concept*. A band
+  won by 0.8% is a coin toss between two sets of planning assumptions, and the
+  single ranked list hides that entirely;
+- where the catalog runs out — above some volume nothing makes the demand on one
+  line, which is a finding rather than an empty result.
+
+---
+
+## 6. What the assessment reads
 
 Six stages, in this order, on one page. The report is the same six written down.
 
@@ -208,7 +250,7 @@ flowchart LR
 
 ---
 
-## 6. Where state lives
+## 7. Where state lives
 
 ```mermaid
 flowchart TD
@@ -234,7 +276,7 @@ outlive any one layout, and resetting to the sample does not touch them.
 
 ---
 
-## 7. What is not built
+## 8. What is not built
 
 | | Status |
 |---|---|
@@ -244,3 +286,5 @@ outlive any one layout, and resetting to the sample does not touch them.
 | Batch / WIP costing | Not built. The Workshop form has the layout consequences of batch transfer; the WIP and lead time it buys are uncosted, so its real penalty is understated. |
 | Per-team catalogs | Not built. Both catalogs are per-browser localStorage, not stored on `Team`. |
 | Pattern library (spec §30–35) | Not built. |
+| Multi-criteria ranking | Not built. The order is loaded cost per part alone — see §5. |
+| Sensitivity / what-if | Only across volume, via the crossover. Labour rate, program length and mix uncertainty are not swept. |

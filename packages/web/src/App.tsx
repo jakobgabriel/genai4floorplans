@@ -709,6 +709,7 @@ export function App() {
           onSelect={setPickedId}
           perShift={perShift}
           peakYear={portfolio?.peakYear}
+          brief={brief}
         />
       ) : null}
 

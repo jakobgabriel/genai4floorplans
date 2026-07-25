@@ -16,7 +16,8 @@ import {
   Tile,
 } from "@carbon/react";
 import { inferWorkload } from "@flowplan/core/engine/infer";
-import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
+import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
+import { Crossover } from "./Crossover";
 import { ConceptTable } from "./ConceptTable";
 import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
 import { LibraryPicker } from "../components/LibraryPicker";
@@ -592,6 +593,7 @@ export function ConceptsStep({
   onSelect,
   perShift,
   peakYear,
+  brief,
 }: {
   candidates: Candidate[];
   selectedId: string | null;
@@ -599,6 +601,8 @@ export function ConceptsStep({
   perShift: number;
   /** Set when the volume came from a part portfolio's busiest year. */
   peakYear?: number;
+  /** The brief the candidates came from, for the crossover sweep. */
+  brief: GenerateBrief;
 }) {
   return (
     <section className="planner planner--wide">
@@ -608,6 +612,14 @@ export function ConceptsStep({
         loaded — operating cost plus equipment amortised over the program.
       </p>
       <ConceptTable candidates={candidates} selectedId={selectedId} onSelect={onSelect} />
+      {/* The table answers "what is cheapest at this volume". Demand is a
+          forecast, so the question after it is always "and where does that
+          change?" */}
+      <Crossover
+        brief={brief}
+        atVolume={brief.annualVolume}
+        currency={candidates[0]?.cost.currency ?? "$"}
+      />
     </section>
   );
 }

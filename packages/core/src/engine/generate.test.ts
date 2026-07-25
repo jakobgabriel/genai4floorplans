@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CONCEPTS, CONCEPT_KINDS, conceptFit, rankConcepts } from "./concepts";
-import { conceptCrossover, filterCandidates, generateCandidates, rankCandidates, type GenerateBrief } from "./generate";
+import { conceptCrossover, conceptCrossoverRanges, filterCandidates, generateCandidates, rankCandidates, type GenerateBrief } from "./generate";
 import { validateFlow } from "./validate";
 import { hasCollision } from "./geometry";
 
@@ -182,5 +182,75 @@ describe("conceptCrossover", () => {
     expect(winners[0]).not.toBe(winners[3]);
     // Cost per part should fall as volume rises (capex amortises).
     expect(points[3].costPerPart).toBeLessThan(points[0].costPerPart);
+  });
+});
+
+describe("conceptCrossoverRanges", () => {
+  const opts = { from: 1000, to: 2000000, samples: 12, refine: 4 };
+
+  it("reports contiguous, non-overlapping stretches that cover the sweep", () => {
+    const segs = conceptCrossoverRanges(brief(), opts);
+    expect(segs.length).toBeGreaterThan(1);
+    expect(segs[0].from).toBe(1000);
+    expect(segs[segs.length - 1].to).toBeNull();
+    segs.slice(0, -1).forEach((s, i) => {
+      expect(s.to).not.toBeNull();
+      // No gap and no overlap: one stretch ends exactly where the next begins.
+      expect(s.to).toBe(segs[i + 1].from);
+      expect(s.to!).toBeGreaterThan(s.from);
+    });
+  });
+
+  it("never puts the same winner in two adjacent stretches", () => {
+    const segs = conceptCrossoverRanges(brief(), opts);
+    segs.slice(1).forEach((s, i) => expect(s.winner).not.toBe(segs[i].winner));
+  });
+
+  // Sampling alone reports "the winner had already changed by 24,621", which is
+  // an artefact of where the samples fell. Refinement is what makes the number
+  // a crossover rather than a sample index.
+  it("pins the boundary tighter than the sample spacing", () => {
+    const coarse = conceptCrossoverRanges(brief(), { ...opts, refine: 0 });
+    const fine = conceptCrossoverRanges(brief(), { ...opts, refine: 8 });
+    const b0 = coarse[0].to!;
+    const b1 = fine[0].to!;
+    expect(b1).toBeLessThanOrEqual(b0);
+    // The refined boundary sits below the coarse sample it was found at.
+    expect(b1).toBeGreaterThan(coarse[0].from);
+  });
+
+  it("reports how close the runner-up concept was, so a coin toss reads as one", () => {
+    const segs = conceptCrossoverRanges(brief(), opts);
+    segs.filter((s) => s.winner).forEach((s) => {
+      expect(s.minMarginPct).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(s.minMarginPct)).toBe(true);
+    });
+  });
+
+  it("says when nothing in the catalog can make the demand, rather than dropping it", () => {
+    // Far above what any concept on one line can produce.
+    const segs = conceptCrossoverRanges(brief(), { from: 1000, to: 50000000, samples: 10, refine: 3 });
+    const dead = segs.find((s) => s.winner === null);
+    expect(dead, "expected an open-ended stretch with no viable concept").toBeTruthy();
+    expect(dead!.to).toBeNull();
+    // And it carries no fabricated cost.
+    expect(dead!.costPerPart).toBe(0);
+    expect(Number.isFinite(dead!.costPerPart)).toBe(true);
+  });
+
+  it("reads the catalog it is given, so an edited band moves the crossover", () => {
+    const base = conceptCrossoverRanges(brief(), opts);
+    // Make the transfer line implausibly cheap and it should take more of the axis.
+    const cheapTL = Object.values(CONCEPTS).map((c) =>
+      c.kind === "transfer-line" ? { ...c, capexPerStation: 1000 } : c,
+    );
+    const edited = conceptCrossoverRanges({ ...brief(), conceptCatalog: cheapTL }, opts);
+    const span = (segs: ReturnType<typeof conceptCrossoverRanges>) =>
+      segs.filter((s) => s.winner === "transfer-line").reduce((a, s) => a + ((s.to ?? 2000000) - s.from), 0);
+    expect(span(edited)).toBeGreaterThan(span(base));
+  });
+
+  it("returns nothing for a brief with no steps, rather than sweeping an empty cell", () => {
+    expect(conceptCrossoverRanges({ ...brief(), steps: [] }, opts)).toEqual([]);
   });
 });

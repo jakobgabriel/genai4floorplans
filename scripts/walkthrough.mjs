@@ -180,6 +180,13 @@ async function run() {
   await expect(page.getByRole("heading", { name: "Which concept?" }), "concepts stage");
   await shot("plan-concepts", "Stage 2: every concept × form, ranked by fully loaded cost", { full: true });
 
+  await page.getByRole("button", { name: /Where does this flip/ }).click();
+  await expect(page.locator(".xover__band"), "crossover band");
+  await shot("plan-crossover", "Where the winner changes, how close each call is, and where the catalog runs out", {
+    full: true,
+    settle: 600,
+  });
+
   await page.getByRole("button", { name: "Refine this layout" }).click();
   await expect(page.getByRole("tab", { name: "Flow" }), "editor rail");
   await shot("plan-refine", "Stage 3: the editor, with the chosen concept loaded onto the canvas");

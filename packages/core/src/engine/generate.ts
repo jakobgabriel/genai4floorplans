@@ -365,8 +365,130 @@ export function conceptCrossover(brief: GenerateBrief, volumes: number[], by: Ra
     return {
       annualVolume,
       winner: best?.concept ?? "cell",
-      winnerLabel: best ? best.conceptLabel : "—",
+      winnerLabel: best ? best.conceptLabel : "\u2014",
       costPerPart: best?.metrics.loadedCostPerPart ?? 0,
     };
   });
+}
+
+/** One stretch of the volume axis over which the same concept wins. */
+export interface CrossoverSegment {
+  /** Inclusive lower bound of the stretch. */
+  from: number;
+  /** Exclusive upper bound; null when the stretch runs to the top of the sweep. */
+  to: number | null;
+  /** Null when nothing in the catalog can make the demand across this stretch. */
+  winner: ConceptKind | null;
+  winnerLabel: string;
+  /** Best loaded cost per part seen in the stretch. */
+  costPerPart: number;
+  /**
+   * How far ahead the winner is of the best *other concept*, as a percentage of
+   * the winner's cost, at its narrowest point in this stretch.
+   *
+   * A stretch the tool "wins" by 0.4% is not a recommendation, it is a coin
+   * toss between two sets of planning assumptions, and saying so is the
+   * difference between a decision aid and a decision.
+   */
+  minMarginPct: number;
+}
+
+export interface CrossoverOptions {
+  /** Lowest volume to sweep. */
+  from?: number;
+  /** Highest volume to sweep. */
+  to?: number;
+  /** Sample points, log-spaced. Each one runs a full sweep, so keep it small. */
+  samples?: number;
+  /** Bisection steps used to pin each boundary down. 0 skips the refinement. */
+  refine?: number;
+  by?: RankBy;
+}
+
+/** The winner at one volume, plus how close the nearest other concept was. */
+function bestAt(brief: GenerateBrief, annualVolume: number, by: RankBy) {
+  const ranked = rankCandidates(
+    filterCandidates(generateCandidates({ ...brief, annualVolume }), { meetsDemandOnly: true }),
+    by,
+  );
+  const best = ranked[0];
+  if (!best) return { winner: null, label: "\u2014", cost: 0, marginPct: 0 };
+  // The runner-up has to be a different CONCEPT. The same concept in another
+  // form is not an alternative decision, and counting it would report every
+  // margin as near zero.
+  const other = ranked.find((c) => c.concept !== best.concept);
+  const bc = best.metrics.loadedCostPerPart;
+  const marginPct = other && bc > 0 ? ((other.metrics.loadedCostPerPart - bc) / bc) * 100 : 100;
+  return { winner: best.concept, label: best.conceptLabel, cost: bc, marginPct: Math.max(0, marginPct) };
+}
+
+/**
+ * The crossover as ranges rather than samples.
+ *
+ * Sampling alone gives you "at 24,621 the winner was already a U-cell", which
+ * is an artefact of where the samples happened to fall. Each boundary is
+ * bisected afterwards so the number reported is the volume where the answer
+ * actually changes, to within the tolerance of the refinement.
+ *
+ * Stretches where nothing meets demand are returned with a null winner rather
+ * than dropped: "above 400k/yr nothing in your catalog makes this on one line"
+ * is one of the more useful things this sweep can tell you.
+ */
+export function conceptCrossoverRanges(brief: GenerateBrief, opts: CrossoverOptions = {}): CrossoverSegment[] {
+  const from = Math.max(1, opts.from ?? 1000);
+  const to = Math.max(from * 10, opts.to ?? 10000000);
+  const samples = Math.max(3, opts.samples ?? 12);
+  const refine = Math.max(0, opts.refine ?? 4);
+  const by = opts.by ?? "loadedCostPerPart";
+  if (brief.steps.length === 0) return [];
+
+  const lf = Math.log10(from);
+  const lt = Math.log10(to);
+  const at = (i: number) => Math.round(Math.pow(10, lf + ((lt - lf) * i) / (samples - 1)));
+
+  const points = Array.from({ length: samples }, (_, i) => {
+    const v = at(i);
+    return { v, ...bestAt(brief, v, by) };
+  });
+
+  // Collapse consecutive same-winner samples, then pin the boundary between
+  // each pair by bisecting in log space.
+  const segs: CrossoverSegment[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const prev = segs[segs.length - 1];
+    if (prev && prev.winner === p.winner) {
+      // Guarded: a stretch with no winner has no cost, and `Math.min` over
+      // nothing-but-zeroes was reporting Infinity.
+      if (p.cost > 0) prev.costPerPart = prev.costPerPart > 0 ? Math.min(prev.costPerPart, p.cost) : p.cost;
+      prev.minMarginPct = Math.min(prev.minMarginPct, p.marginPct);
+      continue;
+    }
+    let boundary = p.v;
+    if (prev) {
+      if (refine > 0) {
+        let lo = points[i - 1].v;
+        let hi = p.v;
+        for (let k = 0; k < refine; k++) {
+          const mid = Math.round(Math.pow(10, (Math.log10(lo) + Math.log10(hi)) / 2));
+          if (mid <= lo || mid >= hi) break;
+          (bestAt(brief, mid, by).winner === points[i - 1].winner ? (lo = mid) : (hi = mid));
+        }
+        boundary = hi;
+      }
+      // Closed here rather than inside the refinement branch: with refinement
+      // off, every stretch was left open-ended and the ranges neither met nor
+      // covered the axis.
+      prev.to = boundary;
+    }
+    segs.push({
+      from: prev ? boundary : p.v,
+      to: null,
+      winner: p.winner,
+      winnerLabel: p.label,
+      costPerPart: p.cost,
+      minMarginPct: p.marginPct,
+    });
+  }
+  return segs;
 }

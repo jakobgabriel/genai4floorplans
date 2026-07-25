@@ -2376,3 +2376,89 @@ button.fk-listrow__main {
   background: var(--cds-button-danger-primary);
   color: var(--cds-text-on-color);
 }
+
+/* ---------- concept crossover ---------- */
+
+.xover__ask {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.xover {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.xover > * {
+  width: 100%;
+}
+/* The volume axis, log-scaled, one block per stretch. Room above for the
+   "you are here" label so it never sits on top of a block. */
+.xover__band {
+  position: relative;
+  height: 1.5rem;
+  margin-top: var(--sp-6);
+  background: var(--cds-layer-01);
+}
+.xover__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--cds-background);
+}
+.xover__seg--none {
+  /* Nothing meets demand here — hatched rather than coloured, because it is
+     an absence and should not read as a sixth concept. */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--cds-layer-02) 0 4px,
+    transparent 4px 8px
+  );
+}
+.xover__you {
+  position: absolute;
+  top: -0.5rem;
+  bottom: -0.5rem;
+  width: 2px;
+  background: var(--cds-text-primary);
+}
+.xover__youLab {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  padding: 0 var(--sp-1);
+  white-space: nowrap;
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-primary);
+  background: var(--cds-background);
+}
+.xover__axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+}
+.xover__dot {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--sp-2);
+  vertical-align: baseline;
+}
+.xover__hereTag {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+}
+.xover__table {
+  width: 100%;
+}
