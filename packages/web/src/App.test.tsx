@@ -30,7 +30,7 @@ describe("App", () => {
 
   it("loads the sample cell and shows its rating + stations", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
     expect(screen.getByText("Actual-state rating")).toBeTruthy();
@@ -38,7 +38,7 @@ describe("App", () => {
 
   it("reads the whole analysis as one page, in path order", () => {
     const { container } = renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     // Analysis is one page: every stage is on screen at once, no tab switching.
     const heads = [...container.querySelectorAll(".an__secTitle")].map((h) => h.textContent);
     expect(heads).toEqual([
@@ -58,7 +58,7 @@ describe("App", () => {
 
   it("saves a variant from the toolbar and lists it in the Variants menu", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     // Saving is a toolbar action — reachable without opening any panel.
     fireEvent.click(screen.getByRole("button", { name: /Save variant/ }));
     // Both the toolbar button and the dialog's say "Save variant"; the dialog is later in the DOM.
@@ -72,7 +72,7 @@ describe("App", () => {
 
   it("opens the assessment report as its own page", async () => {
     const { container } = renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "Export ▾" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Open report" }));
     // hashchange is async.
@@ -86,7 +86,7 @@ describe("App", () => {
 
   it("switches between side-panel groups without error", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByRole("tab", { name: "Build" }));
     expect(screen.getByRole("tab", { name: "Configure" })).toBeTruthy();
     // Schema lives behind the help icon in the tab bar.
@@ -96,7 +96,7 @@ describe("App", () => {
 
   it("generates AI proposals from the AI Chat group", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByRole("tab", { name: "AI Chat" }));
     fireEvent.click(screen.getByRole("button", { name: /Propose improvements/ }));
     // a strategist proposal card appears (engine-scored, offline)
@@ -105,7 +105,7 @@ describe("App", () => {
 
   it("renders the DAG view and the Yield panel", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByText("⊟ DAG"));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
@@ -114,7 +114,7 @@ describe("App", () => {
 
   it("navigates to the dedicated Site overview page", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "⋯" }));
     fireEvent.click(screen.getByText("Site overview"));
     // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
@@ -126,7 +126,7 @@ describe("App", () => {
 
   it("navigates to the dedicated Compare page", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByRole("button", { name: "⋯" }));
     fireEvent.click(screen.getByText("Compare variants"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
@@ -136,7 +136,7 @@ describe("App", () => {
 
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("Open the sample cell"));
     fireEvent.click(screen.getByText("⊟ DAG"));
     // click a DAG node to select + open Configure. The name also appears in the
     // Analysis page's per-step lists, and the canvas precedes the rail.

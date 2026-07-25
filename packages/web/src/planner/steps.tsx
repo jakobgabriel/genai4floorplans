@@ -21,8 +21,11 @@ import {
 import { CONCEPTS } from "@flowplan/core/engine/concepts";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
+import type { VariantMode } from "@flowplan/core/model/types";
 import { COMPLEXITY_LABELS, USE_CASES, type CycleKnowledge, type UseCase, type UseCaseId } from "./usecases";
 import { ConceptTable } from "./ConceptTable";
+import { Add, TrashCan } from "@carbon/icons-react";
+import { Footnote, SectionLabel } from "../components/analysisKit";
 import { analysisPath, type AnalysisStepId } from "../components/analysisPath";
 import { navigate } from "../store/useHashRoute";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -49,6 +52,8 @@ export function SituationStep({
   hasCell: boolean;
   onSkip: () => void;
 }) {
+  const ready = USE_CASES.filter((u) => u.availability !== "unavailable");
+  const later = USE_CASES.filter((u) => u.availability === "unavailable");
   return (
     <section className="planner">
       <header className="planner__head">
@@ -61,43 +66,11 @@ export function SituationStep({
         ) : null}
       </header>
 
-      <Grid className="planner__grid" condensed>
-        {USE_CASES.map((u) => {
-          const off = u.availability === "unavailable";
-          const Wrapper = off ? Tile : ClickableTile;
-          return (
-            <Column key={u.id} sm={4} md={4} lg={8}>
-              <Wrapper
-                className={"planner__tile" + (off ? " planner__tile--off" : "")}
-                {...(off ? {} : { onClick: () => onPick(u.id) })}
-              >
-                <div className="planner__tileHead">
-                  <h3>{u.label}</h3>
-                  {u.availability === "ready" ? null : (
-                    <Tag type={u.availability === "partial" ? "magenta" : "gray"} size="sm">
-                      {u.availability === "partial" ? "Partial" : "Not built"}
-                    </Tag>
-                  )}
-                </div>
-                <p className="planner__q">“{u.question}”</p>
-                <p className="planner__meta">
-                  <b>You need:</b> {u.needs.join(" · ")}
-                </p>
-                <p className="planner__meta">
-                  <b>You get:</b> {u.gives}
-                </p>
-                {u.caveat ? <p className="planner__caveat">{u.caveat}</p> : null}
-                <p className="planner__lifecycle">{u.lifecycle}</p>
-              </Wrapper>
-            </Column>
-          );
-        })}
-      </Grid>
-
+      {/* The fastest way to understand the tool is to open something that
+          already works, so it leads rather than sitting under five tall tiles. */}
       <div className="planner__escape">
-        <span className="planner__escapeLab">Or go straight in:</span>
-        <Button kind="ghost" size="sm" onClick={onSample}>
-          Start from the sample cell
+        <Button kind="tertiary" size="sm" onClick={onSample}>
+          Open the sample cell
         </Button>
         <Button kind="ghost" size="sm" onClick={onBlank}>
           Start blank
@@ -106,6 +79,46 @@ export function SituationStep({
           Import a JSON model
         </Button>
       </div>
+
+      <Grid className="planner__grid" condensed>
+        {ready.map((u) => (
+          <Column key={u.id} sm={4} md={4} lg={8}>
+            <ClickableTile className="planner__tile" onClick={() => onPick(u.id)}>
+              <div className="planner__tileHead">
+                <h3>{u.label}</h3>
+                {u.availability === "partial" ? (
+                  <Tag type="magenta" size="sm">
+                    Partial
+                  </Tag>
+                ) : null}
+              </div>
+              <p className="planner__q">“{u.question}”</p>
+              <p className="planner__meta">
+                <b>You need:</b> {u.needs.join(" · ")}
+              </p>
+              <p className="planner__meta">
+                <b>You get:</b> {u.gives}
+              </p>
+              {u.caveat ? <p className="planner__caveat">{u.caveat}</p> : null}
+              <p className="planner__lifecycle">{u.lifecycle}</p>
+            </ClickableTile>
+          </Column>
+        ))}
+      </Grid>
+
+      {/* Unbuilt cases were full-size tiles among the working ones, so a
+          first-timer read and evaluated an option that cannot be chosen. They
+          are a roadmap line now, not a choice. */}
+      {later.length > 0 ? (
+        <div className="planner__later">
+          <SectionLabel>Not built yet</SectionLabel>
+          {later.map((u) => (
+            <p key={u.id} className="planner__laterRow">
+              <b>{u.label}</b> — {(u.caveat ?? u.gives).replace(/^Not built\.\s*/, "")}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -118,6 +131,8 @@ export interface DemandValues {
   programYears: number;
   annualShifts: number;
   shiftHours: number;
+  /** Mix modes. Empty ⇒ the cell carries one kind of work (single-model). */
+  modes: VariantMode[];
 }
 
 export function DemandStep({
@@ -177,6 +192,121 @@ export function DemandStep({
           <span className="planner__derivedVal">{num(values.annualVolume * values.programYears)} parts</span>
         </div>
       </Tile>
+
+      <MixEditor modes={values.modes} onChange={(modes) => onChange({ modes })} />
+    </section>
+  );
+}
+
+/**
+ * The product mix, asked at the point the flow asks "how many".
+ *
+ * A cell almost never carries one part number, and the model has always known
+ * that — `VariantMode` exists so one line can carry forty products without
+ * modelling forty products. But nothing in the app could create one: the
+ * reducer had ADD/UPDATE/DELETE_VARIANT_MODE with tests, and the only UI was a
+ * read-only list buried in Build ▸ Workload. A planner had to size the whole
+ * cell for a single product and discover the gap later.
+ *
+ * It belongs here because the concepts on the next step are balanced against
+ * the mix — `generateCell` takes `variantModes` and assigns stations from the
+ * heaviest one. Asked afterwards, the answer would arrive too late to matter.
+ */
+function MixEditor({ modes, onChange }: { modes: VariantMode[]; onChange: (m: VariantMode[]) => void }) {
+  const total = modes.reduce((a, m) => a + m.share, 0);
+  const off = modes.length > 0 && Math.abs(total - 1) > 0.005;
+
+  const seed = () =>
+    onChange([
+      { id: "mix-1", name: "Mix A", share: 0.5, elementOverrides: {} },
+      { id: "mix-2", name: "Mix B", share: 0.5, elementOverrides: {} },
+    ]);
+  const patch = (id: string, p: Partial<VariantMode>) => onChange(modes.map((m) => (m.id === id ? { ...m, ...p } : m)));
+
+  return (
+    <section className="planner__mix">
+      <SectionLabel>Product mix</SectionLabel>
+      {modes.length === 0 ? (
+        <>
+          <Footnote>
+            This cell is sized for one kind of work. A mix exists only where work content genuinely differs —
+            forty part numbers needing the same work are one mix.
+          </Footnote>
+          <Button kind="tertiary" size="sm" onClick={seed}>
+            The cell carries more than one mix
+          </Button>
+        </>
+      ) : (
+        <>
+          <Footnote>Shares of total output. The concepts on the next step are balanced against the heaviest.</Footnote>
+          <div className="planner__mixHead">
+            <span>Mix</span>
+            <span>Share %</span>
+          </div>
+          {modes.map((m) => (
+            <div key={m.id} className="planner__mixRow">
+              <TextInput
+                id={"mix-name-" + m.id}
+                labelText="Mix"
+                hideLabel
+                size="sm"
+                value={m.name}
+                onChange={(e) => patch(m.id, { name: e.target.value })}
+              />
+              <NumberInput
+                id={"mix-share-" + m.id}
+                label="Share %"
+                hideLabel
+                size="sm"
+                min={0}
+                max={100}
+                hideSteppers
+                value={Math.round(m.share * 100)}
+                onChange={(_: unknown, st: { value: number | string }) =>
+                  patch(m.id, { share: Math.min(1, Math.max(0, (Number(st.value) || 0) / 100)) })
+                }
+              />
+              <Button
+                kind="ghost"
+                size="sm"
+                hasIconOnly
+                renderIcon={TrashCan}
+                iconDescription={`Remove ${m.name}`}
+                tooltipPosition="left"
+                onClick={() => onChange(modes.filter((x) => x.id !== m.id))}
+              />
+            </div>
+          ))}
+          <div className="planner__mixFoot">
+            <Button
+              kind="ghost"
+              size="sm"
+              renderIcon={Add}
+              onClick={() =>
+                onChange(
+                  modes.concat([
+                    { id: "mix-" + (modes.length + 1) + "-" + modes.length, name: "Mix " + String.fromCharCode(65 + modes.length), share: 0, elementOverrides: {} },
+                  ]),
+                )
+              }
+            >
+              Add a mix
+            </Button>
+            <Button kind="ghost" size="sm" onClick={() => onChange([])}>
+              Single mix
+            </Button>
+          </div>
+          {off ? (
+            <InlineNotification
+              kind="warning"
+              lowContrast
+              hideCloseButton
+              title={`Shares total ${(total * 100).toFixed(0)}%, not 100%`}
+              subtitle="Balancing uses them as written, so the mix would not add up to the volume above."
+            />
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
@@ -376,8 +506,11 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
   const path = analysisPath(api);
   return (
     <section className="glance">
-      <h3 className="planner__h2 glance__h">How this cell reads</h3>
-      <p className="planner__sub">Open any one to see the working.</p>
+      <h3 className="planner__h2 glance__h">The cell as it now stands</h3>
+      <p className="planner__sub">
+        Measured on the layout in the editor, not on the concept estimate above — the two differ once you
+        refine it. Open any one to see the working.
+      </p>
       <div className="glance__grid">
         {path.map((s, i) => (
           <ClickableTile key={s.id} className="glance__tile" onClick={() => onOpen?.(s.id)}>
@@ -442,10 +575,12 @@ export function SummaryStep({
       <h2 className="planner__h2">{picked.conceptLabel}</h2>
       <p className="planner__sub">{picked.rationale}</p>
 
+      <SectionLabel>The concept, as costed from the brief</SectionLabel>
       <Tile className="planner__derived">
         <div>
           <span className="planner__derivedLab">Loaded cost/part</span>
           <span className="planner__derivedVal">{money(cur, m.loadedCostPerPart)}</span>
+          <span className="planner__derivedNote">incl. capex</span>
         </div>
         <div>
           <span className="planner__derivedLab">Capex</span>
@@ -458,6 +593,7 @@ export function SummaryStep({
         <div>
           <span className="planner__derivedLab">Output</span>
           <span className="planner__derivedVal">{num(m.lineOut)}/shift</span>
+          <span className="planner__derivedNote">as generated</span>
         </div>
       </Tile>
 

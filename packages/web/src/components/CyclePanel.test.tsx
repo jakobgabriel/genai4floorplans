@@ -14,7 +14,7 @@ function renderApp() {
 
 function loadSample() {
   renderApp();
-  fireEvent.click(screen.getByText("Start from the sample cell"));
+  fireEvent.click(screen.getByText("Open the sample cell"));
 }
 
 // Balance is stage 3 of the single Analysis page; selecting a station switches

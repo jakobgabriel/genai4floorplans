@@ -890,11 +890,27 @@ export function ConfigurePanel({ api, selId, setSel }: PanelProps) {
   const [renameVal, setRenameVal] = useState("");
   const [addTo, setAddTo] = useState("");
   if (!s) {
+    // The old copy sent people to an "Automation list" that no longer exists —
+    // automation became a section of the Analysis page — and offered no action.
     return (
       <div className="pad ak-panel">
-        <Footnote>
-          Tap a station on the layout (or in the Automation/Flow lists) to configure it. Use Flow ▸ Add process step to create new ones.
-        </Footnote>
+        <EmptyState
+          title="No step selected"
+          body="Select a step on the layout to configure it."
+          action={
+            <Button
+              size="sm"
+              renderIcon={Add}
+              onClick={() => {
+                const ns = makeStation(api.model);
+                api.commit({ type: "ADD_STATION", station: ns });
+                setSel(ns.id);
+              }}
+            >
+              Add a process step
+            </Button>
+          }
+        />
       </div>
     );
   }

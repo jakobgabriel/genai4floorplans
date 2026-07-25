@@ -97,7 +97,7 @@ export function App() {
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
   const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8 });
+  const [demand, setDemand] = useState<DemandValues>({ name: "New product", annualVolume: 250000, programYears: DEFAULT_PROGRAM_YEARS, annualShifts: 460, shiftHours: 8, modes: [] });
   const [knowledge, setKnowledge] = useState<CycleKnowledge>("known");
   const [paste, setPaste] = useState("Load blank\t15\nPress\t35\nWeld\t60\nLeak test\t25\nPack\t20");
   const [stepNames, setStepNames] = useState("Load blank\nPress\nWeld\nLeak test\nPack");
@@ -151,7 +151,7 @@ export function App() {
       .map((n) => ({ name: n, cycleTimeSec: sec }));
   }, [knowledge, paste, stepNames, complexity]);
 
-  const brief: GenerateBrief = { ...demand, steps: briefSteps };
+  const brief: GenerateBrief = { ...demand, steps: briefSteps, variantModes: demand.modes.length ? demand.modes : undefined };
   const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
@@ -385,7 +385,7 @@ export function App() {
               ? "No-go mode: drag a rectangle. Esc to exit."
               : proposal && !proposalDismissed
                 ? "Drag movable stations · scroll to zoom · click an amber dashed ghost to accept that move · tap to configure"
-                : "Drag movable stations · scroll to zoom · tap to configure"}
+                : "Drag movable stations · scroll to zoom · click a step to configure it"}
         </div>
       </div>
     );
@@ -440,6 +440,8 @@ export function App() {
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
   if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
 
+  const cellName = api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts";
+
   const editorToolbar = (
     <div className="editorbar">
       <HeaderKpis api={api} />
@@ -455,10 +457,10 @@ export function App() {
         pressed={!explorerCollapsed}
         icon={Folders}
         className="editorbar__cell"
-        title="Toggle the workspace sidebar"
+        title={cellName}
         onClick={() => setExplorerCollapsed((v) => !v)}
       >
-        {api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts"}
+        {cellName.length > 22 ? cellName.slice(0, 21).trimEnd() + "…" : cellName}
       </Btn>
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
       <span className="hsep" />
@@ -611,6 +613,7 @@ export function App() {
       >
         Back
       </Btn>
+      {step === "summary" ? null : (
       <Btn
         variant="primary"
         onClick={() => {
@@ -627,7 +630,6 @@ export function App() {
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
         }}
         disabled={
-          step === "summary" ||
           (step === "demand" && !(demand.annualVolume > 0)) ||
           (step === "process" && briefSteps.length === 0) ||
           (step === "concepts" && !picked)
@@ -635,6 +637,12 @@ export function App() {
       >
         {step === "concepts" ? "Refine this layout" : "Continue"}
       </Btn>
+      )}
+      {step === "summary" ? (
+        <Btn variant="primary" onClick={() => goTo("refine")}>
+          Back to the editor
+        </Btn>
+      ) : null}
     </div>
   );
 
@@ -642,7 +650,10 @@ export function App() {
     <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
       {step === "situation" ? (
         <SituationStep
-          hasCell={api.cells.length > 0}
+          // Only when there is work of the user's own to go back to. On a first
+          // run the app seeds the sample, so `cells.length > 0` was always true
+          // and "Skip to the editor" just duplicated "Open the sample cell".
+          hasCell={hadModel}
           onSkip={() => goTo("refine")}
           onPick={(id) => { setUseCaseId(id); const uc = USE_CASES.find((u) => u.id === id); goTo(uc && uc.steps.length > 1 ? "demand" : "refine"); }}
           onSample={() => { api.reset(SAMPLE); goTo("refine"); }}

@@ -35,22 +35,45 @@ describe("planner — entry", () => {
     expect(screen.queryByText("Actual-state rating")).toBeNull();
   });
 
-  it("offers every lifecycle case and states what each needs", () => {
+  it("offers every buildable lifecycle case and states what each needs", () => {
     renderApp();
-    USE_CASES.forEach((u) => expect(screen.getByText(u.label)).toBeTruthy());
-    expect(screen.getAllByText(/You need:/).length).toBe(USE_CASES.length);
+    const ready = USE_CASES.filter((u) => u.availability !== "unavailable");
+    ready.forEach((u) => expect(screen.getByText(u.label)).toBeTruthy());
+    expect(screen.getAllByText(/You need:/).length).toBe(ready.length);
   });
 
   it("marks unbuilt and partial cases honestly instead of hiding them", () => {
     renderApp();
-    expect(screen.getByText("Not built")).toBeTruthy();
+    // Unbuilt cases are named and explained, but are no longer choosable tiles
+    // competing with the ones that work.
+    expect(screen.getByText("Not built yet")).toBeTruthy();
+    USE_CASES.filter((u) => u.availability === "unavailable").forEach((u) =>
+      expect(screen.getByText(u.label)).toBeTruthy(),
+    );
     expect(screen.getByText("Partial")).toBeTruthy();
     expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
   });
 
+  it("asks about the product mix on the demand step, before concepts are generated", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    // Single-model by default — the mix is opt-in, not a form to fill in.
+    expect(screen.getByText("Product mix")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /carries more than one mix/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /carries more than one mix/ }));
+    // Two modes at 50/50, both editable.
+    expect(screen.getByDisplayValue("Mix A")).toBeTruthy();
+    expect(screen.getByDisplayValue("Mix B")).toBeTruthy();
+
+    // Shares that do not total 100% are called out rather than silently used.
+    fireEvent.change(screen.getAllByDisplayValue("50")[0], { target: { value: "70" } });
+    expect(screen.getByText(/Shares total/)).toBeTruthy();
+  });
+
   it("keeps direct entry points for people who don't want the guided path", () => {
     renderApp();
-    expect(screen.getByRole("button", { name: "Start from the sample cell" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open the sample cell" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start blank" })).toBeTruthy();
   });
 
@@ -148,7 +171,7 @@ describe("planner — guided flow", () => {
 
   it("keeps the stepper available from inside the editor", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Start from the sample cell" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
     expect(screen.getByText("Actual-state rating")).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
     fireEvent.click(screen.getByText("Situation"));

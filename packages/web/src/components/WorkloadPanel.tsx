@@ -291,20 +291,51 @@ export function WorkloadPanel({ api }: PanelProps) {
           Add element
         </Button>
 
-        {/* --- mix modes --- */}
+        {/* --- mix modes ---
+             This list used to be read-only, which made the whole mixed-model
+             capability unreachable: the reducer had ADD/UPDATE/DELETE_VARIANT_MODE
+             and nothing in the app could call them. */}
         <Stack gap={3}>
           <SectionLabel>Mix modes</SectionLabel>
-          {a.modes.map((m) => (
-            <div key={m.modeId} className="ak-kv">
-              <span className="ak-kv__k">
-                {m.name}
-                {m.modeId === a.worstModeId && a.modes.length > 1 ? " · heaviest" : ""}
-              </span>
-              <span className="ak-kv__v">
-                {(m.share * 100).toFixed(0)}% · {m.totalSec.toFixed(1)}s
-              </span>
-            </div>
-          ))}
+          {a.modes.map((m) => {
+            const stored = (model.variantModes ?? []).find((v) => v.id === m.modeId);
+            return (
+              <div key={m.modeId} className="ak-kv">
+                <span className="ak-kv__k">
+                  {m.name}
+                  {m.modeId === a.worstModeId && a.modes.length > 1 ? " · heaviest" : ""}
+                </span>
+                <span className="ak-kv__v">
+                  {(m.share * 100).toFixed(0)}% · {m.totalSec.toFixed(1)}s
+                  {stored ? (
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      hasIconOnly
+                      renderIcon={TrashCan}
+                      iconDescription={`Remove ${m.name}`}
+                      tooltipPosition="left"
+                      onClick={() => api.commit({ type: "DELETE_VARIANT_MODE", id: m.modeId })}
+                    />
+                  ) : null}
+                </span>
+              </div>
+            );
+          })}
+          <Button
+            kind="tertiary"
+            size="sm"
+            renderIcon={Add}
+            onClick={() => {
+              const n = (model.variantModes ?? []).length;
+              api.commit({
+                type: "ADD_VARIANT_MODE",
+                mode: { id: "mix-" + (n + 1), name: "Mix " + String.fromCharCode(65 + n), share: 0, elementOverrides: {} },
+              });
+            }}
+          >
+            Add a mix
+          </Button>
           <Footnote>
             Forty part numbers needing the same work are one mode. A mode exists only where work content
             genuinely differs — it carries no product identity.

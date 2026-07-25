@@ -295,9 +295,7 @@ button {
    button makes the whole bar taller. The cell name is also in the Explorer and
    on the report, so the toolbar copy can be short. */
 .editorbar__cell.cds--btn {
-  max-width: 10rem;
   white-space: nowrap;
-  overflow: hidden;
 }
 .editorbar__cell .cds--btn__icon {
   flex: 0 0 auto;
