@@ -14,7 +14,7 @@ function renderApp() {
 
 function loadSample() {
   renderApp();
-  fireEvent.click(screen.getByText("Open the sample cell"));
+  fireEvent.click(screen.getByText("See an example"));
 }
 
 // Balance lives on the Analysis page now, not in the editor rail, so opening it

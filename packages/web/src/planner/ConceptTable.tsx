@@ -1,3 +1,4 @@
+import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import {
   StructuredListBody,
   StructuredListCell,
@@ -57,7 +58,7 @@ export function ConceptTable({
             >
               <StructuredListCell>
                 <b>{c.conceptLabel}</b>
-                <div className="planner__cellSub">{c.form}-form · {m.stations} steps · {m.parallelUnits} units</div>
+                <div className="planner__cellSub">{FORM_LABELS[c.form]} · {m.stations} steps · {m.parallelUnits} units</div>
               </StructuredListCell>
               <StructuredListCell>
                 <b>{money(cur, m.loadedCostPerPart)}</b>

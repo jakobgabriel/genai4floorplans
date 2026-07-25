@@ -49,9 +49,14 @@ export const CONCEPTS: Record<ConceptKind, ConceptProfile> = {
   "job-shop": {
     kind: "job-shop",
     label: "Job shop",
-    blurb: "Standalone machines grouped by process. Maximum flexibility, worst flow.",
+    blurb: "Standalone machines grouped by process, parts moved in batches. Maximum flexibility, worst flow.",
     viableVolume: [0, 15000],
-    forms: ["L", "S"],
+    // W first: a job shop laid out as a flow path is not a job shop. The
+    // defining property is that the machines are grouped by process and stand
+    // apart, so a part crosses the floor between operations — which is exactly
+    // the transport penalty the flow-oriented concepts are being weighed
+    // against. L and S stay as the tidier variants a small shop can manage.
+    forms: ["W", "L", "S"],
     auto: "manual",
     stationType: "machine",
     operatorsPerStation: 1,

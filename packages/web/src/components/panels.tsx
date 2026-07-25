@@ -18,7 +18,7 @@ import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
-import type { CellForm } from "@flowplan/core/engine/templates";
+import { FORM_LABELS, type CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
 import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
@@ -30,6 +30,9 @@ import { YamazumiChart } from "./charts";
 import { CYCLE_COL } from "./colors";
 import { useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
+import { LibraryPicker } from "./LibraryPicker";
+import type { LibraryApi } from "../store/library";
+import type { LibraryProcess } from "@flowplan/core/model/library";
 
 // "analysis" is the whole readout — verdict, flow, balance, yield, automation
 // and cost read as one page rather than five sibling tabs.
@@ -43,9 +46,10 @@ export interface PanelProps {
   setView: (v: "actual" | "improved" | "split") => void;
   mode: CanvasMode;
   setMode: (m: CanvasMode) => void;
-  /** Open the drawer on the process library. Absent on the full-width pages,
-   *  which have no drawer to open. */
-  openLibrary?: () => void;
+  /** The process library, for adding a step from it. */
+  lib?: LibraryApi;
+  /** Place a library process on the canvas. */
+  onAddProcess?: (p: LibraryProcess) => void;
 }
 
 /**
@@ -55,25 +59,37 @@ export interface PanelProps {
  * Step", machine, 30s, one operator — so the first thing anyone did after
  * adding a step was retype every field. Picking from the library is the
  * default now; the blank step stays for work the library has no entry for.
+ *
+ * The picker opens inline rather than sending you to another surface: you are
+ * mid-edit, and a step you place has to land on the canvas you are looking at.
  */
-function AddStepButtons({ api, setSel, setTab, openLibrary }: Pick<PanelProps, "api" | "setSel" | "setTab" | "openLibrary">) {
+function AddStepButtons({ api, setSel, setTab, lib, onAddProcess }: Pick<PanelProps, "api" | "setSel" | "setTab" | "lib" | "onAddProcess">) {
+  const [picking, setPicking] = useState(false);
   const blank = () => {
     const ns = makeStation(api.model);
     api.commit({ type: "ADD_STATION", station: ns });
     setSel(ns.id);
     setTab("inspect");
   };
+  const canPick = !!lib && !!onAddProcess;
   return (
-    <div className="pnl-addstep">
-      {openLibrary ? (
-        <Button kind="secondary" size="sm" renderIcon={Catalog} onClick={openLibrary}>
-          Add from library
+    <Stack gap={3}>
+      <div className="pnl-addstep">
+        {canPick ? (
+          <Button kind="secondary" size="sm" renderIcon={Catalog} onClick={() => setPicking((v) => !v)}>
+            {picking ? "Close the library" : "Add from library"}
+          </Button>
+        ) : null}
+        <Button kind={canPick ? "ghost" : "secondary"} size="sm" renderIcon={Add} onClick={blank}>
+          Blank step
         </Button>
+      </div>
+      {picking && lib && onAddProcess ? (
+        <div className="pnl-picker">
+          <LibraryPicker lib={lib} onPick={onAddProcess} actionLabel="Add to cell" />
+        </div>
       ) : null}
-      <Button kind={openLibrary ? "ghost" : "secondary"} size="sm" renderIcon={Add} onClick={blank}>
-        Blank step
-      </Button>
-    </div>
+    </Stack>
   );
 }
 
@@ -726,7 +742,7 @@ function MissingRoleIssue({
   );
 }
 
-export function FlowPanel({ api, setSel, setTab, mode, setMode, openLibrary }: PanelProps) {
+export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProcess }: PanelProps) {
   const { toast } = useToast();
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
@@ -772,16 +788,16 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, openLibrary }: P
         <Stack gap={3}>
           <SectionLabel>Cell form templates</SectionLabel>
           <div style={{ display: "flex", gap: "var(--sp-02)", flexWrap: "wrap" }}>
-            {(["I", "U", "L", "S"] as CellForm[]).map((fm) => (
-              <Button key={fm} kind="tertiary" size="sm" onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(fm + "-shape applied"); }}>
-                {fm}-shape
+            {(["I", "U", "L", "S", "W"] as CellForm[]).map((fm) => (
+              <Button key={fm} kind="tertiary" size="sm" title={FORM_LABELS[fm]} onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(FORM_LABELS[fm] + " applied"); }}>
+                {FORM_LABELS[fm]}
               </Button>
             ))}
           </div>
           <Footnote>Arranges movable process steps along the chosen form. Fixed and I/O stations stay put.</Footnote>
         </Stack>
 
-        <AddStepButtons api={api} setSel={setSel} setTab={setTab} openLibrary={openLibrary} />
+        <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />
 
         <LayoutSettings api={api} />
         <NoGoSection api={api} mode={mode} setMode={setMode} />
@@ -916,7 +932,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
   );
 }
 
-export function ConfigurePanel({ api, selId, setSel, setTab, openLibrary }: PanelProps) {
+export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }: PanelProps) {
   const { toast } = useToast();
   const m = api.model;
   const s = m.stations.find((x) => x.id === selId);
@@ -930,7 +946,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, openLibrary }: Pane
         <EmptyState
           title="No step selected"
           body="Select a step on the layout to configure it."
-          action={<AddStepButtons api={api} setSel={setSel} setTab={setTab} openLibrary={openLibrary} />}
+          action={<AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />}
         />
       </div>
     );

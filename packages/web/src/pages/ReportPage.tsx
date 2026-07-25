@@ -13,6 +13,7 @@ import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { findImprovements } from "@flowplan/core/engine/improve";
 import type { Candidate } from "@flowplan/core/engine/generate";
+import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import type { PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import type { DemandValues } from "../planner/steps";
 import { formatRouting } from "../planner/parseSteps";
@@ -181,7 +182,7 @@ export function ReportPage({
               <div className="rep__pickHead">
                 <h4 className="rep__pickTitle">{picked.conceptLabel}</h4>
                 <Tag type="blue" size="sm">
-                  {picked.form}-form
+                  {FORM_LABELS[picked.form]}
                 </Tag>
               </div>
               <p className="rep__pickWhy">{picked.rationale}</p>
@@ -213,7 +214,7 @@ export function ReportPage({
                           {c.conceptLabel}
                           {c.id === picked.id ? <span className="rep__taken"> taken</span> : null}
                         </td>
-                        <td>{c.form}</td>
+                        <td>{FORM_LABELS[c.form]}</td>
                         <td className="rep__numCol">{money(c.cost.currency, c.metrics.loadedCostPerPart)}</td>
                         <td className="rep__numCol">{whole(c.cost.currency, c.metrics.capexTotal)}</td>
                         <td className="rep__numCol">{c.metrics.operators}</td>

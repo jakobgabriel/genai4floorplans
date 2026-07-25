@@ -3,6 +3,8 @@ import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
+import { fromCapabilities } from "@flowplan/core/model/library";
+import { CAPABILITY_HINTS } from "@flowplan/core/engine/infer";
 
 function renderApp() {
   render(
@@ -10,6 +12,13 @@ function renderApp() {
       <App />
     </ToastProvider>,
   );
+}
+
+/** The library starts empty and nothing is seeded, so a test that needs one
+ *  puts it there — the same import the empty state offers. */
+function seedLibrary() {
+  const processes = fromCapabilities(CAPABILITY_HINTS, (i) => "lib_" + i);
+  localStorage.setItem("flowplan_library", JSON.stringify({ processes, tags: [] }));
 }
 
 /** The inputs of one part row: part number, routing, then one per program year. */
@@ -26,7 +35,7 @@ function fillFirstPart(routing = "Load 5 > Press 10", year1 = "1000") {
 
 /** Walk the guided flow from the start screen to the concepts stage. */
 function toConcepts() {
-  fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+  fireEvent.click(screen.getByText("Plan a cell"));
   fillFirstPart();
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
@@ -42,7 +51,7 @@ afterEach(cleanup);
 describe("planner — entry", () => {
   it("opens on the two things you can do, not on a rating", () => {
     renderApp();
-    expect(screen.getByRole("button", { name: "Plan a new cell" })).toBeTruthy();
+    expect(screen.getByText("Plan a cell")).toBeTruthy();
     expect(screen.queryByText("Actual-state rating")).toBeNull();
     // No stepper before there is anything to step through.
     expect(screen.queryByText("Parts & demand")).toBeNull();
@@ -50,7 +59,7 @@ describe("planner — entry", () => {
 
   it("keeps direct entry points for people who don't want the guided path", () => {
     renderApp();
-    expect(screen.getByRole("button", { name: "Open the sample cell" })).toBeTruthy();
+    expect(screen.getByText("See an example")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start blank" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Import a JSON model" })).toBeTruthy();
   });
@@ -64,7 +73,7 @@ describe("planner — entry", () => {
 
   it("opens the sample cell straight into the editor", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
+    fireEvent.click(screen.getByText("See an example"));
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
   });
 });
@@ -72,7 +81,7 @@ describe("planner — entry", () => {
 describe("planner — parts & demand", () => {
   it("asks for the parts first, with one row already there to fill in", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     expect(screen.getByRole("heading", { name: "What does this cell make?" })).toBeTruthy();
     // The matrix is the input, not an opt-in: a row is present on arrival.
     expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
@@ -80,7 +89,7 @@ describe("planner — parts & demand", () => {
 
   it("blocks Continue until a part carries both a routing and a demand", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     const cont = () => screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
     expect(cont().disabled).toBe(true);
 
@@ -93,7 +102,7 @@ describe("planner — parts & demand", () => {
 
   it("derives the sizing volume, the program and the mix from the parts", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
 
     // Part 1: presses, ramping to a peak in year 2.
     fireEvent.change(screen.getByDisplayValue("PN-001"), { target: { value: "A" } });
@@ -117,7 +126,7 @@ describe("planner — parts & demand", () => {
 
   it("shows the union routing and what was inferred from it, without a Process step", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     fillFirstPart("Load 5 > Press 10 > Weld 20");
     // What the old Process step previewed now reads under the parts that produced it.
     expect(screen.getByText(/3 steps · 35s total work content/)).toBeTruthy();
@@ -127,7 +136,7 @@ describe("planner — parts & demand", () => {
 
   it("adds and removes demand years from the table itself, past the old cap of ten", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     const yearCols = () => document.querySelectorAll("thead th.parts__num").length;
     expect(yearCols()).toBe(5);
 
@@ -144,7 +153,7 @@ describe("planner — parts & demand", () => {
 
   it("counts demand in every year it shows, and only those", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     fireEvent.change(row(0)[1], { target: { value: "Press 10" } });
     fireEvent.change(row(0)[2], { target: { value: "1000" } });
     fireEvent.change(row(0)[6], { target: { value: "9000" } }); // year 5
@@ -158,9 +167,19 @@ describe("planner — parts & demand", () => {
     expect(screen.getAllByText("1,000").length).toBe(2);
   });
 
-  it("builds a routing from the process library instead of typing it", () => {
+  it("says so, rather than showing an empty list, when the library has nothing in it", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
+    fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
+    const pick = document.querySelector(".parts__picker") as HTMLElement;
+    expect(within(pick).getByText(/library is empty/)).toBeTruthy();
+    expect(within(pick).getByRole("button", { name: "Open the library" })).toBeTruthy();
+  });
+
+  it("builds a routing from the process library instead of typing it", () => {
+    seedLibrary();
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a cell"));
     fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
 
     const pick = document.querySelector(".parts__picker") as HTMLElement;
@@ -176,9 +195,9 @@ describe("planner — parts & demand", () => {
 
   it("Back from the first stage returns to the start screen", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Plan a new cell" }));
+    fireEvent.click(screen.getByText("Plan a cell"));
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("button", { name: "Plan a new cell" })).toBeTruthy();
+    expect(screen.getByText("Plan a cell")).toBeTruthy();
   });
 });
 
@@ -222,7 +241,7 @@ describe("planner — guided flow", () => {
 
   it("keeps the stepper available from inside the editor", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
+    fireEvent.click(screen.getByText("See an example"));
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
     fireEvent.click(screen.getByText("Parts & demand"));
@@ -231,7 +250,7 @@ describe("planner — guided flow", () => {
 
   it("runs in four stages, not six", () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Open the sample cell" }));
+    fireEvent.click(screen.getByText("See an example"));
     ["Parts & demand", "Concepts", "Refine", "Summary"].forEach((s) =>
       expect(screen.getByText(s)).toBeTruthy(),
     );

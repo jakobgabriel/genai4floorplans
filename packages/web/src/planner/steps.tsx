@@ -20,8 +20,9 @@ import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
 import { ConceptTable } from "./ConceptTable";
 import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
-import { LibraryPanel } from "../components/LibraryPanel";
+import { LibraryPicker } from "../components/LibraryPicker";
 import type { LibraryApi } from "../store/library";
+import { routingStepFrom } from "@flowplan/core/model/library";
 import { Footnote, SectionLabel } from "../components/analysisKit";
 import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import { formatRouting, parseRouting } from "./parseSteps";
@@ -54,19 +55,25 @@ import { money, moneyWhole, num } from "../format";
  */
 export function StartScreen({
   onPlan,
+  onLibrary,
   onSample,
   onBlank,
   onImport,
   hasCell,
   onOpen,
+  cellCount,
+  processCount,
 }: {
   onPlan: () => void;
+  onLibrary: () => void;
   onSample: () => void;
   onBlank: () => void;
   onImport: () => void;
   /** True when there is saved work of the planner's own to go back to. */
   hasCell: boolean;
   onOpen: () => void;
+  cellCount: number;
+  processCount: number;
 }) {
   return (
     <section className="planner planner--start">
@@ -78,16 +85,41 @@ export function StartScreen({
         </p>
       </header>
 
+      {/* Two destinations, not one with a side door. The library used to be a
+          tab inside the editor's drawer, which said it only exists in service
+          of whatever cell you have open — but looking a process up is a reason
+          to open this tool on its own. */}
+      <div className="portal">
+        <PortalTile
+          title="Plan a cell"
+          body="List the parts and their demand, compare costed concepts at the busiest year, then refine the layout you pick and assess it."
+          meta="Parts & demand → Concepts → Refine → Summary"
+          onClick={onPlan}
+        />
+        <PortalTile
+          title="Process library"
+          body="The steps this plant knows how to do — cycle, manning, changeover, capex, footprint, and any field of your own. Kept once, reused in every routing and every cell."
+          meta={processCount === 0 ? "Empty — nothing is seeded" : `${processCount} process${processCount === 1 ? "" : "es"}`}
+          onClick={onLibrary}
+        />
+        <PortalTile
+          title={hasCell ? "Open a layout" : "See an example"}
+          body={
+            hasCell
+              ? "Go back to the workspace and pick up a cell you have already drawn."
+              : "Open a worked cell with a real routing on it, and read the assessment it produces."
+          }
+          meta={hasCell ? `${cellCount} layout${cellCount === 1 ? "" : "s"} saved` : "Sample cell"}
+          onClick={hasCell ? onOpen : onSample}
+        />
+      </div>
+
       <div className="planner__escape">
-        <Button onClick={onPlan}>Plan a new cell</Button>
         {hasCell ? (
-          <Button kind="tertiary" onClick={onOpen}>
-            Open my last cell
+          <Button kind="ghost" size="md" onClick={onSample}>
+            Open the sample cell
           </Button>
         ) : null}
-        <Button kind="tertiary" size="md" onClick={onSample}>
-          Open the sample cell
-        </Button>
         <Button kind="ghost" size="md" onClick={onBlank}>
           Start blank
         </Button>
@@ -104,6 +136,38 @@ export function StartScreen({
         </p>
       </div>
     </section>
+  );
+}
+
+/**
+ * A portal tile — a button, not Carbon's `ClickableTile`.
+ *
+ * ClickableTile renders an anchor, and with no `href` that anchor is neither a
+ * link nor a control: it is not keyboard-focusable, screen readers do not
+ * announce it as actionable, and in jsdom clicking one queues a navigation to
+ * the document URL *without* its fragment — which silently reset the hash
+ * route a moment after any subsequent navigation, so every page opened from
+ * the front door bounced straight back to the editor.
+ *
+ * These tiles run a function. That is a button.
+ */
+function PortalTile({
+  title,
+  body,
+  meta,
+  onClick,
+}: {
+  title: string;
+  body: string;
+  meta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="portal__tile" onClick={onClick}>
+      <span className="portal__title">{title}</span>
+      <span className="portal__body">{body}</span>
+      <span className="portal__meta">{meta}</span>
+    </button>
   );
 }
 
@@ -379,10 +443,9 @@ function PartTable({
               Done
             </Button>
           </div>
-          <LibraryPanel
+          <LibraryPicker
             lib={lib}
-            useLabel="Add"
-            onUse={(p) => patch(picking.id, { steps: picking.steps.concat([{ name: p.name, cycleTimeSec: p.cycleTimeSec }]) })}
+            onPick={(p) => patch(picking.id, { steps: picking.steps.concat([routingStepFrom(p)]) })}
           />
         </div>
       ) : null}

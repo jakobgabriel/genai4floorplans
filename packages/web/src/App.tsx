@@ -15,14 +15,16 @@ import { StartScreen, DemandStep, ConceptsStep, SummaryStep, type DemandValues }
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
 import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankCandidates, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
+import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
-import { Add, ChartLine, Folders, Help, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Add, ChartLine, Close, Folders, Help, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
-import { SidePanel, useSideTab } from "./components/SidePanel";
+import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { useLibrary } from "./store/library";
+import { LibraryPage } from "./pages/LibraryPage";
 import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/library";
 import { AnalysisPage } from "./pages/AnalysisPage";
 import { AssistantPage } from "./pages/AssistantPage";
@@ -122,7 +124,6 @@ export function App() {
   // The process library — what this plant knows how to do. Outlives any one
   // cell, so it is persisted separately from the workspace.
   const lib = useLibrary();
-  const [sideTab, setSideTab] = useSideTab();
 
   const { model, rating } = api;
 
@@ -287,11 +288,7 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [api, selId, model.stations, showSettings]);
 
-  const openLibrary = useCallback(() => {
-    setExplorerCollapsed(false);
-    setSideTab("processes");
-  }, [setSideTab]);
-  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, openLibrary };
+  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, lib, onAddProcess: addProcessStep };
 
   function vBtn(k: View, l: string) {
     return (
@@ -443,6 +440,9 @@ export function App() {
         <AssistantPage api={api} settings={settings} openSettings={() => setShowSettings(true)} />
       </div>
     );
+  // The library is a destination in its own right — reachable from the front
+  // door, and useful with no cell open at all.
+  if (route === "/library") return <div className="wrap"><LibraryPage lib={lib} /></div>;
   if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
   if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
   if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
@@ -505,6 +505,7 @@ export function App() {
           label="⋯"
           title="More actions"
           items={[
+            { label: "Process library", onClick: () => navigate("/library") },
             { label: "Assistant", onClick: () => navigate("/assistant") },
             { label: "Settings", onClick: () => setShowSettings(true) },
             { label: "Compare variants", onClick: () => navigate("/compare") },
@@ -528,14 +529,13 @@ export function App() {
             beside the canvas. */}
         {explorerCollapsed ? null : (
           <aside className="explorer-side" style={{ width: explorerWidth }}>
-            <SidePanel
-              api={api}
-              lib={lib}
-              tab={sideTab}
-              setTab={setSideTab}
-              onClose={() => setExplorerCollapsed(true)}
-              onUseProcess={addProcessStep}
-            />
+            <div className="explorer">
+              <div className="explorer-head">
+                <h2 className="explorer-title">Layouts</h2>
+                <IconBtn size="compact" icon={Close} label="Close the panel" tooltipPosition="left" onClick={() => setExplorerCollapsed(true)} />
+              </div>
+              <Explorer api={api} />
+            </div>
             {/* Inside the drawer, riding its right edge — as a flex sibling it
                 would sit at x=0 now that the drawer floats over the canvas. */}
             <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />
@@ -634,7 +634,7 @@ export function App() {
             setSel(null);
             setView("actual");
             setTab("analysis");
-            toast(`Loaded ${picked.conceptLabel} (${picked.form}-form).`);
+            toast(`Loaded ${picked.conceptLabel} (${FORM_LABELS[picked.form]}).`);
           }
           goTo(FLOW_STEPS[Math.min(FLOW_STEPS.length - 1, FLOW_STEPS.indexOf(step) + 1)]);
         }}
@@ -667,8 +667,11 @@ export function App() {
           // first run the app seeds the sample, so a `cells.length` test was
           // always true and just duplicated "Open the sample cell".
           hasCell={hadModel}
+          cellCount={api.cells.length}
+          processCount={lib.processes.length}
           onOpen={() => goTo("refine")}
           onPlan={() => goTo("demand")}
+          onLibrary={() => navigate("/library")}
           onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
           onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
           onImport={() => fileRef.current?.click()}

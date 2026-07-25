@@ -1,7 +1,7 @@
 import type { Model } from "../model/types";
 import { cellTopology } from "./topology";
 
-export type CellForm = "I" | "U" | "L" | "S";
+export type CellForm = "I" | "U" | "L" | "S" | "W";
 
 export interface Slot {
   x: number;
@@ -20,3 +20,12 @@ type Grid = Pick<Model, "gridW" | "gridH">;
 export function cellTemplate(form: CellForm, n: number, grid: Grid): Slot[] {
   return cellTopology(form, n, grid).slots;
 }
+
+/** What each form is called where a planner reads it. */
+export const FORM_LABELS: Record<CellForm, string> = {
+  I: "Straight line",
+  U: "U-cell",
+  L: "L-cell",
+  S: "Serpentine",
+  W: "Workshop",
+};
