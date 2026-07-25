@@ -30,10 +30,10 @@ export function BarChart({ bars, max, unit, colorByScore = false }: { bars: Bar[
         const fill = b.color ?? (colorByScore ? scoreColor(b.value) : TEAL);
         return (
           <g key={b.label + i}>
-            <text x={labelW - 8} y={y + rowH / 2} textAnchor="end" dominantBaseline="middle" fontSize="11" fill={b.highlight ? TEAL : "var(--text)"} fontWeight={b.highlight ? 700 : 400}>
+            <text x={labelW - 8} y={y + rowH / 2} textAnchor="end" dominantBaseline="middle" fontSize="11" fill={b.highlight ? TEAL : "var(--text-primary)"} fontWeight={b.highlight ? 700 : 400}>
               {b.label.length > 20 ? b.label.slice(0, 19) + "…" : b.label}
             </text>
-            <rect x={labelW} y={y + 4} width={barW} height={rowH - 12} rx="3" fill="var(--line)" />
+            <rect x={labelW} y={y + 4} width={barW} height={rowH - 12} rx="3" fill="var(--border)" />
             <rect x={labelW} y={y + 4} width={len} height={rowH - 12} rx="3" fill={fill} />
             <text x={labelW + Math.min(len, barW) + 6} y={y + rowH / 2} dominantBaseline="middle" fontSize="10.5" fill={TEXTD}>
               {b.display ?? Math.round(b.value).toLocaleString()}{unit ?? ""}
@@ -65,10 +65,10 @@ export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; 
         let x = labelW;
         return (
           <g key={r.id} onClick={onSelect ? () => onSelect(r.id) : undefined} style={onSelect ? { cursor: "pointer" } : undefined}>
-            <text x={labelW - 8} y={y + rowH / 2 - 2} textAnchor="end" dominantBaseline="middle" fontSize="11" fill={r.overTakt ? RED : "var(--text)"}>
+            <text x={labelW - 8} y={y + rowH / 2 - 2} textAnchor="end" dominantBaseline="middle" fontSize="11" fill={r.overTakt ? RED : "var(--text-primary)"}>
               {r.name.length > 16 ? r.name.slice(0, 15) + "…" : r.name}
             </text>
-            <rect x={labelW} y={y + 4} width={barW} height={rowH - 14} rx="2" fill="var(--line)" />
+            <rect x={labelW} y={y + 4} width={barW} height={rowH - 14} rx="2" fill="var(--border)" />
             {r.decomposed ? (
               r.segments.map((seg) => {
                 const len = (seg.sec / top) * barW;

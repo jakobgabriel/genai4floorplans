@@ -23,12 +23,12 @@
 .shell__steps {
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);
-  padding: var(--cds-spacing-05) var(--cds-spacing-06);
+  padding: var(--sp-4) var(--sp-5);
   flex: 0 0 auto;
 }
 
 .shell__steps .cds--progress-label {
-  font-size: 0.875rem;
+  font-size: var(--type-body-size);
 }
 
 .shell__body {
@@ -39,8 +39,8 @@
 }
 
 .shell__actionLabel {
-  font-size: 0.875rem;
-  padding: 0 var(--cds-spacing-03);
+  font-size: var(--type-body-size);
+  padding: 0 var(--sp-2);
 }
 
 /* ---------- planner steps ---------- */
@@ -49,7 +49,7 @@
   width: 100%;
   max-width: 60rem;
   margin: 0 auto;
-  padding: var(--cds-spacing-07) var(--cds-spacing-06) var(--cds-spacing-05);
+  padding: var(--sp-6) var(--sp-5) var(--sp-4);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   flex: 0 0 auto;
 }
@@ -59,44 +59,44 @@
 }
 
 .planner__head {
-  margin-bottom: var(--cds-spacing-06);
+  margin-bottom: var(--sp-5);
 }
 
 .planner__title {
-  font-size: 2.625rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
-  line-height: 1.199;
+  line-height: var(--lh-tight);
   letter-spacing: 0;
-  margin: 0 0 var(--cds-spacing-04);
+  margin: 0 0 var(--sp-3);
 }
 
 .planner__h2 {
-  font-size: 1.75rem;
+  font-size: var(--type-title-size);
   font-weight: 400;
-  line-height: 1.28;
-  margin: 0 0 var(--cds-spacing-03);
+  line-height: var(--lh-snug);
+  margin: 0 0 var(--sp-2);
 }
 
 .planner__sub {
   color: var(--cds-text-secondary);
-  font-size: 1rem;
-  line-height: 1.5;
-  margin: 0 0 var(--cds-spacing-06);
+  font-size: var(--type-section-size);
+  line-height: var(--lh-body);
+  margin: 0 0 var(--sp-5);
   max-width: 55ch;
 }
 
 /* ---------- use-case tiles ---------- */
 
 .planner__grid {
-  row-gap: var(--cds-spacing-05);
-  margin-bottom: var(--cds-spacing-06);
+  row-gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
 }
 
 .planner__tile {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: var(--cds-spacing-06);
+  padding: var(--sp-5);
 }
 
 .planner__tile--off {
@@ -107,29 +107,29 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--cds-spacing-03);
-  margin-bottom: var(--cds-spacing-04);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
 }
 
 .planner__tileHead h3 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-size);
   font-weight: 400;
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   margin: 0;
 }
 
 .planner__q {
   color: var(--cds-text-primary);
-  font-size: 0.875rem;
-  line-height: 1.43;
-  margin: 0 0 var(--cds-spacing-05);
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
+  margin: 0 0 var(--sp-4);
 }
 
 .planner__meta {
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.34;
-  margin: 0 0 var(--cds-spacing-03);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+  margin: 0 0 var(--sp-2);
 }
 
 .planner__meta b {
@@ -139,35 +139,35 @@
 
 .planner__caveat {
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.34;
-  margin: var(--cds-spacing-03) 0 0;
-  padding-left: var(--cds-spacing-04);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-3);
   border-left: 2px solid var(--cds-support-warning);
 }
 
 .planner__lifecycle {
   margin: auto 0 0;
-  padding-top: var(--cds-spacing-05);
+  padding-top: var(--sp-4);
   color: var(--cds-text-placeholder);
   text-transform: uppercase;
   letter-spacing: 0.32px;
-  font-size: 0.6875rem;
+  font-size: var(--type-caption-size);
 }
 
 .planner__escape {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--cds-spacing-02);
-  padding-top: var(--cds-spacing-05);
+  gap: var(--sp-1);
+  padding-top: var(--sp-4);
   border-top: 1px solid var(--cds-border-subtle-01);
 }
 
 .planner__escapeLab {
   color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-  margin-right: var(--cds-spacing-03);
+  font-size: var(--type-body-size);
+  margin-right: var(--sp-2);
 }
 
 /* ---------- form steps ---------- */
@@ -175,47 +175,47 @@
 .planner .cds--css-grid {
   padding-inline: 0;
   margin-inline: 0;
-  row-gap: var(--cds-spacing-06);
+  row-gap: var(--sp-5);
 }
 
 .planner__derived {
   display: flex;
   flex-wrap: wrap;
-  gap: 2.5rem;
-  margin-top: var(--cds-spacing-06);
-  padding: var(--cds-spacing-05) var(--cds-spacing-06);
+  gap: var(--sp-6);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
 }
 
 .planner__derivedLab {
   display: block;
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  margin-bottom: var(--cds-spacing-02);
+  font-size: var(--type-caption-size);
+  margin-bottom: var(--sp-1);
 }
 
 .planner__derivedVal {
   display: block;
-  font-size: 2rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
-  line-height: 1.25;
+  line-height: var(--lh-tight);
 }
 
 .planner__count {
   color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-  margin-top: var(--cds-spacing-05);
+  font-size: var(--type-body-size);
+  margin-top: var(--sp-4);
 }
 
 .planner .cds--form-item,
 .planner .cds--radio-button-group,
 .planner .cds--text-area__wrapper {
-  margin-bottom: var(--cds-spacing-05);
+  margin-bottom: var(--sp-4);
 }
 
 /* ---------- concept table ---------- */
 
 .planner__table {
-  margin-bottom: var(--cds-spacing-05);
+  margin-bottom: var(--sp-4);
 }
 
 /* Fixed column rhythm — the default flex distribution let money and counts
@@ -234,7 +234,7 @@
 
 .planner__table .cds--structured-list-th,
 .planner__table .cds--structured-list-td {
-  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  padding: var(--sp-3) var(--sp-4);
 }
 
 .planner__row--on {
@@ -244,15 +244,15 @@
 
 .planner__cellSub {
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  margin-top: 2px;
+  font-size: var(--type-caption-size);
+  margin-top: var(--sp-1);
 }
 
 .planner__tags {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--cds-spacing-02);
+  gap: var(--sp-1);
 }
 
 /* Flex items shrink below their content by default, which squeezed the pill
@@ -272,7 +272,7 @@
   width: 100%;
   max-width: 60rem;
   margin: 0 auto;
-  padding: 0 var(--cds-spacing-06) var(--cds-spacing-07);
+  padding: 0 var(--sp-5) var(--sp-6);
   flex: 0 0 auto;
 }
 
@@ -290,8 +290,8 @@
      `overflow-y` to `auto` as well, which clipped every dropdown in this bar —
      Export, ⋯ and Variants all opened invisibly below its bottom edge. */
   flex-wrap: wrap;
-  gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-02) var(--cds-spacing-05);
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-4);
   min-height: 3rem;
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);
@@ -308,7 +308,7 @@
 
 @media (max-width: 66rem) {
   .planner__title {
-    font-size: 2rem;
+    font-size: var(--type-title-size);
   }
   .planner__actions .cds--btn {
     flex: 1;
@@ -318,12 +318,12 @@
 
 @media (max-width: 42rem) {
   .shell__steps {
-    padding: var(--cds-spacing-04) var(--cds-spacing-05);
+    padding: var(--sp-3) var(--sp-4);
   }
   .planner,
   .planner__actions {
-    padding-left: var(--cds-spacing-05);
-    padding-right: var(--cds-spacing-05);
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
   }
   .planner__table .cds--structured-list-row {
     grid-template-columns: 1fr 1fr;
@@ -334,32 +334,32 @@
  * The Analysis panel's six stages, in the same order, on the summary. */
 
 .glance {
-  margin-top: var(--cds-spacing-07);
-  padding-top: var(--cds-spacing-06);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
   border-top: 1px solid var(--cds-border-subtle-01);
 }
 
 .glance__h {
-  font-size: 1.25rem;
+  font-size: var(--type-section-size);
 }
 
 .glance__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--cds-spacing-05);
+  gap: var(--sp-4);
 }
 
 .glance__tile {
   display: flex;
   flex-direction: column;
-  gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-05);
+  gap: var(--sp-2);
+  padding: var(--sp-4);
 }
 
 .glance__head {
   display: flex;
   align-items: center;
-  gap: var(--cds-spacing-03);
+  gap: var(--sp-2);
 }
 
 .glance__num {
@@ -369,22 +369,22 @@
   width: 1.375rem;
   height: 1.375rem;
   flex: 0 0 auto;
-  border-radius: 50%;
-  font-size: 0.75rem;
+  border-radius: var(--radius-round);
+  font-size: var(--type-caption-size);
   font-weight: 600;
   background: var(--cds-layer-accent-01);
   color: var(--cds-text-secondary);
 }
 
 .glance__label {
-  font-size: 0.875rem;
+  font-size: var(--type-body-size);
   font-weight: 600;
 }
 
 .glance__value {
-  font-size: 1.75rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
-  line-height: 1.25;
+  line-height: var(--lh-tight);
 }
 
 /* Carbon's Tag caps its own width, which truncated the one-line reading. */
@@ -394,32 +394,32 @@
 }
 
 .glance__foot {
-  margin-top: var(--cds-spacing-06);
-  padding-top: var(--cds-spacing-05);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
   border-top: 1px solid var(--cds-border-subtle-01);
 }
 
 .glance__footNote {
-  margin: var(--cds-spacing-03) 0 0;
+  margin: var(--sp-2) 0 0;
   color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.43;
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
 }
 
 .glance__q {
   margin: auto 0 0;
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.34;
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
 }
 
 /* Inferred-value marker. Everything the tool guessed is labelled, so a guess is
    never mistaken for something the planner supplied. */
 .planner__inferred {
   color: var(--cds-support-warning);
-  font-size: 0.6875rem;
+  font-size: var(--type-caption-size);
   letter-spacing: 0.32px;
-  margin-top: 2px;
+  margin-top: var(--sp-1);
 }
 
 .planner__table--infer .cds--structured-list-row {

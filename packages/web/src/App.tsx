@@ -46,7 +46,7 @@ import {
   type Tab,
 } from "./components/panels";
 import { AnalysisPanel } from "./components/AnalysisPanel";
-import { AMBER, TEAL, TEXTD } from "./components/colors";
+import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
@@ -541,7 +541,7 @@ export function App() {
             </span>
             <span>dots: ergo (TL) · automation (TR)</span>
             <span>
-              links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: "#d96b5b" }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+              links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: RED }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
             </span>
           </div>
         </div>

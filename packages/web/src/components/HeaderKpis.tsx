@@ -19,7 +19,7 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
   const kpi = (label: string, value: string, color?: string, title?: string) => (
     <div style={{ lineHeight: 1.15 }} title={title}>
       <div style={{ fontSize: 8.5, color: TEXTD, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: color ?? "var(--text)" }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: color ?? "var(--text-primary)" }}>{value}</div>
     </div>
   );
 

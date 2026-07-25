@@ -5,7 +5,7 @@ import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
-import { AMBER, AUTO_COL, ERGO_COL, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
+import { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
 
 const PAD = 12;
 
@@ -392,7 +392,7 @@ export function LayoutCanvas(props: Props) {
           const roleStroke = s.role === "input" ? TEAL : s.role === "output" ? AMBER : null;
           const outline = colliding ? RED : picked || seld ? TEAL : onCpNode ? TEAL : s.fixed ? AMBER : roleStroke ?? TEALD;
           const strokeW = picked || seld || colliding || onCpNode ? 2 : 1.2;
-          const fillCol = colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2;
+          const fillCol = colliding ? COLLIDE_COL : TYPE_COL[s.type] || PANEL2;
           const shaped = !!(s.cells && s.cells.length);
           const occ = shaped ? stationCells(s) : [];
           const inS = s.inSide ?? "left";
@@ -453,8 +453,8 @@ export function LayoutCanvas(props: Props) {
                 </g>
               ) : null}
               {/* IN (teal) and OUT (amber) ports */}
-              <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
-              <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke={PORT_RING} strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke={PORT_RING} strokeWidth={0.8} style={{ pointerEvents: "none" }} />
               <text x={PAD + (s.x + s.w / 2) * cell} y={PAD + (s.y + s.h / 2) * cell - 5} fill={TEXT} fontSize={10} fontWeight={600} textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: "none", fontFamily: "'IBM Plex Sans',sans-serif" }}>
                 {s.name}
               </text>
@@ -494,7 +494,7 @@ export function LayoutCanvas(props: Props) {
                   <circle cx={bx} cy={by} r={hot ? 9 : 7.5} fill={hot ? AMBER : "rgba(14,20,22,.85)"} stroke={AMBER} strokeWidth={1.2} />
                   <path
                     d={`M ${bx - 3.6} ${by} l 2.4 2.6 l 5 -5.4`}
-                    fill="none" stroke={hot ? "#1a1205" : AMBER} strokeWidth={1.8}
+                    fill="none" stroke={hot ? NOGO_COL : AMBER} strokeWidth={1.8}
                     strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"
                   />
                 </g>

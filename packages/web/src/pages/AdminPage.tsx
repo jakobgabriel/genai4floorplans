@@ -138,7 +138,7 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
             <NewWorkspace teamId={sel} onDone={() => select(sel)} fail={fail} />
             {workspaces.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No workspaces yet.</p> : null}
             {workspaces.map((w) => (
-              <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--line)" }}>
+              <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ color: TEAL }}>▣</span> {w.name}
                 <span style={{ fontSize: 10, color: TEXTD }}> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
               </div>
