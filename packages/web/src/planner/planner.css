@@ -47,7 +47,7 @@
 
 .planner {
   width: 100%;
-  max-width: 60rem;
+  max-width: var(--measure-read);
   margin: 0 auto;
   padding: var(--sp-6) var(--sp-5) var(--sp-4);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
@@ -55,7 +55,7 @@
 }
 
 .planner--wide {
-  max-width: 84rem;
+  max-width: var(--measure-wide);
 }
 
 .planner__head {
@@ -270,7 +270,7 @@
   display: flex;
   gap: 1px;
   width: 100%;
-  max-width: 60rem;
+  max-width: var(--measure-read);
   margin: 0 auto;
   padding: 0 var(--sp-5) var(--sp-6);
   flex: 0 0 auto;

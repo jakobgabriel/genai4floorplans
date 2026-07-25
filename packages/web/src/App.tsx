@@ -47,7 +47,7 @@ import {
   type Tab,
 } from "./components/panels";
 import { AnalysisPanel } from "./components/AnalysisPanel";
-import { AMBER, RED, TEAL, TEXTD } from "./components/colors";
+import { AMBER, RED, TEAL } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
@@ -393,10 +393,10 @@ export function App() {
     canvasInner = (
       <div className="canvas__stage">
         <LayoutCanvas model={improvedModel} stations={rating.optimized} flows={model.flows} chain={api.chain} selId={selId} label="IMPROVED" badge={AMBER} cell={CELL} onSelect={selectAndInspect} />
-        <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="u-row u-row--wrap">
           <span style={{ fontSize: 12, color: TEAL }}>−{rating.flowReductionPct.toFixed(0)}% flow cost vs actual</span>
         </div>
-        <div style={{ fontSize: 12, color: TEXTD, marginTop: 10 }}>
+        <div className="u-caption">
           {proposal
             ? `${proposal.items.length} proposed move${proposal.items.length === 1 ? "" : "s"} — switch to Actual to accept them on the canvas.`
             : "Already optimal — no moves to propose."}

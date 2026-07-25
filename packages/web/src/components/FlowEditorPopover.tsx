@@ -36,7 +36,7 @@ export function FlowEditorPopover({
         boxShadow: "0 6px 20px rgba(0,0,0,.45)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      <div className="u-row u-row--between">
         <span style={{ fontSize: 11.5 }}>
           {f.from} → {f.to}
         </span>

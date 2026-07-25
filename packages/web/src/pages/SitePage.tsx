@@ -91,7 +91,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
                     <td>{r.lineOut.toLocaleString()}</td>
                     <td>{cur}{r.costPerPart.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                     <td>
-                      {r.id === api.activeId ? <span style={{ color: TEXTD }}>active</span> : (
+                      {r.id === api.activeId ? <span className="u-muted">active</span> : (
                         <Btn size="compact" variant="ghost" onClick={() => { api.switchCell(r.id); navigate("/"); }}>Open</Btn>
                       )}
                     </td>
@@ -101,7 +101,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
             ))}
           </tbody>
         </table>
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Each layout is rated independently by the engine. Inter-cell material flow isn't modeled.</div>
+        <div className="u-caption">Each layout is rated independently by the engine. Inter-cell material flow isn't modeled.</div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceS
 import { PageHead } from "../components/PageHead";
 import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
-import { TEAL, TEXTD } from "../components/colors";
+import { TEAL } from "../components/colors";
 
 const ROLES: Role[] = ["OWNER", "EDITOR", "VIEWER"];
 
@@ -33,7 +33,7 @@ export function AdminPage() {
     />
   );
 
-  if (user === undefined) return <div className="page">{head}<p style={{ color: TEXTD }}>Checking session…</p></div>;
+  if (user === undefined) return <div className="page">{head}<p className="u-muted">Checking session…</p></div>;
   if (user === null) return <div className="page">{head}<SignIn onSignedIn={setUser} toast={toast} /></div>;
   return <div className="page">{head}<Console toast={toast} /></div>;
 }
@@ -73,7 +73,7 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
           {mode === "login" ? "Need an account?" : "Have an account?"}
         </Btn>
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
+      <div className="u-caption">Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
     </div>
   );
 }
@@ -102,11 +102,11 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
     <div className="admin-grid">
       <div className="chart-card">
         <div className="layoutTitle">Teams</div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <div className="u-row">
           <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
           <Btn size="compact" variant="ghost" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Btn>
         </div>
-        {teams.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No teams yet — create one (you become its owner).</p> : null}
+        {teams.length === 0 ? <p className="u-caption">No teams yet — create one (you become its owner).</p> : null}
         {teams.map((t) => (
           <Btn key={t.id} size="compact" selected={sel === t.id} className="admin-teamrow" onClick={() => select(t.id)}>
             {t.name}
@@ -124,7 +124,7 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
               <tbody>
                 {detail.memberships.map((m) => (
                   <tr key={m.userId}>
-                    <td>{m.user.name || m.user.email}<div style={{ fontSize: 10, color: TEXTD }}>{m.user.email}</div></td>
+                    <td>{m.user.name || m.user.email}<div className="u-caption">{m.user.email}</div></td>
                     <td>
                       <select value={m.role} onChange={(e) => adminApi.updateMember(sel, m.userId, e.target.value as Role).then(reloadDetail).catch(fail)}>
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -144,17 +144,17 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
           <div className="chart-card">
             <div className="layoutTitle">Workspaces · {detail.name}</div>
             <NewWorkspace teamId={sel} onDone={() => select(sel)} fail={fail} />
-            {workspaces.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No workspaces yet.</p> : null}
+            {workspaces.length === 0 ? <p className="u-caption">No workspaces yet.</p> : null}
             {workspaces.map((w) => (
               <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ color: TEAL }}>▣</span> {w.name}
-                <span style={{ fontSize: 10, color: TEXTD }}> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
+                <span className="u-caption"> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
               </div>
             ))}
           </div>
         </>
       ) : (
-        <div className="chart-card"><p style={{ color: TEXTD }}>Select a team to manage its members and workspaces.</p></div>
+        <div className="chart-card"><p className="u-muted">Select a team to manage its members and workspaces.</p></div>
       )}
     </div>
   );
@@ -164,8 +164,8 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("EDITOR");
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-      <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1 }} />
+    <div className="u-row">
+      <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} className="u-grow" />
       <select value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
       <Btn size="compact" variant="ghost" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
@@ -175,8 +175,8 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
 function NewWorkspace({ teamId, onDone, fail }: { teamId: string; onDone: () => void; fail: (e: unknown) => void }) {
   const [name, setName] = useState("");
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-      <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
+    <div className="u-row">
+      <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} className="u-grow" />
       <Btn size="compact" variant="ghost" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );

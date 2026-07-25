@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Btn } from "./Btn";
 import { type AiProviderId, type Settings, saveSettings } from "../store/settings";
 import { Field } from "./ui";
-import { TEXTD } from "./colors";
 
 const PROVIDER_META: Record<Exclude<AiProviderId, "offline">, { label: string; vendor: string; keyLabel: string; placeholder: string; models: string[] }> = {
   claude: {
@@ -61,7 +60,7 @@ export function SettingsModal({ initial, onClose, onSaved }: { initial: Settings
                 ))}
               </datalist>
             </Field>
-            <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5, marginBottom: 10 }}>
+            <div className="u-caption">
               The key is stored only in this browser and sent directly to {cloud.vendor} (direct browser access). All AI output is
               re-validated and re-scored by FlowPlan's engine — the model never sets your KPIs.
             </div>

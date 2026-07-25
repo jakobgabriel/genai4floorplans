@@ -6,7 +6,7 @@ import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
 import { navigate } from "../store/useHashRoute";
 import { Menu } from "./Menu";
-import { TEAL, TEXTD } from "./colors";
+import { TEAL } from "./colors";
 
 // Left drawer presenting the workspace as a nested folder tree of layouts. All
 // editing is in-app (inline inputs + inline confirm — no browser prompt/confirm).
@@ -226,7 +226,7 @@ export function Explorer({ api, onCollapse }: { api: FlowPlanApi; onCollapse: ()
             <CellRow key={c.id} ctx={ctx} id={c.id} name={c.name} depth={0} />
           ))}
         </div>
-        <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>
+        <div className="u-caption">
           Drag a layout or folder onto a folder to move it (or onto empty space for the root). Archiving a
           folder archives its contents too — restore them from the Archive (🗄).
         </div>

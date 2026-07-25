@@ -34,7 +34,7 @@ export function ProposalPanel({ proposal, model, onAcceptAll, onDismiss }: Propo
       <span style={{ color: pct < 0 ? TEAL : TEXTD }}>
         {pct < 0 ? `${pct.toFixed(1)}%` : `+${pct.toFixed(1)}%`} flow cost if all accepted
       </span>
-      <span style={{ color: TEXTD }}>· click a dashed ghost to accept just that one</span>
+      <span className="u-muted">· click a dashed ghost to accept just that one</span>
 
       {stale ? (
         <span style={{ color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 3, padding: "1px 6px", fontSize: 10.5 }}>

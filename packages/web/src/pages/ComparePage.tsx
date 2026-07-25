@@ -51,7 +51,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
     return (
       <div className="page">
         <PageHead title="Compare variants" />
-        <p style={{ color: TEXTD }}>Save a variant from the toolbar to compare it here.</p>
+        <p className="u-muted">Save a variant from the toolbar to compare it here.</p>
       </div>
     );
   }
@@ -83,7 +83,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
         </div>
       </div>
 
-      <div className="chart-card" style={{ overflowX: "auto" }}>
+      <div className="chart-card u-scroll-x">
         <div className="layoutTitle">KPI breakdown</div>
         <table className="schemaTbl" style={{ minWidth: 620 }}>
           <thead>
@@ -113,7 +113,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
                 })}
                 <td>
                   {x.isCurrent ? (
-                    <span style={{ color: TEXTD }}>—</span>
+                    <span className="u-muted">—</span>
                   ) : (
                     <Btn
                       size="compact"
@@ -131,7 +131,7 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
             ))}
           </tbody>
         </table>
-        <div style={{ fontSize: 10.5, color: TEXTD }}>Teal marks the best in each column. Every layout is re-rated by the engine.</div>
+        <div className="u-caption">Teal marks the best in each column. Every layout is re-rated by the engine.</div>
       </div>
     </div>
   );

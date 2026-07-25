@@ -1,13 +1,13 @@
 import type { Station } from "@flowplan/core/model/types";
 import { stationRate } from "@flowplan/core/engine/balance";
-import { AUTO_COL, ERGO_COL, TEXTD } from "./colors";
+import { AUTO_COL, ERGO_COL } from "./colors";
 
 // Lightweight HTML tooltip positioned over the canvas on station hover.
 export function StationTooltip({ station, x, y, shiftHours }: { station: Station; x: number; y: number; shiftHours: number }) {
   const rate = stationRate(station, shiftHours);
   const row = (k: string, v: string) => (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ color: TEXTD }}>{k}</span>
+      <span className="u-muted">{k}</span>
       <span>{v}</span>
     </div>
   );
@@ -36,10 +36,10 @@ export function StationTooltip({ station, x, y, shiftHours }: { station: Station
           {row("operators", String(station.operators))}
           {row("rate", isFinite(rate) ? `${rate.toLocaleString()}/shift` : "—")}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: TEXTD }}>auto · ergo</span>
+            <span className="u-muted">auto · ergo</span>
             <span>
               <span style={{ color: AUTO_COL[station.auto] }}>{station.auto}</span>
-              <span style={{ color: TEXTD }}> · </span>
+              <span className="u-muted"> · </span>
               <span style={{ color: ERGO_COL[station.ergoRisk] }}>{station.ergoRisk}</span>
             </span>
           </div>

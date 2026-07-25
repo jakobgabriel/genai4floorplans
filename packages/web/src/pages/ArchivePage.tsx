@@ -3,7 +3,6 @@ import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { PageHead } from "../components/PageHead";
 import { ConfirmableButton } from "../components/ConfirmableButton";
-import { TEXTD } from "../components/colors";
 
 // Dedicated page listing archived layouts and folders, with restore and
 // permanent-delete. Archiving is recoverable; permanent delete is confirmed.
@@ -26,7 +25,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
       <PageHead title="Archive" />
 
       {empty ? (
-        <p style={{ color: TEXTD }}>Nothing archived. Archive a layout or folder from the workspace sidebar.</p>
+        <p className="u-muted">Nothing archived. Archive a layout or folder from the workspace sidebar.</p>
       ) : (
         <>
           {api.archivedFolders.length > 0 ? (
@@ -38,8 +37,8 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   {api.archivedFolders.map((f) => (
                     <tr key={f.id}>
                       <td>🗀 {f.name}</td>
-                      <td style={{ color: TEXTD }}>{folderName(f.parentId) || "Workspace root"}</td>
-                      <td style={{ display: "flex", gap: 6 }}>
+                      <td className="u-muted">{folderName(f.parentId) || "Workspace root"}</td>
+                      <td className="u-row">
                         <Btn size="compact" variant="ghost" onClick={() => api.restoreFolder(f.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeFolder(f.id)} />
                       </td>
@@ -47,7 +46,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   ))}
                 </tbody>
               </table>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a folder brings back the folder only — restore its layouts below. Permanent delete removes both.</div>
+              <div className="u-caption">Restoring a folder brings back the folder only — restore its layouts below. Permanent delete removes both.</div>
             </div>
           ) : null}
 
@@ -60,8 +59,8 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   {api.archivedCells.map((c) => (
                     <tr key={c.id}>
                       <td>▦ {c.name}</td>
-                      <td style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</td>
-                      <td style={{ display: "flex", gap: 6 }}>
+                      <td className="u-muted">{folderName(c.folderId) || "Workspace root"}</td>
+                      <td className="u-row">
                         <Btn size="compact" variant="ghost" onClick={() => api.restoreCell(c.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeCell(c.id)} />
                       </td>
@@ -69,7 +68,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                   ))}
                 </tbody>
               </table>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>A restored layout returns to its folder, or to the root if that folder is gone.</div>
+              <div className="u-caption">A restored layout returns to its folder, or to the root if that folder is gone.</div>
             </div>
           ) : null}
         </>

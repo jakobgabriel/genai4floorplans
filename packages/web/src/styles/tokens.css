@@ -80,6 +80,12 @@
   --data-amber: #d2a106;
   --data-red: #fa4d56;
 
+  /* ---- measure: two widths, not seven ----
+   * Reading content is constrained; a table of numbers is not. Everything that
+   * was 32rem / 34rem / 40rem / 60rem / 84rem / 1584px is one of these. */
+  --measure-read: 60rem; /* prose, forms, the report */
+  --measure-wide: 84rem; /* tables and comparison grids */
+
   /* Motion */
   --dur: 110ms;
   --ease: cubic-bezier(0.2, 0, 0.38, 0.9);
@@ -150,6 +156,51 @@ button {
 .logo span {
   color: var(--cds-text-secondary);
   font-weight: 400;
+}
+
+/* ---------- utilities ----------
+ * A closed set, so a component never invents its own spacing again. Anything
+ * that was `style={{ display:"flex", gap:10 }}` or `style={{ fontSize:10.5,
+ * color:TEXTD }}` is one of these now. */
+
+.u-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.u-row--wrap {
+  flex-wrap: wrap;
+}
+.u-row--between {
+  justify-content: space-between;
+}
+.u-row--top {
+  align-items: flex-start;
+}
+.u-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.u-grow {
+  flex: 1;
+  min-width: 0;
+}
+.u-muted {
+  color: var(--text-muted);
+}
+.u-caption {
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+.u-figure {
+  font-size: var(--type-title-size);
+  font-weight: var(--fw-light);
+  line-height: var(--lh-tight);
+}
+.u-scroll-x {
+  overflow-x: auto;
 }
 
 /* ---------- buttons ----------
@@ -894,7 +945,7 @@ code {
   border: 0;
   border-radius: var(--radius-none);
   padding: var(--sp-5);
-  max-width: 32rem;
+  max-width: var(--measure-read);
   width: 100%;
 }
 .modal h2 {
@@ -1043,7 +1094,7 @@ code {
 
 .page {
   padding: var(--sp-5);
-  max-width: 1584px;
+  max-width: var(--measure-wide);
   margin: 0 auto;
   width: 100%;
 }
@@ -1053,6 +1104,22 @@ code {
   gap: var(--sp-4);
   margin-bottom: var(--sp-5);
   flex-wrap: wrap;
+}
+/* The leading ghost button carries Carbon's internal padding, which pushed its
+   label a pixel-ish off the page's left edge — enough to read as ragged next to
+   the prose below it. Pull the box, not the label. */
+.page-head > .cds--btn:first-child {
+  margin-left: calc(-1 * var(--sp-4));
+}
+.page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-left: auto;
+}
+.page-head__who {
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
 }
 .page-title {
   font-size: var(--type-title-size);
@@ -1086,7 +1153,7 @@ code {
  * and no controls inside the content. */
 
 .rep {
-  max-width: 60rem;
+  max-width: var(--measure-read);
 }
 .rep__head {
   position: sticky;
@@ -1371,7 +1438,7 @@ code {
 
 .rep__empty {
   padding: var(--sp-5);
-  max-width: 40rem;
+  max-width: var(--measure-read);
 }
 .rep__emptyTitle {
   margin: 0 0 var(--sp-3);
@@ -1802,7 +1869,7 @@ button.fk-listrow__main {
  * loaded and deleted. */
 
 .modal.scn {
-  max-width: 34rem;
+  max-width: var(--measure-read);
 }
 /* `.modal .btn` stretches plain buttons full width for the stacked confirm
    dialogs; this modal uses Carbon buttons in rows, so the footer aligns them

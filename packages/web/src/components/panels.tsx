@@ -27,7 +27,7 @@ import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { CYCLE_COL, TEXTD } from "./colors";
+import { CYCLE_COL } from "./colors";
 import { useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 
@@ -426,7 +426,7 @@ function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: 
 
           <div className="legend">
             {CYCLE_KEYS.map((k) => (
-              <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span key={k} className="u-row">
                 <span style={{ width: 9, height: 9, background: CYCLE_COL[k], borderRadius: 2, display: "inline-block" }} />
                 {CYCLE_LABELS[k]}
               </span>
@@ -483,7 +483,7 @@ function ParallelSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (i
           <Footnote>—</Footnote>
         ) : (
           path.map((id, i) => (
-            <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: "var(--sp-02)" }}>
+            <span key={id} className="u-row">
               <OperationalTag type="blue" size="sm" text={byId[id]} onClick={() => { setSel(id); setTab("inspect"); }} />
               {i < path.length - 1 ? <span style={{ color: "var(--cds-text-secondary)" }}>→</span> : null}
             </span>
@@ -851,7 +851,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
   return (
     <div className="cds--form-item">
       <div className="cds--label">Footprint shape {isRect ? "(rectangle)" : "(custom)"}</div>
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <div className="u-row u-row--top">
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${w}, 16px)`, gap: 2 }}>
           {Array.from({ length: h }).map((_, dy) =>
             Array.from({ length: w }).map((__, dx) => {
@@ -1309,7 +1309,7 @@ export function SchemaPanel() {
       <div className="lab" style={{ margin: "20px 0 8px" }}>
         Data model
       </div>
-      <div style={{ fontSize: 11.5, color: TEXTD, marginBottom: 12, lineHeight: 1.5 }}>
+      <div className="u-caption">
         The whole layout is one JSON object. Export gives exactly this; Load expects it. Missing fields
         fill with defaults on import, and older files are migrated forward automatically.
       </div>
@@ -1374,7 +1374,7 @@ export function SchemaPanel() {
         ["unitsPerAssembly", "int?", "inputs per assembled unit"],
         ["notes", "string", "free text"],
       ])}
-      <div style={{ fontSize: 10.5, color: TEXTD, lineHeight: 1.5 }}>
+      <div className="u-caption">
         Flow cost = Σ(volume × rectilinear-distance × unitCost). Chaining reads auto on both ends +
         transport: two auto steps with conveyor/agv = chained; with a manual handoff = auto-island.
       </div>

@@ -104,8 +104,8 @@ export function Stat({ label, value, sub, color }: { label: string; value: strin
   return (
     <div className="stat-tile">
       <div className="lab">{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      {sub ? <div style={{ fontSize: 10.5, color: TEXTD }}>{sub}</div> : null}
+      <div className="u-figure" style={{ color }}>{value}</div>
+      {sub ? <div className="u-caption">{sub}</div> : null}
     </div>
   );
 }
