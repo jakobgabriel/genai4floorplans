@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Search, SelectItem, Tag, Tile } from "@carbon/react";
+import { ComboBox, Search, SelectItem, Tag, Tile } from "@carbon/react";
 import { Add, Copy, TrashCan } from "@carbon/icons-react";
-import { TAG_COLORS, type LibraryProcess, type TagColor } from "@flowplan/core/model/library";
+import { TAG_COLORS, type LibraryProcess, type LibraryTag, type TagColor } from "@flowplan/core/model/library";
 import { AUTO, ERGO, ROLES, STATION_TYPES, type WorkClass } from "@flowplan/core/model/types";
 import type { LibraryApi } from "../store/library";
 import { PageHead } from "../components/PageHead";
@@ -207,6 +207,67 @@ function TagEditor({ lib }: { lib: LibraryApi }) {
   );
 }
 
+/**
+ * Assign tags to a process at any scale.
+ *
+ * A flat row of toggle chips does not survive a company-wide taxonomy of
+ * hundreds of tags. This is a search-as-you-type box: the assigned tags sit
+ * above as dismissible chips, and the combo box filters the rest and offers to
+ * create a brand-new tag inline when nothing matches.
+ */
+const CREATE_TAG = "__create-tag__";
+function TagPicker({ lib, p }: { lib: LibraryApi; p: LibraryProcess }) {
+  const [query, setQuery] = useState("");
+  // Bumped after each pick so the combo box remounts with an empty input.
+  const [resetKey, setResetKey] = useState(0);
+
+  const selected = p.tags.map((id) => lib.tags.find((t) => t.id === id)).filter((t): t is LibraryTag => !!t);
+  const q = query.trim();
+  const ql = q.toLowerCase();
+  const unassigned = lib.tags.filter((t) => !p.tags.includes(t.id));
+  const matches = ql ? unassigned.filter((t) => t.name.toLowerCase().includes(ql)) : unassigned;
+  const exists = lib.tags.some((t) => t.name.toLowerCase() === ql);
+  const items: Array<{ id: string; name: string }> = [
+    ...(q && !exists ? [{ id: CREATE_TAG, name: `Create “${q}”` }] : []),
+    ...matches.slice(0, 50).map((t) => ({ id: t.id, name: t.name })),
+  ];
+
+  const pick = (item: { id: string } | null | undefined) => {
+    if (!item) return;
+    const id = item.id === CREATE_TAG ? lib.addTag(q).id : item.id;
+    lib.toggleTag(p.id, id);
+    setQuery("");
+    setResetKey((k) => k + 1);
+  };
+
+  return (
+    <div className="tagpicker">
+      {selected.length > 0 ? (
+        <div className="tagpicker__chips">
+          {selected.map((t) => (
+            <Tag key={t.id} type={t.color} size="sm" filter onClose={() => lib.toggleTag(p.id, t.id)} title={"Remove " + t.name}>
+              {t.name}
+            </Tag>
+          ))}
+        </div>
+      ) : null}
+      <ComboBox
+        key={resetKey}
+        id={"tagpick-" + p.id}
+        size="sm"
+        items={items}
+        itemToString={(t) => (t ? t.name : "")}
+        placeholder={lib.tags.length ? "Search tags or type to create…" : "Type a tag name to create it…"}
+        titleText="Add a tag"
+        shouldFilterItem={() => true}
+        onInputChange={(v) => setQuery(v ?? "")}
+        onChange={({ selectedItem }) => pick(selectedItem)}
+        selectedItem={null}
+      />
+    </div>
+  );
+}
+
 function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProcess; onRemoved: () => void }) {
   const up = (patch: Partial<LibraryProcess>) => lib.update(p.id, patch);
   return (
@@ -228,17 +289,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
       </div>
 
       <SectionLabel>Tags</SectionLabel>
-      <div className="lib-page__tagPick">
-        {lib.tags.length === 0 ? (
-          <Footnote>No tags defined. Add them under “Edit tags”.</Footnote>
-        ) : (
-          lib.tags.map((t) => (
-            <TabBtn key={t.id} toggle selected={p.tags.includes(t.id)} onClick={() => lib.toggleTag(p.id, t.id)}>
-              {t.name}
-            </TabBtn>
-          ))
-        )}
-      </div>
+      <TagPicker lib={lib} p={p} />
 
       <SectionLabel>Classification</SectionLabel>
       <div className="lib-page__grid">
