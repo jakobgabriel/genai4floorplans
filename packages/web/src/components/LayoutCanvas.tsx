@@ -295,13 +295,15 @@ export function LayoutCanvas(props: Props) {
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
-        {/* The placeable floor, grid and border are decoration only — they sit
-            above the catcher, so they must let pointer events fall through to it
-            (otherwise pan / zone-draw / deselect never fire over the floor). */}
+        {/* The floor and grid are decoration only — they sit above the catcher,
+            so they must let pointer events fall through to it (otherwise pan /
+            zone-draw / deselect never fire over the floor). The floor fills the
+            whole viewport: the canvas is unbounded, so there is no "outside the
+            floor" dead area to shade differently — it reads as one continuous
+            gridded surface. */}
         <g style={{ pointerEvents: "none" }}>
-          <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
+          <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="var(--cds-layer-01)" />
           {gridLines}
-          <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
         </g>
 
         {(template ?? []).map((t, i) => (
