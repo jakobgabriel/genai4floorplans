@@ -397,6 +397,12 @@ main {
   /* Darkest layer, so the two rails read as raised panels either side of it. */
   background: var(--cds-background);
 }
+/* A focused station is keyboard-reachable now; the global ring sits at
+   offset -2px which an SVG group clips, so nudge it just outside the group. */
+[data-station-id]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
 .canvas__stage {
   flex: 1 1 auto;
   min-height: 0;

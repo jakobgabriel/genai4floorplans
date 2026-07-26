@@ -66,9 +66,11 @@ export function loadWorkspace(): Workspace {
   } catch {
     /* ignore */
   }
-  // First run / legacy: seed from the old autosave or the sample.
-  const seed = loadAutosave() ?? SAMPLE;
-  const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null };
+  // First run / legacy: seed from the old autosave or the sample. Normalize it
+  // the same way the stored path does (migrateCell), so a fresh seed and a
+  // reloaded one are byte-for-byte the same rather than drifting on first save.
+  const seed = migrate(loadAutosave() ?? SAMPLE);
+  const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null, archived: false };
   return { cells: [cell], folders: [], activeId: cell.id };
 }
 
@@ -91,11 +93,14 @@ export function saveWorkspace(ws: Workspace): void {
 }
 
 export function makeCell(name: string, model: Model, folderId: string | null = null): Cell {
-  return { id: newId("cell"), name, model: { ...model, name }, folderId };
+  // Include `archived` so a freshly made cell serializes identically to one the
+  // loader has migrated (migrateCell fills it) — otherwise the first save and
+  // the reload disagree by one field.
+  return { id: newId("cell"), name, model: { ...model, name }, folderId, archived: false };
 }
 
 export function makeFolder(name: string, parentId: string | null, position: number): Folder {
-  return { id: newId("fld"), name, parentId, position };
+  return { id: newId("fld"), name, parentId, position, archived: false };
 }
 
 /** True if `candidateId` is `folderId` itself or one of its descendants — the

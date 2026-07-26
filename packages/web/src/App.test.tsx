@@ -38,6 +38,21 @@ describe("App", () => {
     expect(screen.queryByText("Actual-state rating")).toBeNull();
   });
 
+  it("makes stations keyboard-reachable: a station is focusable, focus selects it, arrows move it", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    const cnc = document.querySelector('[data-station-id="cnc"]') as SVGGElement;
+    // The canvas was mouse-only — no tabindex, role or label on a station.
+    expect(cnc.getAttribute("tabindex")).toBe("0");
+    expect(cnc.getAttribute("role")).toBe("button");
+    expect(cnc.getAttribute("aria-label")).toMatch(/CNC Turning/);
+    // Focusing selects it (so the already-wired arrow move acts on it)...
+    const x0 = cnc.getAttribute("data-station-x");
+    fireEvent.focus(cnc);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect((document.querySelector('[data-station-id="cnc"]') as SVGGElement).getAttribute("data-station-x")).not.toBe(x0);
+  });
+
   it("reads the whole analysis on its own page, in path order", async () => {
     const { container } = renderApp();
     fireEvent.click(screen.getByText("See an example"));

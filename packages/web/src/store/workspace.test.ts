@@ -18,6 +18,22 @@ describe("workspace", () => {
     expect(ws.activeId).toBe(ws.cells[0].id);
   });
 
+  it("seeds a workspace that a save/reload round-trip leaves byte-for-byte unchanged", () => {
+    localStorage.clear();
+    // First run seeds and persists.
+    const first = loadWorkspace();
+    saveWorkspace(first);
+    const bytesA = localStorage.getItem("flowplan_workspace")!.length;
+    // Reload normalizes on the way in (migrateCell); it must match what was
+    // saved rather than growing — the seed used to be raw and the loader
+    // normalized, so the same cell serialized two different ways.
+    const second = loadWorkspace();
+    saveWorkspace(second);
+    const bytesB = localStorage.getItem("flowplan_workspace")!.length;
+    expect(bytesB).toBe(bytesA);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
   it("migrates a legacy single-cell autosave into a cell (root folder)", () => {
     localStorage.setItem("flowplan_model", JSON.stringify({ ...SAMPLE, schemaVersion: undefined }));
     const ws = loadWorkspace();

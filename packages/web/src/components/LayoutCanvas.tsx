@@ -413,10 +413,29 @@ export function LayoutCanvas(props: Props) {
               data-station-id={s.id}
               data-station-x={s.x}
               data-station-y={s.y}
+              // Keyboard-reachable: the canvas was mouse-only, so a station
+              // could be neither selected nor moved without a pointer. Focusing
+              // selects (in select mode) so the arrow-key move already wired in
+              // App acts on it; Enter/Space activates for flow-drawing too.
+              tabIndex={interactive ? 0 : undefined}
+              role={interactive ? "button" : undefined}
+              aria-label={interactive ? `${s.name}, ${s.role === "process" ? s.type : s.role}${s.fixed ? ", fixed" : ""}` : undefined}
               style={{ cursor: mode === "flow" ? "crosshair" : interactive ? (s.fixed ? "not-allowed" : "grab") : "pointer" }}
               onPointerDown={(e) => onStationDown(e, s)}
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
               onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
+              onFocus={interactive && mode === "select" ? () => props.onSelect?.(s.id) : undefined}
+              onKeyDown={
+                interactive
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (mode === "flow") props.onPickStation?.(s.id);
+                        else props.onSelect?.(s.id);
+                      }
+                    }
+                  : undefined
+              }
             >
               {/* stacked shadow implies parallel lanes */}
               {units > 1 && !shaped ? (
