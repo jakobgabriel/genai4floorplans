@@ -177,7 +177,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         <Button
           hasIconOnly
           size="md"
-          kind="danger--ghost"
+          kind="ghost"
           renderIcon={TrashCan}
           iconDescription={"Delete " + c.label}
           onClick={() => {

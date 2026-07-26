@@ -34,7 +34,9 @@ import { LibraryPage } from "./pages/LibraryPage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
 import { ConceptsPage } from "./pages/ConceptsPage";
+import { RecommendPage } from "./pages/RecommendPage";
 import { useConcepts } from "./store/concepts";
+import { useDecisionWeights } from "./store/decisionWeights";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { StationTooltip } from "./components/StationTooltip";
@@ -112,6 +114,7 @@ export function App() {
   const subflows = useSubflows();
   const library = useLibrary();
   const conceptApi = useConcepts();
+  const weightsApi = useDecisionWeights();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("inspect");
   const [analysisTab, setAnalysisTab] = useState<Tab>("rating");
@@ -651,6 +654,7 @@ export function App() {
   if (route === "/workspace") return page(<WorkspacePage api={api} onGuided={startGuided} />, "workspace");
   if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />, "library");
   if (route === "/concepts") return page(<ConceptsPage api={conceptApi} />, null);
+  if (route === "/recommend") return page(<RecommendPage api={api} weightsApi={weightsApi} />, null);
   if (route === "/compare") return page(<ComparePage api={api} />, "compare");
   if (route === "/archive") return page(<ArchivePage api={api} />, "workspace");
   if (route === "/admin") return page(<AdminPage />, null);
@@ -703,6 +707,7 @@ export function App() {
           label="⋯"
           title="More actions"
           items={[
+            { label: "Recommend a concept", onClick: () => navigate("/recommend") },
             { label: "Manufacturing concepts", onClick: () => navigate("/concepts") },
             { label: "Compare scenarios", onClick: () => navigate("/compare") },
             { label: "Archived items", onClick: () => navigate("/archive") },
