@@ -130,7 +130,7 @@ describe("App", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
     // View toggle now sits in the sub-toolbar above the canvas.
-    fireEvent.click(screen.getByText("⊟ DAG"));
+    fireEvent.click(screen.getByText("DAG"));
     expect(screen.getByText("PROCESS DAG")).toBeTruthy();
   });
 
@@ -159,7 +159,7 @@ describe("App", () => {
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
-    fireEvent.click(screen.getByText("⊟ DAG"));
+    fireEvent.click(screen.getByText("DAG"));
     // click a DAG node to select + open Configure. The name also appears in the
     // Analysis page's per-step lists, and the canvas precedes the rail.
     fireEvent.click(screen.getAllByText("CNC Turning")[0]);

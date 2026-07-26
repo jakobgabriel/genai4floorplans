@@ -27,7 +27,7 @@ async function openBalance() {
 /** Select a station on the DAG and open its Configure/Inspect panel. Station
  *  names also appear in the panel lists, so always take the first match. */
 function inspect(stationName: string) {
-  fireEvent.click(screen.getByText("⊟ DAG"));
+  fireEvent.click(screen.getByText("DAG"));
   fireEvent.click(screen.getAllByText(stationName)[0]);
 }
 

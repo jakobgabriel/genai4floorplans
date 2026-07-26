@@ -599,10 +599,10 @@ export function App() {
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views">
-              {vBtn("actual", "● Actual")}
-              {vBtn("improved", "◇ Improved")}
-              {vBtn("split", "⇄ Both")}
-              {vBtn("dag", "⊟ DAG")}
+              {vBtn("actual", "Actual")}
+              {vBtn("improved", "Improved")}
+              {vBtn("split", "Both")}
+              {vBtn("dag", "DAG")}
             </div>
           </div>
           {canvasInner}
