@@ -1,15 +1,15 @@
 import { useMemo } from "react";
+import { Button, Tile, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
+import { ArrowLeft, Folder } from "@carbon/icons-react";
 import type { Model } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { listScenarios, loadScenario } from "../store/scenarios";
 import { navigate } from "../store/useHashRoute";
-import { PageHead } from "../components/PageHead";
-import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
 import { BarChart, Stat, type Bar } from "../components/charts";
-import { scoreColor, TEAL } from "../components/colors";
+import { scoreColor, TEAL, TEXTD } from "../components/colors";
 
 // Dedicated full-page scenario comparison: a KPI table (best-in-column),
 // summary stats, and charts across the current layout + all saved scenarios.
@@ -50,8 +50,8 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
   if (rated.length <= 1) {
     return (
       <div className="page">
-        <PageHead title="Compare variants" />
-        <p className="u-muted">Save a variant from the toolbar to compare it here.</p>
+        <PageHead />
+        <p style={{ color: TEXTD }}>Save a few variants (Flow ▸ Scenarios) to compare them here side by side with charts and statistics.</p>
       </div>
     );
   }
@@ -64,77 +64,84 @@ export function ComparePage({ api }: { api: FlowPlanApi }) {
 
   return (
     <div className="page">
-      <PageHead title="Compare variants" />
-      <div className="stat-strip">
+      <PageHead />
+      <div className="bi-kpis">
         <Stat label="Scenarios" value={String(rated.length)} />
         <Stat label="Best score" value={best.rating.composite.toFixed(0)} sub={best.name} color={scoreColor(best.rating.composite)} />
         <Stat label="Average score" value={avg.toFixed(0)} color={scoreColor(avg)} />
         <Stat label="Best throughput" value={bestFlow.rating.balance.lineOut.toLocaleString()} sub={bestFlow.name + " /shift"} color={TEAL} />
       </div>
 
-      <div className="page-grid">
-        <div className="chart-card">
-          <div className="layoutTitle">Composite score</div>
+      <div className="bi-row bi-row--2">
+        <Tile className="bi-card">
+          <div className="bi-card__head"><h3 className="bi-card__title">Composite score</h3></div>
           <BarChart bars={scoreBars} max={100} colorByScore />
-        </div>
-        <div className="chart-card">
-          <div className="layoutTitle">Throughput (parts / shift)</div>
+        </Tile>
+        <Tile className="bi-card">
+          <div className="bi-card__head"><h3 className="bi-card__title">Throughput (parts / shift)</h3></div>
           <BarChart bars={throughputBars} />
-        </div>
+        </Tile>
       </div>
 
-      <div className="chart-card u-scroll-x">
-        <div className="layoutTitle">KPI breakdown</div>
-        <table className="schemaTbl" style={{ minWidth: 620 }}>
-          <thead>
-            <tr>
-              <th>Scenario</th>
-              <th>Grade</th>
-              {cols.map((c) => (<th key={c.key}>{c.label}</th>))}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
+      <Tile className="bi-card" style={{ overflowX: "auto" }}>
+        <div className="bi-card__head"><h3 className="bi-card__title">KPI breakdown</h3></div>
+        <StructuredListWrapper isCondensed style={{ minWidth: 620 }}>
+          <StructuredListHead>
+            <StructuredListRow head>
+              <StructuredListCell head>Scenario</StructuredListCell>
+              <StructuredListCell head>Grade</StructuredListCell>
+              {cols.map((c) => (<StructuredListCell head key={c.key}>{c.label}</StructuredListCell>))}
+              <StructuredListCell head></StructuredListCell>
+            </StructuredListRow>
+          </StructuredListHead>
+          <StructuredListBody>
             {rated.map((x) => (
-              <tr key={x.name}>
-                <td style={{ color: x.isCurrent ? TEAL : undefined }}>
+              <StructuredListRow key={x.name}>
+                <StructuredListCell style={{ color: x.isCurrent ? TEAL : undefined }}>
                   {x.name}
-                  {x.folderId ? <span className="u-caption"> · {folderPath(x.folderId)}</span> : null}
-                </td>
-                <td style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</td>
+                  {x.folderId ? <span style={{ color: TEXTD, fontSize: 10 }}> · <Folder size={12} style={{ verticalAlign: "-1px" }} /> {folderPath(x.folderId)}</span> : null}
+                </StructuredListCell>
+                <StructuredListCell style={{ color: scoreColor(x.rating.composite), fontWeight: 600 }}>{x.rating.letter}</StructuredListCell>
                 {cols.map((c) => {
                   const v = c.get(x);
                   const isBest = Math.abs(v - bestByCol[c.key]) < 1e-6;
                   return (
-                    <td key={c.key} style={{ color: isBest ? TEAL : undefined, fontWeight: isBest ? 600 : 400 }}>
+                    <StructuredListCell key={c.key} style={{ color: isBest ? TEAL : undefined, fontWeight: isBest ? 600 : 400 }}>
                       {c.fmt ? c.fmt(v) : v.toFixed(0)}
-                    </td>
+                    </StructuredListCell>
                   );
                 })}
-                <td>
+                <StructuredListCell>
                   {x.isCurrent ? (
-                    <span className="u-muted">—</span>
+                    <span style={{ color: TEXTD }}>—</span>
                   ) : (
-                    <Btn
-                      size="compact"
-                      variant="ghost"
+                    <Button
+                      size="sm"
+                      kind="tertiary"
                       onClick={() => {
                         const m = loadScenario(x.name);
                         if (m) { api.reset(m); toast("Loaded “" + x.name + "”"); navigate("/"); }
                       }}
                     >
                       Load
-                    </Btn>
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </StructuredListCell>
+              </StructuredListRow>
             ))}
-          </tbody>
-        </table>
-        <div className="u-caption">Teal marks the best in each column. Every layout is re-rated by the engine.</div>
-      </div>
+          </StructuredListBody>
+        </StructuredListWrapper>
+        <div style={{ fontSize: 10.5, color: TEXTD }}>Teal = best in column. Grades/KPIs are recomputed by the engine for each saved layout.</div>
+      </Tile>
     </div>
   );
 }
 
-
+function PageHead() {
+  return (
+    <div className="page-head">
+      <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
+      <h1 className="page-title">Compare scenarios</h1>
+    </div>
+  );
+}

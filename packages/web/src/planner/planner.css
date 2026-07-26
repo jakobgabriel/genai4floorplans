@@ -11,24 +11,15 @@
   background: var(--cds-background);
 }
 
-/* Editor only. `min-height: 100vh` lets the tallest side panel grow the shell
-   past the window, which pushed the canvas column taller than the viewport and
-   left it unable to size itself to the space actually on screen. */
-.shell--fill {
-  height: 100vh;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .shell__steps {
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
   flex: 0 0 auto;
 }
 
 .shell__steps .cds--progress-label {
-  font-size: var(--type-body-size);
+  font-size: 0.875rem;
 }
 
 .shell__body {
@@ -39,252 +30,135 @@
 }
 
 .shell__actionLabel {
-  font-size: var(--type-body-size);
-  padding: 0 var(--sp-2);
+  font-size: 0.875rem;
+  padding: 0 var(--cds-spacing-03);
 }
 
 /* ---------- planner steps ---------- */
 
 .planner {
   width: 100%;
-  max-width: var(--measure-read);
+  max-width: 60rem;
   margin: 0 auto;
-  padding: var(--sp-6) var(--sp-5) var(--sp-4);
+  padding: var(--cds-spacing-07) var(--cds-spacing-06) var(--cds-spacing-05);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   flex: 0 0 auto;
-  /* A flex item's min-width is auto, so a wide child — the parts table at a
-     twelve-year program — grows the step past the shell and scrolls the whole
-     page sideways instead of scrolling inside its own container. */
-  min-width: 0;
 }
 
 .planner--wide {
-  max-width: var(--measure-wide);
+  max-width: 84rem;
 }
 
 .planner__head {
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--cds-spacing-06);
 }
 
 .planner__title {
-  font-size: var(--type-title-size);
+  font-size: 2.625rem;
   font-weight: 300;
-  line-height: var(--lh-tight);
+  line-height: 1.199;
   letter-spacing: 0;
-  margin: 0 0 var(--sp-3);
+  margin: 0 0 var(--cds-spacing-04);
 }
 
 .planner__h2 {
-  font-size: var(--type-title-size);
+  font-size: 1.75rem;
   font-weight: 400;
-  line-height: var(--lh-snug);
-  margin: 0 0 var(--sp-2);
+  line-height: 1.28;
+  margin: 0 0 var(--cds-spacing-03);
 }
 
 .planner__sub {
   color: var(--cds-text-secondary);
-  font-size: var(--type-section-size);
-  line-height: var(--lh-body);
-  margin: 0 0 var(--sp-5);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 var(--cds-spacing-06);
   max-width: 55ch;
 }
 
-/* ---------- start screen ---------- */
+/* ---------- use-case tiles ---------- */
 
-/* Centred, because it is the only thing on the page — there is no stepper
-   above it and no canvas beside it. */
-.planner--start {
-  margin-top: 8vh;
-  max-width: var(--measure-wide);
+.planner__grid {
+  row-gap: var(--cds-spacing-05);
+  margin-bottom: var(--cds-spacing-06);
 }
 
-/* The front door: destinations, not a row of buttons. Planning a cell and
-   maintaining the library are both things you open this tool to do, and one
-   should not be reachable only from inside the other. */
-.portal {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-5);
-}
-
-.portal__tile {
+.planner__tile {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 11rem;
-  padding: var(--sp-5);
-  text-align: left;
-  font: inherit;
+  padding: var(--cds-spacing-06);
+}
+
+.planner__tile--off {
+  opacity: 0.6;
+}
+
+.planner__tileHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-04);
+}
+
+.planner__tileHead h3 {
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.planner__q {
   color: var(--cds-text-primary);
-  background: var(--cds-layer-01);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
-}
-.portal__tile:hover {
-  background: var(--cds-layer-hover-01);
-}
-.portal__tile:active {
-  background: var(--cds-layer-active-01);
+  font-size: 0.875rem;
+  line-height: 1.43;
+  margin: 0 0 var(--cds-spacing-05);
 }
 
-.portal__title {
-  font-size: var(--type-section-size);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-snug);
-  margin: 0 0 var(--sp-3);
-}
-
-.portal__body {
+.planner__meta {
   color: var(--cds-text-secondary);
-  font-size: var(--type-body-size);
-  line-height: var(--lh-body);
-  margin: 0 0 var(--sp-4);
+  font-size: 0.75rem;
+  line-height: 1.34;
+  margin: 0 0 var(--cds-spacing-03);
 }
 
-/* Pinned to the bottom so the tiles' footers line up whatever the body length. */
-.portal__meta {
+.planner__meta b {
+  color: var(--cds-text-primary);
+  font-weight: 600;
+}
+
+.planner__caveat {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.34;
+  margin: var(--cds-spacing-03) 0 0;
+  padding-left: var(--cds-spacing-04);
+  border-left: 2px solid var(--cds-support-warning);
+}
+
+.planner__lifecycle {
   margin: auto 0 0;
+  padding-top: var(--cds-spacing-05);
   color: var(--cds-text-placeholder);
-  font-size: var(--type-caption-size);
-  letter-spacing: 0.32px;
   text-transform: uppercase;
+  letter-spacing: 0.32px;
+  font-size: 0.75rem;
 }
 
-/* The ways in, on one row. They were secondary links under five tall use-case
-   tiles; they are the screen now. */
 .planner__escape {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding-bottom: var(--sp-5);
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-}
-
-/* What is not built stays named and stays explained — hiding it would be
-   dishonest — but it is a line, not a tile you can evaluate and click. */
-.planner__later {
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-4);
+  gap: var(--cds-spacing-02);
+  padding-top: var(--cds-spacing-05);
   border-top: 1px solid var(--cds-border-subtle-01);
 }
-.planner__laterRow {
-  margin: var(--sp-2) 0 0;
+
+.planner__escapeLab {
   color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  line-height: var(--lh-snug);
-}
-.planner__laterRow b {
-  color: var(--cds-text-primary);
-}
-
-/* Product mix, on the demand step. */
-.planner__mix {
-  margin-top: var(--sp-5);
-  /* The Program fields follow, so the block needs a bottom edge too — without
-     it the section label sat directly on the Add-a-part row. */
-  margin-bottom: var(--sp-6);
-  padding-top: var(--sp-5);
-  border-top: 1px solid var(--cds-border-subtle-01);
-}
-/* The part table. Part number and routing take the width; the demand years are
-   narrow numeric columns that grow with the program length, so the table
-   scrolls sideways rather than squeezing the routing. */
-.parts {
-  margin-top: var(--sp-3);
-  /* Carbon's icon-only buttons carry an absolutely-positioned assistive-text
-     span. Without a positioned ancestor inside the scroller its containing
-     block is the page, so it sits at the table's unclipped width and scrolls
-     the whole document sideways. */
-  position: relative;
-}
-.parts__table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.parts__table th {
-  text-align: left;
-  padding: 0 var(--sp-2) var(--sp-1) 0;
-  color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  font-weight: var(--fw-regular);
-  white-space: nowrap;
-}
-.parts__table td {
-  padding: 0 var(--sp-2) var(--sp-2) 0;
-  vertical-align: top;
-}
-.parts__table th.parts__num,
-.parts__table td.parts__num {
-  text-align: right;
-}
-/* Pinned, because a long program scrolls the year columns and a demand figure
-   with no part number beside it is unreadable. */
-.parts__table th:first-child,
-.parts__table td:first-child {
-  min-width: 9rem;
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: var(--cds-background);
-  padding-right: var(--sp-3);
-}
-.parts__table th:nth-child(2),
-.parts__table td:nth-child(2) {
-  min-width: 18rem;
-  width: 100%;
-}
-/* Demand years: wide enough for seven figures, no wider. Six-digit volumes are
-   ordinary here and were being clipped at 5rem. */
-.parts__table td:nth-child(n + 3) .cds--text-input {
-  min-width: 6.5rem;
-  width: 6.5rem;
-  text-align: right;
-}
-/* Carbon reserves helper-text space under every field; across a table row that
-   is a ragged gap under each one. */
-.parts__table .cds--form-item {
-  margin-bottom: 0;
-}
-.planner__mixFoot {
-  display: flex;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-
-/* Routing help on the left, the year-column control on the right — the thing
-   that adds a column sits on the table whose columns it adds. */
-.planner__mixHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-5);
-  margin-bottom: var(--sp-3);
-}
-
-.parts__years {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  flex: 0 0 auto;
-}
-
-.parts__yearsLab {
-  color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  white-space: nowrap;
-}
-
-/* The unit a derived figure is measured in — "incl. capex", "as generated" —
-   so two legitimately different costs on one screen cannot read as a
-   contradiction. */
-.planner__derivedNote {
-  display: block;
-  margin-top: var(--sp-1);
-  color: var(--cds-text-placeholder);
-  font-size: var(--type-caption-size);
+  font-size: 0.875rem;
+  margin-right: var(--cds-spacing-03);
 }
 
 /* ---------- form steps ---------- */
@@ -292,47 +166,47 @@
 .planner .cds--css-grid {
   padding-inline: 0;
   margin-inline: 0;
-  row-gap: var(--sp-5);
+  row-gap: var(--cds-spacing-06);
 }
 
 .planner__derived {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-6);
-  margin-top: var(--sp-5);
-  padding: var(--sp-4) var(--sp-5);
+  gap: 2.5rem;
+  margin-top: var(--cds-spacing-06);
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
 }
 
 .planner__derivedLab {
   display: block;
   color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  margin-bottom: var(--sp-1);
+  font-size: 0.75rem;
+  margin-bottom: var(--cds-spacing-02);
 }
 
 .planner__derivedVal {
   display: block;
-  font-size: var(--type-title-size);
+  font-size: 2rem;
   font-weight: 300;
-  line-height: var(--lh-tight);
+  line-height: 1.25;
 }
 
 .planner__count {
   color: var(--cds-text-secondary);
-  font-size: var(--type-body-size);
-  margin-top: var(--sp-4);
+  font-size: 0.875rem;
+  margin-top: var(--cds-spacing-05);
 }
 
 .planner .cds--form-item,
 .planner .cds--radio-button-group,
 .planner .cds--text-area__wrapper {
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--cds-spacing-05);
 }
 
 /* ---------- concept table ---------- */
 
 .planner__table {
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--cds-spacing-05);
 }
 
 /* Fixed column rhythm — the default flex distribution let money and counts
@@ -351,7 +225,7 @@
 
 .planner__table .cds--structured-list-th,
 .planner__table .cds--structured-list-td {
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
 }
 
 .planner__row--on {
@@ -361,15 +235,15 @@
 
 .planner__cellSub {
   color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  margin-top: var(--sp-1);
+  font-size: 0.75rem;
+  margin-top: 2px;
 }
 
 .planner__tags {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--sp-1);
+  gap: var(--cds-spacing-02);
 }
 
 /* Flex items shrink below their content by default, which squeezed the pill
@@ -387,9 +261,9 @@
   display: flex;
   gap: 1px;
   width: 100%;
-  max-width: var(--measure-read);
+  max-width: 60rem;
   margin: 0 auto;
-  padding: 0 var(--sp-5) var(--sp-6);
+  padding: 0 var(--cds-spacing-06) var(--cds-spacing-07);
   flex: 0 0 auto;
 }
 
@@ -403,19 +277,13 @@
 .editorbar {
   display: flex;
   align-items: center;
-  /* Wraps rather than scrolls horizontally. `overflow-x: auto` computes
-     `overflow-y` to `auto` as well, which clipped every dropdown in this bar —
-     Export, ⋯ and Variants all opened invisibly below its bottom edge. */
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-4);
+  gap: var(--cds-spacing-03);
+  padding: 0 var(--cds-spacing-05);
   min-height: 3rem;
   background: var(--cds-layer-01);
   border-bottom: 1px solid var(--cds-border-subtle-01);
+  overflow-x: auto;
   flex: 0 0 auto;
-  /* Above the canvas, so an open menu paints over it. */
-  position: relative;
-  z-index: 5;
 }
 
 .shell__body > main {
@@ -425,7 +293,7 @@
 
 @media (max-width: 66rem) {
   .planner__title {
-    font-size: var(--type-title-size);
+    font-size: 2rem;
   }
   .planner__actions .cds--btn {
     flex: 1;
@@ -435,110 +303,302 @@
 
 @media (max-width: 42rem) {
   .shell__steps {
-    padding: var(--sp-3) var(--sp-4);
+    padding: var(--cds-spacing-04) var(--cds-spacing-05);
   }
   .planner,
   .planner__actions {
-    padding-left: var(--sp-4);
-    padding-right: var(--sp-4);
+    padding-left: var(--cds-spacing-05);
+    padding-right: var(--cds-spacing-05);
   }
   .planner__table .cds--structured-list-row {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-/* ---------- analysis at a glance ----------
- * The Analysis panel's six stages, in the same order, on the summary. */
-
-.glance {
-  margin-top: var(--sp-6);
-  padding-top: var(--sp-5);
-  border-top: 1px solid var(--cds-border-subtle-01);
-}
-
-.glance__h {
-  font-size: var(--type-section-size);
-}
-
-.glance__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--sp-4);
-}
-
-.glance__tile {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-4);
-}
-
-.glance__head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.glance__num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  flex: 0 0 auto;
-  border-radius: var(--radius-round);
-  font-size: var(--type-caption-size);
-  font-weight: 600;
-  background: var(--cds-layer-accent-01);
-  color: var(--cds-text-secondary);
-}
-
-.glance__label {
-  font-size: var(--type-body-size);
-  font-weight: 600;
-}
-
-.glance__value {
-  font-size: var(--type-title-size);
-  font-weight: 300;
-  line-height: var(--lh-tight);
-}
-
-/* Carbon's Tag caps its own width, which truncated the one-line reading. */
-.glance__tile .cds--tag {
-  margin: 0;
-  max-width: none;
-}
-
-.glance__foot {
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--cds-border-subtle-01);
-}
-
-.glance__footNote {
-  margin: var(--sp-2) 0 0;
-  color: var(--cds-text-secondary);
-  font-size: var(--type-body-size);
-  line-height: var(--lh-body);
-}
-
-.glance__q {
-  margin: auto 0 0;
-  color: var(--cds-text-secondary);
-  font-size: var(--type-caption-size);
-  line-height: var(--lh-snug);
-}
-
 /* Inferred-value marker. Everything the tool guessed is labelled, so a guess is
    never mistaken for something the planner supplied. */
 .planner__inferred {
   color: var(--cds-support-warning);
-  font-size: var(--type-caption-size);
+  font-size: 0.75rem;
   letter-spacing: 0.32px;
-  margin-top: var(--sp-1);
+  margin-top: 2px;
 }
 
 .planner__table--infer .cds--structured-list-row {
   grid-template-columns: minmax(10rem, 1.4fr) 7rem minmax(9rem, 1fr) 8rem 7rem;
+}
+
+/* Featured concept cards (jump-to-variant entry points above the ranked table). */
+.featured-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1px;
+  margin-bottom: var(--cds-spacing-05);
+  background: var(--cds-border-subtle-01);
+}
+.featured-card.cds--tile {
+  background: var(--cds-layer-01);
+  border-left: 3px solid transparent;
+}
+.featured-card--on.cds--tile {
+  border-left-color: var(--cds-interactive);
+  background: var(--cds-layer-selected-01);
+}
+.featured-card__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  color: var(--cds-text-secondary);
+}
+.featured-card__val {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.25rem;
+  margin: 2px 0;
+}
+.featured-card__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-primary);
+}
+.featured-card__hint {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+/* ---------- process step editor (data-model-faithful) ---------- */
+.planner__h3 {
+  font-size: 1.125rem;
+  font-weight: 400;
+  margin: var(--cds-spacing-07) 0 var(--cds-spacing-04);
+}
+.planner__hint {
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.planner__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-04);
+}
+.planner__step {
+  padding: var(--cds-spacing-05);
+}
+.planner__stepHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-04);
+}
+.planner__stepHead .cds--form-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+.planner__stepNo {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.planner__stepGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--cds-spacing-03) var(--cds-spacing-04);
+}
+.planner__stepGrid .cds--form-item {
+  margin-bottom: 0;
+}
+.planner__pred {
+  grid-column: 1 / -1;
+}
+.planner__stepActions {
+  margin-top: var(--cds-spacing-04);
+}
+.planner__rowGrid {
+  row-gap: var(--cds-spacing-04);
+}
+.planner__yearRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--cds-spacing-02);
+}
+.planner__yearRow .cds--form-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+.planner__addYear {
+  margin-top: 1.5rem;
+}
+.planner__variants {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+  max-width: 34rem;
+}
+.planner__variantRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--cds-spacing-03);
+}
+.planner__variantRow .cds--form-item {
+  margin-bottom: 0;
+}
+.planner__variantRow .cds--text-input__field-wrapper {
+  min-width: 12rem;
+}
+.planner__paste {
+  margin-top: var(--cds-spacing-06);
+  border-top: 1px solid var(--cds-border-subtle-01);
+  padding-top: var(--cds-spacing-05);
+}
+.planner__paste summary {
+  cursor: pointer;
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: var(--cds-spacing-04);
+}
+
+/* ---------- Summary: decision one-pager ---------- */
+.sum1 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-05);
+}
+.sum1__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cds-spacing-05);
+  flex-wrap: wrap;
+}
+.sum1__grade {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  min-width: 9rem;
+}
+.sum1__gradeLab {
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.sum1__gradeVal {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 3rem;
+  font-weight: 300;
+  line-height: 1;
+}
+.sum1__gradeScore {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+.sum1__grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1.2fr) 1.4fr;
+  gap: var(--cds-spacing-05);
+  align-items: stretch;
+}
+@media (max-width: 56rem) {
+  .sum1__grid {
+    grid-template-columns: 1fr;
+  }
+}
+.sum1__viz {
+  padding: var(--cds-spacing-05);
+}
+.sum1__vizLab,
+.sum1__kpiLab {
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.sum1__vizCanvas {
+  margin-top: var(--cds-spacing-03);
+  overflow: auto;
+}
+.sum1__kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cds-spacing-05) var(--cds-spacing-06);
+  padding: var(--cds-spacing-05);
+  align-content: start;
+}
+.sum1__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-02);
+  min-width: 0;
+}
+.sum1__kpi--big {
+  grid-column: 1 / -1;
+}
+.sum1__kpiVal {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.1;
+}
+.sum1__kpi--big .sum1__kpiVal {
+  font-size: 2.25rem;
+}
+.sum1__kpiSub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.sum1__cmp {
+  padding: var(--cds-spacing-05);
+}
+.sum1__cmpH {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 var(--cds-spacing-05);
+}
+.sum1__cmpRow {
+  display: grid;
+  grid-template-columns: 10rem 1fr 8rem;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+  padding: var(--cds-spacing-02) 0;
+  font-size: 0.875rem;
+}
+.sum1__cmpRow--on {
+  font-weight: 600;
+}
+.sum1__cmpName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sum1__cmpTrack {
+  height: 0.75rem;
+  background: var(--cds-layer-accent-01);
+  display: block;
+}
+.sum1__cmpBar {
+  display: block;
+  height: 100%;
+}
+.sum1__cmpVal {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  text-align: right;
+  color: var(--cds-text-secondary);
+}
+.sum1__cmpRow--on .sum1__cmpVal {
+  color: var(--cds-text-primary);
+}
+.sum1__actions {
+  display: flex;
+  gap: var(--cds-spacing-04);
+  flex-wrap: wrap;
+  margin-top: var(--cds-spacing-03);
 }

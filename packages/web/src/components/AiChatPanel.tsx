@@ -1,24 +1,21 @@
 import { useMemo, useRef, useState } from "react";
-import { Checkbox, SelectItem, Stack, Tag, Tile } from "@carbon/react";
-import { Settings as SettingsIcon } from "@carbon/icons-react";
-import { Btn, IconBtn } from "./Btn";
-import { Footnote, SectionLabel } from "./analysisKit";
-import { FieldRow, SelectField, TextAreaField, TextField } from "./formKit";
 import type { Model } from "@flowplan/core/model/types";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Settings } from "../store/settings";
 import { getProvider } from "../ai/provider";
 import type { GoalObjective, GoalResult, Proposal, ProposalContext } from "@flowplan/core/ai/types";
 import { saveScenario } from "../store/scenarios";
-import { useToast } from "./ui";
+import { Field, useToast } from "./ui";
+import { AMBER, RED, TEAL, TEALD, TEXTD } from "./colors";
 
 function Delta({ label, value }: { label: string; value: number }) {
   if (Math.abs(value) < 0.5) return null;
+  const col = value > 0 ? TEAL : RED;
   return (
-    <Tag type={value > 0 ? "green" : "red"} size="sm">
+    <span className="pill" style={{ background: "rgba(255,255,255,.05)", color: col, marginRight: 4 }}>
       {label} {value > 0 ? "+" : ""}
       {value.toFixed(0)}
-    </Tag>
+    </span>
   );
 }
 
@@ -76,269 +73,245 @@ export function AiChatPanel({ api, settings, openSettings }: { api: FlowPlanApi;
   }
 
   return (
-    <div className="pad ak-panel">
-      <Stack gap={5}>
-        <Stack gap={3}>
-          <div className="fk-listrow">
-            <SectionLabel>AI Chat · {providerLabel}</SectionLabel>
-            <IconBtn size="compact" icon={SettingsIcon} label="AI settings" tooltipPosition="left" onClick={openSettings} />
-          </div>
-          <Footnote>Every number is computed by FlowPlan's engine, not by the model.</Footnote>
+    <div className="pad">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div className="lab">AI Chat · {providerLabel}</div>
+        <button className="btn sm" onClick={openSettings}>
+          ⚙ Settings
+        </button>
+      </div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 10, lineHeight: 1.5 }}>
+        Ask, instruct, or set a goal. The AI proposes; every number is computed by FlowPlan's engine, not the model.
+      </div>
 
-          {chat.length > 0 ? (
-            <div className="aichat__log">
-              {chat.map((m, i) => (
-                <div key={i} className={"aichat__msg aichat__msg--" + m.role}>
-                  {m.text}
-                </div>
-              ))}
+      {chat.length > 0 ? (
+        <div style={{ marginBottom: 8, maxHeight: 180, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+          {chat.map((m, i) => (
+            <div key={i} className={m.role === "ai" ? "ok" : "card"} style={{ cursor: "default", fontSize: "0.75rem", alignSelf: m.role === "user" ? "flex-end" : "stretch", maxWidth: "92%" }}>
+              {m.text}
             </div>
-          ) : null}
-
-          <TextAreaField
-            id="ai-edit"
-            labelText="Instruction"
-            rows={2}
-            placeholder={'"make the line a U", "move QA next to Assembly", "automate CNC"'}
-            value={edit}
-            onChange={setEdit}
-          />
-          {/* The one primary in this panel: the others are alternate routes to
-              the same place and should not all shout. */}
-          <Btn
-            variant="primary"
-            size="compact"
-            disabled={busy !== null || !edit.trim()}
-            onClick={() => {
-              const instruction = edit.trim();
-              setChat((c) => c.concat([{ role: "user", text: instruction }]));
-              setEdit("");
-              run(
-                "edit",
-                () => provider.edit(ctx, instruction),
-                (res) => {
-                  if (res.actions.length === 0) {
-                    setChat((c) => c.concat([{ role: "ai", text: res.unresolved || "Nothing to apply." }]));
-                    return;
-                  }
-                  api.checkpoint();
-                  res.actions.forEach((a) => api.live(a));
-                  setChat((c) => c.concat([{ role: "ai", text: res.summary || "Applied." }]));
-                },
-              );
-            }}
-          >
-            {busy === "edit" ? "Working…" : "Send"}
-          </Btn>
-        </Stack>
-
-        <Stack gap={3}>
-          <SectionLabel>Layout improvements</SectionLabel>
-          <Btn size="compact" disabled={busy !== null} onClick={() => run("propose", () => provider.propose(ctx), setProposals)}>
-            {busy === "propose" ? "Thinking…" : "Propose improvements"}
-          </Btn>
-          {proposals.map((p) => (
-            <Tile key={p.id} className="ak-row">
-              <div className="ak-row__head">
-                <span>{p.title}</span>
-                <Tag type={p.deltas.composite >= 0 ? "green" : "red"} size="sm">
-                  {p.deltas.composite >= 0 ? "+" : ""}
-                  {p.deltas.composite.toFixed(1)} pts
-                </Tag>
-              </div>
-              <div className="ak-row__sub">{p.rationale}</div>
-              <div className="aichat__deltas">
-                <Delta label="flow" value={p.deltas.flowCost} />
-                <Delta label="bal" value={p.deltas.balance} />
-                <Delta label="auto" value={p.deltas.auto} />
-                <Delta label="ergo" value={p.deltas.ergo} />
-                <Tag type="gray" size="sm">
-                  grade {p.after.letter}
-                </Tag>
-              </div>
-              <div className="fk-listrow">
-                <Btn size="compact" className="fk-listrow__main" onClick={() => applyModel(p.model, "Applied: " + p.title)}>
-                  Apply
-                </Btn>
-                <Btn
-                  size="compact"
-                  variant="ghost"
-                  onClick={() => {
-                    saveScenario(p.title, p.model);
-                    toast("Saved variant “" + p.title + "”");
-                  }}
-                >
-                  Save variant
-                </Btn>
-              </div>
-            </Tile>
           ))}
-        </Stack>
+        </div>
+      ) : null}
+      <textarea
+        style={{ minHeight: 40, resize: "vertical" }}
+        placeholder={'Instruct: "make the line a U", "move QA next to Assembly", "automate CNC"'}
+        value={edit}
+        onChange={(e) => setEdit(e.target.value)}
+      />
+      <button
+        className="btn sm"
+        style={{ marginTop: 6, width: "100%" }}
+        disabled={busy !== null || !edit.trim()}
+        onClick={() => {
+          const instruction = edit.trim();
+          setChat((c) => c.concat([{ role: "user", text: instruction }]));
+          setEdit("");
+          run(
+            "edit",
+            () => provider.edit(ctx, instruction),
+            (res) => {
+              if (res.actions.length === 0) {
+                setChat((c) => c.concat([{ role: "ai", text: res.unresolved || "Nothing to apply." }]));
+                return;
+              }
+              api.checkpoint();
+              res.actions.forEach((a) => api.live(a));
+              setChat((c) => c.concat([{ role: "ai", text: res.summary || "Applied." }]));
+            },
+          );
+        }}
+      >
+        {busy === "edit" ? "Working…" : "Send"}
+      </button>
 
-        <Stack gap={3}>
-          <SectionLabel>Goal-driven optimization</SectionLabel>
-          <SelectField
-            id="ai-objective"
-            labelText="Objective"
-            value={goal.objective}
-            onChange={(v) => setGoal({ ...goal, objective: v as GoalObjective })}
-          >
-            {OBJECTIVES.map(([v, l]) => (
-              <SelectItem key={v} value={v} text={l} />
-            ))}
-          </SelectField>
-          <FieldRow>
-            <TextField id="ai-target" labelText="Target" placeholder="e.g. 900" value={goal.target} onChange={(v) => setGoal({ ...goal, target: v })} />
-            <TextField id="ai-budget" labelText="Capex budget" placeholder="none" value={goal.budget} onChange={(v) => setGoal({ ...goal, budget: v })} />
-          </FieldRow>
-          <div className="aichat__opts">
-            <Checkbox id="ai-moves" labelText="Moves" checked={goal.moves} onChange={(_: unknown, { checked }: { checked: boolean }) => setGoal({ ...goal, moves: checked })} />
-            <Checkbox id="ai-parallel" labelText="Parallel lanes" checked={goal.parallel} onChange={(_: unknown, { checked }: { checked: boolean }) => setGoal({ ...goal, parallel: checked })} />
-            <Checkbox id="ai-automate" labelText="Automate" checked={goal.automate} onChange={(_: unknown, { checked }: { checked: boolean }) => setGoal({ ...goal, automate: checked })} />
+      <button
+        className="btn"
+        style={{ width: "100%", borderColor: TEALD, color: TEAL, marginTop: 12 }}
+        disabled={busy !== null}
+        onClick={() => run("propose", () => provider.propose(ctx), setProposals)}
+      >
+        {busy === "propose" ? "Thinking…" : "✨ Propose layout improvements"}
+      </button>
+      {proposals.map((p) => (
+        <div key={p.id} className="card" style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{p.title}</span>
+            <span style={{ color: p.deltas.composite >= 0 ? TEAL : RED, fontSize: "0.75rem" }}>
+              {p.deltas.composite >= 0 ? "+" : ""}
+              {p.deltas.composite.toFixed(1)} pts
+            </span>
           </div>
-          <Btn
-            size="compact"
-            disabled={busy !== null}
-            onClick={() =>
-              run(
-                "goal",
-                () =>
-                  provider.optimizeGoal(ctx, {
-                    objective: goal.objective,
-                    target: goal.target ? +goal.target : undefined,
-                    constraints: {
-                      allowMoves: goal.moves,
-                      allowParallel: goal.parallel,
-                      allowAutomate: goal.automate,
-                      capexBudget: goal.budget ? +goal.budget : undefined,
-                    },
-                  }),
-                setGoalRes,
-              )
-            }
-          >
-            {busy === "goal" ? "Searching…" : "Find a plan"}
-          </Btn>
-          {goalRes ? (
-            <Tile className="ak-row">
-              <div className="ak-row__head">
-                <span>{goalRes.message}</span>
-                <Tag type={goalRes.reached ? "green" : "blue"} size="sm">
-                  {goalRes.reached ? "target met" : "best found"}
-                </Tag>
-              </div>
-              {goalRes.steps.map((s, i) => (
-                <div key={i} className="aichat__step">
-                  <span>
-                    {i + 1}. {s.action}
-                  </span>
-                  <span>{s.metric.toLocaleString()}</span>
-                </div>
-              ))}
-              {goalRes.proposal ? (
-                <Btn size="compact" onClick={() => applyModel(goalRes.proposal!.model, "Applied the plan")}>
-                  Apply plan
-                </Btn>
-              ) : null}
-            </Tile>
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6, lineHeight: 1.5 }}>{p.rationale}</div>
+          <div style={{ marginBottom: 8 }}>
+            <Delta label="flow" value={p.deltas.flowCost} />
+            <Delta label="bal" value={p.deltas.balance} />
+            <Delta label="auto" value={p.deltas.auto} />
+            <Delta label="ergo" value={p.deltas.ergo} />
+            <span className="pill" style={{ background: "rgba(255,255,255,.05)", color: TEXTD }}>
+              grade {p.after.letter}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="btn sm" style={{ flex: 1, borderColor: TEALD, color: TEAL }} onClick={() => applyModel(p.model, "Applied: " + p.title)}>
+              Apply
+            </button>
+            <button className="btn sm" onClick={() => { saveScenario(p.title, p.model); toast("Saved as scenario " + p.title); }}>
+              Save as scenario
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Goal-driven optimization
+      </div>
+      <Field label="Objective">
+        <select value={goal.objective} onChange={(e) => setGoal({ ...goal, objective: e.target.value as GoalObjective })}>
+          {OBJECTIVES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="row2">
+        <Field label="Target (optional)">
+          <input type="number" value={goal.target} placeholder="e.g. 900" onChange={(e) => setGoal({ ...goal, target: e.target.value })} />
+        </Field>
+        <Field label="Capex budget (opt.)">
+          <input type="number" value={goal.budget} placeholder="none" onChange={(e) => setGoal({ ...goal, budget: e.target.value })} />
+        </Field>
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: "0.75rem", marginBottom: 8 }}>
+        <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={goal.moves} onChange={(e) => setGoal({ ...goal, moves: e.target.checked })} /> moves
+        </label>
+        <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={goal.parallel} onChange={(e) => setGoal({ ...goal, parallel: e.target.checked })} /> parallel lanes
+        </label>
+        <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={goal.automate} onChange={(e) => setGoal({ ...goal, automate: e.target.checked })} /> automate
+        </label>
+      </div>
+      <button
+        className="btn sm"
+        style={{ width: "100%" }}
+        disabled={busy !== null}
+        onClick={() =>
+          run(
+            "goal",
+            () =>
+              provider.optimizeGoal(ctx, {
+                objective: goal.objective,
+                target: goal.target ? +goal.target : undefined,
+                constraints: {
+                  allowMoves: goal.moves,
+                  allowParallel: goal.parallel,
+                  allowAutomate: goal.automate,
+                  capexBudget: goal.budget ? +goal.budget : undefined,
+                },
+              }),
+            setGoalRes,
+          )
+        }
+      >
+        {busy === "goal" ? "Searching…" : "Find a plan"}
+      </button>
+      {goalRes ? (
+        <div className="card" style={{ marginTop: 8 }}>
+          <div style={{ fontSize: "0.75rem", marginBottom: 6, color: goalRes.reached ? TEAL : AMBER }}>{goalRes.message}</div>
+          {goalRes.steps.map((s, i) => (
+            <div key={i} style={{ fontSize: "0.75rem", display: "flex", justifyContent: "space-between" }}>
+              <span>
+                {i + 1}. {s.action}
+              </span>
+              <span style={{ color: TEXTD }}>{s.metric.toLocaleString()}</span>
+            </div>
+          ))}
+          {goalRes.proposal ? (
+            <button className="btn sm" style={{ width: "100%", marginTop: 8, borderColor: TEALD, color: TEAL }} onClick={() => applyModel(goalRes.proposal!.model, "Applied the plan")}>
+              Apply plan
+            </button>
           ) : null}
-        </Stack>
+        </div>
+      ) : null}
 
-        <Stack gap={3}>
-          <SectionLabel>Explain the grade</SectionLabel>
-          <Btn
-            size="compact"
-            disabled={busy !== null}
-            onClick={() => run("narrate", () => provider.narrate(ctx), (t) => setChat((c) => c.concat([{ role: "ai", text: t }])))}
-          >
-            {busy === "narrate" ? "Writing…" : "Explain this grade"}
-          </Btn>
-        </Stack>
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Narrate the rating
+      </div>
+      <button className="btn sm" disabled={busy !== null} onClick={() => run("narrate", () => provider.narrate(ctx), (t) => setChat((c) => c.concat([{ role: "ai", text: t }])))}>
+        {busy === "narrate" ? "Writing…" : "Explain this grade"}
+      </button>
 
-        <Stack gap={3}>
-          <SectionLabel>Design a cell from a brief</SectionLabel>
-          <TextAreaField
-            id="ai-design"
-            labelText="Brief"
-            rows={2}
-            placeholder="Raw -> CNC x2 -> Press -> Assembly -> QA -> Ship"
-            value={design}
-            onChange={setDesign}
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Design a cell from a brief
+      </div>
+      <textarea
+        style={{ minHeight: 44, resize: "vertical" }}
+        placeholder={"e.g. Raw -> CNC x2 -> Press -> Assembly -> QA -> Ship"}
+        value={design}
+        onChange={(e) => setDesign(e.target.value)}
+      />
+      <button
+        className="btn sm"
+        style={{ marginTop: 6 }}
+        disabled={busy !== null || !design.trim()}
+        onClick={() => run("design", () => provider.design(design), (model) => { api.addCell(model, "AI-designed cell"); setDesign(""); toast("Designed a new cell"); })}
+      >
+        {busy === "design" ? "Designing…" : "Generate cell"}
+      </button>
+
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        From a photo (vision)
+      </div>
+      {isLlm ? (
+        <>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const rd = new FileReader();
+              rd.onload = () => {
+                const dataUrl = String(rd.result);
+                const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
+                run("vision", () => provider.ingestImage({ data, mediaType: f.type || "image/png" }), (model) => { api.addCell(model, "From image"); toast("Built a new cell from the image"); });
+              };
+              rd.readAsDataURL(f);
+              e.target.value = "";
+            }}
           />
-          <Btn
-            size="compact"
-            disabled={busy !== null || !design.trim()}
-            onClick={() =>
-              run("design", () => provider.design(design), (model) => {
-                api.addCell(model, "AI-designed cell");
-                setDesign("");
-                toast("Designed a new cell");
-              })
-            }
-          >
-            {busy === "design" ? "Designing…" : "Generate cell"}
-          </Btn>
-        </Stack>
+          <button className="btn sm" disabled={busy !== null} onClick={() => fileRef.current?.click()}>
+            {busy === "vision" ? "Reading…" : "Upload a routing sheet / sketch"}
+          </button>
+        </>
+      ) : (
+        <div style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.5 }}>
+          Vision needs an LLM provider (Claude or OpenAI) — add a key in ⚙ Settings to extract a model from a photo.
+        </div>
+      )}
 
-        <Stack gap={3}>
-          <SectionLabel>From a photo</SectionLabel>
-          {isLlm ? (
-            <>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  const rd = new FileReader();
-                  rd.onload = () => {
-                    const dataUrl = String(rd.result);
-                    const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
-                    run("vision", () => provider.ingestImage({ data, mediaType: f.type || "image/png" }), (model) => {
-                      api.addCell(model, "From image");
-                      toast("Built a new cell from the image");
-                    });
-                  };
-                  rd.readAsDataURL(f);
-                  e.target.value = "";
-                }}
-              />
-              <Btn size="compact" disabled={busy !== null} onClick={() => fileRef.current?.click()}>
-                {busy === "vision" ? "Reading…" : "Upload a routing sheet or sketch"}
-              </Btn>
-            </>
-          ) : (
-            <Footnote>Needs an LLM provider — add a Claude or OpenAI key in settings.</Footnote>
-          )}
-        </Stack>
-
-        <Stack gap={3}>
-          <SectionLabel>Ingest a routing sheet</SectionLabel>
-          <TextAreaField
-            id="ai-ingest"
-            labelText="CSV"
-            rows={3}
-            placeholder={"name, cycle, operators, capacity, to\nCNC, 42, 1, 1300, Press"}
-            value={ingest}
-            onChange={setIngest}
-          />
-          <Btn
-            size="compact"
-            disabled={busy !== null || !ingest.trim()}
-            onClick={() =>
-              run("ingest", () => provider.ingest(ingest), (model) => {
-                api.addCell(model, "Imported routing");
-                setIngest("");
-                toast("Built a new cell from the routing sheet");
-              })
-            }
-          >
-            {busy === "ingest" ? "Parsing…" : "Build model from text"}
-          </Btn>
-        </Stack>
-      </Stack>
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Ingest a routing sheet (CSV)
+      </div>
+      <textarea
+        style={{ minHeight: 56, resize: "vertical" }}
+        placeholder={"name, cycle, operators, capacity, to\nRaw, 0, 0, 2000, CNC\nCNC, 42, 1, 1300, Press"}
+        value={ingest}
+        onChange={(e) => setIngest(e.target.value)}
+      />
+      <button
+        className="btn sm"
+        style={{ marginTop: 6 }}
+        disabled={busy !== null || !ingest.trim()}
+        onClick={() => run("ingest", () => provider.ingest(ingest), (model) => { api.addCell(model, "Imported routing"); setIngest(""); toast("Built a new cell from the routing sheet"); })}
+      >
+        {busy === "ingest" ? "Parsing…" : "Build model from text"}
+      </button>
     </div>
   );
 }

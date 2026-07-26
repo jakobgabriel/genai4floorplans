@@ -1,18 +1,34 @@
 import type { Model } from "@flowplan/core/model/types";
-import type { Cell, Folder, Workspace } from "../workspace";
+import { wrapLooseCells, type Cell, type Concept, type Folder, type Workspace } from "../workspace";
 import type { ScenarioMeta } from "../scenarios";
 import type { StorageProvider } from "./StorageProvider";
 
 export type FetchLike = typeof fetch;
 
+/** Thrown when a save is rejected because the workspace changed on the server
+ *  since it was loaded (HTTP 409). The store catches this to reload + notify. */
+export class ConflictError extends Error {
+  constructor(message = "The workspace changed elsewhere.") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 // Cloud provider: maps each StorageProvider method to the REST API. Bound to one
 // server Workspace id; the session cookie carries auth (credentials: "include").
 // A FetchLike is injectable for tests.
 export class ApiStorageProvider implements StorageProvider {
+  // Optimistic-concurrency token: set from the last load/save, sent back on the
+  // next save so the server can reject a write that raced a concurrent edit.
+  private version: number | null = null;
   constructor(
     private readonly workspaceId: string,
     private readonly baseUrl = "/api",
-    private readonly fetchImpl: FetchLike = fetch,
+    // Default to a window-bound wrapper: the browser's `fetch` throws "Illegal
+    // invocation" if called as a method (`this.fetchImpl(...)`) because it needs
+    // `this === window`. Storing the bare `fetch` reference here silently broke
+    // every workspace load/save and forced the app into offline localStorage.
+    private readonly fetchImpl: FetchLike = (input, init) => fetch(input, init),
   ) {}
 
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -22,6 +38,7 @@ export class ApiStorageProvider implements StorageProvider {
       credentials: "include",
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    if (res.status === 409) throw new ConflictError();
     if (!res.ok) throw new Error(`API ${method} ${path} failed: ${res.status}`);
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
@@ -33,25 +50,41 @@ export class ApiStorageProvider implements StorageProvider {
         id: string;
         name: string;
         activeId: string | null;
-        folders: Folder[];
-        cells: { id: string; name: string; model: Model; folderId: string | null }[];
+        version?: number;
+        folders: (Folder & { archived?: boolean })[];
+        concepts?: (Concept & { archived?: boolean })[];
+        cells: { id: string; name: string; model: Model; folderId: string | null; conceptId?: string | null; archived?: boolean }[];
       };
     }>("GET", `/workspaces/${this.workspaceId}`);
-    const cells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null }));
-    return { cells, folders: workspace.folders ?? [], activeId: workspace.activeId ?? cells[0]?.id ?? "" };
+    this.version = workspace.version ?? null;
+    const migratedCells: Cell[] = workspace.cells.map((c) => ({ id: c.id, name: c.name, model: c.model, folderId: c.folderId ?? null, conceptId: c.conceptId ?? null, archived: c.archived }));
+    // Wrap any loose layouts into concepts so the tree always has a concept level.
+    const { cells, concepts } = wrapLooseCells(migratedCells, workspace.concepts ?? []);
+    const activeId = cells.find((c) => c.id === workspace.activeId && !c.archived)?.id ?? cells.find((c) => !c.archived)?.id ?? cells[0]?.id ?? "";
+    return { cells, concepts, folders: workspace.folders ?? [], activeId };
   }
 
-  // The whole-workspace save is decomposed into per-cell saves + an activeId patch;
-  // the autosave path prefers saveCell() directly to avoid write amplification.
+  // One bulk reconcile of the whole Folder>Concept>Layout tree — the server
+  // upserts everything by id (archived flag included, so the Archive round-trips)
+  // and deletes what's gone. This is the DB-backed client's single save path, so
+  // create/move/delete/archive of any node persists.
   async saveWorkspace(ws: Workspace): Promise<void> {
-    await Promise.all(ws.cells.map((c) => this.saveCell(c)));
-    await this.req("PATCH", `/workspaces/${this.workspaceId}`, { activeId: ws.activeId });
+    const { version } = await this.req<{ ok: boolean; version: number | null }>("PUT", `/workspaces/${this.workspaceId}/tree`, {
+      activeId: ws.activeId,
+      // Sent only when we know it; the server guards the write against it and
+      // returns the bumped value so the next save carries the fresh token.
+      baseVersion: this.version ?? undefined,
+      folders: ws.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId, position: f.position, archived: !!f.archived })),
+      concepts: ws.concepts.map((c) => ({ id: c.id, name: c.name, folderId: c.folderId, position: c.position, archived: !!c.archived })),
+      cells: ws.cells.map((c) => ({ id: c.id, name: c.name, conceptId: c.conceptId, folderId: c.folderId, position: 0, archived: !!c.archived, model: c.model })),
+    });
+    this.version = version ?? this.version;
   }
   async saveCell(cell: Cell): Promise<void> {
     await this.req("PUT", `/cells/${cell.id}`, { model: cell.model });
   }
   async createCell(cell: Cell): Promise<Cell> {
-    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId });
+    const { cell: created } = await this.req<{ cell: Cell }>("POST", `/workspaces/${this.workspaceId}/cells`, { name: cell.name, model: cell.model, folderId: cell.folderId, conceptId: cell.conceptId });
     return created;
   }
   async renameCell(id: string, name: string): Promise<void> {
@@ -60,8 +93,21 @@ export class ApiStorageProvider implements StorageProvider {
   async deleteCell(id: string): Promise<void> {
     await this.req("DELETE", `/cells/${id}`);
   }
-  async moveCell(id: string, folderId: string | null): Promise<void> {
-    await this.req("PATCH", `/cells/${id}`, { folderId });
+  async moveCell(id: string, conceptId: string | null): Promise<void> {
+    await this.req("PATCH", `/cells/${id}`, { conceptId });
+  }
+  async createConcept(concept: Concept): Promise<Concept> {
+    const { concept: created } = await this.req<{ concept: Concept }>("POST", `/workspaces/${this.workspaceId}/concepts`, { name: concept.name, folderId: concept.folderId });
+    return created;
+  }
+  async renameConcept(id: string, name: string): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { name });
+  }
+  async moveConcept(id: string, folderId: string | null, position?: number): Promise<void> {
+    await this.req("PATCH", `/concepts/${id}`, { folderId, position });
+  }
+  async deleteConcept(id: string): Promise<void> {
+    await this.req("DELETE", `/concepts/${id}`);
   }
   async listScenarios(): Promise<ScenarioMeta[]> {
     const { scenarios } = await this.req<{ scenarios: { name: string; savedAt: string; folderId: string | null }[] }>("GET", `/workspaces/${this.workspaceId}/scenarios`);

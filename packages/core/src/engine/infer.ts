@@ -1,4 +1,5 @@
-import type { ErgonomicLoad, WasteClass, WorkClass, WorkElement } from "../model/types";
+import type { Confidence, CycleBreakdown, ErgonomicLoad, TimeMethod, WasteClass, WorkClass, WorkElement } from "../model/types";
+import { sumCycle } from "../model/types";
 
 // Input inference (spec §13.2 "zero-friction entry", risk §11.2).
 //
@@ -18,10 +19,6 @@ import type { ErgonomicLoad, WasteClass, WorkClass, WorkElement } from "../model
 export interface CapabilityHint {
   /** Capability id the keyword maps to. */
   capabilityId: string;
-  /** What a planner calls it. Names the seeded process-library entry, so the
-   *  catalog behind inference and the catalog a planner picks from stay one
-   *  list rather than two that drift. */
-  label: string;
   category: "join" | "form" | "cut" | "inspect" | "handle" | "mark" | "test" | "transport" | "surface";
   classification: WorkClass;
   wasteClass?: WasteClass;
@@ -41,11 +38,6 @@ export interface CapabilityHint {
 export const CAPABILITY_HINTS: CapabilityHint[] = [
   {
     capabilityId: "cut.machining",
-    // Not "Machining": the keyword list has the operations, not the family, so
-    // a step named "Machining" matches nothing and classifies as unknown. Every
-    // label here has to be a name this catalog can recognise back — see the
-    // round-trip test in model/library.test.ts.
-    label: "CNC machining",
     category: "cut",
     classification: "VA",
     attendedFraction: 0.2,
@@ -55,7 +47,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "form.press",
-    label: "Press",
     category: "form",
     classification: "VA",
     attendedFraction: 0.3,
@@ -65,7 +56,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "join.weld",
-    label: "Weld",
     category: "join",
     classification: "VA",
     attendedFraction: 0.6,
@@ -75,7 +65,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "join.assemble",
-    label: "Assembly",
     category: "join",
     classification: "VA",
     attendedFraction: 1,
@@ -85,7 +74,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "inspect.visual",
-    label: "Visual inspection",
     category: "inspect",
     classification: "NNVA",
     attendedFraction: 1,
@@ -95,7 +83,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "test.function",
-    label: "Function test",
     category: "test",
     classification: "NNVA",
     attendedFraction: 0.4,
@@ -105,7 +92,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "surface.finish",
-    label: "Deburr / clean",
     category: "surface",
     classification: "NNVA",
     attendedFraction: 0.7,
@@ -115,7 +101,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "mark.identify",
-    label: "Marking",
     category: "mark",
     classification: "NNVA",
     attendedFraction: 0.5,
@@ -125,7 +110,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "handle.load",
-    label: "Load / unload",
     category: "handle",
     classification: "NNVA",
     attendedFraction: 1,
@@ -135,7 +119,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "handle.pack",
-    label: "Pack",
     category: "handle",
     classification: "NNVA",
     attendedFraction: 1,
@@ -145,7 +128,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "transport.move",
-    label: "Transport",
     category: "transport",
     classification: "NVA",
     wasteClass: "transport",
@@ -156,7 +138,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
   },
   {
     capabilityId: "wait.queue",
-    label: "Wait / buffer",
     category: "handle",
     classification: "NVA",
     wasteClass: "waiting",
@@ -170,7 +151,6 @@ export const CAPABILITY_HINTS: CapabilityHint[] = [
 /** Fallback when no keyword matches — deliberately unopinionated. */
 export const UNKNOWN_HINT: CapabilityHint = {
   capabilityId: "unknown",
-  label: "Unspecified step",
   category: "handle",
   classification: "VA",
   attendedFraction: 1,
@@ -209,6 +189,28 @@ export interface RawStep {
   name: string;
   /** Omit to have it inferred from the matched capability. */
   seconds?: number;
+  // ---- optional explicit overrides ----------------------------------------
+  // When the planner has supplied a field it is used verbatim instead of the
+  // keyword guess, and its inference note is dropped (it is no longer a guess).
+  // Absent fields fall back to inference, so the minimal paste path is unchanged.
+  /** Capability id, chosen from the catalog rather than matched from the name. */
+  capabilityId?: string;
+  classification?: WorkClass;
+  wasteClass?: WasteClass;
+  /** 0–1 operator binding. */
+  attendedFraction?: number;
+  ergonomicLoad?: ErgonomicLoad;
+  /** How the time was obtained, and how much to trust it. */
+  timeMethod?: TimeMethod;
+  confidence?: Confidence;
+  /** Predecessors as 0-based indices into the step list. Absent ⇒ linear chain. */
+  predecessors?: number[];
+  /** Per-part value-add / NVA split. When present, seconds = its sum. */
+  cycle?: CycleBreakdown;
+  /** Fraction of parts scrapped at this step (0–1). Absent ⇒ 0. */
+  scrapRate?: number;
+  /** Parts processed together in one cycle (multi-cavity). Absent ⇒ 1. */
+  partsPerCycle?: number;
 }
 
 export type InferredField = "capability" | "time" | "classification" | "attendedFraction" | "ergonomics" | "precedence";
@@ -248,41 +250,59 @@ export function inferWorkload(steps: RawStep[]): InferenceResult {
     const name = step.name.trim() || `Step ${i + 1}`;
     const hint = matchHint(name);
     const h = hint ?? UNKNOWN_HINT;
-    if (hint) matched++;
+    // An explicitly-chosen capability counts as resolved, matched or not.
+    if (hint || step.capabilityId) matched++;
     else unmatched.push(name);
 
-    const seconds = step.seconds != null && step.seconds > 0 ? step.seconds : h.defaultSeconds;
+    // A supplied cycle decomposition is authoritative for the duration.
+    const cycleSum = step.cycle ? +sumCycle(step.cycle).toFixed(1) : undefined;
+    const typedSeconds = cycleSum != null ? cycleSum : step.seconds != null && step.seconds > 0 ? step.seconds : undefined;
+    const seconds = typedSeconds != null ? typedSeconds : h.defaultSeconds;
+
+    // Resolve each field to the override when given, else the keyword guess.
+    const capabilityId = step.capabilityId ?? (hint ? h.capabilityId : undefined);
+    const classification = step.classification ?? h.classification;
+    const wasteClass = step.wasteClass ?? (classification === h.classification ? h.wasteClass : undefined);
+    const attendedFraction = step.attendedFraction ?? h.attendedFraction;
+    const ergonomicLoad = step.ergonomicLoad ?? h.ergonomicLoad;
+    const predecessors = step.predecessors
+      ? step.predecessors.filter((p) => p >= 0 && p < i).map((p) => "we" + (p + 1))
+      : i > 0
+        ? ["we" + i]
+        : [];
 
     const note = (field: InferredField, value: string, why: string) =>
       notes.push({ elementId: id, elementName: name, field, value, why });
 
-    if (hint) note("capability", h.capabilityId, `matched on the step name`);
-    else note("capability", "unknown", `no keyword matched — capability unresolved`);
-
-    if (step.seconds == null || step.seconds <= 0) {
-      note("time", `${seconds}s`, `no time given; typical for ${h.capabilityId}`);
+    // Note only the fields that were actually inferred (not overridden).
+    if (step.capabilityId == null) {
+      if (hint) note("capability", h.capabilityId, `matched on the step name`);
+      else note("capability", "unknown", `no keyword matched — capability unresolved`);
     }
-    note("classification", h.classification + (h.wasteClass ? ` / ${h.wasteClass}` : ""), `typical for ${h.capabilityId}`);
-    note("attendedFraction", String(h.attendedFraction), `typical operator binding for ${h.capabilityId}`);
-    note("ergonomics", h.ergonomicLoad, `typical for ${h.capabilityId}`);
-    if (i > 0) note("precedence", `after we${i}`, `assumed linear — edit if steps can run in parallel`);
+    if (typedSeconds == null) note("time", `${seconds}s`, `no time given; typical for ${h.capabilityId}`);
+    if (step.classification == null) note("classification", classification + (wasteClass ? ` / ${wasteClass}` : ""), `typical for ${h.capabilityId}`);
+    if (step.attendedFraction == null) note("attendedFraction", String(attendedFraction), `typical operator binding for ${h.capabilityId}`);
+    if (step.ergonomicLoad == null) note("ergonomics", ergonomicLoad, `typical for ${h.capabilityId}`);
+    if (step.predecessors == null && i > 0) note("precedence", `after we${i}`, `assumed linear — edit if steps can run in parallel`);
 
     return {
       id,
       name,
-      capabilityId: hint ? h.capabilityId : undefined,
-      predecessors: i > 0 ? ["we" + i] : [],
+      capabilityId,
+      predecessors,
       time: {
         seconds,
-        method: "estimate",
+        method: step.timeMethod ?? "estimate",
         // A time the planner typed is still an estimate, but a better one than
-        // a catalog default.
-        confidence: step.seconds != null && step.seconds > 0 ? "med" : "low",
+        // a catalog default. An explicit confidence override wins.
+        confidence: step.confidence ?? (typedSeconds != null ? "med" : "low"),
       },
-      classification: h.classification,
-      wasteClass: h.wasteClass,
-      attendedFraction: h.attendedFraction,
-      ergonomicLoad: h.ergonomicLoad,
+      classification,
+      wasteClass,
+      attendedFraction,
+      ergonomicLoad,
+      scrapRate: step.scrapRate && step.scrapRate > 0 ? step.scrapRate : undefined,
+      partsPerCycle: step.partsPerCycle && step.partsPerCycle > 1 ? Math.floor(step.partsPerCycle) : undefined,
     };
   });
 

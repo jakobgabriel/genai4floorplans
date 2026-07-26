@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
-import { fromCapabilities } from "@flowplan/core/model/library";
-import { CAPABILITY_HINTS } from "@flowplan/core/engine/infer";
+import { USE_CASES } from "./usecases";
 
 function renderApp() {
   render(
@@ -14,30 +13,11 @@ function renderApp() {
   );
 }
 
-/** The library starts empty and nothing is seeded, so a test that needs one
- *  puts it there — the same import the empty state offers. */
-function seedLibrary() {
-  const processes = fromCapabilities(CAPABILITY_HINTS, (i) => "lib_" + i);
-  localStorage.setItem("flowplan_library", JSON.stringify({ processes, tags: [] }));
-}
-
-/** The inputs of one part row: part number, routing, then one per program year. */
-function row(i: number): HTMLInputElement[] {
-  return [...[...document.querySelectorAll("tbody tr")][i].querySelectorAll("input")] as HTMLInputElement[];
-}
-
-/** Give the seeded row a routing and a demand — the precondition for Continue. */
-function fillFirstPart(routing = "Load 5 > Press 10", year1 = "1000") {
-  const cells = row(0);
-  fireEvent.change(cells[1], { target: { value: routing } });
-  fireEvent.change(cells[2], { target: { value: year1 } });
-}
-
-/** Walk the guided flow from the start screen to the concepts stage. */
+/** Walk the guided flow to the concepts step. */
 function toConcepts() {
-  fireEvent.click(screen.getByText("Plan a cell"));
-  fillFirstPart();
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByText("Plan a new process"));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" })); // demand
+  fireEvent.click(screen.getByRole("button", { name: "Continue" })); // process
 }
 
 beforeEach(() => {
@@ -49,161 +29,84 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("planner — entry", () => {
-  it("opens on the two things you can do, not on a rating", () => {
+  it("opens on the use case question, not on a rating", () => {
     renderApp();
-    expect(screen.getByText("Plan a cell")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
     expect(screen.queryByText("Actual-state rating")).toBeNull();
-    // No stepper before there is anything to step through.
-    expect(screen.queryByText("Parts & demand")).toBeNull();
+  });
+
+  it("offers every lifecycle case and states what each needs", () => {
+    renderApp();
+    USE_CASES.forEach((u) => expect(screen.getByText(u.label)).toBeTruthy());
+    expect(screen.getAllByText(/You need:/).length).toBe(USE_CASES.length);
+  });
+
+  it("marks unbuilt and partial cases honestly instead of hiding them", () => {
+    renderApp();
+    expect(screen.getByText("Not built")).toBeTruthy();
+    expect(screen.getByText("Partial")).toBeTruthy();
+    expect(screen.getByText(/needs time-series storage/)).toBeTruthy();
   });
 
   it("keeps direct entry points for people who don't want the guided path", () => {
     renderApp();
-    expect(screen.getByText("See an example")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start from the sample cell" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start blank" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Import a JSON model" })).toBeTruthy();
   });
 
-  it("states what is not implemented rather than offering it as a choice", () => {
+  it("sends an existing-model case straight to the Refine stage", () => {
     renderApp();
-    expect(screen.getByText(/Serial-production monitoring is not implemented/)).toBeTruthy();
-  });
-
-  it("opens the sample cell straight into the editor", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
-    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
-  });
-});
-
-describe("planner — parts & demand", () => {
-  it("asks for the parts first, with one row already there to fill in", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    expect(screen.getByRole("heading", { name: "Parts & demand" })).toBeTruthy();
-    // The matrix is the input, not an opt-in: a row is present on arrival.
-    expect(screen.getByDisplayValue("PN-001")).toBeTruthy();
-  });
-
-  it("blocks Continue until a part carries both a routing and a demand", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    const cont = () => screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
-    expect(cont().disabled).toBe(true);
-
-    fireEvent.change(row(0)[1], { target: { value: "Load 5 > Press 10" } });
-    expect(cont().disabled).toBe(true); // routing but no demand
-
-    fireEvent.change(row(0)[2], { target: { value: "1000" } });
-    expect(cont().disabled).toBe(false);
-  });
-
-  it("derives the sizing volume, the program and the mix from the parts", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-
-    // Part 1: presses, ramping to a peak in year 2.
-    fireEvent.change(screen.getByDisplayValue("PN-001"), { target: { value: "A" } });
-    fireEvent.change(row(0)[1], { target: { value: "Load 5 > Press 10" } });
-    fireEvent.change(row(0)[2], { target: { value: "1000" } });
-    fireEvent.change(row(0)[3], { target: { value: "4000" } });
-
-    // Part 2: welds instead — a different work content, so a second mix.
-    fireEvent.click(screen.getByRole("button", { name: "Add a part" }));
-    fireEvent.change(screen.getByDisplayValue("PN-002"), { target: { value: "B" } });
-    fireEvent.change(row(1)[1], { target: { value: "Load 5 > Weld 20" } });
-    fireEvent.change(row(1)[2], { target: { value: "1000" } });
-
-    // Sized against year 2 (4000), not year 1 and not an average.
-    expect(screen.getByText("Sized for")).toBeTruthy();
-    expect(screen.getByText("4,000")).toBeTruthy();
-    // Program counts every part and every year: 1000 + 4000 + 1000.
-    expect(screen.getByText("6,000")).toBeTruthy();
-    expect(screen.getByText("Distinct mixes")).toBeTruthy();
-  });
-
-  it("shows the union routing and what was inferred from it, without a Process step", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    fillFirstPart("Load 5 > Press 10 > Weld 20");
-    // What the old Process step previewed now reads under the parts that produced it.
-    expect(screen.getByText(/3 steps · 35s total work content/)).toBeTruthy();
-    expect(screen.getByLabelText("Inferred work elements")).toBeTruthy();
-    expect(screen.getByText("Inferred fields")).toBeTruthy();
-  });
-
-  it("adds and removes demand years from the table itself, past the old cap of ten", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    const yearCols = () => document.querySelectorAll("thead th.parts__num").length;
-    expect(yearCols()).toBe(5);
-
-    const more = screen.getByRole("button", { name: /One year more/ });
-    for (let i = 0; i < 8; i++) fireEvent.click(more);
-    // The column count used to be min(years, 10), so 13 years showed 10 and the
-    // last three could not be entered at all.
-    expect(yearCols()).toBe(13);
-    expect(screen.getByText("13 program years")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /One year fewer/ }));
-    expect(yearCols()).toBe(12);
-  });
-
-  it("counts demand in every year it shows, and only those", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    fireEvent.change(row(0)[1], { target: { value: "Press 10" } });
-    fireEvent.change(row(0)[2], { target: { value: "1000" } });
-    fireEvent.change(row(0)[6], { target: { value: "9000" } }); // year 5
-
-    expect(screen.getByText("10,000")).toBeTruthy(); // program total
-    // Shortening the program drops the years it hides rather than letting them
-    // keep counting toward the volume that amortises capex.
-    fireEvent.click(screen.getByRole("button", { name: /One year fewer/ }));
-    expect(screen.queryByText("10,000")).toBeNull();
-    // Peak and program are both the surviving year's 1,000.
-    expect(screen.getAllByText("1,000").length).toBe(2);
-  });
-
-  it("says so, rather than showing an empty list, when the library has nothing in it", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
-    const pick = document.querySelector(".parts__picker") as HTMLElement;
-    expect(within(pick).getByText(/library is empty/)).toBeTruthy();
-    expect(within(pick).getByRole("button", { name: "Open the library" })).toBeTruthy();
-  });
-
-  it("builds a routing from the process library instead of typing it", () => {
-    seedLibrary();
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
-
-    const pick = document.querySelector(".parts__picker") as HTMLElement;
-    fireEvent.click(within(pick).getByRole("button", { name: /Add — Load \/ unload/ }));
-    expect(row(0)[1].value).toBe("Load / unload 15");
-
-    fireEvent.click(within(pick).getByRole("button", { name: /Add — Press/ }));
-    expect(row(0)[1].value).toBe("Load / unload 15 > Press 30");
-
-    fireEvent.click(within(pick).getByRole("button", { name: "Done" }));
-    expect(document.querySelector(".parts__picker")).toBeNull();
-  });
-
-  it("Back from the first stage returns to the start screen", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("Plan a cell"));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("Plan a cell")).toBeTruthy();
+    fireEvent.click(screen.getByText("Improve a planned cell"));
+    // Skips demand/process/concepts entirely — that case already has a layout.
+    // The editor (inputs-only rail) is shown; the view toggle is always present.
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
   });
 });
 
 describe("planner — guided flow", () => {
+  it("asks only demand questions first, and derives takt live", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    expect(screen.getByText("How many, and for how long?")).toBeTruthy();
+    // 250,000 / 460 shifts = 543/shift; 8h shift => 53.0s takt
+    expect(screen.getByText("543/shift")).toBeTruthy();
+    expect(screen.getByText("53.0s")).toBeTruthy();
+    expect(screen.getByText("1,250,000 parts")).toBeTruthy();
+  });
+
+  it("recomputes the derived figures when volume changes", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    fireEvent.change(screen.getByLabelText("Annual volume (good parts)"), { target: { value: "92000" } });
+    expect(screen.getByText("200/shift")).toBeTruthy();
+  });
+
+  it("presents the seeded steps as an editable, data-model-faithful table", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" })); // → process
+    expect(screen.getByText("What are the process steps?")).toBeTruthy();
+    // The five seeded steps are editable text fields, not a paste box.
+    expect(screen.getByDisplayValue("Weld")).toBeTruthy();
+    expect(screen.getByDisplayValue("Leak test")).toBeTruthy();
+    // A live rollup reports content and how much is still inferred.
+    expect(screen.getByText(/5 steps · .*s total work content · .*value-add/)).toBeTruthy();
+  });
+
+  it("adds a step and lets you pin its cycle time", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" })); // → process
+    fireEvent.click(screen.getByRole("button", { name: /Add a step/ }));
+    expect(screen.getByText(/6 steps/)).toBeTruthy();
+    // Continue stays enabled — there are steps.
+    expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("ranks concepts by fully loaded cost, showing the capex split", () => {
     renderApp();
     toConcepts();
-    expect(screen.getByText("Concept comparison")).toBeTruthy();
+    expect(screen.getByText("Which concept?")).toBeTruthy();
     expect(screen.getByText(/fully\s+loaded/)).toBeTruthy();
     // Each row breaks the number into operating + amortised capex.
     expect(screen.getAllByText(/run \+ .* capex/).length).toBeGreaterThan(3);
@@ -221,10 +124,9 @@ describe("planner — guided flow", () => {
     toConcepts();
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor is a stage of the process, not a separate destination.
-    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
-    // ...and the process stepper is still present around it.
-    expect(screen.getByText("Refine")).toBeTruthy();
-    expect(screen.getByText("Summary")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
+    // ...with a forward exit to the Summary.
+    expect(screen.getByRole("button", { name: "Continue to summary" })).toBeTruthy();
   });
 
   it("reaches the Summary stage after refining", () => {
@@ -233,26 +135,28 @@ describe("planner — guided flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
     // The editor has a forward exit, not just an entrance.
     fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
-    expect(screen.getByText("Planning estimate")).toBeTruthy();
-    expect(screen.getByText("Loaded cost/part")).toBeTruthy();
+    expect(screen.getByText("This is a starting point, not a plan")).toBeTruthy();
+    // The decision one-pager: the headline figure, the head-to-head, and the
+    // forward action to keep working the layout.
+    expect(screen.getByText("Loaded cost / part")).toBeTruthy();
+    expect(screen.getByText(/Why this concept/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Refine the layout" })).toBeTruthy();
   });
 
-  it("keeps the stepper available from inside the editor", () => {
+  it("Back from the first step returns to the use case picker", () => {
     renderApp();
-    fireEvent.click(screen.getByText("See an example"));
-    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
-    // Every earlier stage is reachable again from the stepper.
-    fireEvent.click(screen.getByText("Parts & demand"));
-    expect(screen.getByRole("heading", { name: "Parts & demand" })).toBeTruthy();
+    fireEvent.click(screen.getByText("Plan a new process"));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "What are you planning?" })).toBeTruthy();
   });
 
-  it("runs in four stages, not six", () => {
+  it("runs the editor full-screen, without the planning stepper", () => {
     renderApp();
-    fireEvent.click(screen.getByText("See an example"));
-    ["Parts & demand", "Concepts", "Refine", "Summary"].forEach((s) =>
-      expect(screen.getByText(s)).toBeTruthy(),
-    );
-    expect(screen.queryByText("Situation")).toBeNull();
-    expect(screen.queryByText("Process")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Start from the sample cell" }));
+    expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy();
+    // The node-RED editor is chromeless: the planning stepper is hidden so the
+    // canvas fills the viewport between the two rails.
+    expect(document.querySelector(".shell__steps")).toBeNull();
+    expect(document.querySelector(".shell--editor")).toBeTruthy();
   });
 });

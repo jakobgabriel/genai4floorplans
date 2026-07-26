@@ -1,9 +1,8 @@
 import { Modal } from "@carbon/react";
 
-// An in-app confirmation dialog. Carbon's Modal is the container: it traps
-// focus, closes on Escape / backdrop / the X, and carries the right ARIA — the
-// hand-rolled overlay it replaced did none of that, and Delete/Escape leaked
-// through to the canvas behind it.
+// An in-app confirmation modal — Carbon Modal (danger variant for destructive
+// actions). Replaces window.confirm and the old hand-rolled .overlay/.modal so
+// focus trap, Esc-to-close and the button geometry all come from Carbon.
 export function ConfirmDialog({
   title,
   message,
@@ -22,7 +21,6 @@ export function ConfirmDialog({
   return (
     <Modal
       open
-      size="sm"
       danger={danger}
       modalHeading={title}
       primaryButtonText={confirmLabel}

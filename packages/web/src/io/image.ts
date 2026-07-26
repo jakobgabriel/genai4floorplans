@@ -1,5 +1,6 @@
 import { triggerDownload } from "./download";
-import { EXPORT_BG as BG } from "../components/colors";
+
+const BG = "#141d20";
 
 /** Grab the live layout SVG (e.g. label "ACTUAL") and return standalone markup. */
 export function serializeLayout(label: string): { svg: string; width: number; height: number } | null {

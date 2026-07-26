@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": ["../packages/core/src"],
+  "entryPointStrategy": "expand",
+  "exclude": ["**/*.test.ts", "**/parked/**"],
+  "tsconfig": "../packages/core/tsconfig.json",
+  "out": "../docs/api/core",
+  "name": "Core — @flowplan/core (engine, model, store)",
+  "readme": "none",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "entryFileName": "index",
+  "skipErrorChecking": true
+}

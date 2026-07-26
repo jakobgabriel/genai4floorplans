@@ -164,22 +164,6 @@ The work here is 70% reference-data curation, 30% code.
 
 ### 2.1 Process capability library
 
-> **A first slice shipped.** `packages/core/src/model/library.ts` plus the
-> Processes tab of the editor drawer give a planner an editable, persisted
-> catalog of process steps — name, cycle, work class, attended fraction, station
-> type, changeover, capex, power — seeded from the inference engine's
-> `CAPABILITY_HINTS` so the catalog behind inference and the catalog a planner
-> picks from are one list. It is used at the two points that used to demand
-> retyping: building a part's routing on the Parts & demand step, and adding a
-> station in the editor.
->
-> What is **not** built is the half this section is mostly about: feasibility.
-> There is no `producesFeatures`, no `materials`, no `toleranceMinMm`, no
-> `massRangeKg`, no `requiresBefore` — so nothing can yet answer "can this
-> process make this feature in this material". The shipped slice is the
-> economics-and-defaults half, and it is per-browser (localStorage), not
-> per-team. The design below still stands for the rest.
-
 New module `packages/core/src/process/`.
 
 ```ts
@@ -771,7 +755,7 @@ any one of them: the tool learns your plant.
 | **P2** | Handling + ergo + walk time (§4.2–4.4) | Case 3 complete | No |
 | **P3** | Observed layer + variance/OEE (§5.1–5.3) | Case 4 | No |
 | **P4** | Appraisal + decision matrix (§3) | Case 2 | Yes (`Decision`) |
-| **P5** ◐ | Process capability library (§2) — **editable catalog shipped; feasibility matching and per-team storage not** | Case 1 | Yes (team library) |
+| **P5** | Process capability library (§2) | Case 1 | Yes (team library) |
 | **P6** | Monitoring app (§6) | Case 5 | Yes (time series) |
 
 Rationale for the ordering: **P0 first** because it is small, self-contained, and

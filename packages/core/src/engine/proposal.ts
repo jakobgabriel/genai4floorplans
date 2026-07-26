@@ -57,6 +57,11 @@ export interface PlacementProposal {
 
 let pid = 0;
 
+/** Reset the id counter. Tests only — ids are otherwise monotonic per session. */
+export function resetProposalIds(): void {
+  pid = 0;
+}
+
 function flowCostOf(model: Model, stations: Station[]): number {
   return computeKPIs(stations, model.flows, model).flowCost;
 }

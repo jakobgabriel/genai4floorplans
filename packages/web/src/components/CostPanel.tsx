@@ -1,19 +1,13 @@
-import { ClickableTile, NumberInput, Stack, Tag } from "@carbon/react";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { DEFAULT_COST_CONFIG } from "@flowplan/core/model/types";
-import type { Tab } from "./panels";
-import type { FlowPlanApi } from "../store/useFlowPlan";
-import { Footnote, MetricTile, SectionLabel } from "./analysisKit";
+import { ClickableTile, NumberInput, Tile } from "@carbon/react";
+import { HelpPopover } from "./ui";
+import type { PanelProps } from "./panels";
+import { AMBER, RED, TEAL, TEXTD, scoreColor } from "./colors";
 
 // Cost & ROI panel. Informational — reuses costAnalysis (which reuses the flow
 // and balance engines). Not part of the composite grade.
-//
-// Standardized on Carbon components (Tile / Tag / NumberInput); status rides on
-// Carbon's Tag palette only, no bespoke cost-colour thresholds.
-const verdictTag = (v: string): "green" | "blue" | "red" => (v === "Automate" ? "green" : v === "Consider" ? "blue" : "red");
-
-/** Stage 6 of the analysis path: what a part costs, and what automation buys. */
-export function CostSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+export function CostPanel({ api, setSel, setTab }: PanelProps) {
   const c = costAnalysis(api.model);
   const cc = api.model.costConfig ?? {};
   const cfg = {
@@ -22,87 +16,102 @@ export function CostSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel:
   };
   const cur = c.currency;
   const money = (n: number) => cur + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const kv = (k: string, v: string) => (
-    <div className="ak-kv" key={k}>
-      <span className="ak-kv__k">{k}</span>
-      <span className="ak-kv__v">{v}</span>
+  const row = (k: string, v: string) => (
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 3 }}>
+      <span style={{ color: TEXTD }}>{k}</span>
+      <span>{v}</span>
     </div>
   );
   return (
-      <Stack gap={6}>
-        <Stack gap={4}>
-          <SectionLabel>Cost &amp; ROI</SectionLabel>
-          <MetricTile
-            label="Operating cost per part"
-            value={money(c.costPerPart)}
-            sub={`at ${c.lineOut.toLocaleString()} parts/shift`}
-          />
-          <Stack gap={2}>
-            {kv("Labor / shift", money(c.laborPerShift))}
-            {kv("Transport / shift", money(c.transportPerShift))}
-            {kv("Energy / shift", money(c.energyPerShift))}
-            {kv("Opex / shift", money(c.opexPerShift))}
-            {kv("Equipment capex", money(c.capexTotal))}
-          </Stack>
-        </Stack>
+    <div className="pad">
+      <div className="lab" style={{ marginBottom: 8 }}>
+        Cost &amp; ROI
+      </div>
+      <Tile style={{ marginTop: 0 }}>
+        <div className="lab">Operating cost per part</div>
+        <div className="impVal">{money(c.costPerPart)}</div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>at {c.lineOut.toLocaleString()} parts/shift</div>
+      </Tile>
+      {row("Labor / shift", money(c.laborPerShift))}
+      {row("Transport / shift", money(c.transportPerShift))}
+      {row("Energy / shift", money(c.energyPerShift))}
+      {row("Floor space / shift", money(c.spacePerShift))}
+      {row("Maintenance / shift", money(c.maintenancePerShift))}
+      {row("Opex / shift", money(c.opexPerShift))}
+      {row("Equipment capex", money(c.capexTotal))}
 
-        <Stack gap={4}>
-          <SectionLabel>Assumptions</SectionLabel>
-          <div className="row2">
-            <NumberInput
-              id="cost-labor-hour"
-              label="Labor / hour"
-              hideSteppers
-              value={cfg.laborCostPerHour}
-              onFocus={api.checkpoint}
-              onChange={(_: unknown, s: { value: number | string }) =>
-                api.live({ type: "SET_COST_CONFIG", patch: { laborCostPerHour: Number(s.value) || 0 } })
-              }
-            />
-            <NumberInput
-              id="cost-annual-shifts"
-              label="Shifts / year"
-              hideSteppers
-              value={cfg.annualShifts}
-              onFocus={api.checkpoint}
-              onChange={(_: unknown, s: { value: number | string }) =>
-                api.live({ type: "SET_COST_CONFIG", patch: { annualShifts: Number(s.value) || 0 } })
-              }
-            />
-          </div>
-          <Footnote>Set per-step equipment capex and automation capex in Configure.</Footnote>
-        </Stack>
+      {/* LDC/MDC split (PAUL): labour-dependent vs machine-dependent cost/part. */}
+      <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center" }}>
+        Cost per part — LDC / MDC
+        <HelpPopover text="PAUL split: LDC = labour-dependent cost (operator time), MDC = machine-dependent cost (energy + transport). Together they make the operating cost per part." />
+      </div>
+      {row("LDC — labour", money(c.ldcPerPart))}
+      {row("MDC — machine", money(c.mdcPerPart))}
 
-        <Stack gap={4}>
-          <SectionLabel>Automation ROI</SectionLabel>
-          <Stack gap={3}>
-            {c.automation.map((a) => (
-              <ClickableTile key={a.id} className="ak-row" onClick={() => { setSel(a.id); setTab("inspect"); }}>
-                <div className="ak-row__head">
-                  <span>{a.name}</span>
-                  <Tag type={verdictTag(a.verdict)} size="sm">
-                    {a.verdict}
-                  </Tag>
-                </div>
-                <div className="ak-row__sub">
-                  {a.automationCapex > 0 ? (
-                    <>
-                      capex {cur}
-                      {a.automationCapex.toLocaleString()} · saves {cur}
-                      {a.laborSavedPerYear.toLocaleString()}/yr ·{" "}
-                      {a.paybackMonths == null ? "payback —" : "payback " + a.paybackMonths + " mo"}
-                    </>
-                  ) : (
-                    "set automation capex in Configure to see payback"
-                  )}
-                </div>
-              </ClickableTile>
-            ))}
-          </Stack>
-          <Footnote>
-            Payback = automation capex ÷ annual labor saved. Informational — cost isn't part of the composite grade.
-          </Footnote>
-        </Stack>
-      </Stack>
+      {/* Floor space, split cell vs material supply (blueprint §4.9): the bin and
+          replenishment area is routinely forgotten and understates by a third. */}
+      <div className="lab" style={{ margin: "16px 0 6px", display: "flex", alignItems: "center" }}>
+        Floor space
+        <HelpPopover text={`Reported as two figures on purpose. Cell = the area the stations occupy. Material supply = bins and replenishment, a further ${Math.round(c.floorSpace.factor * 100)}% that is routinely forgotten. One combined number understates the footprint by about a third. Units: ${c.floorSpace.unit}.`} />
+      </div>
+      {row("Cell", `${c.floorSpace.cell.toLocaleString()} ${c.floorSpace.unit}`)}
+      {row("Material supply", `+${c.floorSpace.materialSupply.toLocaleString()} ${c.floorSpace.unit}`)}
+      {c.floorSpace.reserved > 0 ? row("Reserved (spacer/aisle)", `+${c.floorSpace.reserved.toLocaleString()} ${c.floorSpace.unit}`) : null}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginTop: 3, borderTop: "1px solid var(--cds-border-subtle-01)", paddingTop: 3 }}>
+        <span style={{ color: TEXTD }}>Total footprint</span>
+        <strong>{c.floorSpace.total.toLocaleString()} {c.floorSpace.unit}</strong>
+      </div>
+
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Assumptions
+      </div>
+      <div className="row2">
+        <NumberInput
+          id="cost-labor-hour"
+          label="Labor / hour"
+          value={cfg.laborCostPerHour}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_COST_CONFIG", patch: { laborCostPerHour: +value } })}
+        />
+        <NumberInput
+          id="cost-annual-shifts"
+          label="Shifts / year"
+          value={cfg.annualShifts}
+          onFocus={api.checkpoint}
+          onChange={(_: unknown, { value }: { value: number | string }) => api.live({ type: "SET_COST_CONFIG", patch: { annualShifts: +value } })}
+        />
+      </div>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 6 }}>Set per-step equipment capex and automation capex in Configure.</div>
+
+      <div className="lab" style={{ margin: "16px 0 8px" }}>
+        Automation ROI
+      </div>
+      {c.automation.map((a) => {
+        const col = a.paybackMonths == null ? TEXTD : a.paybackMonths <= 18 ? TEAL : a.paybackMonths <= 36 ? AMBER : RED;
+        return (
+          <ClickableTile key={a.id} onClick={() => { setSel(a.id); setTab("inspect"); }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+              <span style={{ fontSize: "0.75rem" }}>{a.name}</span>
+              <span style={{ fontSize: "0.75rem", color: scoreColor(a.verdict === "Automate" ? 80 : a.verdict === "Consider" ? 60 : 40) }}>{a.verdict}</span>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: TEXTD }}>
+              {a.automationCapex > 0 ? (
+                <>
+                  capex {cur}
+                  {a.automationCapex.toLocaleString()} · saves {cur}
+                  {a.laborSavedPerYear.toLocaleString()}/yr ·{" "}
+                  <span style={{ color: col }}>{a.paybackMonths == null ? "—" : "payback " + a.paybackMonths + " mo"}</span>
+                </>
+              ) : (
+                <span>set automation capex in Configure to see payback</span>
+              )}
+            </div>
+          </ClickableTile>
+        );
+      })}
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+        Payback = automation capex ÷ annual labor saved. Informational — cost isn't part of the composite grade.
+      </div>
+    </div>
   );
 }

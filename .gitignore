@@ -9,4 +9,13 @@ coverage
 .env
 .env.*
 !.env.example
-screenshots/
+
+# Documentation (standalone Docusaurus site: its own deps, build output, cache,
+# and the generated API references — TypeDoc markdown + OpenAPI/Redoc)
+docs-site/node_modules
+docs-site/build
+docs-site/.docusaurus
+docs/api
+docs/engine-api
+docs-site/static/openapi.json
+docs-site/static/rest-api

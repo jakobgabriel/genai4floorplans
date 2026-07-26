@@ -1,121 +1,121 @@
 import { describe, it, expect } from "vitest";
-import { derivePortfolio, type Part } from "./portfolio";
+import type { Model, Station, PartEntry } from "../model/types";
+import { SCHEMA_VERSION } from "../model/types";
+import { portfolioMatrix } from "./portfolio";
 
-const part = (partNumber: string, steps: [string, number][], demandByYear: number[]): Part => ({
-  id: partNumber,
-  partNumber,
-  steps: steps.map(([name, cycleTimeSec]) => ({ name, cycleTimeSec })),
-  demandByYear,
+const prov = (id: string, provides: string[]): Station => ({
+  id, name: id, role: "process", type: "machine", x: 0, y: 0, w: 2, h: 2, fixed: false,
+  auto: "manual", autoOverride: null, capacityPerShift: 0, operators: 1, cycleTimeSec: 10,
+  changeoverMin: 0, ergoRisk: "low", utilities: [], notes: "", provides,
+});
+const part = (number: string, caps: string[], over: Partial<PartEntry> = {}): PartEntry => ({
+  id: number, number, requiredCapabilityIds: caps, ...over,
+});
+const model = (stations: Station[], parts: PartEntry[]): Model => ({
+  schemaVersion: SCHEMA_VERSION, name: "m", gridW: 20, gridH: 12, shiftHours: 8,
+  stations, flows: [], noGoZones: [], parts,
 });
 
-describe("derivePortfolio", () => {
-  it("returns null when nothing usable was given", () => {
-    expect(derivePortfolio([])).toBeNull();
-    expect(derivePortfolio([part("A", [], [100])])).toBeNull();
-    expect(derivePortfolio([part("A", [["Press", 10]], [0, 0])])).toBeNull();
+describe("product-process feasibility matrix (audit C-11)", () => {
+  it("is empty when there are no parts", () => {
+    expect(portfolioMatrix(model([prov("s", ["cut.machining"])], [])).empty).toBe(true);
   });
 
-  it("sizes against the peak year, not the first or the average", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [1000, 5000, 3000]),
-      part("B", [["Press", 10]], [500, 1000, 500]),
-    ])!;
-    expect(d.years).toBe(3);
-    expect(d.totalByYear).toEqual([1500, 6000, 3500]);
-    // Ramp peaks in year 2, so that is the year the cell must survive.
-    expect(d.peakYear).toBe(2);
-    expect(d.peakVolume).toBe(6000);
+  it("marks a part runnable when all its capabilities are provided", () => {
+    const m = model([prov("s1", ["cut.machining", "join.weld"])], [part("P1", ["cut.machining", "join.weld"])]);
+    const mx = portfolioMatrix(m);
+    const row = mx.rows[0];
+    expect(row.verdict).toBe("runnable");
+    expect(row.cells["cut.machining"].status).toBe("provided");
+    expect(mx.runnable).toBe(1);
   });
 
-  it("counts every part and every year into the program volume", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [1000, 5000, 3000]),
-      part("B", [["Press", 10]], [500, 1000, 500]),
-    ])!;
-    expect(d.programVolume).toBe(11000);
+  it("covers a required capability through a catalog alternative (weld ⇄ bolt)", () => {
+    const m = model([prov("s1", ["join.assemble"])], [part("P1", ["join.weld"])]);
+    const cell = portfolioMatrix(m).rows[0].cells["join.weld"];
+    expect(cell.status).toBe("alternative");
+    expect(cell.via).toBe("join.assemble");
   });
 
-  it("treats a short demand curve as zero in the remaining years", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [100, 100, 100]),
-      part("B", [["Press", 10]], [900]), // one year only
-    ])!;
-    expect(d.totalByYear).toEqual([1000, 100, 100]);
-    expect(d.peakYear).toBe(1);
+  it("blocks a part on a missing capability and ranks the blocker", () => {
+    const stations = [prov("s1", ["cut.machining"])];
+    const parts = [
+      part("P1", ["cut.machining", "mark.identify"]),
+      part("P2", ["cut.machining", "mark.identify"]),
+      part("P3", ["cut.machining"]),
+    ];
+    const mx = portfolioMatrix(model(stations, parts));
+    expect(mx.runnable).toBe(1); // only P3
+    expect(mx.rows.find((r) => r.number === "P1")!.verdict).toBe("blocked");
+    expect(mx.rows.find((r) => r.number === "P1")!.missingNames).toContain("Marking / identification");
+    // mark.identify blocks 2 of 3 parts → top of the investment priority
+    expect(mx.blocking[0].id).toBe("mark.identify");
+    expect(mx.blocking[0].blockedParts).toBe(2);
   });
 
-  it("builds a union routing so the cell has a station for every step", () => {
-    const d = derivePortfolio([
-      part("A", [["Load", 5], ["Press", 10]], [100]),
-      part("B", [["Load", 5], ["Weld", 20], ["Pack", 8]], [100]),
-    ])!;
-    expect(d.steps.map((s) => s.name)).toEqual(["Load", "Press", "Weld", "Pack"]);
+  it("builds columns from both required and provided capabilities, counting demand", () => {
+    const mx = portfolioMatrix(model([prov("s1", ["cut.machining"])], [part("P1", ["cut.machining"]), part("P2", ["cut.machining", "form.press"])]));
+    const cut = mx.columns.find((c) => c.id === "cut.machining")!;
+    expect(cut.provided).toBe(true);
+    expect(cut.requiredByCount).toBe(2);
+    const press = mx.columns.find((c) => c.id === "form.press")!;
+    expect(press.provided).toBe(false);
+    expect(press.requiredByCount).toBe(1);
+    // a part that does not need a capability shows "not-required" there
+    expect(mx.rows.find((r) => r.number === "P1")!.cells["form.press"].status).toBe("not-required");
+  });
+});
+
+import { portfolioCapacity } from "./portfolio";
+
+describe("portfolio capacity gate — Gate 2/3 + drop (audit C-11)", () => {
+  const line = (provides: string[], cycleTimeSec: number, over: Partial<Station> = {}): Station => ({
+    ...prov("m", provides), cycleTimeSec, ...over,
   });
 
-  it("collapses parts with identical work content into one mode", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [100]),
-      part("B", [["Press", 10]], [300]),
-      part("C", [["Press", 10]], [600]),
-    ])!;
-    expect(d.modes).toHaveLength(1);
-    expect(d.modes[0].name).toBe("A, B, C");
-    expect(d.modes[0].share).toBe(1);
+  it("has no data until parts carry demand and the line is priced", () => {
+    const cap = portfolioCapacity(model([prov("s", ["cut.machining"])], [part("P1", ["cut.machining"])]));
+    expect(cap.hasData).toBe(false);
   });
 
-  it("skips the union steps a mode's parts do not use", () => {
-    const d = derivePortfolio([
-      part("A", [["Load", 5], ["Press", 10]], [600]),
-      part("B", [["Load", 5], ["Weld", 20]], [400]),
-    ])!;
-    expect(d.modes).toHaveLength(2);
-    // Union order is Load(we1), Press(we2), Weld(we3).
-    const a = d.modes.find((m) => m.name === "A")!;
-    const b = d.modes.find((m) => m.name === "B")!;
-    expect(a.elementOverrides).toEqual({ we3: 0 }); // A does not weld
-    expect(b.elementOverrides).toEqual({ we2: 0 }); // B does not press
-    expect(a.share).toBe(0.6);
-    expect(b.share).toBe(0.4);
+  it("computes utilization from processing + changeover against available time", () => {
+    // default shift model: 220 × 1 × 8h × 3600 × 0.85 = 5,385,600 s/yr
+    const stations = [line(["cut.machining"], 60)];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 50000 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    expect(cap.hasData).toBe(true);
+    expect(cap.processingSecPerYear).toBeCloseTo(50000 * 60, 0);
+    expect(cap.utilizationPct).toBeGreaterThan(50);
+    expect(cap.utilizationPct).toBeLessThan(60);
+    expect(cap.overCapacity).toBe(false);
   });
 
-  it("expresses a longer cycle for the same step as a ratio, not a new step", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [500]),
-      part("B", [["Press", 25]], [500]),
-    ])!;
-    expect(d.steps).toHaveLength(1);
-    const b = d.modes.find((m) => m.name === "B")!;
-    expect(b.elementOverrides.we1).toBe(2.5);
+  it("adds changeover time per campaign", () => {
+    const stations = [line(["cut.machining"], 60, { changeoverMin: 120 })];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 10000, campaignsPerYear: 12 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    // 12 campaigns × 120 min × 60 = 86,400 s of changeover
+    expect(cap.changeoverSecPerYear).toBeCloseTo(12 * 120 * 60, 0);
+    expect(cap.totalLoadSecPerYear).toBeCloseTo(cap.processingSecPerYear + cap.changeoverSecPerYear, 0);
   });
 
-  it("shares are of the peak year, so a late ramp is weighted by its own year", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [1000, 200]),
-      part("B", [["Weld", 10]], [0, 800]),
-    ])!;
-    expect(d.peakYear).toBe(1); // 1000 vs 1000 — first wins on a tie
-    const shares = Object.fromEntries(d.modes.map((m) => [m.name, m.share]));
-    expect(shares.A).toBe(1);
-    expect(shares.B).toBe(0);
+  it("flags over-capacity and proposes which part to drop", () => {
+    const stations = [line(["cut.machining"], 60)];
+    const parts = [
+      part("P1", ["cut.machining"], { demandPerYear: 60000 }),
+      part("P2", ["cut.machining"], { demandPerYear: 60000 }),
+    ];
+    const cap = portfolioCapacity(model(stations, parts));
+    // 120,000 × 60 = 7,200,000 > 5,385,600 → over
+    expect(cap.overCapacity).toBe(true);
+    expect(cap.drop.length).toBeGreaterThanOrEqual(1);
+    expect(cap.drop[0].freedSecPerYear).toBeGreaterThan(0);
   });
 
-  it("reports the parts it ignored rather than dropping them silently", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [100]),
-      part("B", [], [500]),
-      part("C", [["Weld", 5]], [0]),
-    ])!;
-    expect(d.ignored).toEqual(["B", "C"]);
-    expect(d.modes).toHaveLength(1);
-  });
-
-  it("maps each part number to the mode it landed in", () => {
-    const d = derivePortfolio([
-      part("A", [["Press", 10]], [100]),
-      part("B", [["Press", 10]], [100]),
-      part("C", [["Weld", 10]], [100]),
-    ])!;
-    expect(d.modeOfPart.A).toBe(d.modeOfPart.B);
-    expect(d.modeOfPart.C).not.toBe(d.modeOfPart.A);
+  it("marks a part off its validated volume band (Gate 2)", () => {
+    const stations = [line(["cut.machining"], 60, { volumeBand: { minUnitsPerYear: 1000, maxUnitsPerYear: 20000 } })];
+    const parts = [part("P1", ["cut.machining"], { demandPerYear: 50000 })];
+    const cap = portfolioCapacity(model(stations, parts));
+    expect(cap.parts[0].offVolume).toBe(true);
   });
 });

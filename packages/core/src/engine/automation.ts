@@ -3,7 +3,10 @@ import { effectiveCycleSec } from "./cycle";
 
 export type LinkKind = "manual" | "mixed" | "auto-island" | "chained-auto";
 
-export interface ChainLink extends Flow {
+// A flow annotated with its automation-chain classification. `kind` here is the
+// LINK kind (manual/mixed/…), distinct from Flow.kind (the material path), so we
+// omit the latter to avoid the name clash.
+export interface ChainLink extends Omit<Flow, "kind"> {
   kind: LinkKind;
 }
 

@@ -11,23 +11,10 @@ import type { CellForm } from "./templates";
 // These profiles are deliberately coarse planning heuristics, not costed
 // engineering data. They exist so a planner can compare concepts in seconds
 // during an RFQ, then refine the winner by hand.
-//
-// They used to be a frozen TypeScript constant, and the whole comparison the
-// tool exists to produce turned on numbers nobody outside this file could see
-// or change. A plant whose U-cells cost 60k a station, or that runs a concept
-// this list has never heard of, had no way to say so — the tool would rank its
-// options against somebody else's machine park and present the answer as fact.
-// docs/spec-alignment.md called this out: §29 and §35 both require rules-as-data
-// and this was the counter-example.
-//
-// So a catalog is now DATA, passed in. The set below is the starting point the
-// app ships with — not a hidden constant but a visible, editable default, and
-// unlike the process library it is not empty: without at least one concept
-// there is nothing to compare, and these five are industry archetypes rather
-// than one plant's private knowledge.
 
-/** A concept id. Free-form, because a planner can add their own. */
-export type ConceptKind = string;
+export type ConceptKind = "manual-bench" | "cell" | "flow-line" | "transfer-line" | "job-shop";
+
+export const CONCEPT_KINDS: ConceptKind[] = ["job-shop", "manual-bench", "cell", "flow-line", "transfer-line"];
 
 export interface ConceptProfile {
   kind: ConceptKind;
@@ -56,39 +43,15 @@ export interface ConceptProfile {
   /** Changeover minutes per step — automation trades flexibility for speed. */
   changeoverMin: number;
   ergoRisk: ErgoRisk;
-  /** Free-form fields the planner adds. Never read by any engine. */
-  custom?: Array<{ id: string; label: string; value: string }>;
 }
 
-export type ConceptCatalog = Record<ConceptKind, ConceptProfile>;
-
-/** Index a list of profiles by kind, for the engines that look one up. */
-export function byKind(list: ConceptProfile[]): ConceptCatalog {
-  const out: ConceptCatalog = {};
-  list.forEach((c) => {
-    out[c.kind] = c;
-  });
-  return out;
-}
-
-/**
- * The catalog the app ships with.
- *
- * Editable in the UI and overridable per brief. Nothing in the engines reads
- * this directly except as a default argument.
- */
-export const CONCEPT_DEFAULTS: ConceptCatalog = {
+export const CONCEPTS: Record<ConceptKind, ConceptProfile> = {
   "job-shop": {
     kind: "job-shop",
     label: "Job shop",
-    blurb: "Standalone machines grouped by process, parts moved in batches. Maximum flexibility, worst flow.",
+    blurb: "Standalone machines grouped by process. Maximum flexibility, worst flow.",
     viableVolume: [0, 15000],
-    // W first: a job shop laid out as a flow path is not a job shop. The
-    // defining property is that the machines are grouped by process and stand
-    // apart, so a part crosses the floor between operations — which is exactly
-    // the transport penalty the flow-oriented concepts are being weighed
-    // against. L and S stay as the tidier variants a small shop can manage.
-    forms: ["W", "L", "S"],
+    forms: ["L", "S"],
     auto: "manual",
     stationType: "machine",
     operatorsPerStation: 1,
@@ -124,7 +87,7 @@ export const CONCEPT_DEFAULTS: ConceptCatalog = {
     label: "U-cell",
     blurb: "Compact multi-process cell, part-in-part-out. Short flow, flexible manning.",
     viableVolume: [15000, 200000],
-    forms: ["U", "L", "S"],
+    forms: ["U", "W", "L", "S"],
     auto: "semi",
     stationType: "machine",
     operatorsPerStation: 1,
@@ -142,7 +105,7 @@ export const CONCEPT_DEFAULTS: ConceptCatalog = {
     label: "Flow line",
     blurb: "Conveyor-linked stations in process order. Good flow, needs balancing.",
     viableVolume: [100000, 800000],
-    forms: ["I", "S"],
+    forms: ["I", "S", "O"],
     auto: "semi",
     stationType: "machine",
     operatorsPerStation: 1,
@@ -182,10 +145,8 @@ export const CONCEPT_DEFAULTS: ConceptCatalog = {
  * it, so a concept just past its range is penalised rather than excluded —
  * planners need to see the near-misses to understand the crossover.
  */
-export function conceptFit(kind: ConceptKind, annualVolume: number, catalog: ConceptCatalog = CONCEPTS): number {
-  const profile = catalog[kind];
-  if (!profile) return 0;
-  const [lo, hi] = profile.viableVolume;
+export function conceptFit(kind: ConceptKind, annualVolume: number): number {
+  const [lo, hi] = CONCEPTS[kind].viableVolume;
   if (annualVolume <= 0) return 0;
   if (annualVolume >= lo && annualVolume <= hi) return 100;
   // Work in log space: volume bands span orders of magnitude.
@@ -197,44 +158,17 @@ export function conceptFit(kind: ConceptKind, annualVolume: number, catalog: Con
   return Math.max(0, Math.round((1 - dist / tolerance) * 100));
 }
 
-/** Concepts ordered by how well they fit a volume, best first. */
-export function rankConcepts(
-  annualVolume: number,
-  catalog: ConceptCatalog = CONCEPTS,
-): Array<{ kind: ConceptKind; fit: number }> {
-  return Object.keys(catalog)
-    .map((kind) => ({ kind, fit: conceptFit(kind, annualVolume, catalog) }))
-    .sort((a, b) => b.fit - a.fit);
-}
-
-/** A new concept for the planner to fill in, at defensible neutral values. */
-export function blankConcept(kind: string, label: string): ConceptProfile {
-  return {
-    kind,
-    label,
-    blurb: "",
-    viableVolume: [0, 1000000],
-    forms: ["I"],
-    auto: "manual",
-    stationType: "machine",
-    operatorsPerStation: 1,
-    allowsParallel: true,
-    capexPerStation: 0,
-    cycleFactor: 1,
-    handlingShare: 0.25,
-    transport: "manual",
-    energyKw: 0,
-    changeoverMin: 0,
-    ergoRisk: "low",
-    custom: [],
-  };
-}
-
-/**
- * The default catalog under its historical name, and the order it reads in.
+/** Concepts ordered by how well they fit a volume, best first.
  *
- * Kept so the engines have a default argument and the tests have a fixture.
- * Anything user-facing takes the catalog as a parameter instead.
- */
-export const CONCEPTS: ConceptCatalog = CONCEPT_DEFAULTS;
-export const CONCEPT_KINDS: ConceptKind[] = Object.keys(CONCEPT_DEFAULTS);
+ *  Equal volume fit is broken by the lean default (spec §9, "lowest automation
+ *  meeting takt wins by default; escalation needs justification"): the cheaper,
+ *  less-automated concept ranks first. Without this, overlapping volume bands
+ *  tied at 100 in arbitrary declaration order (audit C-06). This is a coarse
+ *  screen; the primary concept comparison is the fully-loaded cost ranking over
+ *  generated cells in generate.ts (RankBy), which weighs capex, opex, ergo and
+ *  balance together. */
+export function rankConcepts(annualVolume: number): Array<{ kind: ConceptKind; fit: number }> {
+  return CONCEPT_KINDS.map((kind) => ({ kind, fit: conceptFit(kind, annualVolume) })).sort(
+    (a, b) => b.fit - a.fit || CONCEPTS[a.kind].capexPerStation - CONCEPTS[b.kind].capexPerStation,
+  );
+}

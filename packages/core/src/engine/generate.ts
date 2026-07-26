@@ -1,10 +1,11 @@
-import type { ErgoRisk, Flow, Model, StationType, VariantMode } from "../model/types";
-import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, SCHEMA_VERSION } from "../model/types";
+import type { Confidence, CycleBreakdown, Demand, ErgoRisk, ErgonomicLoad, Flow, Model, StationType, TimeMethod, Transport, VariantMode, WasteClass, WorkClass } from "../model/types";
+import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, DEFAULT_SHIFT_MODEL, SCHEMA_VERSION } from "../model/types";
+import type { RawStep } from "./infer";
 import { normalizeFlow, normalizeStation } from "../model/defaults";
 import type { CellForm } from "./templates";
 import { cellTopology } from "./topology";
 import { clampToGrid } from "./geometry";
-import { CONCEPTS, byKind, conceptFit, type ConceptCatalog, type ConceptKind, type ConceptProfile } from "./concepts";
+import { CONCEPTS, CONCEPT_KINDS, conceptFit, type ConceptKind } from "./concepts";
 import { buildRating, type Letter, type Rating } from "./rating";
 import { costAnalysis, type CostResult } from "./cost";
 import { buildWorkloadStations } from "./generateCell";
@@ -27,6 +28,28 @@ export interface ProcessStep {
   ergoRisk?: ErgoRisk;
   /** Fraction of parts scrapped at this step (0–1). */
   scrapRate?: number;
+  // ---- data-model-faithful overrides (all optional; absent ⇒ inferred) ----
+  /** Capability id chosen from the catalog rather than matched from the name. */
+  capabilityId?: string;
+  /** Value-add / necessary-NVA / waste classification of the work. */
+  classification?: WorkClass;
+  /** Which of the seven wastes, when NVA/NNVA. */
+  wasteClass?: WasteClass;
+  /** 0–1 operator binding (drives operator/machine separation + automation). */
+  attendedFraction?: number;
+  /** Physical load of the work. */
+  ergonomicLoad?: ErgonomicLoad;
+  /** How the cycle time was obtained. */
+  timeMethod?: TimeMethod;
+  /** Confidence in the cycle time. */
+  confidence?: Confidence;
+  /** Predecessors as 0-based indices into the step list — expresses a DAG. */
+  predecessors?: number[];
+  /** Per-part value-add / NVA decomposition. When set, cycle time = its sum. */
+  cycle?: CycleBreakdown;
+  /** Parts processed together in one cycle (multi-cavity die, batch fixture).
+   *  Default 1. Multiplies part throughput without adding a machine. */
+  partsPerCycle?: number;
 }
 
 export interface GenerateBrief {
@@ -44,10 +67,15 @@ export interface GenerateBrief {
   programYears?: number;
   /** Mix modes for mixed-model balancing (spec §3.2). */
   variantModes?: VariantMode[];
-  /** The concept catalog to sweep. Defaults to the one the app ships with —
-   *  pass the planner's edited catalog to rank against their own machine park
-   *  rather than against the shipped archetypes. */
-  conceptCatalog?: ConceptProfile[];
+  /** Multi-year demand + shift model. When present it is carried onto every
+   *  generated model (capacity analysis) and its shift model overrides the
+   *  scalar annualShifts/shiftHours where those are not separately given. */
+  demand?: Demand;
+  /** Default transport mode for the generated inter-station flows. Falls back
+   *  to the concept's transport when unset. */
+  defaultTransport?: Transport;
+  /** Default part weight (kg) stamped on the generated flows. Default 1. */
+  defaultPartWeightKg?: number;
 }
 
 export const DEFAULT_PROGRAM_YEARS = 5;
@@ -77,18 +105,12 @@ export interface CandidateMetrics {
   /** 0–100 suitability of the concept for this annual volume. */
   conceptFit: number;
   valueAddPct: number;
-  /** Weighted 0–100 score across every criterion. Set by `scoreCandidates`. */
-  decisionScore?: number;
-  /** The per-criterion 0–100 scores that made it, so the number can be argued with. */
-  criteria?: { cost: number; capex: number; fit: number; operators: number; flexibility: number };
 }
 
 export interface Candidate {
   id: string;
   concept: ConceptKind;
   conceptLabel: string;
-  /** The profile this candidate was built from. */
-  profile: ConceptProfile;
   form: CellForm;
   model: Model;
   rating: Rating;
@@ -97,15 +119,7 @@ export interface Candidate {
   rationale: string;
 }
 
-export type RankBy =
-  | "loadedCostPerPart"
-  | "composite"
-  | "costPerPart"
-  | "capexTotal"
-  | "lineOut"
-  | "operators"
-  | "conceptFit"
-  | "decisionScore";
+export type RankBy = "loadedCostPerPart" | "composite" | "costPerPart" | "capexTotal" | "lineOut" | "operators" | "conceptFit";
 
 const MINIMIZE: RankBy[] = ["loadedCostPerPart", "costPerPart", "capexTotal", "operators"];
 
@@ -120,7 +134,7 @@ export interface CandidateFilters {
 
 // ---- model construction ---------------------------------------------------
 
-/** Columns reserved at each end for the fixed incoming/shipping areas. */
+/** Columns reserved at each end for the incoming/shipping areas. */
 const END_MARGIN = 5;
 
 function gridFor(n: number): { gridW: number; gridH: number } {
@@ -129,8 +143,17 @@ function gridFor(n: number): { gridW: number; gridH: number } {
 }
 
 /** Build one concept x form candidate model, sized for demand. */
-function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, perShiftTarget: number): Model {
-  const shiftHours = brief.shiftHours ?? DEFAULT_SHIFT_HOURS;
+/** Shifts per year implied by a demand's shift model (shifts/day × working days). */
+function shiftsFromDemand(d: Demand | undefined): number | undefined {
+  if (!d) return undefined;
+  const perDay = d.shiftsPerDay ?? DEFAULT_SHIFT_MODEL.shiftsPerDay;
+  const days = d.workingDaysPerYear ?? DEFAULT_SHIFT_MODEL.workingDaysPerYear;
+  return perDay > 0 && days > 0 ? perDay * days : undefined;
+}
+
+function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number): Model {
+  const p = CONCEPTS[concept];
+  const shiftHours = brief.shiftHours ?? brief.demand?.hoursPerShift ?? DEFAULT_SHIFT_HOURS;
   const grid = gridFor(brief.steps.length);
 
   // Entry and exit belong to the FORM, not to the grid edges. A U-cell puts
@@ -154,7 +177,12 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
       y: at.y,
       w: 3,
       h: 2,
-      fixed: true,
+      // A GENERATED layout is a starting point, not a constraint: the generator
+      // cannot know which areas are truly anchored, so it pins nothing. Movable
+      // incoming/shipping let the optimiser (and the planner) reshape the cell —
+      // I/O reflow with the form, which is where the biggest shape gains come
+      // from. A real fixed dock is set by the planner afterwards.
+      fixed: false,
       operators: 0,
       cycleTimeSec: 0,
       capacityPerShift: Math.max(1000, Math.ceil(perShiftTarget * 2)),
@@ -166,10 +194,29 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
   const input = io("in", "Incoming", "input", entry);
   const output = io("out", "Shipping", "output", exitAt);
 
-  // The stations are BALANCED from the work elements, not mapped 1:1 from the
-  // planner's step list. How many stations exist is an output of the balancer.
+  // Each defined process step maps to exactly ONE station — the guided planner
+  // lets the user enumerate discrete steps, and they must see those same steps
+  // carried through to the concept and the layout (not a balancer's merged
+  // subset). Takt still drives manning and parallel lanes, so a slow step is
+  // sized honestly; only the merging of distinct steps is suppressed.
+  // Each step carries whatever the planner overrode; the rest is inferred.
+  const rawSteps: RawStep[] = brief.steps.map((st) => ({
+    name: st.name,
+    seconds: st.cycleTimeSec,
+    capabilityId: st.capabilityId,
+    classification: st.classification,
+    wasteClass: st.wasteClass,
+    attendedFraction: st.attendedFraction,
+    ergonomicLoad: st.ergonomicLoad,
+    timeMethod: st.timeMethod,
+    confidence: st.confidence,
+    predecessors: st.predecessors,
+    cycle: st.cycle,
+    scrapRate: st.scrapRate,
+    partsPerCycle: st.partsPerCycle,
+  }));
   const built = buildWorkloadStations(
-    brief.steps.map((st) => ({ name: st.name, seconds: st.cycleTimeSec })),
+    rawSteps,
     perShiftTarget,
     shiftHours,
     brief.variantModes,
@@ -178,13 +225,16 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
       capexPerStation: p.capexPerStation,
       energyKw: p.energyKw,
       changeoverMin: p.changeoverMin,
+      oneStationPerStep: true,
+      auto: p.auto,
+      operatorsPerStation: p.operatorsPerStation,
     },
   );
   const procs = built.stations;
 
-  // Place the balanced stations on the form's path. The topology was solved for
-  // the number of steps the planner gave; the balancer may have produced fewer,
-  // so re-solve for the actual station count.
+  // Place the stations on the form's path. With one station per step the count
+  // equals the planner's step list, but re-solving keeps this robust if a step
+  // ever drops out (e.g. an empty name).
   const placed = cellTopology(form, procs.length, { gridW: grid.gridW - END_MARGIN * 2, gridH: grid.gridH });
   procs.forEach((st, i) => {
     const slot = placed.slots[i];
@@ -210,9 +260,9 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
         from: chain[i].id,
         to: chain[i + 1].id,
         volume: Math.round(perShiftTarget),
-        transport: p.transport,
+        transport: brief.defaultTransport ?? p.transport,
         unitCost: 0.05,
-        partWeightKg: 1,
+        partWeightKg: brief.defaultPartWeightKg ?? 1,
       }),
     );
   }
@@ -226,12 +276,16 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
     stations: chain,
     flows,
     noGoZones: [],
-    conceptKind: p.kind,
+    conceptKind: concept,
     costConfig: {
-      annualShifts: brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts,
+      annualShifts: brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts,
       laborCostPerHour: brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,
       currency: brief.currency ?? DEFAULT_COST_CONFIG.currency,
     },
+    // Carry the workload's multi-year demand and mix modes so capacity analysis
+    // and mixed-model balancing survive onto the persisted model.
+    ...(brief.demand ? { demand: brief.demand } : {}),
+    ...(brief.variantModes && brief.variantModes.length ? { variantModes: brief.variantModes } : {}),
   };
 
   // No separate lane-sizing pass: the balancer already produces stations that
@@ -241,7 +295,8 @@ function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, per
 
 // ---- generation -----------------------------------------------------------
 
-function rationaleFor(p: ConceptProfile, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
+function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
+  const p = CONCEPTS[concept];
   const bits: string[] = [p.blurb];
   if (!m.meetsDemand) {
     bits.push(`Falls short of demand — ${m.lineOut.toLocaleString()}/shift against ${Math.round(perShiftTarget).toLocaleString()} needed.`);
@@ -267,17 +322,15 @@ function rationaleFor(p: ConceptProfile, m: CandidateMetrics, perShiftTarget: nu
  */
 export function generateCandidates(brief: GenerateBrief): Candidate[] {
   if (brief.steps.length === 0) return [];
-  const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
+  const shifts = brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts;
   const perShiftTarget = brief.annualVolume > 0 ? brief.annualVolume / shifts : 0;
-  const catalog: ConceptCatalog = brief.conceptCatalog ? byKind(brief.conceptCatalog) : CONCEPTS;
-  const kinds = brief.concepts?.length ? brief.concepts.filter((k) => catalog[k]) : Object.keys(catalog);
+  const kinds = brief.concepts?.length ? brief.concepts : CONCEPT_KINDS;
   const currency = brief.currency ?? DEFAULT_COST_CONFIG.currency;
 
   const out: Candidate[] = [];
   kinds.forEach((concept) => {
-    const profile = catalog[concept];
-    profile.forms.forEach((form) => {
-      const model = buildModel(brief, profile, form, perShiftTarget);
+    CONCEPTS[concept].forms.forEach((form) => {
+      const model = buildModel(brief, concept, form, perShiftTarget);
       // restarts: 0 keeps the sweep deterministic and fast — the candidate is a
       // starting point, and the user can run the full optimizer on the winner.
       const rating = buildRating(model, { restarts: 0 });
@@ -308,23 +361,20 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
         stations: procs.length,
         parallelUnits,
         meetsDemand: perShiftTarget <= 0 || rating.balance.lineOut >= Math.floor(perShiftTarget),
-        conceptFit: conceptFit(concept, brief.annualVolume, catalog),
+        conceptFit: conceptFit(concept, brief.annualVolume),
         valueAddPct: totalSec > 0 ? +((vaSec / totalSec) * 100).toFixed(1) : 0,
       };
 
       out.push({
         id: `${concept}-${form}`,
         concept,
-        conceptLabel: profile.label,
-        // The candidate carries the profile it was built from, so nothing
-        // downstream has to look the concept up in a catalog it may not have.
-        profile,
+        conceptLabel: CONCEPTS[concept].label,
         form,
         model,
         rating,
         cost,
         metrics,
-        rationale: rationaleFor(profile, metrics, perShiftTarget, currency),
+        rationale: rationaleFor(concept, metrics, perShiftTarget, currency),
       });
     });
   });
@@ -338,10 +388,8 @@ export function rankCandidates(candidates: Candidate[], by: RankBy = "loadedCost
   return candidates.slice().sort((a, b) => {
     // Candidates that cannot make the demand always sort last, whatever the metric.
     if (a.metrics.meetsDemand !== b.metrics.meetsDemand) return a.metrics.meetsDemand ? -1 : 1;
-    // decisionScore is only present once scoreCandidates has run; ranking by it
-    // beforehand sorts on nothing rather than throwing.
-    const av = a.metrics[by] ?? 0;
-    const bv = b.metrics[by] ?? 0;
+    const av = a.metrics[by];
+    const bv = b.metrics[by];
     if (av === bv) return a.id.localeCompare(b.id); // stable, deterministic
     return min ? av - bv : bv - av;
   });
@@ -379,353 +427,8 @@ export function conceptCrossover(brief: GenerateBrief, volumes: number[], by: Ra
     return {
       annualVolume,
       winner: best?.concept ?? "cell",
-      winnerLabel: best ? best.conceptLabel : "\u2014",
+      winnerLabel: best ? best.conceptLabel : "—",
       costPerPart: best?.metrics.loadedCostPerPart ?? 0,
     };
   });
-}
-
-/** One stretch of the volume axis over which the same concept wins. */
-export interface CrossoverSegment {
-  /** Inclusive lower bound of the stretch. */
-  from: number;
-  /** Exclusive upper bound; null when the stretch runs to the top of the sweep. */
-  to: number | null;
-  /** Null when nothing in the catalog can make the demand across this stretch. */
-  winner: ConceptKind | null;
-  winnerLabel: string;
-  /** Best loaded cost per part seen in the stretch. */
-  costPerPart: number;
-  /**
-   * How far ahead the winner is of the best *other concept*, as a percentage of
-   * the winner's cost, at its narrowest point in this stretch.
-   *
-   * A stretch the tool "wins" by 0.4% is not a recommendation, it is a coin
-   * toss between two sets of planning assumptions, and saying so is the
-   * difference between a decision aid and a decision.
-   */
-  minMarginPct: number;
-}
-
-export interface CrossoverOptions {
-  /** Lowest volume to sweep. */
-  from?: number;
-  /** Highest volume to sweep. */
-  to?: number;
-  /** Sample points, log-spaced. Each one runs a full sweep, so keep it small. */
-  samples?: number;
-  /** Bisection steps used to pin each boundary down. 0 skips the refinement. */
-  refine?: number;
-  by?: RankBy;
-}
-
-/** The winner at one volume, plus how close the nearest other concept was. */
-function bestAt(brief: GenerateBrief, annualVolume: number, by: RankBy) {
-  const ranked = rankCandidates(
-    filterCandidates(generateCandidates({ ...brief, annualVolume }), { meetsDemandOnly: true }),
-    by,
-  );
-  const best = ranked[0];
-  if (!best) return { winner: null, label: "\u2014", cost: 0, marginPct: 0 };
-  // The runner-up has to be a different CONCEPT. The same concept in another
-  // form is not an alternative decision, and counting it would report every
-  // margin as near zero.
-  const other = ranked.find((c) => c.concept !== best.concept);
-  const bc = best.metrics.loadedCostPerPart;
-  const marginPct = other && bc > 0 ? ((other.metrics.loadedCostPerPart - bc) / bc) * 100 : 100;
-  return { winner: best.concept, label: best.conceptLabel, cost: bc, marginPct: Math.max(0, marginPct) };
-}
-
-/**
- * The crossover as ranges rather than samples.
- *
- * Sampling alone gives you "at 24,621 the winner was already a U-cell", which
- * is an artefact of where the samples happened to fall. Each boundary is
- * bisected afterwards so the number reported is the volume where the answer
- * actually changes, to within the tolerance of the refinement.
- *
- * Stretches where nothing meets demand are returned with a null winner rather
- * than dropped: "above 400k/yr nothing in your catalog makes this on one line"
- * is one of the more useful things this sweep can tell you.
- */
-export function conceptCrossoverRanges(brief: GenerateBrief, opts: CrossoverOptions = {}): CrossoverSegment[] {
-  const from = Math.max(1, opts.from ?? 1000);
-  const to = Math.max(from * 10, opts.to ?? 10000000);
-  const samples = Math.max(3, opts.samples ?? 12);
-  const refine = Math.max(0, opts.refine ?? 4);
-  const by = opts.by ?? "loadedCostPerPart";
-  if (brief.steps.length === 0) return [];
-
-  const lf = Math.log10(from);
-  const lt = Math.log10(to);
-  const at = (i: number) => Math.round(Math.pow(10, lf + ((lt - lf) * i) / (samples - 1)));
-
-  const points = Array.from({ length: samples }, (_, i) => {
-    const v = at(i);
-    return { v, ...bestAt(brief, v, by) };
-  });
-
-  // Collapse consecutive same-winner samples, then pin the boundary between
-  // each pair by bisecting in log space.
-  const segs: CrossoverSegment[] = [];
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const prev = segs[segs.length - 1];
-    if (prev && prev.winner === p.winner) {
-      // Guarded: a stretch with no winner has no cost, and `Math.min` over
-      // nothing-but-zeroes was reporting Infinity.
-      if (p.cost > 0) prev.costPerPart = prev.costPerPart > 0 ? Math.min(prev.costPerPart, p.cost) : p.cost;
-      prev.minMarginPct = Math.min(prev.minMarginPct, p.marginPct);
-      continue;
-    }
-    let boundary = p.v;
-    if (prev) {
-      if (refine > 0) {
-        let lo = points[i - 1].v;
-        let hi = p.v;
-        for (let k = 0; k < refine; k++) {
-          const mid = Math.round(Math.pow(10, (Math.log10(lo) + Math.log10(hi)) / 2));
-          if (mid <= lo || mid >= hi) break;
-          (bestAt(brief, mid, by).winner === points[i - 1].winner ? (lo = mid) : (hi = mid));
-        }
-        boundary = hi;
-      }
-      // Closed here rather than inside the refinement branch: with refinement
-      // off, every stretch was left open-ended and the ranges neither met nor
-      // covered the axis.
-      prev.to = boundary;
-    }
-    segs.push({
-      from: prev ? boundary : p.v,
-      to: null,
-      winner: p.winner,
-      winnerLabel: p.label,
-      costPerPart: p.cost,
-      minMarginPct: p.marginPct,
-    });
-  }
-  return segs;
-}
-
-// ---------------------------------------------------------------------------
-// The decision score
-// ---------------------------------------------------------------------------
-
-/**
- * How much each criterion matters when ranking concepts.
- *
- * The ranking used to be `loadedCostPerPart` and nothing else. That is one
- * defensible objective out of several and it was never stated: capex exposure,
- * how well the concept suits the volume, manning and changeover burden were all
- * computed, all displayed, and none of them touched the order. A transfer line
- * could win on cost per part and be the wrong decision at that volume with that
- * mix uncertainty, and the tool would not say so.
- *
- * Weights are the fix, not a different hardcoded objective: the criteria are
- * named, the numbers are yours, and the winner changes when you change them.
- * Set everything but `cost` to zero and you get the old behaviour exactly.
- */
-export interface DecisionWeights {
-  /** Loaded cost per part. Lower is better. */
-  cost: number;
-  /** Total capital exposure. Lower is better. */
-  capex: number;
-  /** How well the concept suits the annual volume — its viable band. */
-  fit: number;
-  /** Operators required. Lower is better. */
-  operators: number;
-  /** Changeover burden across the line. Lower is better — a proxy for how
-   *  cheaply the cell copes with a mix it was not planned for. */
-  flexibility: number;
-}
-
-export const DECISION_WEIGHTS: DecisionWeights = {
-  cost: 0.5,
-  capex: 0.15,
-  fit: 0.2,
-  operators: 0.1,
-  flexibility: 0.05,
-};
-
-/** Normalize to sum 1, so a UI can let the sliders go anywhere. */
-export function normalizeDecisionWeights(w: DecisionWeights): DecisionWeights {
-  const sum = w.cost + w.capex + w.fit + w.operators + w.flexibility;
-  if (!(sum > 0)) return { ...DECISION_WEIGHTS };
-  return {
-    cost: w.cost / sum,
-    capex: w.capex / sum,
-    fit: w.fit / sum,
-    operators: w.operators / sum,
-    flexibility: w.flexibility / sum,
-  };
-}
-
-/** Total changeover minutes across a candidate's process steps. */
-function changeoverBurden(c: Candidate): number {
-  return c.model.stations.filter((s) => s.role === "process").reduce((a, s) => a + (s.changeoverMin ?? 0), 0);
-}
-
-/**
- * Score every candidate 0–100 against the weights, in place.
- *
- * Each criterion is min-max normalised across the candidate set, so the scores
- * say "best of what is on offer here" rather than pretending to an absolute
- * scale. A criterion where every candidate is identical contributes nothing
- * rather than dividing by zero.
- */
-export function scoreCandidates(candidates: Candidate[], weights: DecisionWeights = DECISION_WEIGHTS): Candidate[] {
-  if (candidates.length === 0) return candidates;
-  const w = normalizeDecisionWeights(weights);
-
-  const raw = candidates.map((c) => ({
-    cost: c.metrics.loadedCostPerPart,
-    capex: c.metrics.capexTotal,
-    fit: c.metrics.conceptFit,
-    operators: c.metrics.operators,
-    flexibility: changeoverBurden(c),
-  }));
-
-  const norm = (key: keyof DecisionWeights, lowerIsBetter: boolean) => {
-    const vals = raw.map((r) => r[key]);
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
-    // Everything equal ⇒ the criterion cannot separate anything. Score it flat
-    // rather than 0 or NaN, so it neither rewards nor punishes.
-    if (!(hi > lo)) return vals.map(() => 100);
-    return vals.map((v) => ((lowerIsBetter ? hi - v : v - lo) / (hi - lo)) * 100);
-  };
-
-  const parts = {
-    cost: norm("cost", true),
-    capex: norm("capex", true),
-    fit: norm("fit", false),
-    operators: norm("operators", true),
-    flexibility: norm("flexibility", true),
-  };
-
-  candidates.forEach((c, i) => {
-    c.metrics.decisionScore = +(
-      parts.cost[i] * w.cost +
-      parts.capex[i] * w.capex +
-      parts.fit[i] * w.fit +
-      parts.operators[i] * w.operators +
-      parts.flexibility[i] * w.flexibility
-    ).toFixed(1);
-    c.metrics.criteria = {
-      cost: +parts.cost[i].toFixed(1),
-      capex: +parts.capex[i].toFixed(1),
-      fit: +parts.fit[i].toFixed(1),
-      operators: +parts.operators[i].toFixed(1),
-      flexibility: +parts.flexibility[i].toFixed(1),
-    };
-  });
-  return candidates;
-}
-
-/** Score, then rank by the weighted decision score. */
-export function rankByDecision(candidates: Candidate[], weights: DecisionWeights = DECISION_WEIGHTS): Candidate[] {
-  return rankCandidates(scoreCandidates(candidates, weights), "decisionScore");
-}
-
-// ---------------------------------------------------------------------------
-// Sensitivity
-// ---------------------------------------------------------------------------
-
-export interface SensitivityRow {
-  /** What was varied. */
-  factor: string;
-  /** Human-readable low and high settings. */
-  lowLabel: string;
-  highLabel: string;
-  lowWinner: string;
-  highWinner: string;
-  /** True when the winning concept is not the same at both ends. */
-  flips: boolean;
-}
-
-export interface SensitivityResult {
-  /** The winner at the brief as entered. */
-  baseWinner: string;
-  rows: SensitivityRow[];
-  /** How many factors change the answer on their own. */
-  flipCount: number;
-}
-
-/**
- * Does the answer survive being wrong about one thing?
- *
- * A brief is a set of estimates — the demand is a forecast, the labour rate is
- * a planning figure, the program length is a negotiation. Ranking them once and
- * reporting a winner says nothing about whether that winner holds if any single
- * one of them is off, which is the question a steering committee actually asks.
- *
- * Each factor is varied on its own, low and high, and the winning CONCEPT is
- * compared. Deliberately one-at-a-time: an interaction study needs a design of
- * experiments and this is meant to answer "how fragile is this" in one glance.
- */
-export function sensitivity(
-  brief: GenerateBrief,
-  weights: DecisionWeights = DECISION_WEIGHTS,
-  spreadPct = 30,
-): SensitivityResult {
-  const k = spreadPct / 100;
-  const winnerOf = (b: GenerateBrief) => {
-    const ranked = rankByDecision(filterCandidates(generateCandidates(b), { meetsDemandOnly: true }), weights);
-    return ranked[0]?.conceptLabel ?? "—";
-  };
-  const baseWinner = winnerOf(brief);
-  if (brief.steps.length === 0) return { baseWinner, rows: [], flipCount: 0 };
-
-  const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
-  const labour = brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour;
-  const years = brief.programYears ?? DEFAULT_PROGRAM_YEARS;
-
-  const factors: Array<{ factor: string; lo: GenerateBrief; hi: GenerateBrief; loLabel: string; hiLabel: string }> = [
-    {
-      factor: "Annual demand",
-      lo: { ...brief, annualVolume: Math.round(brief.annualVolume * (1 - k)) },
-      hi: { ...brief, annualVolume: Math.round(brief.annualVolume * (1 + k)) },
-      loLabel: `${Math.round(brief.annualVolume * (1 - k)).toLocaleString()}/yr`,
-      hiLabel: `${Math.round(brief.annualVolume * (1 + k)).toLocaleString()}/yr`,
-    },
-    {
-      factor: "Labour rate",
-      lo: { ...brief, laborCostPerHour: +(labour * (1 - k)).toFixed(2) },
-      hi: { ...brief, laborCostPerHour: +(labour * (1 + k)).toFixed(2) },
-      loLabel: `${(labour * (1 - k)).toFixed(0)}/h`,
-      hiLabel: `${(labour * (1 + k)).toFixed(0)}/h`,
-    },
-    {
-      // Not "program length": in the planning flow this field carries the
-      // amortisation-equivalent years (program volume ÷ peak volume), not the
-      // calendar length of the program.
-      factor: "Capex amortisation years",
-      lo: { ...brief, programYears: Math.max(1, +(years * (1 - k)).toFixed(1)) },
-      hi: { ...brief, programYears: +(years * (1 + k)).toFixed(1) },
-      loLabel: `${Math.max(1, +(years * (1 - k)).toFixed(1))} yr`,
-      hiLabel: `${(years * (1 + k)).toFixed(1)} yr`,
-    },
-    {
-      factor: "Shifts per year",
-      lo: { ...brief, annualShifts: Math.max(1, Math.round(shifts * (1 - k))) },
-      hi: { ...brief, annualShifts: Math.round(shifts * (1 + k)) },
-      loLabel: `${Math.max(1, Math.round(shifts * (1 - k)))}`,
-      hiLabel: `${Math.round(shifts * (1 + k))}`,
-    },
-  ];
-
-  const rows = factors.map((f) => {
-    const lowWinner = winnerOf(f.lo);
-    const highWinner = winnerOf(f.hi);
-    return {
-      factor: f.factor,
-      lowLabel: f.loLabel,
-      highLabel: f.hiLabel,
-      lowWinner,
-      highWinner,
-      flips: lowWinner !== highWinner || lowWinner !== baseWinner || highWinner !== baseWinner,
-    };
-  });
-
-  return { baseWinner, rows, flipCount: rows.filter((r) => r.flips).length };
 }

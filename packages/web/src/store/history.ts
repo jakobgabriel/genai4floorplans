@@ -1,6 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
 import { modelReducer, type ModelAction } from "@flowplan/core/store/reducer";
-import { normalizeModel } from "@flowplan/core/model/defaults";
 
 // Generic undo/redo history wrapped around the model reducer.
 //
@@ -25,19 +24,14 @@ export type HistoryAction =
   | { kind: "undo" }
   | { kind: "redo" };
 
-// The present is always normalized. Models arriving from an import or scenario
-// were normalized by migrate() on the way in, but a raw seed or the sample was
-// not — so the same cell serialized differently before and after a reload
-// (the loader normalizes, the first save did not). Normalizing here means what
-// is held, saved and exported is one canonical shape from the first render.
 export function initHistory(model: Model): HistoryState {
-  return { past: [], present: normalizeModel(model), future: [] };
+  return { past: [], present: model, future: [] };
 }
 
 export function historyReducer(state: HistoryState, ha: HistoryAction): HistoryState {
   switch (ha.kind) {
     case "reset":
-      return { past: [], present: normalizeModel(ha.model), future: [] };
+      return { past: [], present: ha.model, future: [] };
 
     case "commit": {
       const present = modelReducer(state.present, ha.action);

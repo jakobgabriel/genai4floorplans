@@ -51,4 +51,17 @@ describe("hasCollision (shape-aware)", () => {
     expect(hasCollision(b, 5, 5, [a], [])).toBe(false);
     expect(hasCollision(b, 1, 1, [a], [])).toBe(true);
   });
+
+  it("only obstacle zones block placement; spacer/aisle reserve without blocking", () => {
+    const b = st({ id: "b", x: 0, y: 0, w: 2, h: 2 });
+    // A blocking obstacle over the same cells collides.
+    expect(hasCollision(b, 0, 0, [], [{ x: 0, y: 0, w: 2, h: 2, kind: "blocking" }])).toBe(true);
+    // Legacy no-go zone (no kind ⇒ blocking) still collides.
+    expect(hasCollision(b, 0, 0, [], [{ x: 0, y: 0, w: 2, h: 2 }])).toBe(true);
+    // A spacer over the same cells does NOT block placement.
+    expect(hasCollision(b, 0, 0, [], [{ x: 0, y: 0, w: 2, h: 2, kind: "spacer" }])).toBe(false);
+    expect(hasCollision(b, 0, 0, [], [{ x: 0, y: 0, w: 2, h: 2, kind: "aisle" }])).toBe(false);
+    // Wall and column are obstacles.
+    expect(hasCollision(b, 0, 0, [], [{ x: 0, y: 0, w: 2, h: 2, kind: "wall" }])).toBe(true);
+  });
 });

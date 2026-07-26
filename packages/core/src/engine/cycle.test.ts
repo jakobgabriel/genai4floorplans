@@ -197,3 +197,14 @@ describe("inertness — decomposition must not change engine results", () => {
     opaque.forEach((s, i) => expect(autoHeuristic(decomposed[i])).toBe(autoHeuristic(s)));
   });
 });
+
+describe("cycle-bucket → VA/NNVA/NVA reconciliation (audit A-06)", () => {
+  it("maps handling/setup to NNVA and walk/wait to NVA, value-add to VA", async () => {
+    const { cycleKeyClass } = await import("./cycle");
+    expect(cycleKeyClass("valueAddSec")).toBe("VA");
+    expect(cycleKeyClass("handlingSec")).toBe("NNVA");
+    expect(cycleKeyClass("setupSec")).toBe("NNVA");
+    expect(cycleKeyClass("walkSec")).toBe("NVA");
+    expect(cycleKeyClass("waitSec")).toBe("NVA");
+  });
+});

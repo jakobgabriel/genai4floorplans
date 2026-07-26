@@ -1,5 +1,5 @@
-import type { CycleBreakdown, CycleKey, Station } from "../model/types";
-import { CYCLE_KEYS, sumCycle } from "../model/types";
+import type { CycleBreakdown, CycleKey, Station, WorkClass } from "../model/types";
+import { CYCLE_KEYS, sumCycle, isFlowFunction, partsPerCycleOf } from "../model/types";
 
 // Cycle-time decomposition (spec: lifecycle case 3).
 //
@@ -11,17 +11,6 @@ import { CYCLE_KEYS, sumCycle } from "../model/types";
 /** The one and only cycle-time read used by the engine. */
 export function effectiveCycleSec(s: Station): number {
   return s.cycle ? sumCycle(s.cycle) : s.cycleTimeSec;
-}
-
-/**
- * The cycle the station runs at across the mix, for utilisation and throughput.
- *
- * Falls back to the sized cycle when there is no mix, so single-model cells are
- * unchanged and every existing caller keeps its meaning.
- */
-export function mixCycleSec(s: Station): number {
-  const sized = effectiveCycleSec(s);
-  return s.mixCycleSec != null && s.mixCycleSec > 0 ? s.mixCycleSec : sized;
 }
 
 /** True when the station's cycle has been split into components. */
@@ -43,6 +32,25 @@ export function isValueAdd(key: CycleKey): boolean {
   return key === "valueAddSec";
 }
 
+/** Reconcile the 5-bucket CycleBreakdown with the WorkElement VA/NNVA/NVA
+ *  taxonomy (audit A-06 / contradiction #3), so the Yamazumi and the workload
+ *  analysis speak one lean vocabulary instead of two. Handling and setup are
+ *  *necessary* non-value-add (NNVA); walking and waiting are pure waste (NVA).
+ *  VA% is unchanged — only valueAdd is VA — but the non-VA time now carries the
+ *  necessary/waste distinction the flat "everything else is waste" view lost. */
+export const CYCLE_KEY_CLASS: Record<CycleKey, WorkClass> = {
+  valueAddSec: "VA",
+  handlingSec: "NNVA",
+  setupSec: "NNVA",
+  walkSec: "NVA",
+  waitSec: "NVA",
+};
+
+/** VA / NNVA / NVA class of a cycle bucket (audit A-06). */
+export function cycleKeyClass(key: CycleKey): WorkClass {
+  return CYCLE_KEY_CLASS[key];
+}
+
 export interface CycleSegment {
   key: CycleKey;
   label: string;
@@ -55,6 +63,11 @@ export interface StationCycle {
   name: string;
   /** False when the station still carries only an opaque cycleTimeSec. */
   decomposed: boolean;
+  /** Parts processed per cycle (≥1). >1 ⇒ totalSec/segments are PER PART. */
+  partsPerCycle: number;
+  /** The station's full machine cycle (all parts). totalSec = cycleSec / partsPerCycle. */
+  cycleSec: number;
+  /** Per-PART cycle time (machine cycle ÷ partsPerCycle), for takt comparison. */
   totalSec: number;
   /** Empty when not decomposed — callers must not invent a split. */
   segments: CycleSegment[];
@@ -110,20 +123,28 @@ function segmentsOf(c: CycleBreakdown): CycleSegment[] {
  * taktPct and the over-takt flag for a Yamazumi chart.
  */
 export function cycleAnalysis(stations: Station[], takt?: number): CycleAnalysis {
-  const proc = stations.filter((s) => s.role === "process");
+  // Flow functions (buffers/stores) have no work cycle — they never appear as
+  // Yamazumi bars, only real work steps carry cycle time.
+  const proc = stations.filter((s) => s.role === "process" && !isFlowFunction(s));
   const hasTakt = takt != null && takt > 0;
 
   const rows: StationCycle[] = proc.map((s) => {
-    const total = effectiveCycleSec(s);
+    // Multi-part steps process N parts per cycle; the takt view is PER PART, so
+    // the bar and its segments are the machine cycle divided by partsPerCycle.
+    const ppc = partsPerCycleOf(s);
+    const cycleSec = effectiveCycleSec(s);
+    const total = cycleSec / ppc;
     const decomposed = isDecomposed(s);
-    const va = decomposed ? (s.cycle as CycleBreakdown).valueAddSec : 0;
+    const va = (decomposed ? (s.cycle as CycleBreakdown).valueAddSec : 0) / ppc;
     const nva = decomposed ? total - va : 0;
     return {
       id: s.id,
       name: s.name,
       decomposed,
+      partsPerCycle: ppc,
+      cycleSec: +cycleSec.toFixed(3),
       totalSec: +total.toFixed(3),
-      segments: decomposed ? segmentsOf(s.cycle as CycleBreakdown) : [],
+      segments: decomposed ? segmentsOf(s.cycle as CycleBreakdown).map((seg) => ({ ...seg, sec: +(seg.sec / ppc).toFixed(3) })) : [],
       valueAddSec: +va.toFixed(3),
       nonValueAddSec: +nva.toFixed(3),
       valueAddPct: decomposed && total > 0 ? +((va / total) * 100).toFixed(1) : decomposed ? 0 : null,

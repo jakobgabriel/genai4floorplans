@@ -73,11 +73,14 @@ export function normalizeModel(o: Partial<Model> & { stations?: unknown; flows?:
     shiftHours: o.shiftHours ?? DEFAULT_SHIFT_HOURS,
     weights: o.weights,
     costConfig: o.costConfig,
+    lossFactor: typeof o.lossFactor === "number" ? o.lossFactor : undefined,
+    demand: o.demand,
     noGoZones: Array.isArray(o.noGoZones) ? o.noGoZones : [],
     stations: stations.map(normalizeStation),
     flows: flows.map(normalizeFlow),
     conceptKind: typeof o.conceptKind === "string" ? o.conceptKind : undefined,
     workElements: Array.isArray(o.workElements) ? o.workElements : undefined,
     variantModes: Array.isArray(o.variantModes) ? o.variantModes : undefined,
+    groups: Array.isArray(o.groups) ? o.groups : undefined,
   };
 }

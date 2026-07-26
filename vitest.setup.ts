@@ -10,12 +10,6 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
 }
 
-// jsdom has scrollTo but only to log "Not implemented" on every call; the hash
-// router scrolls a new page to its top on every route change.
-if (typeof window !== "undefined") {
-  window.scrollTo = (() => {}) as typeof window.scrollTo;
-}
-
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,

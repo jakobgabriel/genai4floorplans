@@ -1,148 +1,273 @@
-import type { VariantMode } from "../model/types";
-import type { ProcessStep } from "./generate";
+import type { Model, Station } from "../model/types";
+import { DEFAULT_SHIFT_MODEL } from "../model/types";
+import type { Capability } from "../model/capabilities";
+import { catalogFor, capabilityIndex } from "../model/capabilities";
+import { effectiveCycleSec } from "./cycle";
 
-/**
- * The part portfolio — what the cell actually has to make.
- *
- * The planner used to ask for one product name, one annual volume and one list
- * of process steps. Real cells are not like that: they carry a handful of part
- * numbers, each with its own routing, each ramping on its own curve over the
- * program. Sizing against a single averaged number gets the station count wrong
- * in both directions — too few for the peak year, too many for the tail.
- *
- * So the portfolio is the input, and everything the generator needs is derived
- * from it:
- *
- *   sizing volume    the peak year's total, because the cell has to survive it
- *   program volume   every part, every year — the denominator for capex/part
- *   union routing    a station for every step any part needs
- *   mix modes        one per distinct routing, skipping the steps it does not use
- *
- * The mode collapse is the model's existing rule, applied to real data rather
- * than to hand-entered percentages: parts whose work content is identical are
- * one mode, however many part numbers they are.
- */
+// Product-process feasibility matrix (spec §15/§18 Gate 1, audit C-11). The
+// industrialization engineer's core question: of a portfolio of part numbers,
+// which can this line make, and which capability blocks the rest? Each part is
+// an abstract workload — the SET OF CAPABILITIES it requires — checked against
+// what the line's resources provide (directly or via a catalog alternative).
 
-export interface Part {
+export type CellStatus = "provided" | "alternative" | "missing" | "not-required";
+
+export interface MatrixCell {
+  status: CellStatus;
+  /** The provided capability substituting, when status === "alternative". */
+  via?: string;
+  viaName?: string;
+}
+
+export interface MatrixColumn {
   id: string;
-  /** The part number as the plant knows it. */
-  partNumber: string;
-  /** This part's routing. Empty ⇒ the part is ignored. */
-  steps: ProcessStep[];
-  /** Good parts required per program year, index 0 = year 1. */
-  demandByYear: number[];
+  name: string;
+  category: string;
+  /** Number of parts that require this capability. */
+  requiredByCount: number;
+  /** True when the line provides this capability directly. */
+  provided: boolean;
 }
 
-export interface PortfolioDerivation {
-  /** Program length, from the longest demand curve given. */
-  years: number;
-  /** Total good parts required in each year. */
-  totalByYear: number[];
-  /** 1-based. The year the cell has to be sized for. */
-  peakYear: number;
-  /** The peak year's total — the volume the cell is sized against. */
-  peakVolume: number;
-  /** Every part, every year. The denominator for capex per part. */
-  programVolume: number;
-  /** Union of every part's routing, in first-seen order. */
-  steps: ProcessStep[];
-  /** One per distinct routing. Shares are of the peak year. */
-  modes: VariantMode[];
-  /** partNumber → modeId, so the UI can show which parts collapsed together. */
-  modeOfPart: Record<string, string>;
-  /** Part numbers that were dropped for having no steps or no demand. */
-  ignored: string[];
+export interface PartRow {
+  id: string;
+  number: string;
+  name?: string;
+  demandPerYear?: number;
+  changeoverFamily?: string;
+  /** Capability id → cell. */
+  cells: Record<string, MatrixCell>;
+  verdict: "runnable" | "blocked";
+  /** Required capabilities that are neither provided nor substitutable. */
+  missing: string[];
+  missingNames: string[];
 }
 
-const key = (name: string) => name.trim().toLowerCase();
-
-/** Demand in a given year, treating a short curve as zero thereafter. */
-function inYear(p: Part, y: number): number {
-  const v = p.demandByYear[y];
-  return Number.isFinite(v) && v > 0 ? v : 0;
+export interface BlockingCapability {
+  id: string;
+  name: string;
+  /** How many parts are blocked because this capability is missing. */
+  blockedParts: number;
 }
 
-/**
- * Derive the generator's inputs from the parts.
- *
- * Returns null when the portfolio says nothing useful — no parts, or none with
- * both a routing and demand — so callers can fall back to the single-product
- * path rather than being handed a zeroed portfolio.
- */
-export function derivePortfolio(parts: Part[]): PortfolioDerivation | null {
-  const ignored = parts
-    .filter((p) => p.steps.length === 0 || p.demandByYear.every((v) => !(v > 0)))
-    .map((p) => p.partNumber);
-  const live = parts.filter((p) => p.steps.length > 0 && p.demandByYear.some((v) => v > 0));
-  if (live.length === 0) return null;
+export interface PortfolioMatrix {
+  columns: MatrixColumn[];
+  rows: PartRow[];
+  /** Capabilities the line provides directly (union of station.provides). */
+  providedIds: string[];
+  runnable: number;
+  total: number;
+  /** Missing capabilities ranked by how many parts they block — the investment
+   *  priority to unlock the most of the portfolio (§18 Gate 1). */
+  blocking: BlockingCapability[];
+  /** True when the portfolio is empty (nothing to assess). */
+  empty: boolean;
+}
 
-  const years = Math.max(1, ...live.map((p) => p.demandByYear.length));
-  const totalByYear = Array.from({ length: years }, (_, y) => live.reduce((a, p) => a + inYear(p, y), 0));
+export function portfolioMatrix(model: Model, catalog: Capability[] = catalogFor(model)): PortfolioMatrix {
+  const parts = model.parts ?? [];
+  const idx = capabilityIndex(catalog);
+  const nameOf = (id: string) => idx.get(id)?.name ?? id;
+  const catOf = (id: string) => idx.get(id)?.category ?? "other";
 
-  // The cell has to survive its busiest year, so that is what it is sized for.
-  let peakYear = 1;
-  for (let y = 1; y < years; y++) if (totalByYear[y] > totalByYear[peakYear - 1]) peakYear = y + 1;
-  const peakVolume = totalByYear[peakYear - 1] ?? 0;
-  const programVolume = totalByYear.reduce((a, b) => a + b, 0);
-
-  // Union routing: a station for every step any part needs. First-seen order,
-  // which is also the order `inferWorkload` assigns element ids in — the mode
-  // overrides below are keyed on that.
-  const steps: ProcessStep[] = [];
-  const index = new Map<string, number>();
-  for (const p of live) {
-    for (const st of p.steps) {
-      const k = key(st.name);
-      if (!k || index.has(k)) continue;
-      index.set(k, steps.length);
-      steps.push({ ...st });
-    }
-  }
-
-  // A part's override vector against the union: 0 for a step it skips, and the
-  // ratio of its own cycle to the union's where the same step takes it longer.
-  const vectorOf = (p: Part): number[] => {
-    const v = steps.map(() => 0);
-    for (const st of p.steps) {
-      const i = index.get(key(st.name));
-      if (i == null) continue;
-      const base = steps[i].cycleTimeSec;
-      const mine = st.cycleTimeSec;
-      v[i] = base != null && base > 0 && mine != null && mine > 0 ? +(mine / base).toFixed(3) : 1;
-    }
-    return v;
+  const provided = new Set((model.stations ?? []).flatMap((s) => s.provides ?? []));
+  const substitutes = (c: string, p: string): boolean => {
+    if (p === c) return true;
+    return (idx.get(c)?.alternatives ?? []).includes(p) || (idx.get(p)?.alternatives ?? []).includes(c);
+  };
+  const statusFor = (c: string): MatrixCell => {
+    if (provided.has(c)) return { status: "provided" };
+    const via = [...provided].find((p) => substitutes(c, p));
+    if (via) return { status: "alternative", via, viaName: nameOf(via) };
+    return { status: "missing" };
   };
 
-  // Parts with the same work content are one mode, however many part numbers.
-  const groups = new Map<string, { vector: number[]; parts: Part[] }>();
-  for (const p of live) {
-    const vector = vectorOf(p);
-    const sig = vector.join(",");
-    const g = groups.get(sig);
-    if (g) g.parts.push(p);
-    else groups.set(sig, { vector, parts: [p] });
+  // Columns: every capability any part requires, plus everything the line
+  // provides — so the matrix shows both demand and supply.
+  const colIds = [...new Set([...parts.flatMap((p) => p.requiredCapabilityIds), ...provided])];
+  const requiredByCount = new Map<string, number>();
+  parts.forEach((p) => new Set(p.requiredCapabilityIds).forEach((c) => requiredByCount.set(c, (requiredByCount.get(c) ?? 0) + 1)));
+  const columns: MatrixColumn[] = colIds
+    .map((id) => ({ id, name: nameOf(id), category: catOf(id), requiredByCount: requiredByCount.get(id) ?? 0, provided: provided.has(id) }))
+    .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+
+  const blockedByCap = new Map<string, number>();
+  const rows: PartRow[] = parts.map((part) => {
+    const required = new Set(part.requiredCapabilityIds);
+    const cells: Record<string, MatrixCell> = {};
+    const missing: string[] = [];
+    columns.forEach((col) => {
+      if (!required.has(col.id)) {
+        cells[col.id] = { status: "not-required" };
+        return;
+      }
+      const cell = statusFor(col.id);
+      cells[col.id] = cell;
+      if (cell.status === "missing") {
+        missing.push(col.id);
+        blockedByCap.set(col.id, (blockedByCap.get(col.id) ?? 0) + 1);
+      }
+    });
+    return {
+      id: part.id,
+      number: part.number,
+      name: part.name,
+      demandPerYear: part.demandPerYear,
+      changeoverFamily: part.changeoverFamily,
+      cells,
+      verdict: missing.length === 0 ? "runnable" : "blocked",
+      missing,
+      missingNames: missing.map(nameOf),
+    };
+  });
+
+  const blocking: BlockingCapability[] = [...blockedByCap.entries()]
+    .map(([id, blockedParts]) => ({ id, name: nameOf(id), blockedParts }))
+    .sort((a, b) => b.blockedParts - a.blockedParts || a.name.localeCompare(b.name));
+
+  return {
+    columns,
+    rows,
+    providedIds: [...provided],
+    runnable: rows.filter((r) => r.verdict === "runnable").length,
+    total: rows.length,
+    blocking,
+    empty: parts.length === 0,
+  };
+}
+
+// ---- Capacity gate (spec §18 Gate 3 + Gate 2 volume band, audit C-11) -------
+//
+// Gate 1 asks "can the line make this part at all?". Gate 3 asks "do all the
+// parts you want to run FIT the available time once processing AND changeover
+// are counted — and if not, which part do you drop?". A multi-model line runs
+// campaigns with a setup between them; every campaign start costs a changeover.
+
+export interface PartLoad {
+  id: string;
+  number: string;
+  runnable: boolean;
+  /** Demand sits outside a used station's validated volume band (Gate 2). */
+  offVolume: boolean;
+  offVolumeNote?: string;
+  demandPerYear: number;
+  /** Seconds one part occupies the line (Σ cycle of the stations it uses). */
+  processingSecPerPart: number;
+  processingSecPerYear: number;
+  campaignsPerYear: number;
+}
+
+export interface DropCandidate {
+  id: string;
+  number: string;
+  /** Line-seconds per year freed by dropping this part (processing + its setups). */
+  freedSecPerYear: number;
+  demandPerYear: number;
+}
+
+export interface PortfolioCapacity {
+  /** True when there is enough data to assess (parts with demand + priced line). */
+  hasData: boolean;
+  availableSecPerYear: number;
+  processingSecPerYear: number;
+  changeoverSecPerYear: number;
+  changeoverMinutesPerSwitch: number;
+  switchesPerYear: number;
+  totalLoadSecPerYear: number;
+  utilizationPct: number;
+  overCapacity: boolean;
+  parts: PartLoad[];
+  /** When over capacity: the cheapest set of parts to drop to fit, ranked by
+   *  line-time freed per unit of demand sacrificed (§18 drop_analysis). */
+  drop: DropCandidate[];
+}
+
+/** Seconds one part occupies the line: for each capability it needs, the fastest
+ *  providing station's cycle. A capability nobody provides adds nothing (that is
+ *  a Gate 1 miss, surfaced by the matrix). */
+function processingSecPerPart(part: { requiredCapabilityIds: string[] }, stations: Station[]): number {
+  let sec = 0;
+  for (const cap of new Set(part.requiredCapabilityIds)) {
+    const providers = stations.filter((s) => (s.provides ?? []).includes(cap) && effectiveCycleSec(s) > 0);
+    if (providers.length === 0) continue;
+    sec += Math.min(...providers.map((s) => effectiveCycleSec(s)));
+  }
+  return +sec.toFixed(2);
+}
+
+export function portfolioCapacity(model: Model, catalog: Capability[] = catalogFor(model)): PortfolioCapacity {
+  const sm = { ...DEFAULT_SHIFT_MODEL, ...(model.demand ?? {}) };
+  const availableSecPerYear = Math.max(0, sm.workingDaysPerYear * sm.shiftsPerDay * sm.hoursPerShift * 3600 * sm.oee);
+
+  // Gate 1 verdicts come from the same matrix, so the two stay consistent.
+  const gate1 = new Map(portfolioMatrix(model, catalog).rows.map((r) => [r.id, r.verdict === "runnable"]));
+  const stations = model.stations ?? [];
+  // A full line changeover between campaigns — the slowest setup on the line.
+  const changeoverMinutesPerSwitch = stations.reduce((m, s) => Math.max(m, s.changeoverMin || 0), 0);
+
+  const parts: PartLoad[] = (model.parts ?? []).map((p) => {
+    const demand = Math.max(0, p.demandPerYear ?? 0);
+    const secPart = processingSecPerPart(p, stations);
+    const runnable = gate1.get(p.id) ?? false;
+    // Gate 2: demand outside any used station's validated volume band.
+    let offVolume = false;
+    let offVolumeNote: string | undefined;
+    for (const cap of new Set(p.requiredCapabilityIds)) {
+      const bands = stations.filter((s) => (s.provides ?? []).includes(cap) && s.volumeBand).map((s) => s.volumeBand!);
+      if (demand > 0 && bands.length > 0 && !bands.some((b) => demand >= b.minUnitsPerYear && demand <= b.maxUnitsPerYear)) {
+        offVolume = true;
+        offVolumeNote = `${demand.toLocaleString()}/yr is outside the validated volume band for ${cap}`;
+        break;
+      }
+    }
+    return {
+      id: p.id,
+      number: p.number,
+      runnable,
+      offVolume,
+      offVolumeNote,
+      demandPerYear: demand,
+      processingSecPerPart: secPart,
+      processingSecPerYear: +(demand * secPart).toFixed(2),
+      campaignsPerYear: Math.max(1, Math.floor(p.campaignsPerYear ?? 1)),
+    };
+  });
+
+  // Only parts that can run AND carry demand load the line.
+  const counted = parts.filter((p) => p.runnable && p.demandPerYear > 0 && p.processingSecPerPart > 0);
+  const processingSecPerYear = +counted.reduce((a, p) => a + p.processingSecPerYear, 0).toFixed(2);
+  const switchesPerYear = counted.reduce((a, p) => a + p.campaignsPerYear, 0);
+  const changeoverSecPerYear = +(switchesPerYear * changeoverMinutesPerSwitch * 60).toFixed(2);
+  const totalLoadSecPerYear = +(processingSecPerYear + changeoverSecPerYear).toFixed(2);
+  const utilizationPct = availableSecPerYear > 0 ? +((totalLoadSecPerYear / availableSecPerYear) * 100).toFixed(1) : 0;
+  const overCapacity = totalLoadSecPerYear > availableSecPerYear;
+
+  // Drop analysis: sacrifice the part that frees the most line-time per unit of
+  // demand lost, until the rest fits.
+  const drop: DropCandidate[] = [];
+  if (overCapacity) {
+    const freedOf = (p: PartLoad) => p.processingSecPerYear + p.campaignsPerYear * changeoverMinutesPerSwitch * 60;
+    const ranked = counted.slice().sort((a, b) => freedOf(b) / Math.max(1, b.demandPerYear) - freedOf(a) / Math.max(1, a.demandPerYear));
+    let load = totalLoadSecPerYear;
+    for (const p of ranked) {
+      if (load <= availableSecPerYear) break;
+      const freed = freedOf(p);
+      drop.push({ id: p.id, number: p.number, freedSecPerYear: +freed.toFixed(2), demandPerYear: p.demandPerYear });
+      load -= freed;
+    }
   }
 
-  const modes: VariantMode[] = [];
-  const modeOfPart: Record<string, string> = {};
-  let n = 0;
-  for (const { vector, parts: members } of groups.values()) {
-    n += 1;
-    const id = "mix-" + n;
-    const volume = members.reduce((a, p) => a + inYear(p, peakYear - 1), 0);
-    const elementOverrides: Record<string, number> = {};
-    // `inferWorkload` numbers elements we1..weN by position in `steps`.
-    vector.forEach((f, i) => {
-      if (f !== 1) elementOverrides["we" + (i + 1)] = f;
-    });
-    modes.push({
-      id,
-      name: members.map((p) => p.partNumber).join(", "),
-      share: peakVolume > 0 ? +(volume / peakVolume).toFixed(4) : 0,
-      elementOverrides,
-    });
-    for (const p of members) modeOfPart[p.partNumber] = id;
-  }
-
-  return { years, totalByYear, peakYear, peakVolume, programVolume, steps, modes, modeOfPart, ignored };
+  return {
+    hasData: counted.length > 0 && availableSecPerYear > 0,
+    availableSecPerYear: +availableSecPerYear.toFixed(0),
+    processingSecPerYear,
+    changeoverSecPerYear,
+    changeoverMinutesPerSwitch,
+    switchesPerYear,
+    totalLoadSecPerYear,
+    utilizationPct,
+    overCapacity,
+    parts,
+    drop,
+  };
 }

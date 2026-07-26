@@ -1,8 +1,8 @@
-import type { CostConfig, CycleBreakdown, Flow, Model, NoGoZone, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
+import type { CostConfig, CycleBreakdown, Demand, Flow, Group, Model, NoGoZone, PartEntry, RatingWeights, Station, VariantMode, WorkElement } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
 import { normalizeFlow, STATION_DEFAULTS, syncCycleTime } from "../model/defaults";
 import { clampToGrid } from "../engine/geometry";
-import { cellTemplate, type CellForm } from "../engine/templates";
+import { applyForm, type CellForm } from "../engine/templates";
 import { applyProposalItems, type ProposalItem } from "../engine/proposal";
 
 export type ModelAction =
@@ -11,6 +11,10 @@ export type ModelAction =
   | { type: "SET_GRID"; gridW: number; gridH: number }
   | { type: "SET_SHIFT_HOURS"; shiftHours: number }
   | { type: "SET_WEIGHTS"; weights: RatingWeights | undefined }
+  | { type: "SET_LOSS_FACTOR"; lossFactor: number | undefined }
+  | { type: "SET_DEMAND"; demand: Demand | undefined }
+  | { type: "SET_FLOOR_LOAD"; floorLoadKgPerM2: number | undefined }
+  | { type: "SET_FLOOR_POLYGON"; floorPolygon: Array<[number, number]> | undefined }
   | { type: "SET_COST_CONFIG"; patch: Partial<CostConfig> }
   | { type: "ADD_STATION"; station: Station }
   | { type: "UPDATE_STATION"; id: string; patch: Partial<Station> }
@@ -27,6 +31,9 @@ export type ModelAction =
   | { type: "ADD_NOGO"; zone: NoGoZone }
   | { type: "UPDATE_NOGO"; index: number; patch: Partial<NoGoZone> }
   | { type: "REMOVE_NOGO"; index: number }
+  | { type: "ADD_GROUP"; group: Group }
+  | { type: "UPDATE_GROUP"; id: string; patch: Partial<Group> }
+  | { type: "REMOVE_GROUP"; id: string }
   | { type: "APPLY_TEMPLATE"; form: CellForm }
   // ---- Workload (spec §11). The product-free input: what must be done, ----
   // ---- independent of what is made. `analyseWorkload` has consumed these ----
@@ -39,12 +46,22 @@ export type ModelAction =
   | { type: "ADD_VARIANT_MODE"; mode: VariantMode }
   | { type: "UPDATE_VARIANT_MODE"; id: string; patch: Partial<VariantMode> }
   | { type: "DELETE_VARIANT_MODE"; id: string }
+  | { type: "ADD_PART"; part: PartEntry }
+  | { type: "UPDATE_PART"; id: string; patch: Partial<PartEntry> }
+  | { type: "DELETE_PART"; id: string }
   /**
    * Accept some or all items of a solver proposal (spec §4). Replaces the old
    * ADOPT_STATIONS, which took a finished station array and overwrote the
    * user's placements wholesale.
    */
-  | { type: "ACCEPT_PROPOSAL"; items: ProposalItem[]; itemIds: string[] };
+  | { type: "ACCEPT_PROPOSAL"; items: ProposalItem[]; itemIds: string[] }
+  /**
+   * Insert a grouped/subflow element (node-RED subflow): its member stations and
+   * internal flows are re-id'd, offset to the drop point and appended. Nothing
+   * existing is touched, and ids never collide because each member gets a fresh
+   * id. `stations` carry positions normalised to the group's own (0,0) corner.
+   */
+  | { type: "INSERT_SUBFLOW"; stations: Station[]; flows: Flow[]; x: number; y: number };
 
 function clampStations(model: Model): Station[] {
   return model.stations.map((s) => {
@@ -74,6 +91,18 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "SET_WEIGHTS":
       return { ...model, weights: action.weights };
+
+    case "SET_LOSS_FACTOR":
+      return { ...model, lossFactor: action.lossFactor };
+
+    case "SET_DEMAND":
+      return { ...model, demand: action.demand };
+
+    case "SET_FLOOR_LOAD":
+      return { ...model, floorLoadKgPerM2: action.floorLoadKgPerM2 };
+
+    case "SET_FLOOR_POLYGON":
+      return { ...model, floorPolygon: action.floorPolygon };
 
     case "SET_COST_CONFIG":
       return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };
@@ -175,24 +204,21 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     case "REMOVE_NOGO":
       return { ...model, noGoZones: model.noGoZones.filter((_, i) => i !== action.index) };
 
-    case "APPLY_TEMPLATE": {
-      const movable = model.stations.filter((s) => s.role === "process" && !s.fixed);
-      const slots = cellTemplate(action.form, movable.length, model);
-      let k = 0;
+    case "ADD_GROUP":
+      return { ...model, groups: (model.groups ?? []).concat([action.group]) };
+
+    case "UPDATE_GROUP":
       return {
         ...model,
-        stations: model.stations.map((s) => {
-          if (s.role === "process" && !s.fixed) {
-            const sl = slots[k++];
-            if (sl) {
-              const { x, y } = clampToGrid(s, sl.x, sl.y, model.gridW, model.gridH);
-              return { ...s, x, y };
-            }
-          }
-          return s;
-        }),
+        groups: (model.groups ?? []).map((g) => (g.id === action.id ? { ...g, ...action.patch } : g)),
       };
-    }
+
+    case "REMOVE_GROUP":
+      return { ...model, groups: (model.groups ?? []).filter((g) => g.id !== action.id) };
+
+    case "APPLY_TEMPLATE":
+      // Movable I/O reshape with the form (see applyForm); pinned areas stay put.
+      return { ...model, stations: applyForm(model, action.form) };
 
     // Spec §4 — the only path from a solver result into the model. Accepting a
     // subset is the point: `itemIds` is what the user ticked, never "all of it
@@ -200,6 +226,25 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     // applyProposalItems, not here.
     case "ACCEPT_PROPOSAL":
       return { ...model, stations: applyProposalItems(model, action.items, action.itemIds) };
+
+    case "INSERT_SUBFLOW": {
+      const idMap: Record<string, string> = {};
+      // Thread a growing model so newStationId never re-issues an id within the batch.
+      let acc: Model = model;
+      const added: Station[] = [];
+      action.stations.forEach((s) => {
+        const id = newStationId(acc, "sub");
+        idMap[s.id] = id;
+        const { x, y } = clampToGrid(s, s.x + action.x, s.y + action.y, model.gridW, model.gridH);
+        const ns: Station = { ...s, id, x, y };
+        added.push(ns);
+        acc = { ...acc, stations: acc.stations.concat([ns]) };
+      });
+      const newFlows = action.flows
+        .filter((f) => idMap[f.from] && idMap[f.to])
+        .map((f) => normalizeFlow({ ...f, from: idMap[f.from], to: idMap[f.to] }));
+      return { ...model, stations: model.stations.concat(added), flows: model.flows.concat(newFlows) };
+    }
 
     case "SET_WORK_ELEMENTS":
       return { ...model, workElements: action.elements };
@@ -248,6 +293,15 @@ export function modelReducer(model: Model, action: ModelAction): Model {
 
     case "DELETE_VARIANT_MODE":
       return { ...model, variantModes: (model.variantModes ?? []).filter((m) => m.id !== action.id) };
+
+    case "ADD_PART":
+      return { ...model, parts: [...(model.parts ?? []), action.part] };
+
+    case "UPDATE_PART":
+      return { ...model, parts: (model.parts ?? []).map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)) };
+
+    case "DELETE_PART":
+      return { ...model, parts: (model.parts ?? []).filter((p) => p.id !== action.id) };
 
     default:
       return model;

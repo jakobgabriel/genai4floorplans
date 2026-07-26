@@ -1,13 +1,27 @@
-import { useMemo, useState } from "react";
-import { Button, InlineNotification, MultiSelect, Stack, Tag, Tile } from "@carbon/react";
-import { Add, TrashCan } from "@carbon/icons-react";
+import { Fragment, useMemo, useState } from "react";
+import {
+  Button,
+  InlineNotification,
+  MultiSelect,
+  NumberInput,
+  Select,
+  SelectItem,
+  Slider,
+  Tag,
+  TextInput,
+  Tile,
+} from "@carbon/react";
+import { TrashCan } from "@carbon/icons-react";
 import type { PanelProps } from "./panels";
 import type { Confidence, TimeMethod, WorkClass, WorkElement } from "@flowplan/core/model/types";
-import { CONFIDENCES, TIME_METHODS, WORK_CLASSES } from "@flowplan/core/model/types";
+import { CONFIDENCES, LOSS_FACTOR_BAND, TIME_METHODS, WORK_CLASSES, lossFactorOf } from "@flowplan/core/model/types";
 import { analyseWorkload, makeWorkElement, precedenceOrder } from "@flowplan/core/engine/workload";
 import { inferWorkload, type InferenceResult } from "@flowplan/core/engine/infer";
-import { Footnote, SectionLabel } from "./analysisKit";
-import { FieldRow, NumberField, SelectField, TextField } from "./formKit";
+import { balanceWorkloadIntoCell } from "@flowplan/core/engine/generateCell";
+import { customerTaktSec } from "@flowplan/core/engine/takt";
+import { AMBER, LINE, RED, TEAL, TEXT, TEXTD } from "./colors";
+import { ConfirmableButton } from "./ConfirmableButton";
+import { HelpPopover } from "./ui";
 
 // Spec §11 — the product-free workload editor.
 //
@@ -20,27 +34,23 @@ import { FieldRow, NumberField, SelectField, TextField } from "./formKit";
 // and this is the first step of it. Elements carry seconds, a VA/NNVA/NVA
 // classification, an attended fraction and a confidence — the four things §8
 // and §11 say a time must carry for optimization to be possible at all.
-//
-// Standardized on Carbon: status through the design system's Tag palette
-// (VA → green, NNVA → gray, NVA → red, matching the planner's inference table)
-// and Carbon fields for editing. The stacked VA/NNVA/NVA proportion bar keeps a
-// categorical encoding — it is a chart, not a status.
 
-const CLASS_BAR: Record<WorkClass, string> = {
-  VA: "var(--cds-support-success)",
-  NNVA: "var(--cds-border-strong-01)",
-  NVA: "var(--cds-support-error)",
-};
-const classTag = (c: WorkClass): "green" | "gray" | "red" => (c === "VA" ? "green" : c === "NNVA" ? "gray" : "red");
+const CLASS_COL: Record<WorkClass, string> = { VA: TEAL, NNVA: AMBER, NVA: RED };
+
+/** A predecessor option in the DAG picker, keyed by the element id. */
+interface PredItem {
+  id: string;
+  text: string;
+}
+
+function num(v: string, fallback: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
 
 function ConfidenceDot({ c }: { c: Confidence }) {
-  const col = c === "high" ? "var(--cds-support-success)" : c === "med" ? "var(--cds-support-warning)" : "var(--cds-support-error)";
-  return (
-    <span
-      title={`${c} confidence`}
-      className="ak-dot" style={{ background: col }}
-    />
-  );
+  const col = c === "high" ? TEAL : c === "med" ? AMBER : RED;
+  return <span title={`${c} confidence`} style={{ display: "inline-block", width: 7, height: 7, borderRadius: 0, background: col, marginRight: 5 }} />;
 }
 
 export function WorkloadPanel({ api }: PanelProps) {
@@ -49,17 +59,57 @@ export function WorkloadPanel({ api }: PanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [derived, setDerived] = useState<InferenceResult | null>(null);
 
-  // Takt drives the station counts. Absent a demand figure the analysis still
-  // produces every time figure — §11 — so this panel is useful before takt is known.
+  // Takt drives the station counts. The customer takt (net available time ÷
+  // demand, audit A-01) is the correct master constraint; absent a demand figure
+  // we fall back to the slowest existing station so the panel is still useful.
+  // The analysis produces every time figure regardless — §11.
   const taktSec = useMemo(() => {
+    const demandTakt = customerTaktSec(model);
+    if (demandTakt > 0) return demandTakt;
     const stations = model.stations.filter((s) => s.role === "process");
     if (stations.length === 0) return undefined;
     const slowest = Math.max(...stations.map((s) => s.cycleTimeSec || 0));
     return slowest > 0 ? slowest : undefined;
-  }, [model.stations]);
+  }, [model]);
 
-  const a = useMemo(() => analyseWorkload(elements, model.variantModes, taktSec), [elements, model.variantModes, taktSec]);
+  // Close the workload → balancer → stations loop from the editor (audit B-02):
+  // balance the authored elements into placed stations and apply the result as
+  // an explicit, undoable change.
+  function balanceIntoStations() {
+    const r = balanceWorkloadIntoCell(model);
+    api.commit({ type: "SET_MODEL", model: r.model });
+  }
+
+  // Variant-mode editing (audit B-04): the reducer actions existed and were
+  // tested, but no screen wrote them, so mixed-model was read-only. This is that
+  // editor — including per-element overrides, the one field that makes a mode
+  // more than a label.
+  const modes = model.variantModes ?? [];
+  function addMode() {
+    const id = `vm${modes.length + 1}_${Math.random().toString(36).slice(2, 6)}`;
+    const share = modes.length === 0 ? 1 : +(1 / (modes.length + 1)).toFixed(2);
+    api.commit({ type: "ADD_VARIANT_MODE", mode: { id, name: `Mode ${modes.length + 1}`, share, elementOverrides: {} } });
+  }
+  function patchMode(id: string, patch: Partial<{ name: string; share: number }>) {
+    api.commit({ type: "UPDATE_VARIANT_MODE", id, patch });
+  }
+  function setOverride(mode: { id: string; elementOverrides: Record<string, number> }, elId: string, mult: number) {
+    const next = { ...mode.elementOverrides };
+    if (mult === 1) delete next[elId];
+    else next[elId] = mult;
+    api.commit({ type: "UPDATE_VARIANT_MODE", id: mode.id, patch: { elementOverrides: next } });
+  }
+
+  const lossFactor = lossFactorOf(model);
+  const a = useMemo(
+    () => analyseWorkload(elements, model.variantModes, taktSec, lossFactor),
+    [elements, model.variantModes, taktSec, lossFactor],
+  );
   const order = useMemo(() => precedenceOrder(elements), [elements]);
+  // "Chosen" is what the planner actually built — the process stations on the
+  // layout — set against the work-content "calculated" figure (spec / IE
+  // blueprint: STATIONS CALCULATED 4.9 · STATIONS CHOSEN 5).
+  const chosenStations = model.stations.filter((s) => s.role === "process").length;
 
   function add() {
     const id = `we${elements.length + 1}_${Math.random().toString(36).slice(2, 6)}`;
@@ -83,265 +133,314 @@ export function WorkloadPanel({ api }: PanelProps) {
 
   if (elements.length === 0) {
     return (
-      <div className="pad ak-panel">
-        <Stack gap={5}>
-          <SectionLabel>Workload</SectionLabel>
-          <Footnote>
-            The product-free input: what must be done, independent of what is made. Add elements with a
-            time, a value classification and how much of that time binds an operator — the balancer turns
-            them into stations.
-          </Footnote>
-          {processStations.length > 0 ? (
-            <Stack gap={2}>
-              <Button kind="primary" size="sm" onClick={derive}>
-                Derive from {processStations.length} process station{processStations.length === 1 ? "" : "s"}
-              </Button>
-              <Footnote>
-                Names are matched against the capability keyword list. Everything inferred lands at{" "}
-                <strong>low confidence</strong> — check it.
-              </Footnote>
-            </Stack>
-          ) : null}
-          <Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
-            Add element manually
-          </Button>
-        </Stack>
+      <div className="pad">
+        <div className="lab" style={{ marginBottom: 8 }}>Workload</div>
+        <p style={{ fontSize: "0.75rem", color: TEXTD, lineHeight: 1.6 }}>
+          The product-free input: what must be done, independent of what is made.
+          Add elements with a time, a value classification and how much of that
+          time binds an operator — the balancer turns them into stations.
+        </p>
+        {processStations.length > 0 ? (
+          <>
+            <Button kind="tertiary" size="sm" style={{ marginTop: 10, width: "100%" }} onClick={derive}>
+              Derive from {processStations.length} process station{processStations.length === 1 ? "" : "s"}
+            </Button>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+              Names are matched against the capability keyword list. Everything
+              inferred lands at <strong>low confidence</strong> — check it.
+            </div>
+          </>
+        ) : null}
+        <Button kind="tertiary" size="sm" style={{ marginTop: 8 }} onClick={add}>Add element manually</Button>
       </div>
     );
   }
 
   return (
-    <div className="pad ak-panel">
-      <Stack gap={6}>
-        <SectionLabel>
-          Workload — {elements.length} element{elements.length === 1 ? "" : "s"}
-        </SectionLabel>
+    <div className="pad">
+      <div className="lab" style={{ marginBottom: 8 }}>Workload — {elements.length} element{elements.length === 1 ? "" : "s"}</div>
 
-        {/* --- analysis readout: the engine's answer, always visible --- */}
-        <Tile>
-          <div className="wl-metrics">
-            <span>
-              <span className="wl-metrics__lab">weighted </span>
-              <strong>{a.weightedTotalSec.toFixed(1)}s</strong>
-            </span>
-            <span>
-              <span className="wl-metrics__lab">worst mode </span>
-              <strong>{a.worstTotalSec.toFixed(1)}s</strong>
-            </span>
-            {a.mixSpreadPct > 0 ? (
-              <Tag type="magenta" size="sm">
-                +{a.mixSpreadPct.toFixed(0)}% spread
-              </Tag>
-            ) : null}
-            <span>
-              <ConfidenceDot c={a.confidence} />
-              {a.confidence}
-            </span>
-          </div>
+      {/* --- analysis readout: the engine's answer, always visible --- */}
+      <Tile style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "0.75rem" }}>
+          <span><span style={{ color: TEXTD }}>weighted </span><strong style={{ color: TEXT }}>{a.weightedTotalSec.toFixed(1)}s</strong></span>
+          <span><span style={{ color: TEXTD }}>worst mode </span><strong style={{ color: TEXT }}>{a.worstTotalSec.toFixed(1)}s</strong></span>
+          {a.mixSpreadPct > 0 ? <span style={{ color: AMBER }}>+{a.mixSpreadPct.toFixed(0)}% spread</span> : null}
+          <span><ConfidenceDot c={a.confidence} /><span style={{ color: TEXTD }}>{a.confidence}</span></span>
+        </div>
 
-          {/* VA/NNVA/NVA bar — §8: time is decomposed, never flat. */}
-          <div className="wl-classbar">
-            {(["VA", "NNVA", "NVA"] as WorkClass[]).map((k) => {
-              const sec = k === "VA" ? a.vaSec : k === "NNVA" ? a.nnvaSec : a.nvaSec;
-              const pct = a.weightedTotalSec > 0 ? (sec / a.weightedTotalSec) * 100 : 0;
-              return <div key={k} title={`${k} ${sec.toFixed(1)}s`} style={{ width: `${pct}%`, background: CLASS_BAR[k] }} />;
-            })}
-          </div>
-          <Footnote>
-            VA {a.vaPct == null ? "—" : `${a.vaPct.toFixed(0)}%`} · operator-bound{" "}
-            {a.attendedPct == null ? "—" : `${a.attendedPct.toFixed(0)}%`}
-            {a.minStationsWeighted != null ? ` · ${a.minStationsWeighted} stations (${a.minStationsWorst} worst-case)` : " · no takt yet"}
-          </Footnote>
-        </Tile>
-
-        {order === null ? (
-          <InlineNotification
-            kind="error"
-            lowContrast
-            hideCloseButton
-            title="Precedence contains a cycle"
-            subtitle="No valid order exists — balancing is blocked until it is broken."
-          />
-        ) : null}
-
-        {a.overTaktElements.length > 0 ? (
-          <InlineNotification
-            kind="warning"
-            lowContrast
-            hideCloseButton
-            title="Exceeds takt alone"
-            subtitle={`${a.overTaktElements.map((e) => e.name).join(", ")} exceed${a.overTaktElements.length === 1 ? "s" : ""} takt — no balance fits ${
-              a.overTaktElements.length === 1 ? "it" : "them"
-            } on one station. Split, automate or parallel.`}
-          />
-        ) : null}
-
-        {a.issues.map((msg, i) => (
-          <InlineNotification key={i} kind="warning" lowContrast hideCloseButton title={msg} />
-        ))}
-
-        {/* Inference is auditable, not magic — §5: every number says where it came from. */}
-        {derived ? (
-          <Stack gap={2}>
-            <InlineNotification
-              kind="info"
-              lowContrast
-              hideCloseButton
-              title={`Derived from stations · ${derived.matchRatePct.toFixed(0)}% of names matched a capability`}
-              subtitle={`${derived.unmatched.length > 0 ? `No keyword matched: ${derived.unmatched.join(", ")} — defaults applied. ` : ""}${
-                derived.notes.length
-              } value${derived.notes.length === 1 ? "" : "s"} inferred, all at low confidence. Precedence was assumed linear.`}
-            />
-            <Button kind="ghost" size="sm" onClick={() => setDerived(null)}>
-              Dismiss
-            </Button>
-          </Stack>
-        ) : null}
-
-        {/* --- the elements --- */}
-        <Stack gap={3}>
-          {elements.map((el) => {
-            const load = a.elements.find((l) => l.elementId === el.id);
-            const open = openId === el.id;
-            return (
-              <Tile key={el.id} className="wl-el">
-                <button type="button" className="wl-el__head" onClick={() => setOpenId(open ? null : el.id)}>
-                  <span className="wl-el__name">
-                    <ConfidenceDot c={el.time.confidence} />
-                    {el.name}
-                  </span>
-                  <span className="wl-el__sec">{load ? `${load.weightedSec.toFixed(1)}s` : `${el.time.seconds}s`}</span>
-                  <Tag type={classTag(el.classification)} size="sm">
-                    {el.classification}
-                  </Tag>
-                </button>
-
-                {open ? (
-                  <Stack gap={4} className="wl-el__body">
-                    <TextField id={`wl-name-${el.id}`} labelText="Name" value={el.name} onChange={(v) => patch(el.id, { name: v })} />
-                    <FieldRow>
-                      <NumberField
-                        id={`wl-sec-${el.id}`}
-                        label="Seconds"
-                        value={el.time.seconds}
-                        min={0}
-                        step={0.1}
-                        onChange={(v) => patch(el.id, { time: { ...el.time, seconds: Math.max(0, Number(v) || 0) } })}
-                      />
-                      <NumberField
-                        id={`wl-att-${el.id}`}
-                        label="Attended"
-                        value={el.attendedFraction}
-                        min={0}
-                        max={1}
-                        step={0.1}
-                        onChange={(v) => patch(el.id, { attendedFraction: Math.min(1, Math.max(0, Number(v) || 0)) })}
-                      />
-                    </FieldRow>
-                    <FieldRow>
-                      <SelectField
-                        id={`wl-method-${el.id}`}
-                        labelText="Method"
-                        value={el.time.method}
-                        options={TIME_METHODS}
-                        onChange={(v) => patch(el.id, { time: { ...el.time, method: v as TimeMethod } })}
-                      />
-                      <SelectField
-                        id={`wl-conf-${el.id}`}
-                        labelText="Confidence"
-                        value={el.time.confidence}
-                        options={CONFIDENCES}
-                        onChange={(v) => patch(el.id, { time: { ...el.time, confidence: v as Confidence } })}
-                      />
-                    </FieldRow>
-                    <SelectField
-                      id={`wl-class-${el.id}`}
-                      labelText="Classification"
-                      value={el.classification}
-                      options={WORK_CLASSES}
-                      onChange={(v) => patch(el.id, { classification: v as WorkClass })}
-                    />
-                    <MultiSelect
-                      id={`wl-pred-${el.id}`}
-                      titleText="Predecessors (DAG — not a linear routing)"
-                      label="Select steps…"
-                      size="sm"
-                      items={elements.filter((o) => o.id !== el.id)}
-                      itemToString={(o) => (o ? o.name : "")}
-                      selectedItems={elements.filter((o) => el.predecessors.includes(o.id))}
-                      onChange={({ selectedItems }) => patch(el.id, { predecessors: (selectedItems ?? []).map((o) => o.id) })}
-                    />
-                    {load && load.skippedInModeIds.length > 0 ? <Footnote>Skipped in {load.skippedInModeIds.length} mode(s)</Footnote> : null}
-                    <Button
-                      kind="danger--tertiary"
-                      size="sm"
-                      renderIcon={TrashCan}
-                      onClick={() => { api.commit({ type: "DELETE_WORK_ELEMENT", id: el.id }); setOpenId(null); }}
-                    >
-                      Delete element
-                    </Button>
-                  </Stack>
-                ) : null}
-              </Tile>
-            );
+        {/* VA/NNVA/NVA bar — §8: time is decomposed, never flat. */}
+        <div style={{ display: "flex", height: 8, borderRadius: 0, overflow: "hidden", margin: "10px 0 6px", background: LINE }}>
+          {(["VA", "NNVA", "NVA"] as WorkClass[]).map((k) => {
+            const sec = k === "VA" ? a.vaSec : k === "NNVA" ? a.nnvaSec : a.nvaSec;
+            const pct = a.weightedTotalSec > 0 ? (sec / a.weightedTotalSec) * 100 : 0;
+            return <div key={k} title={`${k} ${sec.toFixed(1)}s`} style={{ width: `${pct}%`, background: CLASS_COL[k] }} />;
           })}
-        </Stack>
+        </div>
+        <div style={{ fontSize: "0.75rem", color: TEXTD }}>
+          VA {a.vaPct == null ? "—" : `${a.vaPct.toFixed(0)}%`} · operator-bound{" "}
+          {a.attendedPct == null ? "—" : `${a.attendedPct.toFixed(0)}%`}
+          {a.stationsCalculated == null ? " · no takt yet" : ""}
+        </div>
 
-        <Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
-          Add element
-        </Button>
-
-        {/* --- mix modes ---
-             This list used to be read-only, which made the whole mixed-model
-             capability unreachable: the reducer had ADD/UPDATE/DELETE_VARIANT_MODE
-             and nothing in the app could call them. */}
-        <Stack gap={3}>
-          <SectionLabel>Mix modes</SectionLabel>
-          {a.modes.map((m) => {
-            const stored = (model.variantModes ?? []).find((v) => v.id === m.modeId);
-            return (
-              <div key={m.modeId} className="ak-kv">
-                <span className="ak-kv__k">
-                  {m.name}
-                  {m.modeId === a.worstModeId && a.modes.length > 1 ? " · heaviest" : ""}
-                </span>
-                <span className="ak-kv__v">
-                  {(m.share * 100).toFixed(0)}% · {m.totalSec.toFixed(1)}s
-                  {stored ? (
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      hasIconOnly
-                      renderIcon={TrashCan}
-                      iconDescription={`Remove ${m.name}`}
-                      tooltipPosition="left"
-                      onClick={() => api.commit({ type: "DELETE_VARIANT_MODE", id: m.modeId })}
-                    />
-                  ) : null}
-                </span>
+        {/* Seven-wastes Pareto (§8 / audit B-05): where the non-value-add time
+            actually sits, heaviest first — the standard lean target list. */}
+        {a.wastePareto.length > 0 ? (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 4 }}>Waste by type (7 wastes)</div>
+            {a.wastePareto.map((w) => (
+              <div key={w.wasteClass} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }} title={`${w.sec.toFixed(1)}s`}>
+                <span style={{ width: 92, fontSize: "0.75rem", color: TEXT, textTransform: "capitalize" }}>{w.wasteClass}</span>
+                <div style={{ flex: 1, height: 8, background: LINE, overflow: "hidden" }}>
+                  <div style={{ width: `${w.sharePct}%`, height: "100%", background: CLASS_COL.NVA }} />
+                </div>
+                <span style={{ width: 34, fontSize: "0.75rem", color: TEXTD, textAlign: "right" }}>{w.sharePct.toFixed(0)}%</span>
               </div>
-            );
-          })}
-          <Button
-            kind="tertiary"
-            size="sm"
-            renderIcon={Add}
-            onClick={() => {
-              const n = (model.variantModes ?? []).length;
-              api.commit({
-                type: "ADD_VARIANT_MODE",
-                mode: { id: "mix-" + (n + 1), name: "Mix " + String.fromCharCode(65 + n), share: 0, elementOverrides: {} },
-              });
-            }}
-          >
-            Add a mix
-          </Button>
-          <Footnote>
-            Forty part numbers needing the same work are one mode. A mode exists only where work content
-            genuinely differs — it carries no product identity.
-          </Footnote>
-        </Stack>
-      </Stack>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Stations calculated (decimal, loss-factored) vs chosen (spec §4.3):
+            the decimal says how much headroom is left. Never silently rounded. */}
+        {a.stationsCalculated != null ? (
+          <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: "0.75rem" }}>
+            <span>
+              <span style={{ color: TEXTD }}>calculated </span>
+              <strong style={{ color: TEXT }}>{a.stationsCalculated.toFixed(1)}</strong>
+              <span style={{ color: TEXTD }}> ({a.stationsCalculatedWorst?.toFixed(1)} worst)</span>
+            </span>
+            <span>
+              <span style={{ color: TEXTD }}>chosen </span>
+              <strong style={{ color: chosenStations >= Math.ceil(a.stationsCalculatedWorst ?? a.stationsCalculated) ? TEAL : AMBER }}>
+                {chosenStations}
+              </strong>
+              <span style={{ color: TEXTD }}> placed</span>
+            </span>
+          </div>
+        ) : null}
+
+        {/* Close the loop: balance these elements INTO stations (audit B-02).
+            Replaces the layout, so it is an explicit, confirmable, undoable step. */}
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <ConfirmableButton
+            label="Balance into stations"
+            confirmLabel="Replace layout"
+            onConfirm={balanceIntoStations}
+          />
+          <span style={{ fontSize: "0.75rem", color: TEXTD }}>
+            {taktSec ? `Runs the balancer at ${taktSec.toFixed(1)}s takt and lays out the stations.` : "Set demand for a customer takt, or it uses the largest element."}
+          </span>
+        </div>
+
+        {/* Loss factor — a chosen IE constant, shown with its band so it reads as
+            provenance, not a free knob. */}
+        <div style={{ marginTop: 8 }}>
+          <Slider
+            labelText={
+              <span>
+                loss factor
+                <HelpPopover text={`Carries walking, reaching, handling and balancing loss — none of which is in a standard time. Calculated stations = (work content ÷ takt) × loss factor. Band ${LOSS_FACTOR_BAND[0]}–${LOSS_FACTOR_BAND[1]}; default 1.2.`} />
+              </span>
+            }
+            min={LOSS_FACTOR_BAND[0]}
+            max={LOSS_FACTOR_BAND[1]}
+            step={0.01}
+            value={lossFactor}
+            onChange={({ value }) => api.commit({ type: "SET_LOSS_FACTOR", lossFactor: value })}
+          />
+        </div>
+      </Tile>
+
+      {order === null ? (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: 10 }}
+          subtitle="Precedence contains a cycle — no valid order exists. Balancing is blocked until it is broken."
+        />
+      ) : null}
+
+      {a.overTaktElements.length > 0 ? (
+        <InlineNotification
+          kind="warning"
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: 10 }}
+          subtitle={`${a.overTaktElements.map((e) => e.name).join(", ")} exceed${a.overTaktElements.length === 1 ? "s" : ""} takt alone — no balance can fit ${a.overTaktElements.length === 1 ? "it" : "them"} on one station. Split, automate or parallel.`}
+        />
+      ) : null}
+
+      {a.issues.map((msg, i) => (
+        <InlineNotification key={i} kind="warning" lowContrast hideCloseButton style={{ marginBottom: 8 }} subtitle={msg} />
+      ))}
+
+      {/* Inference is auditable, not magic — §5: every number says where it came from. */}
+      {derived ? (
+        <Tile style={{ marginBottom: 10, borderLeft: `2px solid ${AMBER}` }}>
+          <div style={{ fontSize: "0.75rem", color: TEXT }}>
+            Derived from stations · {derived.matchRatePct.toFixed(0)}% of names matched a capability
+          </div>
+          {derived.unmatched.length > 0 ? (
+            <div style={{ fontSize: "0.75rem", color: AMBER, marginTop: 4 }}>
+              No keyword matched: {derived.unmatched.join(", ")} — defaults applied, rename or correct them.
+            </div>
+          ) : null}
+          <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 4 }}>
+            {derived.notes.length} value{derived.notes.length === 1 ? "" : "s"} inferred, all at low confidence.
+            Precedence was assumed linear.
+          </div>
+          <Button kind="tertiary" size="sm" style={{ marginTop: 8 }} onClick={() => setDerived(null)}>Dismiss</Button>
+        </Tile>
+      ) : null}
+
+      {/* --- the elements --- */}
+      {elements.map((el) => {
+        const load = a.elements.find((l) => l.elementId === el.id);
+        const open = openId === el.id;
+        const predItems: PredItem[] = elements.filter((o) => o.id !== el.id).map((o) => ({ id: o.id, text: o.name }));
+        return (
+          <Tile key={el.id} style={{ borderLeft: `2px solid ${CLASS_COL[el.classification]}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setOpenId(open ? null : el.id)}>
+              <span style={{ flex: 1, fontSize: "0.75rem", color: TEXT }}>
+                <ConfidenceDot c={el.time.confidence} />{el.name}
+              </span>
+              <span style={{ fontSize: "0.75rem", color: TEXTD }}>
+                {load ? `${load.weightedSec.toFixed(1)}s` : `${el.time.seconds}s`}
+              </span>
+              <Tag size="sm" type="outline" style={{ color: CLASS_COL[el.classification] }}>{el.classification}</Tag>
+            </div>
+
+            {open ? (
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                <TextInput
+                  id={`we-name-${el.id}`}
+                  labelText="Name"
+                  value={el.name}
+                  onChange={(e) => patch(el.id, { name: e.target.value })}
+                />
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <NumberInput
+                      id={`we-sec-${el.id}`}
+                      label="Seconds"
+                      min={0}
+                      step={0.1}
+                      value={el.time.seconds}
+                      onChange={(_: unknown, s: { value: number | string }) => patch(el.id, { time: { ...el.time, seconds: Math.max(0, num(String(s.value), el.time.seconds)) } })}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <NumberInput
+                      id={`we-att-${el.id}`}
+                      label="Attended"
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      value={el.attendedFraction}
+                      onChange={(_: unknown, s: { value: number | string }) => patch(el.id, { attendedFraction: Math.min(1, Math.max(0, num(String(s.value), el.attendedFraction))) })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <Select id={`we-mth-${el.id}`} labelText="Method" value={el.time.method} onChange={(e) => patch(el.id, { time: { ...el.time, method: e.target.value as TimeMethod } })}>
+                      {TIME_METHODS.map((m) => <SelectItem key={m} value={m} text={m} />)}
+                    </Select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Select id={`we-cnf-${el.id}`} labelText="Confidence" value={el.time.confidence} onChange={(e) => patch(el.id, { time: { ...el.time, confidence: e.target.value as Confidence } })}>
+                      {CONFIDENCES.map((c) => <SelectItem key={c} value={c} text={c} />)}
+                    </Select>
+                  </div>
+                </div>
+
+                <Select id={`we-cls-${el.id}`} labelText="Classification" value={el.classification} onChange={(e) => patch(el.id, { classification: e.target.value as WorkClass })}>
+                  {WORK_CLASSES.map((c) => <SelectItem key={c} value={c} text={c} />)}
+                </Select>
+
+                <MultiSelect<PredItem>
+                  id={`we-pred-${el.id}`}
+                  label="Predecessors (DAG — not a linear routing)"
+                  titleText="Predecessors (DAG — not a linear routing)"
+                  items={predItems}
+                  itemToString={(it) => (it ? it.text : "")}
+                  initialSelectedItems={predItems.filter((it) => el.predecessors.includes(it.id))}
+                  onChange={(d: { selectedItems: PredItem[] }) => patch(el.id, { predecessors: d.selectedItems.map((it) => it.id) })}
+                />
+
+                {load && load.skippedInModeIds.length > 0 ? (
+                  <div style={{ fontSize: "0.75rem", color: AMBER }}>Skipped in {load.skippedInModeIds.length} mode(s)</div>
+                ) : null}
+
+                <Button
+                  kind="danger--tertiary"
+                  size="sm"
+                  renderIcon={TrashCan}
+                  style={{ justifySelf: "start" }}
+                  onClick={() => { api.commit({ type: "DELETE_WORK_ELEMENT", id: el.id }); setOpenId(null); }}
+                >
+                  Delete element
+                </Button>
+              </div>
+            ) : null}
+          </Tile>
+        );
+      })}
+
+      <Button kind="tertiary" size="sm" style={{ marginTop: 10 }} onClick={add}>Add element</Button>
+
+      {/* --- mix modes (editable, audit B-04) --- */}
+      <div className="lab" style={{ margin: "18px 0 8px" }}>Mix modes</div>
+      {modes.length === 0 ? (
+        <div style={{ fontSize: "0.75rem", color: TEXTD, marginBottom: 8 }}>
+          Single-model — every part needs the same work. Add a mode only where the
+          work content genuinely differs (a mode carries no product identity).
+        </div>
+      ) : (
+        modes.map((m) => {
+          const computed = a.modes.find((x) => x.modeId === m.id);
+          const heaviest = computed && computed.modeId === a.worstModeId && a.modes.length > 1;
+          return (
+            <Tile key={m.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <TextInput id={`vm-name-${m.id}`} size="sm" labelText="Mode" value={m.name} onChange={(e) => patchMode(m.id, { name: e.target.value })} style={{ flex: 1 }} />
+                <NumberInput id={`vm-share-${m.id}`} size="sm" label="Share" min={0} max={1} step={0.05} value={m.share} onChange={(_e, { value }) => patchMode(m.id, { share: num(String(value), m.share) })} style={{ width: 90 }} />
+                <Button hasIconOnly size="sm" kind="ghost" renderIcon={TrashCan} iconDescription="Delete mode" onClick={() => api.commit({ type: "DELETE_VARIANT_MODE", id: m.id })} />
+              </div>
+              <div style={{ fontSize: "0.75rem", color: heaviest ? AMBER : TEXTD, marginTop: 4 }}>
+                {computed ? `${computed.totalSec.toFixed(1)}s work content${heaviest ? " · heaviest — balance to this" : ""}` : ""}
+              </div>
+              {/* Per-element overrides — a multiplier of 1 means "same as base". */}
+              <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 70px", gap: 4, alignItems: "center" }}>
+                {elements.map((el) => (
+                  <Fragment key={`${m.id}-${el.id}`}>
+                    <span style={{ fontSize: "0.7rem", color: TEXTD, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{el.name}</span>
+                    <NumberInput
+                      id={`vm-ov-${m.id}-${el.id}`}
+                      size="sm"
+                      hideLabel
+                      label={`${el.name} multiplier in ${m.name}`}
+                      min={0}
+                      step={0.1}
+                      value={m.elementOverrides[el.id] ?? 1}
+                      onChange={(_e, { value }) => setOverride(m, el.id, num(String(value), 1))}
+                    />
+                  </Fragment>
+                ))}
+              </div>
+            </Tile>
+          );
+        })
+      )}
+      <Button kind="tertiary" size="sm" style={{ marginTop: 4 }} onClick={addMode}>Add variant mode</Button>
+      <div style={{ fontSize: "0.75rem", color: TEXTD, marginTop: 6, lineHeight: 1.5 }}>
+        Forty part numbers needing the same work are one mode. A multiplier scales
+        an element's time in that mode (0 = skipped). Balancing sizes on the
+        heaviest mode, not the average.
+      </div>
     </div>
   );
 }

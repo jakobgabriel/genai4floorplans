@@ -1,8 +1,16 @@
 import type { Flow, Model, Station } from "../model/types";
 import { computeKPIs } from "./kpis";
-import { hasCollision } from "./geometry";
+import { hasCollision, clearanceBlocked, footprintInPolygon } from "./geometry";
 
-type Grid = Pick<Model, "gridW" | "gridH"> & { noGoZones?: Model["noGoZones"] };
+/** A station footprint fits entirely inside the grid (audit C-05). Swapping the
+ *  positions of two differently sized stations can push the larger one off the
+ *  grid — hasCollision catches overlaps but not out-of-bounds, so this is
+ *  checked separately. */
+function withinGrid(s: Pick<Station, "x" | "y" | "w" | "h">, grid: Grid): boolean {
+  return s.x >= 0 && s.y >= 0 && s.x + s.w <= grid.gridW && s.y + s.h <= grid.gridH;
+}
+
+type Grid = Pick<Model, "gridW" | "gridH"> & { noGoZones?: Model["noGoZones"]; floorPolygon?: Model["floorPolygon"] };
 
 export interface OptimizeOptions {
   /** Reject candidate swaps that would overlap a station or no-go zone. */
@@ -25,6 +33,7 @@ function greedyPass(
   grid: Grid,
   zones: Model["noGoZones"],
   avoidCollisions: boolean,
+  respectClearance: boolean,
 ): { stations: Station[]; cost: number } {
   let best = cloneStations(start);
   let bestCost = computeKPIs(best, flows, grid).flowCost;
@@ -48,6 +57,13 @@ function greedyPass(
         trial[i].y = trial[j].y;
         trial[j].x = tx;
         trial[j].y = ty;
+        // Reject a swap that pushes either footprint off the grid — a larger
+        // station taking a smaller one's edge slot would otherwise leave the
+        // floor (audit C-05).
+        if (!withinGrid(trial[i], grid) || !withinGrid(trial[j], grid)) continue;
+        // Reject a swap that moves a station off the usable floor polygon
+        // (audit C-03 inc2). Only runs when an envelope is declared.
+        if (grid.floorPolygon && grid.floorPolygon.length >= 3 && (!footprintInPolygon(trial[i], grid.floorPolygon) || !footprintInPolygon(trial[j], grid.floorPolygon))) continue;
         if (avoidCollisions) {
           const others = trial.filter((_, k) => k !== i && k !== j);
           if (
@@ -55,6 +71,16 @@ function greedyPass(
             hasCollision(trial[j], trial[j].x, trial[j].y, others.concat(trial[i]), zones)
           ) {
             continue;
+          }
+          // Reject swaps that would block a station's access clearance with
+          // another station's body (audit C-03). Only runs when some station
+          // declares clearance, so the common case is unaffected. Self-pairs are
+          // skipped (a clearance zone always contains its own footprint).
+          if (respectClearance) {
+            const blocked =
+              clearanceBlocked(trial[i], trial[j]) ||
+              trial.some((s, k) => k !== i && k !== j && (clearanceBlocked(trial[i], s) || clearanceBlocked(trial[j], s)));
+            if (blocked) continue;
           }
         }
         const c = computeKPIs(trial, flows, grid).flowCost;
@@ -103,10 +129,13 @@ export function optimize(
   const avoidCollisions = opts.avoidCollisions ?? true;
   const restarts = opts.restarts ?? 0;
   const zones = grid.noGoZones ?? [];
-  let { stations: best, cost: bestCost } = greedyPass(stations, flows, grid, zones, avoidCollisions);
+  // Clearance is only enforced when a station actually declares it, so legacy
+  // models pay nothing and behave exactly as before (audit C-03).
+  const respectClearance = stations.some((s) => s.clearance);
+  let { stations: best, cost: bestCost } = greedyPass(stations, flows, grid, zones, avoidCollisions, respectClearance);
   for (let r = 0; r < restarts; r++) {
     const seeded = shuffleMovable(stations, r + 1);
-    const res = greedyPass(seeded, flows, grid, zones, avoidCollisions);
+    const res = greedyPass(seeded, flows, grid, zones, avoidCollisions, respectClearance);
     if (res.cost < bestCost - 1e-9) {
       best = res.stations;
       bestCost = res.cost;

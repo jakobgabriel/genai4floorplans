@@ -92,6 +92,7 @@ foldersRouter.delete(
     const parentId = folder.parentId;
     await prisma.$transaction([
       prisma.folder.updateMany({ where: { parentId: folderId }, data: { parentId } }),
+      prisma.concept.updateMany({ where: { folderId }, data: { folderId: parentId } }),
       prisma.cell.updateMany({ where: { folderId }, data: { folderId: parentId } }),
       prisma.scenario.updateMany({ where: { folderId }, data: { folderId: parentId } }),
       prisma.folder.delete({ where: { id: folderId } }),

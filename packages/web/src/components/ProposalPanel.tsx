@@ -1,4 +1,4 @@
-import { Btn } from "./Btn";
+import { Button } from "@carbon/react";
 import type { Model } from "@flowplan/core/model/types";
 import { isProposalStale, type PlacementProposal } from "@flowplan/core/engine/proposal";
 import { AMBER, TEAL, TEXT, TEXTD } from "./colors";
@@ -27,27 +27,27 @@ export function ProposalPanel({ proposal, model, onAcceptAll, onDismiss }: Propo
   const pct = proposal.flowCostDeltaPct;
 
   return (
-    <div className="u-row u-row--wrap">
+    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8, fontSize: "0.75rem" }}>
       <span style={{ color: TEXT }}>
         {n} move{n === 1 ? "" : "s"} proposed
       </span>
       <span style={{ color: pct < 0 ? TEAL : TEXTD }}>
         {pct < 0 ? `${pct.toFixed(1)}%` : `+${pct.toFixed(1)}%`} flow cost if all accepted
       </span>
-      <span className="u-muted">· click a dashed ghost to accept just that one</span>
+      <span style={{ color: TEXTD }}>· click a dashed ghost to accept just that one</span>
 
       {stale ? (
-        <span style={{ color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 3, padding: "1px 6px", fontSize: 10.5 }}>
+        <span style={{ color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 0, padding: "1px 6px", fontSize: "0.75rem" }}>
           stale — layout changed since this was computed
         </span>
       ) : null}
 
-      <Btn size="compact" variant="primary" onClick={onAcceptAll}>
+      <Button kind="tertiary" size="sm" onClick={onAcceptAll}>
         Accept all {n}
-      </Btn>
-      <Btn size="compact" variant="ghost" onClick={onDismiss}>
+      </Button>
+      <Button kind="tertiary" size="sm" onClick={onDismiss}>
         Dismiss
-      </Btn>
+      </Button>
     </div>
   );
 }

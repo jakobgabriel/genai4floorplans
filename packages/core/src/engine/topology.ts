@@ -1,7 +1,7 @@
 import type { Model } from "../model/types";
 // Declared here rather than imported from ./templates, which now wraps this
 // module — importing back would be circular.
-export type CellForm = "I" | "U" | "L" | "S" | "W";
+export type CellForm = "I" | "U" | "L" | "S" | "W" | "O";
 export interface Slot {
   x: number;
   y: number;
@@ -27,6 +27,12 @@ export interface Slot {
 //   S  serpentine in ──▶ ▪ ▪ ▪ ┐                  alternating rows
 //                       ┌ ▪ ▪ ▪ ┘
 //                       └ ▪ ▪ ▪ ──▶ out
+//   W  double-U   in ▪ ┐ ▪ ┐ ▪                    an even number of vertical
+//                     ▪ │ ▪ │ ▪ out               legs folding down/up, so a long
+//                     ▪ ┘ ▪ ┘ ▪                   process packs in with front access
+//   O  loop        in ──▶ ▪ ▪ ▪ ┐                 a closed racetrack: material
+//                        ▪       ▪                enters and leaves the same open
+//                    out ◀── ▪ ▪ ┘                corner, circulating past each once
 
 export interface TopologyLayout {
   /** Process-station slots, in flow order. */
@@ -48,43 +54,15 @@ const W = 3;
 const H = 2;
 /** Gap between a leg's end and its entry/exit area. */
 const GAP = 4;
-/** Centre-to-centre spacing of neighbouring stations along a leg. */
-const PITCH_X = W + 1;
-const PITCH_Y = H + 1;
-/** A workshop's islands stand apart — that separation is the whole point. */
-const ISLAND_X = W + 5;
-const ISLAND_Y = H + 3;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/**
- * Positions for `count` stations along a run, at a real pitch.
- *
- * This replaced `spread(from, to, count)`, which distributed the stations
- * evenly across the whole available span whatever the count. Two things came
- * out of that, and both were wrong:
- *
- *  - The path length did not depend on the station count. A straight line of
- *    three stations and one of nine measured exactly the same, because both
- *    filled the same band. Transport cost is distance × volume, so every form
- *    scored a constant, and the constant was lowest for the straight line by
- *    construction. That, not any manufacturing truth, is why I-form won every
- *    comparison.
- *  - At high counts the spacing fell below the station width and the stations
- *    overlapped each other.
- *
- * A pitch is what a real layout has: stations sit a fixed distance apart and
- * the cell is as long as it needs to be. Compression only happens when the run
- * genuinely does not fit, and it stops at the station width rather than going
- * through it.
- */
-function run(from: number, to: number, count: number, pitch: number, minPitch: number): number[] {
+function spread(from: number, to: number, count: number): number[] {
   if (count <= 0) return [];
   if (count === 1) return [from];
-  const span = Math.max(0, to - from);
-  const step = (count - 1) * pitch <= span ? pitch : Math.max(minPitch, span / (count - 1));
+  const step = (to - from) / (count - 1);
   return Array.from({ length: count }, (_, i) => Math.round(from + step * i));
 }
 
@@ -113,7 +91,7 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
 
   if (form === "I") {
     // Single straight run. Entry and exit cap the two ends.
-    const xs = run(left + GAP, right - GAP, n, PITCH_X, W);
+    const xs = spread(left + GAP, right - GAP, n);
     const slots = xs.map((x) => ({ x, y: midY }));
     return {
       slots,
@@ -127,11 +105,8 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
   if (form === "U") {
     // Two parallel legs sharing the same columns, so the cell closes properly.
     // Outbound along the top, inbound along the bottom, turn at the right.
-    // Each leg runs at the same pitch as a straight line, so a U of n stations
-    // is a horseshoe half as long as the I — not two full-width runs, which is
-    // what filling the grid used to produce.
     const perLeg = Math.ceil(n / 2);
-    const xs = run(left + GAP, right - GAP, perLeg, PITCH_X, W);
+    const xs = spread(left + GAP, right, perLeg);
     const slots: Slot[] = [];
     for (let i = 0; i < perLeg && slots.length < n; i++) slots.push({ x: xs[i], y: top });
     for (let i = 0; slots.length < n; i++) slots.push({ x: xs[perLeg - 1 - i], y: bottom });
@@ -151,11 +126,11 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
     // A vertical run down the left, then a horizontal run along the bottom.
     const vN = Math.max(1, Math.ceil(n / 2));
     const hN = n - vN;
-    const ys = run(top + H, bottom, vN, PITCH_Y, H);
+    const ys = spread(top + H, bottom, vN);
     const slots: Slot[] = ys.map((y) => ({ x: left + GAP, y }));
     if (hN > 0) {
       // Stop short of the edge: the exit needs room beyond the last station.
-      const xs = run(left + GAP + PITCH_X, right - GAP, hN, PITCH_X, W);
+      const xs = spread(left + GAP + W + 1, right - GAP, hN);
       xs.forEach((x) => slots.push({ x, y: bottom }));
     }
     const last = slots[slots.length - 1];
@@ -171,37 +146,60 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
   }
 
   if (form === "W") {
-    // Workshop — a functional layout, not a cell.
-    //
-    // Machines stand grouped by process with aisles between them, and parts
-    // move between groups in batches rather than one at a time. There is no
-    // flow path to lay out: the defining property is that the stations are
-    // SEPARATED, so the distance between consecutive operations is long and
-    // stays long however the work is sequenced.
-    //
-    // Laid out as islands on a coarse grid. Consecutive slots are deliberately
-    // not adjacent — the transport cost that falls out of that separation is
-    // the job shop's real penalty, and it is what the flow-oriented forms are
-    // being compared against.
-    const cols = Math.max(1, Math.min(Math.ceil(Math.sqrt(n)), Math.floor((right - left - GAP) / ISLAND_X) || 1));
-    const rowsN = Math.max(1, Math.ceil(n / cols));
-    const xs = run(left + GAP, right - GAP, cols, ISLAND_X, W);
-    const ys = run(top, bottom, rowsN, ISLAND_Y, H);
+    // Double-U / multi-fold: an even number of vertical legs (2 or 4) folding
+    // down-then-up, so a long process packs into a compact block with load,
+    // unload and every station reachable from the front. Distinct from the U
+    // (only 2 legs) and from the S (which runs horizontally, ends opposite).
+    const legs = n >= 8 ? 4 : 2;
+    const xs = spread(left + GAP, right - GAP, legs);
+    const perLeg = Math.ceil(n / legs);
+    const down = spread(top + H, bottom, perLeg); // top → bottom
     const slots: Slot[] = [];
-    for (let r = 0; r < rowsN && slots.length < n; r++) {
-      for (let c = 0; c < cols && slots.length < n; c++) slots.push({ x: xs[c], y: ys[r] });
+    for (let l = 0; l < legs && slots.length < n; l++) {
+      // Fold: even legs run down, odd legs run back up.
+      const col = l % 2 === 0 ? down : down.slice().reverse();
+      for (let i = 0; i < perLeg && slots.length < n; i++) slots.push({ x: xs[l], y: col[i] });
     }
-    // Goods in on the near side, goods out past the last island. Stacking both
-    // on the dock wall put them on the same cell whenever the shop came out as
-    // a single row, which is exactly what a one-station job shop is.
-    const last = slots[slots.length - 1];
+    // Even leg count ⇒ the last leg ends at the top, so both ends face the front.
     return {
       slots,
-      entry: { x: clamp(xs[0] - GAP, 0, right), y: ys[0] },
-      exit: { x: clamp(last.x + GAP, 0, right), y: last.y },
-      legs: rowsN,
-      // Nothing here helps an operator close a loop: there is no cell to stand in.
-      entryExitAdjacent: false,
+      entry: { x: xs[0], y: clamp(top - 1, 0, bottom) },
+      exit: { x: xs[legs - 1], y: clamp(top - 1, 0, bottom) },
+      legs,
+      entryExitAdjacent: legs === 2,
+    };
+  }
+
+  if (form === "O") {
+    // Closed loop / racetrack: stations ring a rectangle and material enters and
+    // leaves at the same open corner, circulating past each once. Suits carriers
+    // or AGVs that must return to the start.
+    const x0 = left + GAP;
+    const x1 = Math.max(x0 + W, right - GAP);
+    const y0 = top;
+    const y1 = Math.max(y0 + H, bottom);
+    const wSide = Math.max(1, x1 - x0);
+    const hSide = Math.max(1, y1 - y0);
+    const perim = 2 * (wSide + hSide);
+    const slots: Slot[] = [];
+    for (let i = 0; i < n; i++) {
+      // Walk clockwise from just above the bottom-left; the +0.5 offset keeps a
+      // station off the open corner where material enters and leaves.
+      const d = ((i + 0.5) / n) * perim;
+      let x: number;
+      let y: number;
+      if (d < hSide) { x = x0; y = Math.round(y1 - d); }
+      else if (d < hSide + wSide) { x = Math.round(x0 + (d - hSide)); y = y0; }
+      else if (d < 2 * hSide + wSide) { x = x1; y = Math.round(y0 + (d - hSide - wSide)); }
+      else { x = Math.round(x1 - (d - 2 * hSide - wSide)); y = y1; }
+      slots.push({ x: clamp(x, 0, right), y: clamp(y, 0, bottom) });
+    }
+    return {
+      slots,
+      entry: { x: clamp(x0 - GAP, 0, right), y: y1 },
+      exit: { x: clamp(x0 - GAP, 0, right), y: clamp(y1 - H, 0, bottom) },
+      legs: 4,
+      entryExitAdjacent: true,
     };
   }
 
@@ -209,9 +207,9 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
   // rather than two parallel lines.
   const rows = Math.min(3, Math.max(2, Math.ceil(n / 3)));
   const perRow = Math.ceil(n / rows);
-  const ys = run(top, bottom, rows, PITCH_Y, H);
+  const ys = spread(top, bottom, rows);
   // Leave a gap at each end for the entry and exit areas.
-  const xs = run(left + GAP, right - GAP, perRow, PITCH_X, W);
+  const xs = spread(left + GAP, right - GAP, perRow);
   const slots: Slot[] = [];
   for (let r = 0; r < rows && slots.length < n; r++) {
     // Reverse every other row: the flow snakes back on itself.

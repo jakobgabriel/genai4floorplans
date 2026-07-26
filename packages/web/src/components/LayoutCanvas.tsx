@@ -1,12 +1,12 @@
-import { Btn } from "./Btn";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
+import type { Flow, Group, Model, NoGoZone, Station } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
-import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
-import { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
+import { fieldQuality } from "@flowplan/core/model/types";
+import { center, clampToGrid, clearanceRect, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
+import { AMBER, AUTO_COL, BLUE, ERGO_COL, LINE, PANEL2, PURPLE, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL, ZONE_STYLE } from "./colors";
 
 const PAD = 12;
 
@@ -30,7 +30,16 @@ function stubDir(side: Side): { dx: number; dy: number } {
   return side === "left" ? { dx: -1, dy: 0 } : side === "right" ? { dx: 1, dy: 0 } : side === "top" ? { dx: 0, dy: -1 } : { dx: 0, dy: 1 };
 }
 
-export type CanvasMode = "select" | "flow" | "nogo";
+export type CanvasMode = "select" | "flow" | "nogo" | "group";
+
+/** Which edges a resize grip moves — the eight corner/edge handles of a zone. */
+type Grip = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+const GRIP_CURSOR: Record<Grip, string> = {
+  nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
+  n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
+};
+/** Accent palette for documentation groups (data-encoding colours). */
+const GROUP_COLORS = [TEAL, AMBER, PURPLE, BLUE];
 
 interface Props {
   model: Model;
@@ -52,6 +61,14 @@ interface Props {
   flowFirst?: string | null;
   selFlow?: { from: string; to: string } | null;
   criticalPath?: string[];
+  /** Station ids with a layout-realism conflict (clearance/floor-load/egress),
+   *  ringed in red on the canvas so the violation is visible in place (§3 Law 3,
+   *  audit C-03). */
+  conflictIds?: string[];
+  /** Explicit operator loops to draw as walking paths on the floor (spec §2/§13,
+   *  audit C-13) — visible carrier routes, not table rows. Synthetic loops are
+   *  skipped to avoid clutter. */
+  operatorLoops?: Array<{ id: string; stationIds: string[]; synthetic: boolean }>;
   onSelect?: (id: string | null) => void;
   onSelectFlow?: (f: { from: string; to: string } | null) => void;
   onHoverStation?: (s: Station | null, clientX: number, clientY: number) => void;
@@ -59,49 +76,61 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** Move/resize an existing zone (index into model.noGoZones). */
+  onUpdateNoGo?: (index: number, patch: Partial<NoGoZone>) => void;
+  /** Index of the currently-selected zone (for move/resize handles). */
+  selZone?: number | null;
+  onSelectZone?: (index: number | null) => void;
+  /** Documentation groups: move/resize (id into model.groups). */
+  onUpdateGroup?: (id: string, patch: Partial<Group>) => void;
+  selGroup?: string | null;
+  onSelectGroup?: (id: string | null) => void;
+  /** Group mode: drag a rubber-band rectangle; the movable stations inside it
+   *  are handed back so the caller can mint a subflow (node-RED grouping). */
+  onGroupRect?: (zone: NoGoZone) => void;
+  /** Editor mode: let the SVG grow to fill its container (node-RED full-bleed). */
+  fill?: boolean;
+  /** Drag-to-wire: dragging from a station's OUT port to another station
+   *  creates a flow (node-RED-style wiring, spec Law 2 — feedback during the
+   *  gesture). Only offered when interactive. */
+  onWire?: (from: string, to: string) => void;
+  /** A palette node dropped on the canvas, at fractional grid coords. */
+  onDropNode?: (kind: string, gridX: number, gridY: number) => void;
+  /** Composable canvas overlay (spec §37, the city-builder idiom). */
+  overlay?: "none" | "confidence" | "congestion";
+  /** Per-station utilization (0-100) for the congestion overlay. */
+  utilById?: Record<string, number>;
 }
 
 export function LayoutCanvas(props: Props) {
-  const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell: cellProp, interactive } = props;
+  const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);
-
-  // The canvas fills the space it is given rather than being a fixed
-  // gridW*cell rectangle floating in it. `cell` is now a density *hint*: the
-  // measured stage decides the real cell size, so the plan grows to use the
-  // window instead of leaving dead background to the right and below.
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]?.contentRect;
-      if (r && r.width > 0 && r.height > 0) setBox({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Unmeasured (first paint, and jsdom in tests) falls back to the old fixed
-  // size, so nothing depends on layout having happened.
-  const fitted = box
-    ? Math.min((box.w - PAD * 2) / model.gridW, (box.h - PAD * 2) / model.gridH)
-    : cellProp;
-  const cell = Math.max(10, Math.min(80, fitted));
-  const W = box ? box.w : model.gridW * cell + PAD * 2;
-  const H = box ? box.h : model.gridH * cell + PAD * 2;
-  const baseW = W;
-  const baseH = H;
+  const baseW = model.gridW * cell + PAD * 2;
+  const baseH = model.gridH * cell + PAD * 2;
 
   const [zoom, setZoom] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ id: string | null; pan: boolean; nogo: { x: number; y: number } | null }>({
+  const dragRef = useRef<{
+    id: string | null;
+    pan: boolean;
+    nogo: { x: number; y: number } | null;
+    wireFrom: string | null;
+    /** Moving or resizing an existing zone: its index, the grip (for resize), the grab offset and the original rect. */
+    zone: { index: number; mode: "move" | "resize"; grip?: Grip; grabX: number; grabY: number; orig: NoGoZone } | null;
+    /** Moving or resizing a documentation group (same gesture as a zone). */
+    group?: { id: string; mode: "move" | "resize"; grip?: Grip; grabX: number; grabY: number; orig: Group } | null;
+  }>({
     id: null,
     pan: false,
     nogo: null,
+    wireFrom: null,
+    zone: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  const [hoverZone, setHoverZone] = useState<number | null>(null);
+  const [hoverGroup, setHoverGroup] = useState<string | null>(null);
+  const [wireEnd, setWireEnd] = useState<{ from: string; x: number; y: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
   const [dragCollide, setDragCollide] = useState(false);
@@ -132,6 +161,58 @@ export function LayoutCanvas(props: Props) {
     if (!interactive) return;
     function moveHandler(e: PointerEvent) {
       const d = dragRef.current;
+      if (d.wireFrom) {
+        const p = toSvg(e.clientX, e.clientY);
+        setWireEnd({ from: d.wireFrom, x: p.x, y: p.y });
+        return;
+      }
+      if (d.zone && props.onUpdateNoGo) {
+        const g = toGrid(e.clientX, e.clientY);
+        const o = d.zone.orig;
+        if (d.zone.mode === "move") {
+          const nx = Math.max(0, Math.min(model.gridW - o.w, Math.round(o.x + (g.x - d.zone.grabX))));
+          const ny = Math.max(0, Math.min(model.gridH - o.h, Math.round(o.y + (g.y - d.zone.grabY))));
+          props.onUpdateNoGo(d.zone.index, { x: nx, y: ny });
+        } else {
+          // Resize from whichever grip was grabbed: a west/north grip drags the
+          // left/top edge (moving x/y), an east/south grip drags the right/bottom
+          // edge. Corners move two edges. Always ≥1 cell and inside the grid.
+          const grip = d.zone.grip ?? "se";
+          const gx = Math.round(g.x);
+          const gy = Math.round(g.y);
+          const right = o.x + o.w;
+          const bottom = o.y + o.h;
+          const patch: Partial<NoGoZone> = {};
+          if (grip.includes("w")) { const nx = Math.max(0, Math.min(right - 1, gx)); patch.x = nx; patch.w = right - nx; }
+          if (grip.includes("e")) { patch.w = Math.max(1, Math.min(model.gridW - o.x, gx - o.x)); }
+          if (grip.includes("n")) { const ny = Math.max(0, Math.min(bottom - 1, gy)); patch.y = ny; patch.h = bottom - ny; }
+          if (grip.includes("s")) { patch.h = Math.max(1, Math.min(model.gridH - o.y, gy - o.y)); }
+          props.onUpdateNoGo(d.zone.index, patch);
+        }
+        return;
+      }
+      if (d.group && props.onUpdateGroup) {
+        const g = toGrid(e.clientX, e.clientY);
+        const o = d.group.orig;
+        if (d.group.mode === "move") {
+          const nx = Math.max(0, Math.min(model.gridW - o.w, Math.round(o.x + (g.x - d.group.grabX))));
+          const ny = Math.max(0, Math.min(model.gridH - o.h, Math.round(o.y + (g.y - d.group.grabY))));
+          props.onUpdateGroup(d.group.id, { x: nx, y: ny });
+        } else {
+          const grip = d.group.grip ?? "se";
+          const gx = Math.round(g.x);
+          const gy = Math.round(g.y);
+          const right = o.x + o.w;
+          const bottom = o.y + o.h;
+          const patch: Partial<Group> = {};
+          if (grip.includes("w")) { const nx = Math.max(0, Math.min(right - 1, gx)); patch.x = nx; patch.w = right - nx; }
+          if (grip.includes("e")) { patch.w = Math.max(1, Math.min(model.gridW - o.x, gx - o.x)); }
+          if (grip.includes("n")) { const ny = Math.max(0, Math.min(bottom - 1, gy)); patch.y = ny; patch.h = bottom - ny; }
+          if (grip.includes("s")) { patch.h = Math.max(1, Math.min(model.gridH - o.y, gy - o.y)); }
+          props.onUpdateGroup(d.group.id, patch);
+        }
+        return;
+      }
       if (d.id && props.onMove) {
         const g = toGrid(e.clientX, e.clientY);
         const s = stations.find((x) => x.id === d.id);
@@ -158,12 +239,23 @@ export function LayoutCanvas(props: Props) {
         });
       }
     }
-    function upHandler() {
+    function upHandler(e: PointerEvent) {
       const d = dragRef.current;
-      if (d.nogo && nogoRect && props.onAddNoGo) props.onAddNoGo(nogoRect);
-      dragRef.current = { id: null, pan: false, nogo: null };
+      if (d.nogo && nogoRect) {
+        if (props.mode === "group") props.onGroupRect?.(nogoRect);
+        else props.onAddNoGo?.(nogoRect);
+      }
+      if (d.wireFrom && props.onWire) {
+        const g = toGrid(e.clientX, e.clientY);
+        const target = stations.find(
+          (s) => g.x >= s.x && g.x <= s.x + s.w && g.y >= s.y && g.y <= s.y + s.h,
+        );
+        if (target && target.id !== d.wireFrom) props.onWire(d.wireFrom, target.id);
+      }
+      dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: null };
       panStart.current = null;
       setNogoRect(null);
+      setWireEnd(null);
       setDraggingId(null);
       setDragCollide(false);
     }
@@ -173,33 +265,76 @@ export function LayoutCanvas(props: Props) {
       window.removeEventListener("pointermove", moveHandler);
       window.removeEventListener("pointerup", upHandler);
     };
-  }, [interactive, props, stations, toGrid, vbW, baseW, nogoRect]);
+  }, [interactive, props, stations, toGrid, toSvg, vbW, baseW, nogoRect]);
+
+  // Begin a rubber-band rectangle (no-go draw or group select). Seeding nogoRect
+  // immediately means even a click/tiny drag yields a usable rect, so the
+  // gesture never silently produces nothing.
+  function beginRubberBand(e: React.PointerEvent) {
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y }, wireFrom: null, zone: null };
+    setNogoRect({ x: Math.max(0, Math.round(g.x)), y: Math.max(0, Math.round(g.y)), w: 1, h: 1 });
+  }
 
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
-    if (mode === "nogo") {
-      const g = toGrid(e.clientX, e.clientY);
-      dragRef.current = { id: null, pan: false, nogo: { x: g.x, y: g.y } };
+    if (mode === "nogo" || mode === "group") {
+      beginRubberBand(e);
     } else {
       props.onSelect?.(null);
-      dragRef.current = { id: null, pan: true, nogo: null };
+      props.onSelectZone?.(null);
+      props.onSelectGroup?.(null);
+      dragRef.current = { id: null, pan: true, nogo: null, wireFrom: null, zone: null };
       panStart.current = { x: e.clientX, y: e.clientY, ox: off.x, oy: off.y };
     }
   }
 
   function onStationDown(e: React.PointerEvent, s: Station) {
     e.stopPropagation();
+    // In group mode the natural gesture is to drag a box AROUND stations, so a
+    // press that lands on a station must start the rubber-band, not move it.
+    if (mode === "group") {
+      beginRubberBand(e);
+      return;
+    }
     if (mode === "flow") {
       props.onPickStation?.(s.id);
       return;
     }
     props.onSelect?.(s.id);
+    props.onSelectGroup?.(null);
     if (interactive && !s.fixed && props.onMove) {
       props.onMoveStart?.();
-      dragRef.current = { id: s.id, pan: false, nogo: null };
+      dragRef.current = { id: s.id, pan: false, nogo: null, wireFrom: null, zone: null };
       setDraggingId(s.id);
       setDragCollide(false);
     }
+  }
+
+  // Start moving or resizing an existing zone.
+  function onZoneDown(e: React.PointerEvent, index: number, zoneMode: "move" | "resize", grip?: Grip) {
+    if (!interactive || mode === "nogo" || mode === "group" || mode === "flow") return;
+    e.stopPropagation();
+    const z = (model.noGoZones ?? [])[index];
+    if (!z) return;
+    props.onSelect?.(null);
+    props.onSelectZone?.(index);
+    props.onSelectGroup?.(null);
+    props.onMoveStart?.(); // checkpoint once, so the whole drag is one undo step
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: { index, mode: zoneMode, grip, grabX: g.x, grabY: g.y, orig: { ...z } } };
+  }
+
+  // Start moving or resizing a documentation group (same gesture as a zone).
+  function onGroupDown(e: React.PointerEvent, grp: Group, groupMode: "move" | "resize", grip?: Grip) {
+    if (!interactive || mode === "nogo" || mode === "group" || mode === "flow") return;
+    e.stopPropagation();
+    props.onSelect?.(null);
+    props.onSelectZone?.(null);
+    props.onSelectGroup?.(grp.id);
+    props.onMoveStart?.();
+    const g = toGrid(e.clientX, e.clientY);
+    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: null, zone: null, group: { id: grp.id, mode: groupMode, grip, grabX: g.x, grabY: g.y, orig: { ...grp } } };
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -217,73 +352,60 @@ export function LayoutCanvas(props: Props) {
   const cpNodes = new Set(cp);
   for (let i = 0; i < cp.length - 1; i++) cpEdges.add(cp[i] + ">" + cp[i + 1]);
 
-  // The grid rules the whole visible surface, not just the gridW*gridH extent,
-  // so panning and zooming never expose bare background. The floor rect below
-  // is what marks where stations may actually be placed.
-  const floorW = model.gridW * cell;
-  const floorH = model.gridH * cell;
   const gridLines = [];
-  {
-    const i0 = Math.floor((off.x - PAD) / cell);
-    const i1 = Math.ceil((off.x + vbW - PAD) / cell);
-    const j0 = Math.floor((off.y - PAD) / cell);
-    const j1 = Math.ceil((off.y + vbH - PAD) / cell);
-    // Zoomed far out the extended grid would be thousands of lines; past that
-    // it is visual mush anyway, so fall back to ruling the floor only.
-    const tooDense = i1 - i0 > 400 || j1 - j0 > 400;
-    const [a0, a1, b0, b1] = tooDense ? [0, model.gridW, 0, model.gridH] : [i0, i1, j0, j1];
-    const y1 = tooDense ? PAD : off.y;
-    const y2 = tooDense ? PAD + floorH : off.y + vbH;
-    const x1 = tooDense ? PAD : off.x;
-    const x2 = tooDense ? PAD + floorW : off.x + vbW;
-    // Every 5th line is heavier, so distances on the floor can be read off the
-    // grid instead of counted cell by cell.
-    const major = (n: number) => n % 5 === 0;
-    for (let i = a0; i <= a1; i++)
-      gridLines.push(
-        <line key={"v" + i} x1={PAD + i * cell} y1={y1} x2={PAD + i * cell} y2={y2}
-          stroke={LINE} strokeWidth={major(i) ? 1 : 0.5} opacity={major(i) ? 1 : 0.6} />,
-      );
-    for (let j = b0; j <= b1; j++)
-      gridLines.push(
-        <line key={"h" + j} x1={x1} y1={PAD + j * cell} x2={x2} y2={PAD + j * cell}
-          stroke={LINE} strokeWidth={major(j) ? 1 : 0.5} opacity={major(j) ? 1 : 0.6} />,
-      );
-  }
+  for (let i = 0; i <= model.gridW; i++)
+    gridLines.push(
+      <line key={"v" + i} x1={PAD + i * cell} y1={PAD} x2={PAD + i * cell} y2={PAD + model.gridH * cell} stroke={LINE} strokeWidth={0.5} opacity={0.5} />,
+    );
+  for (let j = 0; j <= model.gridH; j++)
+    gridLines.push(
+      <line key={"h" + j} x1={PAD} y1={PAD + j * cell} x2={PAD + model.gridW * cell} y2={PAD + j * cell} stroke={LINE} strokeWidth={0.5} opacity={0.5} />,
+    );
 
   return (
-    <div className="lc">
+    <div className={props.fill ? "canvas-fill" : undefined}>
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
         {interactive && zoom !== 1 ? (
-          <Btn size="compact" variant="ghost" onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
-            Reset zoom
-          </Btn>
+          <button className="btn sm" style={{ marginLeft: 10 }} onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
+            reset zoom
+          </button>
         ) : null}
       </div>
-      <div className="lc__stage" ref={stageRef}>
       <svg
         ref={svgRef}
-        className="lc__svg"
         viewBox={`${off.x} ${off.y} ${vbW} ${vbH}`}
-        width={baseW}
-        height={baseH}
+        width={props.fill ? "100%" : baseW}
+        height={props.fill ? "100%" : baseH}
+        className={props.fill ? "canvas-svg canvas-svg--fill" : "canvas-svg"}
         data-layout={label}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
+        onDragOver={interactive && props.onDropNode ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } : undefined}
+        onDrop={
+          interactive && props.onDropNode
+            ? (e) => {
+                const kind = e.dataTransfer.getData("application/x-flowplan-node");
+                if (!kind) return;
+                e.preventDefault();
+                const g = toGrid(e.clientX, e.clientY);
+                props.onDropNode?.(kind, g.x, g.y);
+              }
+            : undefined
+        }
       >
         <defs>
           <marker id="fp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
           </marker>
+          <pattern id="fp-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="transparent" />
+            <line x1="0" y1="0" x2="0" y2="6" stroke={AMBER} strokeWidth="1.4" opacity="0.5" />
+          </pattern>
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
-        <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
-        {/* The placeable floor. Now that the grid rules the whole surface this is
-            what tells you where a station can actually go. */}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
+        <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" || mode === "group" ? "crosshair" : interactive ? "grab" : "default" }} />
         {gridLines}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
 
         {(template ?? []).map((t, i) => (
           <g key={"t" + i}>
@@ -294,11 +416,123 @@ export function LayoutCanvas(props: Props) {
           </g>
         ))}
 
-        {(model.noGoZones ?? []).map((z, i) => (
-          <rect key={"z" + i} x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={RED} opacity={0.08} stroke={RED} strokeWidth={1} strokeDasharray="4 3" />
-        ))}
+        {/* Documentation groups — annotation boxes drawn BEHIND the machines they
+            surround, so the stations sit on top. Purely informational. */}
+        {(model.groups ?? []).map((grp) => {
+          const accent = GROUP_COLORS[(grp.color ?? 0) % GROUP_COLORS.length];
+          const gsel = props.selGroup === grp.id;
+          const draggable = interactive && mode === "select";
+          const showHandles = draggable && (gsel || hoverGroup === grp.id);
+          const gx = PAD + grp.x * cell;
+          const gy = PAD + grp.y * cell;
+          const gw = grp.w * cell;
+          const gh = grp.h * cell;
+          const maxChars = Math.max(6, Math.floor(gw / 6.5));
+          const comment = grp.comment ? (grp.comment.length > maxChars ? grp.comment.slice(0, maxChars - 1) + "…" : grp.comment) : "";
+          const grips: { grip: Grip; hx: number; hy: number }[] = [
+            { grip: "nw", hx: gx, hy: gy }, { grip: "n", hx: gx + gw / 2, hy: gy }, { grip: "ne", hx: gx + gw, hy: gy },
+            { grip: "e", hx: gx + gw, hy: gy + gh / 2 }, { grip: "se", hx: gx + gw, hy: gy + gh }, { grip: "s", hx: gx + gw / 2, hy: gy + gh },
+            { grip: "sw", hx: gx, hy: gy + gh }, { grip: "w", hx: gx, hy: gy + gh / 2 },
+          ];
+          return (
+            <g
+              key={grp.id}
+              onPointerEnter={draggable ? () => setHoverGroup(grp.id) : undefined}
+              onPointerLeave={draggable ? () => setHoverGroup((h) => (h === grp.id ? null : h)) : undefined}
+            >
+              <rect
+                x={gx} y={gy} width={gw} height={gh} rx={4}
+                fill={accent} fillOpacity={gsel ? 0.1 : 0.06}
+                stroke={accent} strokeWidth={gsel ? 2 : 1.5} strokeDasharray="6 4"
+                style={draggable ? { cursor: "move" } : undefined}
+                onPointerDown={draggable ? (e) => onGroupDown(e, grp, "move") : undefined}
+              />
+              <text x={gx + 8} y={gy + 17} fill={accent} fontSize={12} fontWeight={700} style={{ pointerEvents: "none" }}>{grp.label}</text>
+              {comment ? <text x={gx + 8} y={gy + 33} fill={TEXTD} fontSize={10} style={{ pointerEvents: "none" }}>{comment}</text> : null}
+              {showHandles
+                ? grips.map((h) => (
+                    <rect key={h.grip} x={h.hx - 5} y={h.hy - 5} width={10} height={10} rx={1}
+                      fill={accent} stroke="var(--cds-background)" strokeWidth={1}
+                      style={{ cursor: GRIP_CURSOR[h.grip] }}
+                      onPointerDown={(e) => onGroupDown(e, grp, "resize", h.grip)} />
+                  ))
+                : null}
+            </g>
+          );
+        })}
+
+        {/* Usable floor outline (audit C-03 inc2) — stations must sit inside it. */}
+        {model.floorPolygon && model.floorPolygon.length >= 3 ? (
+          <polygon
+            points={model.floorPolygon.map(([px, py]) => `${PAD + px * cell},${PAD + py * cell}`).join(" ")}
+            fill="none"
+            stroke={TEAL}
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
+            opacity={0.6}
+            pointerEvents="none"
+          />
+        ) : null}
+
+        {(model.noGoZones ?? []).map((z, i) => {
+          const st = ZONE_STYLE[z.kind ?? "blocking"];
+          const solid = (z.kind === "wall" || z.kind === "column");
+          const zsel = props.selZone === i;
+          const zx = PAD + z.x * cell;
+          const zy = PAD + z.y * cell;
+          const zw = z.w * cell;
+          const zh = z.h * cell;
+          const draggable = interactive && mode === "select";
+          // Handles appear on hover as well as when selected, so a zone can be
+          // grabbed and stretched directly — no click-to-select step first.
+          const showHandles = draggable && (zsel || hoverZone === i);
+          // Eight grips: four corners + four edge midpoints. Each is placed at its
+          // position on the rect and carries the cursor + edges it drags.
+          const grips: { grip: Grip; gx: number; gy: number }[] = [
+            { grip: "nw", gx: zx, gy: zy },
+            { grip: "n", gx: zx + zw / 2, gy: zy },
+            { grip: "ne", gx: zx + zw, gy: zy },
+            { grip: "e", gx: zx + zw, gy: zy + zh / 2 },
+            { grip: "se", gx: zx + zw, gy: zy + zh },
+            { grip: "s", gx: zx + zw / 2, gy: zy + zh },
+            { grip: "sw", gx: zx, gy: zy + zh },
+            { grip: "w", gx: zx, gy: zy + zh / 2 },
+          ];
+          return (
+            <g
+              key={"z" + i}
+              onPointerEnter={draggable ? () => setHoverZone(i) : undefined}
+              onPointerLeave={draggable ? () => setHoverZone((h) => (h === i ? null : h)) : undefined}
+            >
+              <rect
+                x={zx} y={zy} width={zw} height={zh}
+                fill={st.fill} opacity={solid ? 0.28 : 0.08}
+                stroke={st.stroke} strokeWidth={zsel ? 2 : 1} strokeDasharray={zsel ? undefined : st.dash}
+                style={draggable ? { cursor: "move" } : undefined}
+                onPointerDown={draggable ? (e) => onZoneDown(e, i, "move") : undefined}
+              />
+              <text x={zx + 4} y={zy + 12} fill={st.stroke} fontSize={9} style={{ pointerEvents: "none" }}>
+                {z.label || st.label}
+              </text>
+              {/* Resize grips on every corner and edge, so the zone can be
+                  stretched or squeezed from any side directly. */}
+              {showHandles
+                ? grips.map((h) => (
+                    <rect
+                      key={h.grip}
+                      x={h.gx - 5} y={h.gy - 5} width={10} height={10}
+                      rx={1}
+                      fill={st.stroke} stroke="var(--cds-background)" strokeWidth={1}
+                      style={{ cursor: GRIP_CURSOR[h.grip] }}
+                      onPointerDown={(e) => onZoneDown(e, i, "resize", h.grip)}
+                    />
+                  ))
+                : null}
+            </g>
+          );
+        })}
         {nogoRect ? (
-          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={RED} opacity={0.18} stroke={RED} strokeWidth={1.5} />
+          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={mode === "group" ? TEAL : RED} opacity={0.18} stroke={mode === "group" ? TEAL : RED} strokeWidth={1.5} strokeDasharray={mode === "group" ? "4 3" : undefined} />
         ) : null}
 
         {flows.map((f, i) => {
@@ -310,8 +544,14 @@ export function LayoutCanvas(props: Props) {
           const w = 0.5 + (f.volume / 1200) * 3;
           const k = linkKind[f.from + ">" + f.to];
           const onCp = cpEdges.has(f.from + ">" + f.to);
-          const col = onCp ? TEAL : k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
-          const dash = k === "manual" || k === "mixed" ? "5 4" : undefined;
+          // Reject/rework paths take priority in colouring — they must read as a
+          // separate material path (blueprint §10).
+          const fkind = f.kind ?? "good";
+          const col =
+            fkind === "nok" ? RED :
+            fkind === "rwk" ? AMBER :
+            onCp ? TEAL : k === "auto-island" ? RED : k === "chained-auto" ? TEAL : k === "mixed" ? AMBER : badge;
+          const dash = fkind === "nok" ? undefined : fkind === "rwk" ? "5 4" : k === "manual" || k === "mixed" ? "5 4" : undefined;
           const sel = props.selFlow && props.selFlow.from === f.from && props.selFlow.to === f.to;
           const x1 = PAD + op.x * cell;
           const y1 = PAD + op.y * cell;
@@ -338,6 +578,29 @@ export function LayoutCanvas(props: Props) {
             </g>
           );
         })}
+
+        {/* Live wire being dragged from an OUT port (Law 2: feedback during the
+            gesture). */}
+        {wireEnd
+          ? (() => {
+              const src = byId[wireEnd.from];
+              if (!src) return null;
+              const sp = portPoint(src, src.outSide ?? "right");
+              return (
+                <line
+                  x1={PAD + sp.x * cell}
+                  y1={PAD + sp.y * cell}
+                  x2={wireEnd.x}
+                  y2={wireEnd.y}
+                  stroke={TEAL}
+                  strokeWidth={1.6}
+                  strokeDasharray="4 3"
+                  markerEnd="url(#fp-arrow)"
+                  pointerEvents="none"
+                />
+              );
+            })()
+          : null}
 
         {/*
           Ghost previews (spec §2 "ghost preview before commit"). When proposal
@@ -383,17 +646,43 @@ export function LayoutCanvas(props: Props) {
           );
         })()}
 
+        {/* Operator walking loops (audit C-13) — closed paths through the
+            tended stations' centres, one colour each. Drawn under the stations. */}
+        {(props.operatorLoops ?? []).filter((l) => !l.synthetic && l.stationIds.length >= 2).map((loop, li) => {
+          const cols = ["#c084fc", "#38bdf8", "#f59e0b", "#34d399", "#f472b6"];
+          const col = cols[li % cols.length];
+          const byId = new Map(stations.map((s) => [s.id, s]));
+          const pts = loop.stationIds.map((id) => byId.get(id)).filter((s): s is Station => !!s)
+            .map((s) => `${PAD + (s.x + s.w / 2) * cell},${PAD + (s.y + s.h / 2) * cell}`);
+          if (pts.length < 2) return null;
+          return (
+            <g key={"oploop" + loop.id} pointerEvents="none">
+              <polygon points={pts.join(" ")} fill="none" stroke={col} strokeWidth={1.6} strokeDasharray="5 4" opacity={0.75} strokeLinejoin="round" />
+              {pts.map((p, i) => { const [px, py] = p.split(",").map(Number); return <circle key={i} cx={px} cy={py} r={3} fill={col} opacity={0.9} />; })}
+            </g>
+          );
+        })}
+
         {stations.map((s) => {
           const seld = selId === s.id;
           const picked = props.flowFirst === s.id;
-          const colliding = draggingId === s.id && dragCollide;
+          // A station conflicts when it overlaps a HARD zone (wall / blocking /
+          // column) — hasCollision already ignores soft areas (ESD, aisle,
+          // spacer), where a machine may sit. Persistent and derived from the
+          // positions, so it shows whether the station was moved onto the zone
+          // OR the zone was moved onto the station.
+          const zoneConflict = hasCollision(s, s.x, s.y, [], model.noGoZones ?? []);
+          // A layout-realism conflict (clearance / floor load / egress) rings the
+          // station red too, so an unbuildable placement is visible in place (C-03).
+          const realismConflict = props.conflictIds?.includes(s.id) ?? false;
+          const colliding = (draggingId === s.id && dragCollide) || zoneConflict || realismConflict;
           const onCpNode = cpNodes.has(s.id);
           const units = Math.max(1, s.parallelUnits ?? 1);
           const assemble = (s.mergeMode ?? "sum") === "assemble" && flows.filter((f) => f.to === s.id).length > 1;
           const roleStroke = s.role === "input" ? TEAL : s.role === "output" ? AMBER : null;
           const outline = colliding ? RED : picked || seld ? TEAL : onCpNode ? TEAL : s.fixed ? AMBER : roleStroke ?? TEALD;
           const strokeW = picked || seld || colliding || onCpNode ? 2 : 1.2;
-          const fillCol = colliding ? COLLIDE_COL : TYPE_COL[s.type] || PANEL2;
+          const fillCol = colliding ? "#3a1f1c" : TYPE_COL[s.type] || PANEL2;
           const shaped = !!(s.cells && s.cells.length);
           const occ = shaped ? stationCells(s) : [];
           const inS = s.inSide ?? "left";
@@ -407,36 +696,31 @@ export function LayoutCanvas(props: Props) {
           return (
             <g
               key={s.id}
-              // Addressable from outside: the walkthrough drags one of these to
-              // prove the layout is still editable by hand, and there was no
-              // stable handle on a station to grab.
-              data-station-id={s.id}
-              data-station-x={s.x}
-              data-station-y={s.y}
-              // Keyboard-reachable: the canvas was mouse-only, so a station
-              // could be neither selected nor moved without a pointer. Focusing
-              // selects (in select mode) so the arrow-key move already wired in
-              // App acts on it; Enter/Space activates for flow-drawing too.
-              tabIndex={interactive ? 0 : undefined}
-              role={interactive ? "button" : undefined}
-              aria-label={interactive ? `${s.name}, ${s.role === "process" ? s.type : s.role}${s.fixed ? ", fixed" : ""}` : undefined}
               style={{ cursor: mode === "flow" ? "crosshair" : interactive ? (s.fixed ? "not-allowed" : "grab") : "pointer" }}
               onPointerDown={(e) => onStationDown(e, s)}
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}
               onPointerLeave={() => props.onHoverStation?.(null, 0, 0)}
-              onFocus={interactive && mode === "select" ? () => props.onSelect?.(s.id) : undefined}
-              onKeyDown={
-                interactive
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        if (mode === "flow") props.onPickStation?.(s.id);
-                        else props.onSelect?.(s.id);
-                      }
-                    }
-                  : undefined
-              }
             >
+              {/* keep-clear access halo (audit C-03) — the space that must stay
+                  free around the machine; turns red when a body encroaches. */}
+              {s.clearance ? (() => {
+                const cr = clearanceRect(s);
+                return (
+                  <rect
+                    x={PAD + cr.x * cell}
+                    y={PAD + cr.y * cell}
+                    width={cr.w * cell}
+                    height={cr.h * cell}
+                    rx={4}
+                    fill="none"
+                    stroke={realismConflict ? RED : TEALD}
+                    strokeDasharray="2 3"
+                    strokeWidth={1}
+                    opacity={0.55}
+                    pointerEvents="none"
+                  />
+                );
+              })() : null}
               {/* stacked shadow implies parallel lanes */}
               {units > 1 && !shaped ? (
                 <>
@@ -457,6 +741,24 @@ export function LayoutCanvas(props: Props) {
                   {roleStroke ? <rect x={PAD + s.x * cell + 1} y={PAD + s.y * cell + 1} width={s.w * cell - 2} height={s.h * cell - 2} rx={4} fill="none" stroke={roleStroke} strokeWidth={1} strokeDasharray="2 2" opacity={0.7} /> : null}
                 </>
               )}
+              {/* Composable overlay (spec §37). Confidence hatches steps built on
+                  an estimated cycle; congestion heats by utilization. */}
+              {(() => {
+                const ov = props.overlay ?? "none";
+                if (ov === "none" || s.role !== "process") return null;
+                const rx = PAD + s.x * cell;
+                const ry = PAD + s.y * cell;
+                const rw = s.w * cell;
+                const rh = s.h * cell;
+                if (ov === "confidence") {
+                  if (fieldQuality(s, "cycleTimeSec") !== "estimated") return null;
+                  return <rect x={rx} y={ry} width={rw} height={rh} rx={shaped ? 0 : 5} fill="url(#fp-hatch)" pointerEvents="none" />;
+                }
+                // congestion: teal (cool) → amber → red (hot) by utilization.
+                const u = Math.max(0, Math.min(100, props.utilById?.[s.id] ?? 0));
+                const heat = u >= 85 ? RED : u >= 60 ? AMBER : TEAL;
+                return <rect x={rx} y={ry} width={rw} height={rh} rx={shaped ? 0 : 5} fill={heat} opacity={0.1 + (u / 100) * 0.4} pointerEvents="none" />;
+              })()}
               {units > 1 ? (
                 <text x={PAD + s.x * cell + 5} y={PAD + (s.y + s.h) * cell - 5} fill={TEAL} fontSize={9} fontWeight={700} style={{ pointerEvents: "none" }}>
                   ×{units}
@@ -479,8 +781,28 @@ export function LayoutCanvas(props: Props) {
                 </g>
               ) : null}
               {/* IN (teal) and OUT (amber) ports */}
-              <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke={PORT_RING} strokeWidth={0.8} style={{ pointerEvents: "none" }} />
-              <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke={PORT_RING} strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              <circle cx={PAD + ip.x * cell} cy={PAD + ip.y * cell} r={3.2} fill={TEAL} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              <circle cx={PAD + op.x * cell} cy={PAD + op.y * cell} r={3.2} fill={AMBER} stroke="#0e1416" strokeWidth={0.8} style={{ pointerEvents: "none" }} />
+              {/* Drag-to-wire handle over the OUT port (node-RED-style). A larger
+                  transparent hit target so the 3px port is easy to grab. */}
+              {interactive && props.onWire && mode === "select" ? (
+                <circle
+                  data-outport={s.id}
+                  cx={PAD + op.x * cell}
+                  cy={PAD + op.y * cell}
+                  r={7}
+                  fill="transparent"
+                  style={{ cursor: "crosshair" }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    dragRef.current = { id: null, pan: false, nogo: null, wireFrom: s.id, zone: null };
+                    const p = toSvg(e.clientX, e.clientY);
+                    setWireEnd({ from: s.id, x: p.x, y: p.y });
+                  }}
+                >
+                  <title>Drag to another station to connect a flow</title>
+                </circle>
+              ) : null}
               <text x={PAD + (s.x + s.w / 2) * cell} y={PAD + (s.y + s.h / 2) * cell - 5} fill={TEXT} fontSize={10} fontWeight={600} textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: "none", fontFamily: "'IBM Plex Sans',sans-serif" }}>
                 {s.name}
               </text>
@@ -520,7 +842,7 @@ export function LayoutCanvas(props: Props) {
                   <circle cx={bx} cy={by} r={hot ? 9 : 7.5} fill={hot ? AMBER : "rgba(14,20,22,.85)"} stroke={AMBER} strokeWidth={1.2} />
                   <path
                     d={`M ${bx - 3.6} ${by} l 2.4 2.6 l 5 -5.4`}
-                    fill="none" stroke={hot ? NOGO_COL : AMBER} strokeWidth={1.8}
+                    fill="none" stroke={hot ? "#1a1205" : AMBER} strokeWidth={1.8}
                     strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"
                   />
                 </g>
@@ -528,7 +850,6 @@ export function LayoutCanvas(props: Props) {
             })
           : null}
       </svg>
-      </div>
     </div>
   );
 }
