@@ -223,16 +223,6 @@ export interface VariantMode {
 export const TIME_METHODS: TimeMethod[] = ["MTM", "UAS", "estimate", "benchmarked", "measured"];
 export const CONFIDENCES: Confidence[] = ["low", "med", "high"];
 export const WORK_CLASSES: WorkClass[] = ["VA", "NNVA", "NVA"];
-export const WASTE_CLASSES: WasteClass[] = [
-  "transport",
-  "motion",
-  "waiting",
-  "overprocessing",
-  "inventory",
-  "defects",
-  "overproduction",
-];
-export const ERGONOMIC_LOADS: ErgonomicLoad[] = ["light", "medium", "heavy"];
 
 /** Confidence of a derived number is the weakest of its inputs (spec §9). */
 export function weakestConfidence(list: Confidence[]): Confidence {
