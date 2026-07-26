@@ -185,7 +185,11 @@ export function buildWorkloadStations(
         }));
 
   const taktSec = perShiftTarget > 0 ? (shiftHours * 3600) / perShiftTarget : 0;
-  const assignment = assignStations(elements, taktSec, variantModes);
+  // One station per step: each routing step is its own box on the canvas rather
+  // than being merged into a shared station by the balancer. Utilisation is
+  // still computed against takt, so an over-takt step still reads as a
+  // bottleneck — the steps just are not packed together.
+  const assignment = assignStations(elements, taktSec, variantModes, { oneStationPerStep: true });
   const stations = stationsFromAssignment(assignment, elements, variantModes, opts);
 
   return { inference, elements, assignment, stations, taktSec: +taktSec.toFixed(2) };

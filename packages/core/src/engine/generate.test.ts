@@ -97,13 +97,14 @@ describe("generateCandidates", () => {
     expect(cell?.metrics.valueAddPct).toBeLessThan(100);
   });
 
-  it("balances elements into stations rather than mapping them 1:1", () => {
-    // Four steps, 140s of content. At 250k/yr over 460 shifts the takt is wide
-    // enough that the balancer must merge some of them.
+  it("maps each work step to its own station (one box per step)", () => {
+    // The layout no longer merges steps into shared stations: every routing
+    // step is its own box on the canvas. Utilisation is still computed against
+    // takt, but the boxes match the steps the planner entered.
     const cell = cands.find((c) => c.concept === "cell");
     const procs = cell?.model.stations.filter((s) => s.role === "process") ?? [];
-    expect(procs.length).toBeLessThan(brief().steps.length);
-    // Every station carries the capabilities of the work it absorbed.
+    expect(procs.length).toBe(brief().steps.length);
+    // Every station carries the capabilities of its step's work.
     expect(procs.flatMap((s) => s.provides ?? []).length).toBeGreaterThan(0);
   });
 
@@ -140,11 +141,14 @@ describe("generateCandidates", () => {
     expect(only).toHaveLength(CONCEPTS.cell.forms.length);
   });
 
-  it("costs automation as higher capex and fewer operators", () => {
+  it("costs automation as higher capex without adding operators", () => {
+    // With one station per step the automated concept no longer saves operators
+    // by consolidating stations; what still holds is that it costs more capex
+    // and never needs *more* people than the manual bench for the same work.
     const bench = rankCandidates(cands.filter((c) => c.concept === "manual-bench"))[0];
     const line = rankCandidates(cands.filter((c) => c.concept === "transfer-line"))[0];
     expect(line.metrics.capexTotal).toBeGreaterThan(bench.metrics.capexTotal);
-    expect(line.metrics.operators).toBeLessThan(bench.metrics.operators);
+    expect(line.metrics.operators).toBeLessThanOrEqual(bench.metrics.operators);
   });
 });
 
