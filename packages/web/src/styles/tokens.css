@@ -82,6 +82,9 @@
   --data-teal-dim: #007d79;
   --data-amber: #d2a106;
   --data-red: #fa4d56;
+  /* The bright dark-theme accents drop below 4.5:1 on a white surface. Where the
+     CSS resolves the token live, the light theme gets a darker, AA-contrast set
+     for the same meanings. */
 
   /* ---- measure: two widths, not seven ----
    * Reading content is constrained; a table of numbers is not. Everything that
@@ -2767,4 +2770,37 @@ button.fk-listrow__main {
 }
 .topbar__lang option {
   color: #161616;
+}
+
+/* Skip link — visually hidden until focused, then a clear target at the top. */
+.skip-link {
+  position: absolute;
+  left: var(--sp-3);
+  top: -3rem;
+  z-index: 9000;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--cds-layer-01);
+  color: var(--cds-link-primary, #78a9ff);
+  border: 1px solid var(--cds-border-strong-01);
+  text-decoration: none;
+  transition: top 120ms ease;
+}
+.skip-link:focus {
+  top: var(--sp-3);
+  outline: 2px solid var(--cds-focus, #ffffff);
+  outline-offset: 2px;
+}
+/* The scripted skip target should not paint its own focus ring when jumped to. */
+#main-content:focus {
+  outline: none;
+}
+
+/* Light-theme accent overrides — darker so text and meaningful graphics keep
+   AA contrast on a white surface (WCAG 1.4.3 / 1.4.11). Applied wherever the
+   accent is resolved from the CSS variable rather than a captured hex. */
+.cds--white {
+  --data-teal: #0f766e;
+  --data-teal-dim: #115e59;
+  --data-amber: #8a5a00;
+  --data-red: #b42318;
 }

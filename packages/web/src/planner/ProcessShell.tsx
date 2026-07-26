@@ -72,6 +72,11 @@ export function AppFrame({
   const { theme } = useTheme();
   return (
     <Theme theme={CARBON_THEME[theme]}>
+      {/* First focusable element: lets a keyboard/screen-reader user jump the
+          header and stepper straight to the content (WCAG 2.4.1). */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <Header aria-label="FlowPlan">
         <HeaderName href="#" prefix="Flow">
           Plan
@@ -81,7 +86,9 @@ export function AppFrame({
           <TopBarControls />
         </HeaderGlobalBar>
       </Header>
-      <div className={"shell" + (fill ? " shell--fill" : "")}>{children}</div>
+      <div id="main-content" tabIndex={-1} className={"shell" + (fill ? " shell--fill" : "")}>
+        {children}
+      </div>
     </Theme>
   );
 }

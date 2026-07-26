@@ -46,7 +46,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={{ toast }}>
       {children}
-      <div className="toasts">
+      {/* A polite live region so assistive tech announces each toast as it
+          appears (WCAG 4.1.3 Status Messages) without stealing focus. */}
+      <div className="toasts" role="status" aria-live="polite" aria-atomic="false">
         {items.map((t) => (
           <div key={t.id} className={"toast" + (t.kind === "info" ? "" : " " + t.kind)}>
             {t.msg}

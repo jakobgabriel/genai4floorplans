@@ -474,15 +474,20 @@ export function App() {
   // loads with a light placeholder.
   const routePage = (node: ReactNode) => (
     <div className="wrap">
-      <Suspense
-        fallback={
-          <div className="wrap-loading">
-            <Loading withOverlay={false} description="Loading" />
-          </div>
-        }
-      >
-        {node}
-      </Suspense>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <main id="main-content" tabIndex={-1}>
+        <Suspense
+          fallback={
+            <div className="wrap-loading">
+              <Loading withOverlay={false} description="Loading" />
+            </div>
+          }
+        >
+          {node}
+        </Suspense>
+      </main>
     </div>
   );
   if (route === "/report")

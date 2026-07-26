@@ -558,3 +558,10 @@
 .portal-group .portal {
   margin-bottom: 0;
 }
+
+/* Keyboard focus for the portal tiles (custom <button>s) — a clear ring in
+   both themes (WCAG 2.4.7 / 1.4.11). */
+.portal__tile:focus-visible {
+  outline: 2px solid var(--cds-focus, #ffffff);
+  outline-offset: -2px;
+}
