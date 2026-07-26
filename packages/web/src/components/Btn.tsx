@@ -112,17 +112,24 @@ export function TabBtn({
   selected,
   title,
   onClick,
+  toggle = false,
 }: {
   children: ReactNode;
   selected: boolean;
   title?: string;
   onClick: () => void;
+  /**
+   * Multi-select? A `role="tab"` is single-select and must live in a
+   * `role="tablist"`; a set of independent on/off filters (layout forms, a
+   * process's tags) is not that. `toggle` renders a plain toggle button with
+   * `aria-pressed` instead, which is the correct role and needs no tablist.
+   */
+  toggle?: boolean;
 }) {
   return (
     <button
       type="button"
-      role="tab"
-      aria-selected={selected}
+      {...(toggle ? { "aria-pressed": selected } : { role: "tab", "aria-selected": selected })}
       className={"chip" + (selected ? " on" : "")}
       title={title}
       onClick={onClick}

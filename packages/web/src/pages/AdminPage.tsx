@@ -61,10 +61,10 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
     <div className="chart-card" style={{ maxWidth: 380 }}>
       <div className="layoutTitle">{mode === "login" ? "Sign in" : "Create an account"}</div>
       {mode === "register" ? (
-        <div className="field"><label>Name (optional)</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="field"><label htmlFor="admin-name">Name (optional)</label><input id="admin-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
       ) : null}
-      <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
-      <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
+      <div className="field"><label htmlFor="admin-email">Email</label><input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
+      <div className="field"><label htmlFor="admin-password">Password</label><input id="admin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
       <div className="fk-inlineActions">
         <Btn variant="primary" disabled={busy || !email || password.length < 8} onClick={submit}>
           {mode === "login" ? "Sign in" : "Register"}
@@ -104,7 +104,7 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
       <div className="chart-card">
         <div className="layoutTitle">Teams</div>
         <div className="u-row">
-          <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
+          <input aria-label="New team name" placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
           <Btn size="compact" variant="ghost" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Btn>
         </div>
         {teams.length === 0 ? <p className="u-caption">No teams yet — create one (you become its owner).</p> : null}
@@ -166,8 +166,8 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
   const [role, setRole] = useState<Role>("EDITOR");
   return (
     <div className="u-row">
-      <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} className="u-grow" />
-      <select value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
+      <input aria-label="Member email" placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} className="u-grow" />
+      <select aria-label="Member role" value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
       <Btn size="compact" variant="ghost" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );

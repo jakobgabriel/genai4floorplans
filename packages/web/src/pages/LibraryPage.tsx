@@ -233,7 +233,7 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
           <Footnote>No tags defined. Add them under “Edit tags”.</Footnote>
         ) : (
           lib.tags.map((t) => (
-            <TabBtn key={t.id} selected={p.tags.includes(t.id)} onClick={() => lib.toggleTag(p.id, t.id)}>
+            <TabBtn key={t.id} toggle selected={p.tags.includes(t.id)} onClick={() => lib.toggleTag(p.id, t.id)}>
               {t.name}
             </TabBtn>
           ))
