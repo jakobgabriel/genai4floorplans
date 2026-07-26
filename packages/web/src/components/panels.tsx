@@ -12,7 +12,7 @@ import {
   Tile,
   Toggle,
 } from "@carbon/react";
-import { Add, Catalog, ChevronDown, ChevronRight, Copy, Draw, TrashCan } from "@carbon/icons-react";
+import { Add, Catalog, CheckmarkFilled, ChevronDown, ChevronRight, Copy, Draw, TrashCan } from "@carbon/icons-react";
 import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -755,20 +755,19 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
   return (
     <div className="pad ak-panel">
       <Stack gap={6}>
-        <InlineNotification
-          kind={v.valid ? "success" : "error"}
-          lowContrast
-          hideCloseButton
-          title={v.valid ? t("flowPanel.valid") : t("flowPanel.invalid", { n: errCount })}
-          subtitle={v.valid ? t("flowPanel.validSub") : undefined}
-        />
-
-        <Stack gap={3}>
-          <SectionLabel>{t("flowPanel.validation")}</SectionLabel>
-          {v.issues.length === 0 ? (
-            <Footnote>{t("flowPanel.noIssues")}</Footnote>
-          ) : (
-            v.issues.map((it, i) =>
+        {/* When the flow is valid, one quiet line — not a full banner plus a
+            section that both say "all good". The heavy treatment (an error
+            banner and per-issue fixers) appears only when there is something
+            to act on. */}
+        {v.valid ? (
+          <div className="fk-valid">
+            <CheckmarkFilled size={16} className="fk-valid__icon" />
+            <span>{t("flowPanel.valid")}</span>
+          </div>
+        ) : (
+          <Stack gap={3}>
+            <InlineNotification kind="error" lowContrast hideCloseButton title={t("flowPanel.invalid", { n: errCount })} />
+            {v.issues.map((it, i) =>
               it.id ? (
                 <Stack gap={2} key={i}>
                   <InlineNotification kind={it.sev === "err" ? "error" : "warning"} lowContrast hideCloseButton title={it.msg} />
@@ -780,9 +779,9 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
                 // Coupled to the two id-less messages in the validate engine.
                 <MissingRoleIssue key={i} api={api} issue={it} setSel={setSel} setTab={setTab} />
               ),
-            )
-          )}
-        </Stack>
+            )}
+          </Stack>
+        )}
 
         <Stack gap={3}>
           <SectionLabel>{t("flowPanel.drawConnections")}</SectionLabel>
@@ -984,30 +983,37 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
 
         <Stack gap={4}>
           <TextField id="cfg-name" labelText={t("cfg.name")} value={s.name} onFocus={api.checkpoint} onChange={(v) => live({ name: v })} />
-          <div className="fk-inline">
-            <TextField
-              id="cfg-rename"
-              labelText={t("cfg.stationId")}
-              placeholder={s.id}
-              helperText={t("cfg.stationIdHelp")}
-              value={renameVal}
-              onChange={setRenameVal}
-            />
-            <Button
-              size="sm"
-              kind="secondary"
-              onClick={() => {
-                const nid = renameVal.trim();
-                if (!nid) return;
-                if (m.stations.some((x) => x.id === nid)) { toast(t("cfg.idTaken"), "err"); return; }
-                api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
-                setSel(nid);
-                setRenameVal("");
-              }}
-            >
-              {t("cfg.rename")}
-            </Button>
-          </div>
+          {/* Renaming the station *id* rewrites every flow that references it —
+              a rare, power move, so it is tucked into a disclosure instead of
+              sitting above the everyday fields. */}
+          <details className="fk-advanced">
+            <summary>{t("cfg.stationId")}</summary>
+            <div className="fk-inline">
+              <TextField
+                id="cfg-rename"
+                labelText={t("cfg.stationId")}
+                hideLabel
+                placeholder={s.id}
+                helperText={t("cfg.stationIdHelp")}
+                value={renameVal}
+                onChange={setRenameVal}
+              />
+              <Button
+                size="sm"
+                kind="secondary"
+                onClick={() => {
+                  const nid = renameVal.trim();
+                  if (!nid) return;
+                  if (m.stations.some((x) => x.id === nid)) { toast(t("cfg.idTaken"), "err"); return; }
+                  api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
+                  setSel(nid);
+                  setRenameVal("");
+                }}
+              >
+                {t("cfg.rename")}
+              </Button>
+            </div>
+          </details>
           <FieldRow>
             <SelectField id="cfg-role" labelText={t("cfg.role")} value={s.role} options={ROLES} onChange={(v) => up({ role: v })} />
             <SelectField id="cfg-type" labelText={t("cfg.type")} value={s.type} options={STATION_TYPES} onChange={(v) => up({ type: v })} />

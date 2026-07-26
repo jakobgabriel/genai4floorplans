@@ -2350,6 +2350,33 @@ code {
   min-width: 0;
 }
 /* Inline action button aligned to the bottom of an adjacent field. */
+/* Compact "flow is valid" line — the quiet counterpart to the error banner. */
+.fk-valid {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+}
+.fk-valid__icon {
+  flex: 0 0 auto;
+  fill: var(--cds-support-success);
+}
+/* A disclosure for rare/advanced controls (e.g. renaming a station id), so the
+   everyday fields lead and the plumbing folds away. */
+.fk-advanced > summary {
+  cursor: pointer;
+  font-size: var(--type-caption-size);
+  color: var(--cds-link-primary);
+  padding: var(--sp-1) 0;
+  list-style-position: inside;
+}
+.fk-advanced > summary:hover {
+  text-decoration: underline;
+}
+.fk-advanced[open] > summary {
+  margin-bottom: var(--sp-2);
+}
 .fk-inline {
   display: flex;
   gap: var(--sp-2);
