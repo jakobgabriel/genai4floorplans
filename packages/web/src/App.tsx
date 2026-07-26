@@ -38,6 +38,7 @@ import { ConceptsPage } from "./pages/ConceptsPage";
 import { RecommendPage } from "./pages/RecommendPage";
 import { ReportPage } from "./pages/ReportPage";
 import { useConcepts } from "./store/concepts";
+import { byKind } from "@flowplan/core/engine/concepts";
 import { useDecisionWeights } from "./store/decisionWeights";
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -238,6 +239,10 @@ export function App() {
   // and year, and the routing and mix modes are derived rather than typed. Null
   // until a part carries both a routing and demand.
   const portfolio = useMemo(() => derivePortfolio(demand.parts), [demand.parts]);
+  // The catalog the user edits on the Concepts page is the generator's ground
+  // truth, so band/capex/form edits (and any concepts they author) re-rank the
+  // candidates here — not just on the Concepts page itself.
+  const conceptCatalog = useMemo(() => byKind(conceptApi.concepts), [conceptApi.concepts]);
   const brief: GenerateBrief = {
     name: demand.name,
     steps: portfolio ? portfolio.steps : [],
@@ -249,13 +254,14 @@ export function App() {
     programYears:
       portfolio && portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
     variantModes: portfolio ? portfolio.modes : undefined,
+    catalog: conceptCatalog,
   };
   const perShift = portfolio && demand.annualShifts > 0 ? portfolio.peakVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
     () => (step === "concepts" || step === "summary" ? rankByDecision(generateCandidates(brief), weightsApi.weights) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [step, demand, weightsApi.weights],
+    [step, demand, weightsApi.weights, conceptCatalog],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
 

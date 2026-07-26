@@ -5,7 +5,7 @@ import { normalizeFlow, normalizeStation } from "../model/defaults";
 import type { CellForm } from "./templates";
 import { cellTopology } from "./topology";
 import { clampToGrid } from "./geometry";
-import { CONCEPTS, CONCEPT_KINDS, conceptFit, type ConceptKind } from "./concepts";
+import { CONCEPTS, CONCEPT_KINDS, conceptFit, type ConceptKind, type ConceptCatalog } from "./concepts";
 import { buildRating, type Letter, type Rating } from "./rating";
 import { costAnalysis, type CostResult } from "./cost";
 import { buildWorkloadStations } from "./generateCell";
@@ -61,6 +61,10 @@ export interface GenerateBrief {
   shiftHours?: number;
   /** Restrict the sweep to these concepts. Defaults to all five. */
   concepts?: ConceptKind[];
+  /** The concept catalog to sweep. Defaults to the built-in `CONCEPTS`; the
+   *  planner passes an edited catalog so band/capex/form edits (and any custom
+   *  concepts authored on the Concepts page) re-rank the candidates. */
+  catalog?: ConceptCatalog;
   currency?: string;
   laborCostPerHour?: number;
   /** Program length used to amortise capex into the loaded cost per part. */
@@ -155,8 +159,8 @@ function shiftsFromDemand(d: Demand | undefined): number | undefined {
   return perDay > 0 && days > 0 ? perDay * days : undefined;
 }
 
-function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number): Model {
-  const p = CONCEPTS[concept];
+function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number, catalog: ConceptCatalog = CONCEPTS): Model {
+  const p = catalog[concept];
   const shiftHours = brief.shiftHours ?? brief.demand?.hoursPerShift ?? DEFAULT_SHIFT_HOURS;
   const grid = gridFor(brief.steps.length);
 
@@ -299,8 +303,8 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
 
 // ---- generation -----------------------------------------------------------
 
-function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
-  const p = CONCEPTS[concept];
+function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget: number, currency: string, catalog: ConceptCatalog = CONCEPTS): string {
+  const p = catalog[concept];
   const bits: string[] = [p.blurb];
   if (!m.meetsDemand) {
     bits.push(`Falls short of demand — ${m.lineOut.toLocaleString()}/shift against ${Math.round(perShiftTarget).toLocaleString()} needed.`);
@@ -328,13 +332,23 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
   if (brief.steps.length === 0) return [];
   const shifts = brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts;
   const perShiftTarget = brief.annualVolume > 0 ? brief.annualVolume / shifts : 0;
-  const kinds = brief.concepts?.length ? brief.concepts : CONCEPT_KINDS;
+  // The catalog is the answer's ground truth: it decides which concepts exist,
+  // their volume bands, forms and capex. Default to the built-ins; the planner
+  // passes an edited catalog so Concepts-page changes flow into the ranking.
+  const catalog = brief.catalog ?? CONCEPTS;
+  const kinds = brief.concepts?.length
+    ? brief.concepts
+    : brief.catalog
+      ? (Object.keys(catalog) as ConceptKind[])
+      : CONCEPT_KINDS;
   const currency = brief.currency ?? DEFAULT_COST_CONFIG.currency;
 
   const out: Candidate[] = [];
   kinds.forEach((concept) => {
-    CONCEPTS[concept].forms.forEach((form) => {
-      const model = buildModel(brief, concept, form, perShiftTarget);
+    const profile = catalog[concept];
+    if (!profile) return;
+    profile.forms.forEach((form) => {
+      const model = buildModel(brief, concept, form, perShiftTarget, catalog);
       // restarts: 0 keeps the sweep deterministic and fast — the candidate is a
       // starting point, and the user can run the full optimizer on the winner.
       const rating = buildRating(model, { restarts: 0 });
@@ -365,20 +379,20 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
         stations: procs.length,
         parallelUnits,
         meetsDemand: perShiftTarget <= 0 || rating.balance.lineOut >= Math.floor(perShiftTarget),
-        conceptFit: conceptFit(concept, brief.annualVolume),
+        conceptFit: conceptFit(concept, brief.annualVolume, catalog),
         valueAddPct: totalSec > 0 ? +((vaSec / totalSec) * 100).toFixed(1) : 0,
       };
 
       out.push({
         id: `${concept}-${form}`,
         concept,
-        conceptLabel: CONCEPTS[concept].label,
+        conceptLabel: profile.label,
         form,
         model,
         rating,
         cost,
         metrics,
-        rationale: rationaleFor(concept, metrics, perShiftTarget, currency),
+        rationale: rationaleFor(concept, metrics, perShiftTarget, currency, catalog),
       });
     });
   });
