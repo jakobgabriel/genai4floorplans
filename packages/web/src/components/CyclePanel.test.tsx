@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
+import { SAMPLE } from "@flowplan/core/model/sample";
 import { ToastProvider } from "./ui";
 
 function renderApp() {
@@ -13,8 +14,16 @@ function renderApp() {
 }
 
 function loadSample() {
-  // The sample is the seeded plan in the Cell plans store; a resumed session
-  // opens straight into the editor on it.
+  // Nothing seeds now, so put the sample in the workspace and resume into it.
+  localStorage.setItem(
+    "flowplan_workspace",
+    JSON.stringify({
+      version: 1,
+      cells: [{ id: "cell_sample", name: SAMPLE.name, model: SAMPLE, folderId: null, archived: false }],
+      activeId: "cell_sample",
+      folders: [],
+    }),
+  );
   localStorage.setItem("flowplan_started", "1");
   renderApp();
 }

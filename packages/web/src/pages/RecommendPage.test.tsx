@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
+import { SAMPLE } from "@flowplan/core/model/sample";
 import { ToastProvider } from "../components/ui";
 import { loadDecisionWeights } from "../store/decisionWeights";
 import { DECISION_WEIGHTS } from "@flowplan/core/engine/generate";
@@ -14,9 +15,18 @@ function renderApp() {
   );
 }
 
-/** Sample cell open, then the recommender for it. The sample is the seeded plan
- *  in the store; a resumed session opens straight into the editor on it. */
+/** Sample cell open, then the recommender for it. Nothing seeds now, so the
+ *  sample is placed in the workspace and the session resumes into it. */
 async function openRecommend() {
+  localStorage.setItem(
+    "flowplan_workspace",
+    JSON.stringify({
+      version: 1,
+      cells: [{ id: "cell_sample", name: SAMPLE.name, model: SAMPLE, folderId: null, archived: false }],
+      activeId: "cell_sample",
+      folders: [],
+    }),
+  );
   localStorage.setItem("flowplan_started", "1");
   renderApp();
   fireEvent.click(screen.getByRole("button", { name: "Recommend" }));

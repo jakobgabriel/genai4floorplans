@@ -2661,3 +2661,64 @@ button.fk-listrow__main {
     grid-column: 1 / -1;
   }
 }
+
+/* cell plans — list view + the view toggle */
+.plans__views {
+  display: flex;
+  gap: var(--sp-2);
+  margin-right: var(--sp-3);
+}
+.plans__scroll {
+  overflow-x: auto;
+}
+.plans__list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-body-size);
+}
+.plans__list th {
+  text-align: left;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+  white-space: nowrap;
+}
+.plans__list td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  vertical-align: middle;
+}
+.plans__rowActive td:first-child {
+  box-shadow: inset 3px 0 0 var(--cds-interactive, #4589ff);
+}
+.plans__num {
+  text-align: right;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.plans__num .cds--tag {
+  margin: 0;
+}
+.plans__nameLink {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.plans__nameLink:hover {
+  color: var(--cds-link-primary, #78a9ff);
+}
+.plans__rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}

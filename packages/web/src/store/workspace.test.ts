@@ -11,11 +11,11 @@ beforeEach(() => {
 });
 
 describe("workspace", () => {
-  it("seeds a single cell on first run", () => {
+  it("starts empty on first run — no seed, no example cell", () => {
     localStorage.clear();
     const ws = loadWorkspace();
-    expect(ws.cells).toHaveLength(1);
-    expect(ws.activeId).toBe(ws.cells[0].id);
+    expect(ws.cells).toHaveLength(0);
+    expect(ws.activeId).toBe("");
   });
 
   it("seeds a workspace that a save/reload round-trip leaves byte-for-byte unchanged", () => {

@@ -73,7 +73,9 @@ export function useFlowPlan(): FlowPlanApi {
   const [ws, setWs] = useState<Workspace>(() => loadWorkspace());
   const activeCell =
     ws.cells.find((c) => c.id === ws.activeId && !c.archived) ?? ws.cells.find((c) => !c.archived) ?? ws.cells[0];
-  const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(activeCell.model));
+  // The workspace can be empty (no seed on first run) — fall back to a blank
+  // model so the editor has something to render until a plan is created.
+  const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(activeCell?.model ?? blankModel()));
   const model = state.present;
 
   // Persist the active cell's model into the workspace (debounced).
@@ -82,6 +84,11 @@ export function useFlowPlan(): FlowPlanApi {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
       setWs((prev) => {
+        // Empty workspace (no active cell yet): nothing to persist into, and we
+        // must not conjure a cell for an untouched blank model — that would be a
+        // seed by another name. Entry points (Plan a cell, Start blank, import)
+        // create the cell explicitly.
+        if (!prev.cells.some((c) => c.id === prev.activeId)) return prev;
         const cells = prev.cells.map((c) => (c.id === prev.activeId ? { ...c, name: model.name || c.name, model } : c));
         const next = { ...prev, cells };
         saveWorkspace(next);
@@ -159,16 +166,17 @@ export function useFlowPlan(): FlowPlanApi {
 
   const deleteCell = useCallback(
     (id: string) => {
-      const remaining = ws.cells.filter((c) => c.id !== id);
-      const cells = remaining.length ? remaining : [makeCell("Cell A", blankModel())];
+      // Deleting the last plan leaves the store empty rather than re-seeding a
+      // blank "Cell A" — no seeds, by request.
+      const cells = ws.cells.filter((c) => c.id !== id);
       const wasActive = id === ws.activeId;
-      const activeId = wasActive ? cells[0].id : ws.activeId;
+      const activeId = wasActive ? (cells[0]?.id ?? "") : ws.activeId;
       // keep the active cell's live model if it wasn't the one deleted
       const persisted = cells.map((c) => (c.id === ws.activeId && !wasActive ? { ...c, model } : c));
       const next: Workspace = { cells: persisted, folders: ws.folders, activeId };
       setWs(next);
       saveWorkspace(next);
-      if (wasActive) dispatch({ kind: "reset", model: next.cells.find((c) => c.id === activeId)!.model });
+      if (wasActive) dispatch({ kind: "reset", model: next.cells.find((c) => c.id === activeId)?.model ?? blankModel() });
     },
     [ws, model],
   );
@@ -215,13 +223,13 @@ export function useFlowPlan(): FlowPlanApi {
     });
   }, [persistActive]);
 
-  // Pick a non-archived cell to land on after the active one is archived; seed a
-  // blank if the workspace would otherwise have no visible layout.
+  // Pick a non-archived cell to land on after the active one is archived. If
+  // none remains, the workspace goes empty (no blank-cell seed) — the app opens
+  // on the portal and a fresh model backs the editor until a plan is created.
   function fallbackActive(cells: Cell[]): { cells: Cell[]; activeId: string; model: Model } {
     const next = cells.find((c) => !c.archived);
     if (next) return { cells, activeId: next.id, model: next.model };
-    const blank = makeCell("Cell A", blankModel());
-    return { cells: cells.concat([blank]), activeId: blank.id, model: blank.model };
+    return { cells, activeId: "", model: blankModel() };
   }
 
   const archiveCell = useCallback((id: string) => {

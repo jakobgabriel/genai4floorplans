@@ -245,7 +245,9 @@ export function App() {
       rd.onload = () => {
         const res = parseModelText(String(rd.result));
         if (res.ok && res.model) {
-          api.reset(res.model);
+          // Import lands as its own plan in the store, so it works from an empty
+          // workspace and never overwrites a plan you have open.
+          api.addCell(res.model, res.model.name);
           setSel(null);
           setView("actual");
           goTo("refine");
@@ -780,7 +782,7 @@ export function App() {
           onOpenPlans={() => navigate("/plans")}
           conceptCount={conceptApi.concepts.length}
           conceptsEdited={!conceptApi.isPristine}
-          onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
+          onBlank={() => { api.addCell(blankModel(), "Untitled"); setTab("flow"); goTo("refine"); }}
           onImport={() => fileRef.current?.click()}
         />
         {/* The editor tree's copy of this input is not mounted here. */}
