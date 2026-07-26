@@ -2350,6 +2350,25 @@ code {
   min-width: 0;
 }
 /* Inline action button aligned to the bottom of an adjacent field. */
+/* Zone kind picker + colour dots (blocked/pathway/esd/cleanroom). */
+.zone-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.zone-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  vertical-align: -1px;
+  margin-right: 2px;
+}
+.zone-dot--blocked { background: var(--data-red); }
+.zone-dot--pathway { background: var(--data-amber); }
+.zone-dot--esd { background: var(--data-blue, #6f9bd1); }
+.zone-dot--cleanroom { background: var(--data-teal); }
+
 /* Compact "flow is valid" line — the quiet counterpart to the error banner. */
 .fk-valid {
   display: flex;

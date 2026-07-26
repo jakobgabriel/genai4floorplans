@@ -6,7 +6,7 @@ import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
 import { downloadLayoutPNG } from "./io/image";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
-import type { Station } from "@flowplan/core/model/types";
+import type { Station, ZoneKind } from "@flowplan/core/model/types";
 import { loadSettings, type Settings } from "./store/settings";
 import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
@@ -104,6 +104,8 @@ export function App() {
   // did (selected, moved, deleted) since the canvas itself is visual.
   const [announce, setAnnounce] = useState("");
   const [mode, setMode] = useState<CanvasMode>("select");
+  // Which kind of zone the next drawn rectangle becomes.
+  const [zoneKind, setZoneKind] = useState<ZoneKind>("blocked");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
@@ -374,7 +376,7 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- announce on selection change only
   }, [selId]);
 
-  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, lib, onAddProcess: addProcessStep };
+  const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, zoneKind, setZoneKind, lib, onAddProcess: addProcessStep };
 
   function vBtn(k: View, l: string) {
     return (
@@ -447,7 +449,8 @@ export function App() {
           onMoveStart={api.checkpoint}
           onMove={(id, x, y) => api.live({ type: "MOVE_STATION", id, x, y })}
           onPickStation={pickStation}
-          onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: z }); toast("No-go zone added"); }}
+          zoneKind={zoneKind}
+          onAddNoGo={(z) => { api.commit({ type: "ADD_NOGO", zone: { ...z, kind: zoneKind } }); toast(t("flowPanel.zones.added", { kind: t("zone." + zoneKind) })); }}
         />
         {selFlow ? <FlowEditorPopover api={api} flow={selFlow} onClose={() => setSelFlow(null)} /> : null}
         {/* §4: the proposal annotates the canvas it belongs to; the per-item
@@ -467,7 +470,7 @@ export function App() {
           {mode === "flow"
             ? "Flow mode: tap a source step then a target. Esc to exit."
             : mode === "nogo"
-              ? "No-go mode: drag a rectangle. Esc to exit."
+              ? t("editor.hint.zone", { kind: t("zone." + zoneKind) })
               : proposal && !proposalDismissed
                 ? "Drag movable stations · scroll to zoom · click an amber ghost to accept that move"
                 : "Drag movable stations, or Tab to one and move it with the arrow keys · scroll to zoom · click a step to configure it"}

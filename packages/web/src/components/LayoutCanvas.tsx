@@ -1,6 +1,6 @@
 import { Btn } from "./Btn";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
+import type { Flow, Model, NoGoZone, Station, ZoneKind } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
@@ -59,10 +59,14 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** The kind the next drawn zone will be — colours the drag preview. */
+  zoneKind?: ZoneKind;
 }
 
 export function LayoutCanvas(props: Props) {
-  const { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
+  const { AMBER, AUTO_COL, BLUE, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
+  // Each zone kind reads in its own colour; esd/cleanroom are overlays.
+  const zoneColor: Record<ZoneKind, string> = { blocked: RED, pathway: AMBER, esd: BLUE, cleanroom: TEAL };
   const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell: cellProp, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -103,6 +107,9 @@ export function LayoutCanvas(props: Props) {
     nogo: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  // Mirror the drawn rect in a ref so the window pointerup handler always reads
+  // the latest value — a fast drag can fire pointerup before React re-renders.
+  const nogoRectRef = useRef<NoGoZone | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
   const [dragCollide, setDragCollide] = useState(false);
@@ -151,19 +158,22 @@ export function LayoutCanvas(props: Props) {
         const g = toGrid(e.clientX, e.clientY);
         const x0 = Math.min(d.nogo.x, g.x);
         const y0 = Math.min(d.nogo.y, g.y);
-        setNogoRect({
+        const rect = {
           x: Math.max(0, Math.round(x0)),
           y: Math.max(0, Math.round(y0)),
           w: Math.max(1, Math.round(Math.abs(g.x - d.nogo.x))),
           h: Math.max(1, Math.round(Math.abs(g.y - d.nogo.y))),
-        });
+        };
+        nogoRectRef.current = rect;
+        setNogoRect(rect);
       }
     }
     function upHandler() {
       const d = dragRef.current;
-      if (d.nogo && nogoRect && props.onAddNoGo) props.onAddNoGo(nogoRect);
+      if (d.nogo && nogoRectRef.current && props.onAddNoGo) props.onAddNoGo(nogoRectRef.current);
       dragRef.current = { id: null, pan: false, nogo: null };
       panStart.current = null;
+      nogoRectRef.current = null;
       setNogoRect(null);
       setDraggingId(null);
       setDragCollide(false);
@@ -174,7 +184,7 @@ export function LayoutCanvas(props: Props) {
       window.removeEventListener("pointermove", moveHandler);
       window.removeEventListener("pointerup", upHandler);
     };
-  }, [interactive, props, stations, toGrid, vbW, baseW, nogoRect]);
+  }, [interactive, props, stations, toGrid, vbW, baseW]);
 
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
@@ -285,11 +295,14 @@ export function LayoutCanvas(props: Props) {
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
-        {/* The placeable floor. Now that the grid rules the whole surface this is
-            what tells you where a station can actually go. */}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
-        {gridLines}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
+        {/* The placeable floor, grid and border are decoration only — they sit
+            above the catcher, so they must let pointer events fall through to it
+            (otherwise pan / zone-draw / deselect never fire over the floor). */}
+        <g style={{ pointerEvents: "none" }}>
+          <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
+          {gridLines}
+          <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
+        </g>
 
         {(template ?? []).map((t, i) => (
           <g key={"t" + i}>
@@ -300,11 +313,21 @@ export function LayoutCanvas(props: Props) {
           </g>
         ))}
 
-        {(model.noGoZones ?? []).map((z, i) => (
-          <rect key={"z" + i} x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={RED} opacity={0.08} stroke={RED} strokeWidth={1} strokeDasharray="4 3" />
-        ))}
+        {(model.noGoZones ?? []).map((z, i) => {
+          const zc = zoneColor[z.kind ?? "blocked"];
+          return (
+            <g key={"z" + i}>
+              <rect x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={zc} opacity={0.1} stroke={zc} strokeWidth={1} strokeDasharray="4 3" />
+              {cell > 22 ? (
+                <text x={PAD + z.x * cell + 4} y={PAD + z.y * cell + 12} fill={zc} fontSize={9} style={{ pointerEvents: "none", textTransform: "uppercase" }}>
+                  {z.kind ?? "blocked"}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
         {nogoRect ? (
-          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={RED} opacity={0.18} stroke={RED} strokeWidth={1.5} />
+          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={zoneColor[props.zoneKind ?? "blocked"]} opacity={0.2} stroke={zoneColor[props.zoneKind ?? "blocked"]} strokeWidth={1.5} />
         ) : null}
 
         {flows.map((f, i) => {

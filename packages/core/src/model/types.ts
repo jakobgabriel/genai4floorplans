@@ -128,12 +128,35 @@ export interface Flow {
   unitsPerAssembly?: number;
 }
 
+/**
+ * A rectangular area on the floor with a purpose. "blocked" and "pathway" keep
+ * stations out (a wall/column, or a kept-clear aisle); "esd" and "cleanroom"
+ * are requirement overlays that mark an area without blocking placement.
+ */
+export type ZoneKind = "blocked" | "pathway" | "esd" | "cleanroom";
+
 export interface NoGoZone {
   x: number;
   y: number;
   w: number;
   h: number;
   label?: string;
+  /** Defaults to "blocked" for zones saved before zones had a kind. */
+  kind?: ZoneKind;
+}
+
+/** The zone kinds, in pick order, and whether each keeps stations out. */
+export const ZONE_KINDS: { id: ZoneKind; blocks: boolean }[] = [
+  { id: "blocked", blocks: true },
+  { id: "pathway", blocks: true },
+  { id: "esd", blocks: false },
+  { id: "cleanroom", blocks: false },
+];
+
+/** Does this zone keep stations out? Legacy zones (no kind) are blocking. */
+export function zoneBlocks(z: NoGoZone): boolean {
+  const k = z.kind ?? "blocked";
+  return ZONE_KINDS.find((zk) => zk.id === k)?.blocks ?? true;
 }
 
 /** Composite-rating weights (spec §4). Defined here so the model can carry an

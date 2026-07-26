@@ -1,4 +1,4 @@
-import type { NoGoZone, Side, Station } from "../model/types";
+import { zoneBlocks, type NoGoZone, type Side, type Station } from "../model/types";
 
 export interface Point {
   x: number;
@@ -77,6 +77,9 @@ export function hasCollision(
   zones: NoGoZone[],
 ): boolean {
   const moved: Station = { ...s, x, y };
+  // Only blocking zones (blocked/pathway) are obstacles; esd/cleanroom are
+  // requirement overlays a station may sit inside.
+  zones = zones.filter(zoneBlocks);
   const shaped = isShaped(moved) || others.some(isShaped);
   if (shaped) {
     const mine = stationCells(moved);
