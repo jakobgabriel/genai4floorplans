@@ -14,10 +14,11 @@ import { LayoutCanvas, type CanvasMode } from "./components/LayoutCanvas";
 
 import { ProcessShell } from "./planner/ProcessShell";
 import { AppHeader, type HeaderSection } from "./components/AppHeader";
-import { SituationStep, DemandStep, ProcessStepView, ConceptsStep, SummaryStep, DEFAULT_DEMAND, toDemand, type DemandValues } from "./planner/steps";
+import { StartScreen, DemandStep, ConceptsStep, SummaryStep, type DemandValues } from "./planner/steps";
 import { FLOW_STEPS, reachedThrough, widen, type FlowStep } from "./planner/flow";
-import { USE_CASES, type UseCaseId } from "./planner/usecases";
-import { generateCandidates, rankCandidates, type GenerateBrief, type ProcessStep as CoreStep } from "@flowplan/core/engine/generate";
+import { derivePortfolio } from "@flowplan/core/engine/parts";
+import { useLibrary as useProcessLibrary } from "./store/processLibrary";
+import { generateCandidates, rankByDecision, DEFAULT_PROGRAM_YEARS, type GenerateBrief } from "@flowplan/core/engine/generate";
 import { Button, IconButton, Tab as CarbonTab, TabList, Tabs, Theme } from "@carbon/react";
 import { ArrowLeft, ChartColumn, Compare, FlowConnection, GroupObjects, Layers, SidePanelClose, MagicWand } from "@carbon/icons-react";
 import { useTheme } from "./store/theme";
@@ -127,9 +128,13 @@ export function App() {
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
   const [hover, setHover] = useState<{ station: Station; x: number; y: number } | null>(null);
   const [proposalDismissed, setProposalDismissed] = useState(false);
-  const hadModel = !!localStorage.getItem("flowplan_model");
-  const [step, setStep] = useState<FlowStep>(hadModel ? "refine" : "situation");
-  const [reached, setReached] = useState<FlowStep[]>(hadModel ? FLOW_STEPS.slice() : ["situation"]);
+  // Persisted "entered the app" flag: once a planner has started, a reload
+  // resumes the editor rather than the portal; Back to the portal forgets it.
+  const resumed = localStorage.getItem("flowplan_started") === "1";
+  const [started, setStarted] = useState(resumed);
+  const [step, setStep] = useState<FlowStep>(resumed ? "refine" : FLOW_STEPS[0]);
+  const [reached, setReached] = useState<FlowStep[]>(resumed ? FLOW_STEPS.slice() : [FLOW_STEPS[0]]);
+  useEffect(() => { localStorage.setItem("flowplan_started", started ? "1" : "0"); }, [started]);
   // Workspace-first: a returning user (one who already has a saved workspace)
   // lands on the Workspace, not straight in the editor. Brand-new users still
   // get the onboarding flow, then land in the editor; their next visit opens the
@@ -158,25 +163,27 @@ export function App() {
     // layout instead of creating a fresh one. Clear the session's binding.
     guidedCell.current = null;
     guidedSig.current = null;
-    setStep("situation");
-    setReached(["situation"]);
+    setStarted(true);
+    setStep("demand");
+    setReached(["demand"]);
     setView("actual");
     navigate("/");
   }, []);
   const goTo = useCallback((s: FlowStep) => {
+    setStarted(true);
     setStep(s);
     setReached((r) => widen(r, reachedThrough(s)));
   }, []);
-  // ---- planning brief (lifted out of the planner so the stepper owns it) ----
-  const [useCaseId, setUseCaseId] = useState<UseCaseId | null>(null);
-  const [demand, setDemand] = useState<DemandValues>(DEFAULT_DEMAND);
-  const [processSteps, setProcessSteps] = useState<CoreStep[]>([
-    { name: "Load blank", cycleTimeSec: 15 },
-    { name: "Press", cycleTimeSec: 35 },
-    { name: "Weld", cycleTimeSec: 60 },
-    { name: "Leak test", cycleTimeSec: 25 },
-    { name: "Pack", cycleTimeSec: 20 },
-  ]);
+  // ---- planning brief: a part portfolio, not a single averaged demand ----
+  const processLib = useProcessLibrary();
+  const [demand, setDemand] = useState<DemandValues>({
+    name: "New product",
+    programYears: DEFAULT_PROGRAM_YEARS,
+    annualShifts: 460,
+    shiftHours: 8,
+    // One row so the required table is never an empty frame with an Add button.
+    parts: [{ id: "part-1", partNumber: "PN-001", steps: [], demandByYear: [] }],
+  });
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
@@ -225,63 +232,31 @@ export function App() {
   }, []);
 
   // ---- derived planning data ----------------------------------------------
-  const briefSteps: CoreStep[] = processSteps;
-
+  // The parts are the brief. Everything the generator needs comes out of them:
+  // the cell is sized against the busiest year, capex amortised over every part
+  // and year, and the routing and mix modes are derived rather than typed. Null
+  // until a part carries both a routing and demand.
+  const portfolio = useMemo(() => derivePortfolio(demand.parts), [demand.parts]);
   const brief: GenerateBrief = {
     name: demand.name,
-    steps: briefSteps,
-    annualVolume: demand.annualVolume,
+    steps: portfolio ? portfolio.steps : [],
+    annualVolume: portfolio ? portfolio.peakVolume : 0,
     annualShifts: demand.annualShifts,
     shiftHours: demand.shiftHours,
-    programYears: demand.programYears,
-    demand: toDemand(demand),
-    variantModes: demand.variantModes.length ? demand.variantModes : undefined,
-    defaultTransport: demand.transport,
-    defaultPartWeightKg: demand.partWeightKg,
+    // programYears is only ever used as `annualVolume × programYears` to amortise
+    // capex, so the real program volume goes in as an equivalent.
+    programYears:
+      portfolio && portfolio.peakVolume > 0 ? portfolio.programVolume / portfolio.peakVolume : demand.programYears,
+    variantModes: portfolio ? portfolio.modes : undefined,
   };
-  const perShift = demand.annualShifts > 0 ? demand.annualVolume / demand.annualShifts : 0;
+  const perShift = portfolio && demand.annualShifts > 0 ? portfolio.peakVolume / demand.annualShifts : 0;
 
   const candidates = useMemo(
-    () => (step === "concepts" || step === "summary" ? rankCandidates(generateCandidates(brief)) : []),
+    () => (step === "concepts" || step === "summary" ? rankByDecision(generateCandidates(brief), weightsApi.weights) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [step, demand, briefSteps],
+    [step, demand, weightsApi.weights],
   );
   const picked = candidates.find((c) => c.id === pickedId) ?? candidates[0] ?? null;
-  const useCase = useCaseId ? USE_CASES.find((u) => u.id === useCaseId) ?? null : null;
-
-  // The Summary must reflect what the user actually built in the editor, not the
-  // original generated candidate — otherwise refinements never reach the decision
-  // one-pager. Recompute the headline metrics from the live workspace model.
-  const liveSummary = useMemo(() => {
-    if (step !== "summary") return null;
-    const m = api.model;
-    const r = api.rating;
-    const c = costAnalysis(m);
-    const programParts = demand.annualVolume * (demand.programYears || 1);
-    const capexPerPart = programParts > 0 ? +(c.capexTotal / programParts).toFixed(3) : 0;
-    const procs = m.stations.filter((s) => s.role === "process");
-    const operators = procs.reduce((a, s) => a + s.operators * Math.max(1, s.parallelUnits ?? 1), 0);
-    const parallelUnits = procs.reduce((a, s) => a + Math.max(1, s.parallelUnits ?? 1), 0);
-    const lineOut = r.balance.lineOut;
-    return {
-      model: m,
-      letter: r.letter,
-      composite: r.composite,
-      loadedCostPerPart: +(c.costPerPart + capexPerPart).toFixed(3),
-      costPerPart: c.costPerPart,
-      capexPerPart,
-      capexTotal: c.capexTotal,
-      lineOut,
-      takt: r.balance.takt,
-      meetsDemand: perShift <= 0 || lineOut >= Math.floor(perShift),
-      operators,
-      stations: procs.length,
-      parallelUnits,
-      overCapacityPct: perShift > 0 ? Math.max(0, Math.round(((lineOut - perShift) / perShift) * 100)) : 0,
-      floorSpace: c.floorSpace,
-      currency: c.currency,
-    };
-  }, [step, api.model, api.rating, demand, perShift]);
 
   // ---- flow drawing: pick source then target
   const pickStation = useCallback(
@@ -853,8 +828,7 @@ export function App() {
     <div className="planner__actions">
       <Button
         kind="secondary"
-        onClick={() => goTo(FLOW_STEPS[Math.max(0, FLOW_STEPS.indexOf(step) - 1)])}
-        disabled={step === "situation"}
+        onClick={() => (step === FLOW_STEPS[0] ? setStarted(false) : goTo(FLOW_STEPS[FLOW_STEPS.indexOf(step) - 1]))}
       >
         Back
       </Button>
@@ -889,8 +863,7 @@ export function App() {
         }}
         disabled={
           step === "summary" ||
-          (step === "demand" && !(demand.annualVolume > 0)) ||
-          (step === "process" && briefSteps.length === 0) ||
+          (step === "demand" && !portfolio) ||
           (step === "concepts" && !picked)
         }
       >
@@ -899,29 +872,31 @@ export function App() {
     </div>
   );
 
+  // Before anything is opened or planned there is no stage to be on, so the
+  // portal renders outside the stepper — no stepper, no Back/Continue.
+  if (!started) {
+    return page(
+      <StartScreen
+        hasCell={resumed}
+        cellCount={api.cells.length}
+        processCount={processLib.processes.length}
+        conceptCount={conceptApi.concepts.length}
+        conceptsEdited={!conceptApi.isPristine}
+        onOpen={() => goTo("refine")}
+        onPlan={() => goTo("demand")}
+        onLibrary={() => navigate("/library")}
+        onConcepts={() => navigate("/concepts")}
+        onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
+        onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
+        onImport={() => fileRef.current?.click()}
+      />,
+      null,
+    );
+  }
+
   return (
     <ProcessShell step={step} reached={reached} onGoto={goTo} fullBleed={step === "refine"} theme={theme} onToggleTheme={toggleTheme}>
-      {step === "situation" ? (
-        <SituationStep
-          hasCell={api.cells.length > 0}
-          onSkip={() => goTo("refine")}
-          onPick={(id) => { setUseCaseId(id); const uc = USE_CASES.find((u) => u.id === id); goTo(uc && uc.steps.length > 1 ? "demand" : "refine"); }}
-          onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
-          onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
-          onImport={() => fileRef.current?.click()}
-        />
-      ) : null}
-
-      {step === "demand" ? <DemandStep values={demand} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} /> : null}
-
-      {step === "process" ? (
-        <ProcessStepView
-          steps={processSteps}
-          onChange={setProcessSteps}
-          routing={{ transport: demand.transport, partWeightKg: demand.partWeightKg }}
-          onRouting={(patch) => setDemand((d) => ({ ...d, ...patch }))}
-        />
-      ) : null}
+      {step === "demand" ? <DemandStep values={demand} lib={processLib} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} /> : null}
 
       {step === "concepts" ? (
         <ConceptsStep
@@ -929,7 +904,9 @@ export function App() {
           selectedId={picked?.id ?? null}
           onSelect={setPickedId}
           perShift={perShift}
-          programYears={demand.programYears}
+          peakYear={portfolio?.peakYear}
+          brief={brief}
+          weightsApi={weightsApi}
         />
       ) : null}
 
@@ -940,7 +917,7 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} live={liveSummary} useCase={useCase} candidates={candidates} onRefine={() => goTo("refine")} /> : null}
+      {step === "summary" ? <SummaryStep picked={picked} api={api} onOpenAnalysis={() => { goTo("refine"); setView("analysis"); }} /> : null}
 
       {step !== "refine" ? stepNav : null}
 
