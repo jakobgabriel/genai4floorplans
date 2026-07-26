@@ -62,7 +62,7 @@ export interface PanelProps {
  * The picker opens inline rather than sending you to another surface: you are
  * mid-edit, and a step you place has to land on the canvas you are looking at.
  */
-function AddStepButtons({ api, setSel, setTab, lib, onAddProcess }: Pick<PanelProps, "api" | "setSel" | "setTab" | "lib" | "onAddProcess">) {
+export function AddStepButtons({ api, setSel, setTab, lib, onAddProcess }: Pick<PanelProps, "api" | "setSel" | "setTab" | "lib" | "onAddProcess">) {
   const [picking, setPicking] = useState(false);
   const blank = () => {
     const ns = makeStation(api.model);

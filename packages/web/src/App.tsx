@@ -52,12 +52,15 @@ import { DagView } from "./components/DagView";
 import { Menu } from "./components/Menu";
 import { useToast } from "./components/ui";
 import {
+  AddStepButtons,
   ConfigurePanel,
   FlowPanel,
   SchemaPanel,
   type PanelProps,
   type Tab,
 } from "./components/panels";
+import { SectionLabel } from "./components/analysisKit";
+import { InlineNotification } from "@carbon/react";
 import { useAccents } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
@@ -629,6 +632,12 @@ export function App() {
             <div className="explorer">
               <Explorer api={api} />
             </div>
+            {/* Add process steps to the open cell straight from the left, next
+                to the plans tree, as well as from the Flow rail. */}
+            <div className="explorer-foot">
+              <SectionLabel>Add process step</SectionLabel>
+              <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={addProcessStep} />
+            </div>
             {/* Inside the drawer, riding its right edge — as a flex sibling it
                 would sit at x=0 now that the drawer floats over the canvas. */}
             <Resizer edge="right" width={explorerWidth} setWidth={setExplorerWidth} />
@@ -643,6 +652,24 @@ export function App() {
               {vBtn("dag", "DAG")}
             </div>
           </div>
+          {/* A manually-added step isn't in the part flow until something routes
+              into it. Say so, and how to fix it, rather than leaving it a silent
+              orphan the balance quietly ignores. */}
+          {(() => {
+            const orphans = model.stations.filter((s) => s.role === "process" && !model.flows.some((f) => f.to === s.id));
+            if (orphans.length === 0) return null;
+            return (
+              <div className="canvas-banner">
+                <InlineNotification
+                  kind="info"
+                  lowContrast
+                  hideCloseButton
+                  title={orphans.length === 1 ? `“${orphans[0].name}” has no parts routed to it yet` : `${orphans.length} steps have no parts routed to them yet`}
+                  subtitle="Assign parts by drawing a flow into the step (Flow ▸ Draw a flow on the canvas) so parts route through it — or remove it."
+                />
+              </div>
+            );
+          })()}
           {canvasInner}
           {emptyCanvas}
           <div className="legend">

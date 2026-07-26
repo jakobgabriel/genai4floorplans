@@ -1136,6 +1136,23 @@ code {
   display: flex;
   flex-direction: column;
 }
+/* Pinned action footer of the plans drawer: add a step to the open cell. */
+.explorer-foot {
+  flex: 0 0 auto;
+  padding: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+/* Notice sitting above the canvas — e.g. a step with no parts routed to it. */
+.canvas-banner {
+  padding: var(--sp-3) var(--sp-3) 0;
+}
+.canvas-banner .cds--inline-notification {
+  max-width: none;
+  margin: 0;
+}
 .explorer-tree.drop {
   outline: 2px solid var(--cds-focus);
   outline-offset: -2px;
