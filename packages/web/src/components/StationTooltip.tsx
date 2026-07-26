@@ -1,16 +1,13 @@
-import type { ReactNode } from "react";
 import type { Station } from "@flowplan/core/model/types";
-import { fieldQuality } from "@flowplan/core/model/types";
 import { stationRate } from "@flowplan/core/engine/balance";
-import { AUTO_COL, ERGO_COL, TEXTD } from "./colors";
-import { QualityValue } from "./confidence";
+import { AUTO_COL, ERGO_COL } from "./colors";
 
 // Lightweight HTML tooltip positioned over the canvas on station hover.
 export function StationTooltip({ station, x, y, shiftHours }: { station: Station; x: number; y: number; shiftHours: number }) {
   const rate = stationRate(station, shiftHours);
-  const row = (k: string, v: ReactNode) => (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ color: TEXTD }}>{k}</span>
+  const row = (k: string, v: string) => (
+    <div className="u-row u-row--between">
+      <span className="u-muted">{k}</span>
       <span>{v}</span>
     </div>
   );
@@ -22,27 +19,27 @@ export function StationTooltip({ station, x, y, shiftHours }: { station: Station
         top: y + 14,
         zIndex: 60,
         pointerEvents: "none",
-        background: "var(--cds-layer-02)",
-        border: "1px solid var(--cds-border-subtle-01)",
-        borderRadius: 0,
-        padding: "var(--cds-spacing-03) var(--cds-spacing-04)",
-        fontSize: "0.75rem",
+        background: "var(--surface-raised)",
+        border: "1px solid var(--border)",
+        borderRadius: 6,
+        padding: "8px 10px",
+        fontSize: 11,
         width: 180,
-        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
+        boxShadow: "0 6px 20px rgba(0,0,0,.45)",
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: "var(--cds-spacing-02)" }}>{station.name}</div>
+      <div style={{ fontWeight: 600, marginBottom: 4, fontFamily: "'IBM Plex Sans',sans-serif" }}>{station.name}</div>
       {row("role · type", `${station.role} · ${station.type}`)}
       {station.role === "process" ? (
         <>
-          {row("cycle", <QualityValue value={station.cycleTimeSec} quality={fieldQuality(station, "cycleTimeSec")} unit="s" />)}
+          {row("cycle", `${station.cycleTimeSec}s`)}
           {row("operators", String(station.operators))}
           {row("rate", isFinite(rate) ? `${rate.toLocaleString()}/shift` : "—")}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: TEXTD }}>auto · ergo</span>
+            <span className="u-muted">auto · ergo</span>
             <span>
               <span style={{ color: AUTO_COL[station.auto] }}>{station.auto}</span>
-              <span style={{ color: TEXTD }}> · </span>
+              <span className="u-muted"> · </span>
               <span style={{ color: ERGO_COL[station.ergoRisk] }}>{station.ergoRisk}</span>
             </span>
           </div>

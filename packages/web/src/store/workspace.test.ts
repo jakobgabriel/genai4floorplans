@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadWorkspace, saveWorkspace, makeCell, makeConcept, makeFolder, isDescendant, subtreeFolderIds, wrapLooseCells } from "./workspace";
+import { loadWorkspace, saveWorkspace, makeCell, makeFolder, isDescendant, subtreeFolderIds } from "./workspace";
 import { SAMPLE } from "@flowplan/core/model/sample";
 import { SCHEMA_VERSION } from "@flowplan/core/model/types";
 
@@ -16,6 +16,22 @@ describe("workspace", () => {
     const ws = loadWorkspace();
     expect(ws.cells).toHaveLength(1);
     expect(ws.activeId).toBe(ws.cells[0].id);
+  });
+
+  it("seeds a workspace that a save/reload round-trip leaves byte-for-byte unchanged", () => {
+    localStorage.clear();
+    // First run seeds and persists.
+    const first = loadWorkspace();
+    saveWorkspace(first);
+    const bytesA = localStorage.getItem("flowplan_workspace")!.length;
+    // Reload normalizes on the way in (migrateCell); it must match what was
+    // saved rather than growing — the seed used to be raw and the loader
+    // normalized, so the same cell serialized two different ways.
+    const second = loadWorkspace();
+    saveWorkspace(second);
+    const bytesB = localStorage.getItem("flowplan_workspace")!.length;
+    expect(bytesB).toBe(bytesA);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
   it("migrates a legacy single-cell autosave into a cell (root folder)", () => {
@@ -43,7 +59,6 @@ describe("workspace", () => {
     const sub = makeFolder("Station group", root.id, 0);
     const ws = {
       cells: [makeCell("A", SAMPLE, sub.id), makeCell("B", SAMPLE)],
-      concepts: [],
       folders: [root, sub],
       activeId: "",
     };
@@ -69,7 +84,6 @@ describe("workspace", () => {
   it("round-trips the archived flag through localStorage", () => {
     const ws = {
       cells: [makeCell("Live", SAMPLE), { ...makeCell("Gone", SAMPLE), archived: true }],
-      concepts: [],
       folders: [{ ...makeFolder("Old", null, 0), archived: true }],
       activeId: "",
     };
@@ -79,41 +93,6 @@ describe("workspace", () => {
     expect(back.cells.find((c) => c.name === "Gone")!.archived).toBe(true);
     expect(back.cells.find((c) => c.name === "Live")!.archived).toBe(false);
     expect(back.folders[0].archived).toBe(true);
-  });
-
-  it("wraps legacy loose cells into a concept each", () => {
-    const cells = [makeCell("A", SAMPLE, null), makeCell("B", SAMPLE, "f2")];
-    const { cells: wrapped, concepts } = wrapLooseCells(cells, []);
-    // Every cell now belongs to a concept, in its own folder.
-    expect(wrapped.every((c) => c.conceptId)).toBe(true);
-    expect(concepts).toHaveLength(2);
-    expect(concepts.find((k) => k.id === wrapped[0].conceptId)!.folderId).toBeNull();
-    expect(concepts.find((k) => k.id === wrapped[1].conceptId)!.folderId).toBe("f2");
-  });
-
-  it("preserves cells already attached to a known concept", () => {
-    const concept = makeConcept("Keep", null, 0);
-    const cell = { ...makeCell("A", SAMPLE, null), conceptId: concept.id };
-    const { cells, concepts } = wrapLooseCells([cell], [concept]);
-    expect(concepts).toHaveLength(1); // no new concept minted
-    expect(cells[0].conceptId).toBe(concept.id);
-  });
-
-  it("seeds a concept + layout on first run", () => {
-    localStorage.clear();
-    const ws = loadWorkspace();
-    expect(ws.concepts).toHaveLength(1);
-    expect(ws.cells[0].conceptId).toBe(ws.concepts[0].id);
-  });
-
-  it("migrates a saved workspace with loose cells into concepts", () => {
-    localStorage.setItem(
-      "flowplan_workspace",
-      JSON.stringify({ cells: [{ id: "c1", name: "A", model: SAMPLE, folderId: null }], activeId: "c1" }),
-    );
-    const ws = loadWorkspace();
-    expect(ws.concepts).toHaveLength(1);
-    expect(ws.cells[0].conceptId).toBe(ws.concepts[0].id);
   });
 
   it("isDescendant guards folder-move cycles", () => {

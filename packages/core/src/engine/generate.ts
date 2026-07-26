@@ -1,11 +1,10 @@
-import type { Confidence, CycleBreakdown, Demand, ErgoRisk, ErgonomicLoad, Flow, Model, StationType, TimeMethod, Transport, VariantMode, WasteClass, WorkClass } from "../model/types";
-import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, DEFAULT_SHIFT_MODEL, SCHEMA_VERSION } from "../model/types";
-import type { RawStep } from "./infer";
+import type { ErgoRisk, Flow, Model, StationType, VariantMode } from "../model/types";
+import { DEFAULT_COST_CONFIG, DEFAULT_SHIFT_HOURS, SCHEMA_VERSION } from "../model/types";
 import { normalizeFlow, normalizeStation } from "../model/defaults";
 import type { CellForm } from "./templates";
 import { cellTopology } from "./topology";
 import { clampToGrid } from "./geometry";
-import { CONCEPTS, CONCEPT_KINDS, conceptFit, type ConceptKind, type ConceptCatalog } from "./concepts";
+import { CONCEPTS, byKind, conceptFit, type ConceptCatalog, type ConceptKind, type ConceptProfile } from "./concepts";
 import { buildRating, type Letter, type Rating } from "./rating";
 import { costAnalysis, type CostResult } from "./cost";
 import { buildWorkloadStations } from "./generateCell";
@@ -28,28 +27,6 @@ export interface ProcessStep {
   ergoRisk?: ErgoRisk;
   /** Fraction of parts scrapped at this step (0–1). */
   scrapRate?: number;
-  // ---- data-model-faithful overrides (all optional; absent ⇒ inferred) ----
-  /** Capability id chosen from the catalog rather than matched from the name. */
-  capabilityId?: string;
-  /** Value-add / necessary-NVA / waste classification of the work. */
-  classification?: WorkClass;
-  /** Which of the seven wastes, when NVA/NNVA. */
-  wasteClass?: WasteClass;
-  /** 0–1 operator binding (drives operator/machine separation + automation). */
-  attendedFraction?: number;
-  /** Physical load of the work. */
-  ergonomicLoad?: ErgonomicLoad;
-  /** How the cycle time was obtained. */
-  timeMethod?: TimeMethod;
-  /** Confidence in the cycle time. */
-  confidence?: Confidence;
-  /** Predecessors as 0-based indices into the step list — expresses a DAG. */
-  predecessors?: number[];
-  /** Per-part value-add / NVA decomposition. When set, cycle time = its sum. */
-  cycle?: CycleBreakdown;
-  /** Parts processed together in one cycle (multi-cavity die, batch fixture).
-   *  Default 1. Multiplies part throughput without adding a machine. */
-  partsPerCycle?: number;
 }
 
 export interface GenerateBrief {
@@ -61,25 +38,16 @@ export interface GenerateBrief {
   shiftHours?: number;
   /** Restrict the sweep to these concepts. Defaults to all five. */
   concepts?: ConceptKind[];
-  /** The concept catalog to sweep. Defaults to the built-in `CONCEPTS`; the
-   *  planner passes an edited catalog so band/capex/form edits (and any custom
-   *  concepts authored on the Concepts page) re-rank the candidates. */
-  catalog?: ConceptCatalog;
   currency?: string;
   laborCostPerHour?: number;
   /** Program length used to amortise capex into the loaded cost per part. */
   programYears?: number;
   /** Mix modes for mixed-model balancing (spec §3.2). */
   variantModes?: VariantMode[];
-  /** Multi-year demand + shift model. When present it is carried onto every
-   *  generated model (capacity analysis) and its shift model overrides the
-   *  scalar annualShifts/shiftHours where those are not separately given. */
-  demand?: Demand;
-  /** Default transport mode for the generated inter-station flows. Falls back
-   *  to the concept's transport when unset. */
-  defaultTransport?: Transport;
-  /** Default part weight (kg) stamped on the generated flows. Default 1. */
-  defaultPartWeightKg?: number;
+  /** The concept catalog to sweep. Defaults to the one the app ships with —
+   *  pass the planner's edited catalog to rank against their own machine park
+   *  rather than against the shipped archetypes. */
+  conceptCatalog?: ConceptProfile[];
 }
 
 export const DEFAULT_PROGRAM_YEARS = 5;
@@ -119,6 +87,8 @@ export interface Candidate {
   id: string;
   concept: ConceptKind;
   conceptLabel: string;
+  /** The profile this candidate was built from. */
+  profile: ConceptProfile;
   form: CellForm;
   model: Model;
   rating: Rating;
@@ -127,7 +97,15 @@ export interface Candidate {
   rationale: string;
 }
 
-export type RankBy = "loadedCostPerPart" | "composite" | "costPerPart" | "capexTotal" | "lineOut" | "operators" | "conceptFit";
+export type RankBy =
+  | "loadedCostPerPart"
+  | "composite"
+  | "costPerPart"
+  | "capexTotal"
+  | "lineOut"
+  | "operators"
+  | "conceptFit"
+  | "decisionScore";
 
 const MINIMIZE: RankBy[] = ["loadedCostPerPart", "costPerPart", "capexTotal", "operators"];
 
@@ -142,7 +120,7 @@ export interface CandidateFilters {
 
 // ---- model construction ---------------------------------------------------
 
-/** Columns reserved at each end for the incoming/shipping areas. */
+/** Columns reserved at each end for the fixed incoming/shipping areas. */
 const END_MARGIN = 5;
 
 function gridFor(n: number): { gridW: number; gridH: number } {
@@ -151,17 +129,8 @@ function gridFor(n: number): { gridW: number; gridH: number } {
 }
 
 /** Build one concept x form candidate model, sized for demand. */
-/** Shifts per year implied by a demand's shift model (shifts/day × working days). */
-function shiftsFromDemand(d: Demand | undefined): number | undefined {
-  if (!d) return undefined;
-  const perDay = d.shiftsPerDay ?? DEFAULT_SHIFT_MODEL.shiftsPerDay;
-  const days = d.workingDaysPerYear ?? DEFAULT_SHIFT_MODEL.workingDaysPerYear;
-  return perDay > 0 && days > 0 ? perDay * days : undefined;
-}
-
-function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, perShiftTarget: number, catalog: ConceptCatalog = CONCEPTS): Model {
-  const p = catalog[concept];
-  const shiftHours = brief.shiftHours ?? brief.demand?.hoursPerShift ?? DEFAULT_SHIFT_HOURS;
+function buildModel(brief: GenerateBrief, p: ConceptProfile, form: CellForm, perShiftTarget: number): Model {
+  const shiftHours = brief.shiftHours ?? DEFAULT_SHIFT_HOURS;
   const grid = gridFor(brief.steps.length);
 
   // Entry and exit belong to the FORM, not to the grid edges. A U-cell puts
@@ -185,12 +154,7 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
       y: at.y,
       w: 3,
       h: 2,
-      // A GENERATED layout is a starting point, not a constraint: the generator
-      // cannot know which areas are truly anchored, so it pins nothing. Movable
-      // incoming/shipping let the optimiser (and the planner) reshape the cell —
-      // I/O reflow with the form, which is where the biggest shape gains come
-      // from. A real fixed dock is set by the planner afterwards.
-      fixed: false,
+      fixed: true,
       operators: 0,
       cycleTimeSec: 0,
       capacityPerShift: Math.max(1000, Math.ceil(perShiftTarget * 2)),
@@ -202,29 +166,10 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
   const input = io("in", "Incoming", "input", entry);
   const output = io("out", "Shipping", "output", exitAt);
 
-  // Each defined process step maps to exactly ONE station — the guided planner
-  // lets the user enumerate discrete steps, and they must see those same steps
-  // carried through to the concept and the layout (not a balancer's merged
-  // subset). Takt still drives manning and parallel lanes, so a slow step is
-  // sized honestly; only the merging of distinct steps is suppressed.
-  // Each step carries whatever the planner overrode; the rest is inferred.
-  const rawSteps: RawStep[] = brief.steps.map((st) => ({
-    name: st.name,
-    seconds: st.cycleTimeSec,
-    capabilityId: st.capabilityId,
-    classification: st.classification,
-    wasteClass: st.wasteClass,
-    attendedFraction: st.attendedFraction,
-    ergonomicLoad: st.ergonomicLoad,
-    timeMethod: st.timeMethod,
-    confidence: st.confidence,
-    predecessors: st.predecessors,
-    cycle: st.cycle,
-    scrapRate: st.scrapRate,
-    partsPerCycle: st.partsPerCycle,
-  }));
+  // The stations are BALANCED from the work elements, not mapped 1:1 from the
+  // planner's step list. How many stations exist is an output of the balancer.
   const built = buildWorkloadStations(
-    rawSteps,
+    brief.steps.map((st) => ({ name: st.name, seconds: st.cycleTimeSec })),
     perShiftTarget,
     shiftHours,
     brief.variantModes,
@@ -233,16 +178,13 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
       capexPerStation: p.capexPerStation,
       energyKw: p.energyKw,
       changeoverMin: p.changeoverMin,
-      oneStationPerStep: true,
-      auto: p.auto,
-      operatorsPerStation: p.operatorsPerStation,
     },
   );
   const procs = built.stations;
 
-  // Place the stations on the form's path. With one station per step the count
-  // equals the planner's step list, but re-solving keeps this robust if a step
-  // ever drops out (e.g. an empty name).
+  // Place the balanced stations on the form's path. The topology was solved for
+  // the number of steps the planner gave; the balancer may have produced fewer,
+  // so re-solve for the actual station count.
   const placed = cellTopology(form, procs.length, { gridW: grid.gridW - END_MARGIN * 2, gridH: grid.gridH });
   procs.forEach((st, i) => {
     const slot = placed.slots[i];
@@ -268,9 +210,9 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
         from: chain[i].id,
         to: chain[i + 1].id,
         volume: Math.round(perShiftTarget),
-        transport: brief.defaultTransport ?? p.transport,
+        transport: p.transport,
         unitCost: 0.05,
-        partWeightKg: brief.defaultPartWeightKg ?? 1,
+        partWeightKg: 1,
       }),
     );
   }
@@ -284,16 +226,12 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
     stations: chain,
     flows,
     noGoZones: [],
-    conceptKind: concept,
+    conceptKind: p.kind,
     costConfig: {
-      annualShifts: brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts,
+      annualShifts: brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts,
       laborCostPerHour: brief.laborCostPerHour ?? DEFAULT_COST_CONFIG.laborCostPerHour,
       currency: brief.currency ?? DEFAULT_COST_CONFIG.currency,
     },
-    // Carry the workload's multi-year demand and mix modes so capacity analysis
-    // and mixed-model balancing survive onto the persisted model.
-    ...(brief.demand ? { demand: brief.demand } : {}),
-    ...(brief.variantModes && brief.variantModes.length ? { variantModes: brief.variantModes } : {}),
   };
 
   // No separate lane-sizing pass: the balancer already produces stations that
@@ -303,8 +241,7 @@ function buildModel(brief: GenerateBrief, concept: ConceptKind, form: CellForm, 
 
 // ---- generation -----------------------------------------------------------
 
-function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget: number, currency: string, catalog: ConceptCatalog = CONCEPTS): string {
-  const p = catalog[concept];
+function rationaleFor(p: ConceptProfile, m: CandidateMetrics, perShiftTarget: number, currency: string): string {
   const bits: string[] = [p.blurb];
   if (!m.meetsDemand) {
     bits.push(`Falls short of demand — ${m.lineOut.toLocaleString()}/shift against ${Math.round(perShiftTarget).toLocaleString()} needed.`);
@@ -330,25 +267,17 @@ function rationaleFor(concept: ConceptKind, m: CandidateMetrics, perShiftTarget:
  */
 export function generateCandidates(brief: GenerateBrief): Candidate[] {
   if (brief.steps.length === 0) return [];
-  const shifts = brief.annualShifts ?? shiftsFromDemand(brief.demand) ?? DEFAULT_COST_CONFIG.annualShifts;
+  const shifts = brief.annualShifts ?? DEFAULT_COST_CONFIG.annualShifts;
   const perShiftTarget = brief.annualVolume > 0 ? brief.annualVolume / shifts : 0;
-  // The catalog is the answer's ground truth: it decides which concepts exist,
-  // their volume bands, forms and capex. Default to the built-ins; the planner
-  // passes an edited catalog so Concepts-page changes flow into the ranking.
-  const catalog = brief.catalog ?? CONCEPTS;
-  const kinds = brief.concepts?.length
-    ? brief.concepts
-    : brief.catalog
-      ? (Object.keys(catalog) as ConceptKind[])
-      : CONCEPT_KINDS;
+  const catalog: ConceptCatalog = brief.conceptCatalog ? byKind(brief.conceptCatalog) : CONCEPTS;
+  const kinds = brief.concepts?.length ? brief.concepts.filter((k) => catalog[k]) : Object.keys(catalog);
   const currency = brief.currency ?? DEFAULT_COST_CONFIG.currency;
 
   const out: Candidate[] = [];
   kinds.forEach((concept) => {
     const profile = catalog[concept];
-    if (!profile) return;
     profile.forms.forEach((form) => {
-      const model = buildModel(brief, concept, form, perShiftTarget, catalog);
+      const model = buildModel(brief, profile, form, perShiftTarget);
       // restarts: 0 keeps the sweep deterministic and fast — the candidate is a
       // starting point, and the user can run the full optimizer on the winner.
       const rating = buildRating(model, { restarts: 0 });
@@ -387,12 +316,15 @@ export function generateCandidates(brief: GenerateBrief): Candidate[] {
         id: `${concept}-${form}`,
         concept,
         conceptLabel: profile.label,
+        // The candidate carries the profile it was built from, so nothing
+        // downstream has to look the concept up in a catalog it may not have.
+        profile,
         form,
         model,
         rating,
         cost,
         metrics,
-        rationale: rationaleFor(concept, metrics, perShiftTarget, currency, catalog),
+        rationale: rationaleFor(profile, metrics, perShiftTarget, currency),
       });
     });
   });
@@ -406,8 +338,10 @@ export function rankCandidates(candidates: Candidate[], by: RankBy = "loadedCost
   return candidates.slice().sort((a, b) => {
     // Candidates that cannot make the demand always sort last, whatever the metric.
     if (a.metrics.meetsDemand !== b.metrics.meetsDemand) return a.metrics.meetsDemand ? -1 : 1;
-    const av = a.metrics[by];
-    const bv = b.metrics[by];
+    // decisionScore is only present once scoreCandidates has run; ranking by it
+    // beforehand sorts on nothing rather than throwing.
+    const av = a.metrics[by] ?? 0;
+    const bv = b.metrics[by] ?? 0;
     if (av === bv) return a.id.localeCompare(b.id); // stable, deterministic
     return min ? av - bv : bv - av;
   });
@@ -445,16 +379,13 @@ export function conceptCrossover(brief: GenerateBrief, volumes: number[], by: Ra
     return {
       annualVolume,
       winner: best?.concept ?? "cell",
-      winnerLabel: best ? best.conceptLabel : "—",
+      winnerLabel: best ? best.conceptLabel : "\u2014",
       costPerPart: best?.metrics.loadedCostPerPart ?? 0,
     };
   });
 }
 
-// ---- weighted decision ranking, crossover & sensitivity -------------------
-// Ported from the planner rework: rank candidates by an editable weighting of
-// several criteria (not cost alone), show where the best concept flips as the
-// brief changes, and how sensitive the ranking is to each assumption.
+/** One stretch of the volume axis over which the same concept wins. */
 export interface CrossoverSegment {
   /** Inclusive lower bound of the stretch. */
   from: number;
@@ -691,11 +622,9 @@ export function scoreCandidates(candidates: Candidate[], weights: DecisionWeight
   return candidates;
 }
 
-/** Score, then rank by the weighted decision score (higher is better). */
+/** Score, then rank by the weighted decision score. */
 export function rankByDecision(candidates: Candidate[], weights: DecisionWeights = DECISION_WEIGHTS): Candidate[] {
-  return scoreCandidates(candidates, weights)
-    .slice()
-    .sort((a, b) => (b.metrics.decisionScore ?? 0) - (a.metrics.decisionScore ?? 0));
+  return rankCandidates(scoreCandidates(candidates, weights), "decisionScore");
 }
 
 // ---------------------------------------------------------------------------

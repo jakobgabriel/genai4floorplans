@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Button } from "@carbon/react";
+import { Btn } from "./Btn";
 
 // A button that asks for inline confirmation before firing (no browser confirm).
-// First click swaps to a confirm/cancel pair; confirm runs onConfirm. Carbon
-// Buttons throughout (danger--tertiary for destructive actions).
+// First click swaps to a confirm/cancel pair; confirm runs onConfirm.
 export function ConfirmableButton({
   label,
   confirmLabel = "Confirm",
@@ -18,17 +17,20 @@ export function ConfirmableButton({
   const [armed, setArmed] = useState(false);
   if (!armed) {
     return (
-      <Button size="sm" kind={danger ? "danger--tertiary" : "tertiary"} onClick={() => setArmed(true)}>
+      <Btn size="compact" variant={danger ? "danger" : "secondary"} onClick={() => setArmed(true)}>
         {label}
-      </Button>
+      </Btn>
     );
   }
   return (
-    <span style={{ display: "inline-flex", gap: "var(--cds-spacing-02)" }}>
-      <Button size="sm" kind={danger ? "danger" : "primary"} onClick={() => { onConfirm(); setArmed(false); }}>
+    <span className="fk-inlineActions">
+      {/* Destructive last in its group. */}
+      <Btn size="compact" variant="ghost" onClick={() => setArmed(false)}>
+        Cancel
+      </Btn>
+      <Btn size="compact" variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); setArmed(false); }}>
         {confirmLabel}
-      </Button>
-      <Button size="sm" kind="ghost" onClick={() => setArmed(false)}>Cancel</Button>
+      </Btn>
     </span>
   );
 }

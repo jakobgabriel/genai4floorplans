@@ -1,5 +1,4 @@
 import type { NoGoZone, Side, Station } from "../model/types";
-import { isBlockingZone } from "../model/types";
 
 export interface Point {
   x: number;
@@ -78,8 +77,6 @@ export function hasCollision(
   zones: NoGoZone[],
 ): boolean {
   const moved: Station = { ...s, x, y };
-  // Only obstacle zones block placement; spacer/aisle/esd merely reserve floor.
-  const blocking = zones.filter(isBlockingZone);
   const shaped = isShaped(moved) || others.some(isShaped);
   if (shaped) {
     const mine = stationCells(moved);
@@ -88,7 +85,7 @@ export function hasCollision(
       if (o.id === s.id) continue;
       for (const c of stationCells(o)) if (occupied.has(c.x + "," + c.y)) return true;
     }
-    for (const z of blocking) for (const c of mine) if (cellInRect(c.x, c.y, z)) return true;
+    for (const z of zones) for (const c of mine) if (cellInRect(c.x, c.y, z)) return true;
     return false;
   }
   const r: Rect = { x, y, w: s.w, h: s.h };
@@ -96,64 +93,10 @@ export function hasCollision(
     if (o.id === s.id) continue;
     if (rectsOverlap(r, o)) return true;
   }
-  for (const z of blocking) {
+  for (const z of zones) {
     if (rectsOverlap(r, z)) return true;
   }
   return false;
-}
-
-/** A station's solid footprint rectangle (grid cells). */
-export function footprintRect(s: Pick<Station, "x" | "y" | "w" | "h">): Rect {
-  return { x: s.x, y: s.y, w: s.w, h: s.h };
-}
-
-/** The footprint expanded by its keep-clear access margins (audit C-03). Absent
- *  clearance ⇒ the footprint itself. Clamped so a margin can't run negative. */
-export function clearanceRect(s: Pick<Station, "x" | "y" | "w" | "h" | "clearance">): Rect {
-  const c = s.clearance;
-  const top = Math.max(0, c?.top ?? 0);
-  const right = Math.max(0, c?.right ?? 0);
-  const bottom = Math.max(0, c?.bottom ?? 0);
-  const left = Math.max(0, c?.left ?? 0);
-  return { x: s.x - left, y: s.y - top, w: s.w + left + right, h: s.h + top + bottom };
-}
-
-/** True if a's keep-clear zone is blocked by b's solid body (or vice versa).
- *  Two clearance zones may overlap — that is a shared aisle — but a machine body
- *  standing inside another's access margin is a real violation (audit C-03). */
-export function clearanceBlocked(
-  a: Pick<Station, "x" | "y" | "w" | "h" | "clearance">,
-  b: Pick<Station, "x" | "y" | "w" | "h" | "clearance">,
-): boolean {
-  return rectsOverlap(clearanceRect(a), footprintRect(b)) || rectsOverlap(clearanceRect(b), footprintRect(a));
-}
-
-/** Point-in-polygon test (ray casting) for a closed polygon of grid points
- *  (audit C-03 inc2). Points on the boundary count as inside. */
-export function pointInPolygon(px: number, py: number, poly: Array<[number, number]>): boolean {
-  if (poly.length < 3) return true;
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i];
-    const [xj, yj] = poly[j];
-    const intersects = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-/** True when a station footprint lies entirely inside the floor polygon (all
- *  four corners), so the machine sits on usable floor (audit C-03 inc2). An
- *  empty/degenerate polygon means "no envelope declared" → always inside. */
-export function footprintInPolygon(s: Pick<Station, "x" | "y" | "w" | "h">, poly: Array<[number, number]>): boolean {
-  if (!poly || poly.length < 3) return true;
-  const corners: Array<[number, number]> = [
-    [s.x + 0.5, s.y + 0.5],
-    [s.x + s.w - 0.5, s.y + 0.5],
-    [s.x + 0.5, s.y + s.h - 0.5],
-    [s.x + s.w - 0.5, s.y + s.h - 0.5],
-  ];
-  return corners.every(([cx, cy]) => pointInPolygon(cx, cy, poly));
 }
 
 /** Clamp a station footprint to stay inside the grid. */

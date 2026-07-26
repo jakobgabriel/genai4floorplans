@@ -88,7 +88,7 @@ function optimizerFloor(model: Model): Model {
 }
 
 function bestCellForm(model: Model): { model: Model; form: CellForm } | null {
-  const forms: CellForm[] = ["I", "U", "L", "S", "W", "O"];
+  const forms: CellForm[] = ["I", "U", "L", "S"];
   let best: Model | null = null;
   let bestForm: CellForm = "I";
   let bestCost = Infinity;
@@ -260,7 +260,7 @@ export const strategist: AiProvider = {
     );
     if (bn)
       parts.push(
-        `Throughput is constrained by ${bn.name} at ${bn.cycle}s/part, capping the line at ${rating.balance.lineOut.toLocaleString()} parts/shift (line pace ≈ ${rating.balance.lineCycleSec}s/part${rating.balance.takt > 0 ? `, customer takt ${rating.balance.takt}s` : ""}).`,
+        `Throughput is constrained by ${bn.name} at ${bn.cycle}s/part, capping the line at ${rating.balance.lineOut.toLocaleString()} parts/shift (takt ≈ ${rating.balance.takt}s).`,
       );
     if (rating.flowReductionPct >= 1)
       parts.push(`Repositioning movable stations alone could cut material-flow cost by about ${rating.flowReductionPct.toFixed(0)}%.`);

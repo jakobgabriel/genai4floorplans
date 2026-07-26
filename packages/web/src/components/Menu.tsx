@@ -1,12 +1,13 @@
-import { type ReactNode } from "react";
-import { MenuButton, MenuItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown } from "@carbon/icons-react";
+import { Btn } from "./Btn";
 
-// A dropdown action menu backed by Carbon: a kebab "⋯" trigger becomes an
-// OverflowMenu (its aria-label is the accessible name, so "Folder actions" and
-// "Concept actions" stay distinct); a text label ("Export") becomes a labelled
-// MenuButton. Both bring focus trap, keyboard nav, positioning and Esc-to-close.
+// A small dropdown menu: a button that toggles a popover list of actions. Closes
+// on item-select, outside-click, and Escape. Unlike the modals (which close from
+// App's global Esc handler) and FlowEditorPopover (no outside-click), this owns
+// its own dismissal, so it's the reusable primitive for header action menus.
 
-export interface MenuItemSpec {
+export interface MenuItem {
   label: ReactNode;
   onClick: () => void;
   disabled?: boolean;
@@ -18,34 +19,60 @@ export function Menu({
   items,
   title,
   align = "right",
+  caret = true,
 }: {
   label: ReactNode;
-  items: MenuItemSpec[];
+  items: MenuItem[];
   title?: string;
   align?: "left" | "right";
+  /** Trailing chevron on a text trigger; pass false for an icon-only trigger. */
+  caret?: boolean;
 }) {
-  const asText = (n: ReactNode) => (typeof n === "string" ? n : String(n));
-  const isKebab = typeof label === "string" && label.trim() === "⋯";
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
 
-  if (isKebab) {
-    // `title` lands on the trigger button (Carbon forwards it), so callers can
-    // query it and screen readers get a hover label; `aria-label` covers the
-    // container node.
-    return (
-      <OverflowMenu aria-label={title ?? "Actions"} title={title} size="sm" flipped={align === "right"}>
-        {items.map((it, i) => (
-          <OverflowMenuItem key={i} itemText={asText(it.label)} disabled={it.disabled} isDelete={it.danger} onClick={it.onClick} />
-        ))}
-      </OverflowMenu>
-    );
-  }
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
-  const text = typeof label === "string" ? label.replace(/\s*▾\s*$/, "") : "Menu";
   return (
-    <MenuButton label={text} size="sm" kind="ghost" menuAlignment={align === "left" ? "bottom-start" : "bottom-end"}>
-      {items.map((it, i) => (
-        <MenuItem key={i} label={asText(it.label)} disabled={it.disabled} kind={it.danger ? "danger" : "default"} onClick={it.onClick} />
-      ))}
-    </MenuButton>
+    <div className="menu" ref={ref}>
+      <Btn size="compact" title={title} hasPopup expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className="menu__trigger">
+          {label}
+          {caret ? <ChevronDown size={16} /> : null}
+        </span>
+      </Btn>
+      {open ? (
+        <div className={"menu-pop" + (align === "left" ? " left" : "")} role="menu">
+          {items.map((it, i) => (
+            <button
+              key={i}
+              role="menuitem"
+              className={it.danger ? "danger" : undefined}
+              disabled={it.disabled}
+              onClick={() => {
+                setOpen(false);
+                it.onClick();
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

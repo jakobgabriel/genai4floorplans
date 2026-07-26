@@ -1,10 +1,8 @@
 import type { Model, RatingWeights, Station } from "../model/types";
 import { DEFAULT_SHIFT_HOURS } from "../model/types";
-import { computeKPIs, placementScore, type FlowDetail, type KPIResult } from "./kpis";
-import { type OptimizeOptions } from "./optimize";
-import { bestLayout } from "./bestLayout";
+import { computeKPIs, type FlowDetail, type KPIResult } from "./kpis";
+import { optimize, type OptimizeOptions } from "./optimize";
 import { balanceAnalysis, type BalanceResult } from "./balance";
-import { customerTaktSec } from "./takt";
 import { autoCoherenceScore, chainRating, ergoScore } from "./automation";
 
 export const WEIGHTS: RatingWeights = {
@@ -83,24 +81,14 @@ export function buildRating(model: Model, opts: OptimizeOptions = {}): Rating {
   const shiftHours = model.shiftHours ?? DEFAULT_SHIFT_HOURS;
 
   const actual = computeKPIs(stations, flows, grid);
-  // Score against the TRUE floor — the cheapest layout reachable by
-  // repositioning (pairwise AND every cell form), not just pairwise swaps.
-  // Otherwise a cell 29% off the shortest material path still grades ~100% on
-  // flow, because the pairwise optimiser can't see the better form.
-  const optimized = bestLayout(model, opts).stations;
+  const optimized = optimize(stations, flows, grid, opts);
   const opt = computeKPIs(optimized, flows, grid);
 
   const sFlow = scoreVsFloor(actual.flowCost, opt.flowCost);
   const sTravel = scoreVsFloor(actual.travel, opt.travel);
-  // Congestion as the share of travel that does NOT cross the central corridor
-  // (audit A-04). Self-contained — no dependence on the heuristic floor, whose
-  // frequent zero-congestion value used to collapse this score to a constant
-  // 100 and render the whole axis inert.
-  const sCong = actual.travel > 0 ? Math.max(0, Math.min(100, Math.round((1 - actual.congestion / actual.travel) * 100))) : 100;
-  // Real placement metric (compactness), not a copy of flow cost (audit A-03).
-  const sPlace = placementScore(stations);
-  const taktSec = customerTaktSec(model);
-  const bal = balanceAnalysis(stations, flows, shiftHours, taktSec);
+  const sCong = scoreVsFloor(actual.congestion, opt.congestion || actual.congestion);
+  const sPlace = sFlow;
+  const bal = balanceAnalysis(stations, flows, shiftHours);
   const sBal = bal.score;
   const sErgo = ergoScore(stations, flows);
   const chain = chainRating(stations, flows);

@@ -1,5 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
-import { type Cell, type Concept, type Folder, type Workspace, loadWorkspace, saveWorkspace, makeFolder, makeConcept, isDescendant } from "../workspace";
+import { type Cell, type Folder, type Workspace, loadWorkspace, saveWorkspace, makeFolder, isDescendant } from "../workspace";
 import { listScenarios, saveScenario, loadScenario, deleteScenario, moveScenario, type ScenarioMeta } from "../scenarios";
 import type { StorageProvider } from "./StorageProvider";
 
@@ -34,38 +34,9 @@ export class LocalStorageProvider implements StorageProvider {
     const ws = loadWorkspace();
     saveWorkspace({ ...ws, cells: ws.cells.filter((c) => c.id !== id) });
   }
-  async moveCell(id: string, conceptId: string | null): Promise<void> {
+  async moveCell(id: string, folderId: string | null): Promise<void> {
     const ws = loadWorkspace();
-    const folderId = ws.concepts.find((k) => k.id === conceptId)?.folderId ?? null;
-    saveWorkspace({ ...ws, cells: ws.cells.map((c) => (c.id === id ? { ...c, conceptId, folderId } : c)) });
-  }
-  async createConcept(concept: Concept): Promise<Concept> {
-    const ws = loadWorkspace();
-    const siblings = ws.concepts.filter((c) => c.folderId === concept.folderId).length;
-    const created = makeConcept(concept.name, concept.folderId, siblings);
-    saveWorkspace({ ...ws, concepts: ws.concepts.concat([created]) });
-    return created;
-  }
-  async renameConcept(id: string, name: string): Promise<void> {
-    const ws = loadWorkspace();
-    saveWorkspace({ ...ws, concepts: ws.concepts.map((c) => (c.id === id ? { ...c, name } : c)) });
-  }
-  async moveConcept(id: string, folderId: string | null, position?: number): Promise<void> {
-    const ws = loadWorkspace();
-    saveWorkspace({
-      ...ws,
-      concepts: ws.concepts.map((c) => (c.id === id ? { ...c, folderId, position: position ?? c.position } : c)),
-      // Its layouts follow the concept into the new folder.
-      cells: ws.cells.map((c) => (c.conceptId === id ? { ...c, folderId } : c)),
-    });
-  }
-  async deleteConcept(id: string): Promise<void> {
-    const ws = loadWorkspace();
-    saveWorkspace({
-      ...ws,
-      concepts: ws.concepts.filter((c) => c.id !== id),
-      cells: ws.cells.filter((c) => c.conceptId !== id), // layouts cascade with their concept
-    });
+    saveWorkspace({ ...ws, cells: ws.cells.map((c) => (c.id === id ? { ...c, folderId } : c)) });
   }
   async listScenarios(): Promise<ScenarioMeta[]> {
     return listScenarios();
@@ -106,11 +77,9 @@ export class LocalStorageProvider implements StorageProvider {
     const target = ws.folders.find((f) => f.id === id);
     if (!target) return;
     const up = target.parentId;
-    // Reparent sub-folders AND concepts (with their layouts) up to the parent.
     saveWorkspace({
       ...ws,
       folders: ws.folders.filter((f) => f.id !== id).map((f) => (f.parentId === id ? { ...f, parentId: up } : f)),
-      concepts: ws.concepts.map((c) => (c.folderId === id ? { ...c, folderId: up } : c)),
       cells: ws.cells.map((c) => (c.folderId === id ? { ...c, folderId: up } : c)),
     });
   }

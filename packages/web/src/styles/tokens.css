@@ -1,92 +1,97 @@
-/* FlowPlan — Carbon Design System bridge.
+/* FlowPlan — the design system.
  *
- * The legacy variables below are kept (270+ inline styles reference them) but
- * now resolve to Carbon Gray 100 tokens, so re-skinning the whole app is a
- * question of these fifteen lines rather than of touching every component.
+ * The :root block below is the only place a spacing step, a type size, a
+ * border, a radius, a shadow or a colour is decided. Nothing downstream invents
+ * its own: if a value is not here, it does not exist.
+ *
+ *   spacing  6 steps      --sp-1 … --sp-6
+ *   type     4 sizes      --type-*-size, with --lh-* and --fw-*
+ *   border   2, radius 2, shadow 2
+ *   colour   semantic     --surface / --border / --text-* / --accent / --danger
+ *            categorical  --data-* (canvas and charts only)
  *
  * Rules followed throughout, per Carbon:
  *   - border-radius: 0. Carbon is square.
  *   - IBM Plex Sans for UI; IBM Plex Mono only for data and code.
- *   - Type and spacing come from the Carbon scales, never ad-hoc px.
  *   - Focus is a 2px --cds-focus ring, never `outline: none`.
  *   - Blue 60 is interactive; teal is reserved for encoding flow data.
  */
 
 :root {
-  /* ---- legacy aliases -> Carbon tokens ---- */
-  --bg: var(--cds-background);
-  --panel: var(--cds-layer-01);
-  --panel2: var(--cds-layer-02);
-  --line: var(--cds-border-subtle-01);
-  --text: var(--cds-text-primary);
-  --textDim: var(--cds-text-secondary);
+  /* ---- spacing: six steps, nothing between ----
+   * Was two competing vocabularies (--sp-0X and --cds-spacing-0X, thirteen
+   * values between them) plus stray px. Everything maps to one of these.
+   * @carbon/styles emits only *theme* tokens as custom properties — spacing and
+   * type are compiled into its component classes — so this is the whole scale
+   * available to plain CSS. */
+  --sp-1: 0.25rem; /*  4px — inside a control */
+  --sp-2: 0.5rem; /*  8px — between related controls */
+  --sp-3: 0.75rem; /* 12px — inside a group */
+  --sp-4: 1rem; /* 16px — between groups */
+  --sp-5: 1.5rem; /* 24px — between blocks */
+  --sp-6: 2.5rem; /* 40px — between sections */
 
-  /* Data-encoding colours. These stay chromatic on purpose: they carry meaning
-     on the canvas and in charts, where Carbon's greys would erase it.
-     SOURCE OF TRUTH: components/colors.ts. The canvas/charts import the hexes
-     from there; these CSS aliases mirror them verbatim so any chrome that needs
-     a data colour matches the canvas exactly. Keep the two in sync. */
-  --teal: #2bb6a8;
-  --tealDim: #1c6f68;
-  --amber: #e0a458;
-  --red: #d96b5b;
+  /* ---- type: four sizes, five roles ----
+   * Was 13 CSS sizes × 3 weights × 12 line-heights, plus 9 inline px sizes.
+   * A role is a size+weight+line-height triple; nothing composes its own.
+   * Label and caption share a size and differ only in weight. */
+  --type-title-size: 1.75rem; /* page title, and the big data figures */
+  --type-section-size: 1.125rem; /* section heading */
+  --type-body-size: 0.875rem; /* running text, table cells, controls */
+  --type-caption-size: 0.75rem; /* labels and captions */
 
-  /* Station-type fills (colors.ts TYPE_COL). Dark ramp by default; the light
-     ramp is under :root[data-theme="light"] so station boxes stay legible on
-     both themes. */
-  --type-machine: #16343a;
-  --type-manual: #2a2f1e;
-  --type-quality: #1e2a36;
-  --type-store: #2a2320;
-  --type-buffer: #241e2a;
+  --lh-tight: 1.25; /* display figures */
+  --lh-snug: 1.4; /* headings and labels */
+  --lh-body: 1.43; /* running text */
 
-  /* Carbon interactive + status */
-  --interactive: var(--cds-interactive);
+  --fw-light: 300; /* display figures only */
+  --fw-regular: 400;
+  --fw-semibold: 600;
+
+  /* ---- border, radius, shadow: two values each ---- */
+  --border-subtle: 1px solid var(--cds-border-subtle-01);
+  --border-strong: 1px solid var(--cds-border-strong-01);
+  --radius-none: 0; /* Carbon is square */
+  --radius-round: 50%; /* count badges only */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-overlay: 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  /* ---- colour: semantic names over Carbon tokens ----
+   * `colors.ts` carried a parallel palette (#2bb6a8 teal, #d96b5b red,
+   * #e0a458 amber, #dde8e8 text, #7e9698 dim, #24383d line, #19262a panel)
+   * that shadowed every one of these. */
+  --surface: var(--cds-layer-01);
+  --surface-raised: var(--cds-layer-02);
+  --surface-sunken: var(--cds-background);
+  --surface-accent: var(--cds-layer-accent-01);
+  --border: var(--cds-border-subtle-01);
+  --border-loud: var(--cds-border-strong-01);
+  --text-primary: var(--cds-text-primary);
+  --text-muted: var(--cds-text-secondary);
+  --accent: var(--cds-interactive);
+  /* Carbon scopes --cds-focus to its theme class, so at :root it is empty and
+     `outline: 2px solid var(--cds-focus)` silently fell back to currentColor. */
+  --focus: var(--cds-focus, #ffffff);
   --danger: var(--cds-button-danger-primary);
 
-  /* Carbon spacing scale.
-   *
-   * @carbon/styles emits only *theme* (colour) tokens as CSS custom properties —
-   * spacing and type are compiled into its component classes and are NOT
-   * available as --cds-spacing-*. Declaring them here is what makes the scale
-   * usable from plain CSS. Values are Carbon's, verbatim. */
-  --cds-spacing-01: 0.125rem;
-  --cds-spacing-02: 0.25rem;
-  --cds-spacing-03: 0.5rem;
-  --cds-spacing-04: 0.75rem;
-  --cds-spacing-05: 1rem;
-  --cds-spacing-06: 1.5rem;
-  --cds-spacing-07: 2rem;
-  --cds-spacing-08: 2.5rem;
-  --cds-spacing-09: 3rem;
-  --cds-spacing-10: 4rem;
-  --cds-spacing-11: 5rem;
-  --cds-spacing-12: 6rem;
-  --cds-spacing-13: 10rem;
+  /* Data-encoding colours. Chromatic on purpose: they carry *categorical*
+     meaning on the canvas and in charts (station type, waste class, ergonomic
+     risk) that Carbon's status palette cannot express without implying
+     good/bad. Status colour is not one of these — it uses the tokens above. */
+  --data-teal: #3ddbd9;
+  --data-teal-dim: #007d79;
+  --data-amber: #d2a106;
+  --data-red: #fa4d56;
 
-  /* Short aliases used by this file. */
-  --sp-01: var(--cds-spacing-01);
-  --sp-02: var(--cds-spacing-02);
-  --sp-03: var(--cds-spacing-03);
-  --sp-04: var(--cds-spacing-04);
-  --sp-05: var(--cds-spacing-05);
-  --sp-06: var(--cds-spacing-06);
-  --sp-07: var(--cds-spacing-07);
+  /* ---- measure: two widths, not seven ----
+   * Reading content is constrained; a table of numbers is not. Everything that
+   * was 32rem / 34rem / 40rem / 60rem / 84rem / 1584px is one of these. */
+  --measure-read: 60rem; /* prose, forms, the report */
+  --measure-wide: 84rem; /* tables and comparison grids */
 
   /* Motion */
   --dur: 110ms;
   --ease: cubic-bezier(0.2, 0, 0.38, 0.9);
-}
-
-/* Light theme: swap the station-type fills to soft tints so boxes read on white.
-   Carbon's own --cds-* tokens flip via the <Theme theme="white"> wrapper; this
-   only covers the custom data-encoding fills that Carbon doesn't own. */
-:root[data-theme="light"] {
-  --type-machine: #d6e6ea;
-  --type-manual: #e8ead9;
-  --type-quality: #dbe6f0;
-  --type-store: #efe6df;
-  --type-buffer: #e6dcef;
 }
 
 * {
@@ -107,8 +112,8 @@ body,
   background: var(--cds-background);
   color: var(--cds-text-primary);
   font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-  font-size: 0.875rem; /* Carbon body-compact-01 */
-  line-height: 1.29;
+  font-size: var(--type-body-size); /* Carbon body-compact-01 */
+  line-height: var(--lh-snug);
   letter-spacing: 0.16px;
 }
 
@@ -122,10 +127,19 @@ svg text {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 
-/* Carbon focus: a 2px ring, everywhere, no exceptions. */
+/* Focus: a 2px ring, everywhere, no exceptions.
+   `:where()` has zero specificity, so Carbon's own 1px button focus was winning
+   on every Carbon button — which was most of them. This matches its specificity
+   so the ring is the same weight on a Carbon button as on a plain one. */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--cds-focus);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
+}
+.cds--btn.cds--btn:focus-visible,
+.cds--btn.cds--btn:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  box-shadow: none;
 }
 
 button {
@@ -137,15 +151,6 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding-top: 3rem; /* clears the fixed Carbon Header (AppHeader) */
-}
-/* Page intro paragraph under a page title — Carbon helper-text style. */
-.page-sub {
-  color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.43;
-  max-width: 60ch;
-  margin: 0 0 var(--cds-spacing-05);
 }
 
 /* NOTE: there is deliberately no bare `header {}` rule here. The editor's
@@ -156,7 +161,7 @@ button {
 .logo {
   font-family: "IBM Plex Sans", sans-serif;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: var(--type-body-size);
   letter-spacing: 0.16px;
   white-space: nowrap;
 }
@@ -165,77 +170,146 @@ button {
   font-weight: 400;
 }
 
-/* ---------- buttons: Carbon geometry ---------- */
-
-.btn {
-  background: var(--cds-layer-02);
-  color: var(--cds-text-primary);
-  border: 1px solid transparent;
-  padding: 0 var(--sp-05);
-  min-height: 2rem;
-  border-radius: 0;
-  font-size: 0.875rem;
-  letter-spacing: 0.16px;
-  display: inline-flex;
+/* Header KPI strip: label over figure, repeated. */
+.hkpi {
+  display: flex;
   align-items: center;
-  gap: var(--sp-03);
-  transition: background var(--dur) var(--ease);
+  gap: var(--sp-4);
+  flex-wrap: wrap;
 }
-.btn:hover:not(:disabled) {
-  background: var(--cds-layer-hover-02);
+.hkpi__label {
+  font-size: var(--type-caption-size);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
 }
-.btn:disabled {
-  background: var(--cds-button-disabled);
-  color: var(--cds-text-disabled);
-  cursor: not-allowed;
-}
-.btn.on {
-  background: var(--cds-interactive);
-  color: var(--cds-text-on-color);
-  border-color: var(--cds-interactive);
-}
-.btn.on:hover:not(:disabled) {
-  background: var(--cds-button-primary-hover);
-}
-.btn.sm {
-  min-height: 1.5rem;
-  padding: 0 var(--sp-04);
-  font-size: 0.75rem;
-}
-.btn.danger {
-  background: transparent;
-  border-color: var(--cds-button-danger-secondary);
-  color: var(--cds-button-danger-secondary);
-}
-.btn.danger:hover:not(:disabled) {
-  background: var(--cds-button-danger-primary);
-  color: var(--cds-text-on-color);
+.hkpi__value {
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
 }
 
-.btn-close {
+/* Legend swatches. */
+.ak-swatch {
+  display: inline-block;
+  width: var(--sp-3);
+  height: var(--sp-3);
+  border-radius: var(--radius-none);
+}
+.ak-dot {
+  display: inline-block;
+  width: var(--sp-2);
+  height: var(--sp-2);
   flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  line-height: 1;
-  font-size: 0.875rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  color: var(--cds-text-primary);
-  border: 1px solid transparent;
-  border-radius: 0;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
+  margin-right: var(--sp-1);
+  border-radius: var(--radius-round);
 }
-.btn-close:hover {
-  background: var(--cds-layer-hover-01);
+
+/* ---------- utilities ----------
+ * A closed set, so a component never invents its own spacing again. Anything
+ * that was `style={{ display:"flex", gap:10 }}` or `style={{ fontSize:10.5,
+ * color:TEXTD }}` is one of these now. */
+
+.u-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.u-row--wrap {
+  flex-wrap: wrap;
+}
+.u-row--between {
+  justify-content: space-between;
+}
+.u-row--top {
+  align-items: flex-start;
+}
+.u-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.u-grow {
+  flex: 1;
+  min-width: 0;
+}
+.u-muted {
+  color: var(--text-muted);
+}
+.u-caption {
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+.u-figure {
+  font-size: var(--type-title-size);
+  font-weight: var(--fw-light);
+  line-height: var(--lh-tight);
+}
+.u-scroll-x {
+  overflow-x: auto;
+}
+
+/* ---------- buttons ----------
+ * There is no button CSS here any more. Every button in the app is
+ * `components/Btn.tsx`, which is Carbon's — so hover, active, focus-visible,
+ * disabled and loading all come from the design system. What remains below is
+ * only geometry the app imposes on top. */
+
+/* Icon-only buttons get a 44x44 target on touch. On a mouse a 44px toolbar
+   button is just a tall toolbar, so the requirement is scoped to the input that
+   actually needs it. */
+@media (pointer: coarse) {
+  .cds--btn--icon-only {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* Full-width action inside a narrow panel or popover. */
+.fk-full.cds--btn {
+  width: 100%;
+  max-width: none;
+  justify-content: space-between;
+}
+
+/* Actions in a row: secondary first, primary last. */
+.fk-inlineActions,
+.modal__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.modal__actions {
+  justify-content: flex-end;
+  margin-top: var(--sp-5);
+}
+
+/* The rail's vertical re-open button. */
+.rail-btn.cds--btn {
+  writing-mode: vertical-rl;
+  min-height: 6rem;
+  justify-content: center;
+}
+
+/* The toolbar's layout button truncates rather than wrapping — a two-line
+   button makes the whole bar taller. The cell name is also in the Explorer and
+   on the report, so the toolbar copy can be short. */
+.editorbar__cell.cds--btn {
+  white-space: nowrap;
+}
+.editorbar__cell .cds--btn__icon {
+  flex: 0 0 auto;
+  margin-left: var(--sp-2);
 }
 
 .views {
   display: flex;
-  gap: 1px;
+  gap: 0;
+}
+.views .chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: var(--sp-2) var(--sp-4);
 }
 .spacer {
   flex: 1;
@@ -244,7 +318,7 @@ button {
   width: 1px;
   align-self: stretch;
   background: var(--cds-border-subtle-01);
-  margin: var(--sp-03) var(--sp-02);
+  margin: var(--sp-2) var(--sp-1);
 }
 
 /* ---------- overflow menus ---------- */
@@ -261,9 +335,9 @@ button {
   z-index: 30;
   background: var(--cds-layer-02);
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-none);
   padding: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-overlay);
 }
 .menu-pop.left {
   right: auto;
@@ -277,10 +351,10 @@ button {
   border: 0;
   color: var(--cds-text-primary);
   font-family: inherit;
-  font-size: 0.875rem;
-  padding: 0 var(--sp-05);
+  font-size: var(--type-body-size);
+  padding: 0 var(--sp-4);
   min-height: 2.5rem;
-  border-radius: 0;
+  border-radius: var(--radius-none);
 }
 .menu-pop button:hover:not(:disabled) {
   background: var(--cds-layer-hover-02);
@@ -298,293 +372,164 @@ button {
 .viewbar {
   display: flex;
   align-items: center;
-  gap: var(--sp-05);
-  margin-bottom: var(--sp-05);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
 }
 main {
   display: flex;
   flex: 1;
   min-width: 0;
-}
-/* Node-RED editor: fill the viewport below the 3rem header; the rails hold
-   their own scroll so only the canvas grows. The header is cleared with a
-   margin (not the base .shell padding-top) and the shell sized to exactly the
-   remaining viewport, so `margin (3rem) + height (100vh − 3rem) = 100vh` and
-   the document can never scroll past it (no black seam below the app). */
-.shell--editor {
-  /* Pin the editor to the viewport below the fixed 3rem header. Fixed
-     positioning takes it out of normal flow entirely, so NOTHING tall is left
-     in the document — the page can never scroll and no background shows below
-     the app (browser-independent, unlike a height+padding/margin pairing). */
-  position: fixed;
-  inset: 3rem 0 0 0;
-  padding-top: 0;
   min-height: 0;
-  overflow: hidden;
+  /* The containing block for the left drawer, which overlays the canvas. */
+  position: relative;
 }
-.shell--editor .shell__body {
-  min-height: 0;
+/* The canvas column is a flex chain down to the SVG so the drawing surface
+   claims every pixel between the two rails, the toolbar and the legend. It used
+   to be a scroll box holding a fixed gridW*cell rectangle, which left dead
+   background to the right and below on any reasonably sized window. */
+.canvas {
+  flex: 1 1 auto;
+  padding: var(--sp-4);
   overflow: hidden;
-}
-.editor-main {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-.editor-main > .canvas {
-  height: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: var(--sp-04);
+  /* Darkest layer, so the two rails read as raised panels either side of it. */
+  background: var(--cds-background);
 }
-/* The full-bleed editor canvas: viewbar stays auto, the flow area grows to fill. */
-.canvasInner-fill {
+/* A focused station is keyboard-reachable now; the global ring sits at
+   offset -2px which an SVG group clips, so nudge it just outside the group. */
+[data-station-id]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+/* Placeholder while a lazily-loaded route page's chunk arrives. Reserves the
+   height so the surrounding chrome does not jump, and centres the spinner. */
+.wrap-loading {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+}
+/* A menu trigger's label sits inline with its chevron (or overflow icon). */
+.menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2, 0.25rem);
+}
+/* A leading icon aligned with a table-cell or list label (folder, layout). */
+.cell-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.canvas__stage {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
-.canvas-fill {
-  flex: 1 1 auto;
-  min-height: 0;
+/* DAG and the improved-view commentary are content-height, not fill-height. */
+.canvas__stage--scroll {
+  overflow: auto;
+}
+.lc {
   display: flex;
   flex-direction: column;
-}
-.canvas-fill .layoutTitle {
-  flex: 0 0 auto;
-}
-/* Doubled class so the fill sizing always beats the base `.canvas-svg` rule
-   (which sets height:auto / max-width:100%) regardless of source order. */
-.canvas-svg.canvas-svg--fill {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+}
+.lc__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 12rem;
+  min-width: 0;
+}
+/* Absolute fill means the stage's size comes from the flex chain above rather
+   than from the SVG, so measuring it can't feed back into its own size. */
+.lc__svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   max-width: none;
-}
-/* ---------- left library sidebar ---------- */
-.libside {
-  flex: 0 0 auto;
-  width: 260px;
-  border-right: 1px solid var(--cds-border-strong-01);
-  background: var(--cds-layer-01);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-.libside.collapsed {
-  width: auto;
-  flex: 0 0 auto;
-}
-.libside__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-04) var(--sp-05);
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-  flex: 0 0 auto;
-}
-.libside__scroll {
-  overflow-y: auto;
-  padding: var(--sp-04) var(--sp-05);
-  min-height: 0;
-}
-.libside__group {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--textDim);
-  margin: var(--sp-05) 0 var(--sp-03);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.libside__group:first-child {
-  margin-top: 0;
-}
-.libside__manage {
-  font-size: 0.75rem;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--cds-link-primary);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  padding: 0;
-}
-.libside__count {
-  font-weight: 400;
-  opacity: 0.55;
-}
-/* Dedicated scroll region for the (potentially long) process catalog, so every
-   entry is reachable without pushing the rest of the palette off-screen. */
-.libside__proc {
-  max-height: 42vh;
-  overflow-y: auto;
-  /* Let the scrollbar hug the rail edge while content keeps its inset. */
-  margin: 0 calc(-1 * var(--sp-03));
-  padding: 0 var(--sp-03);
-}
-.libside__catGroup:first-child .libside__subgroup {
-  margin-top: var(--sp-02);
-}
-.libside__subgroup {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--cds-text-secondary);
-  background: var(--cds-layer-01);
-  margin: var(--sp-04) 0 var(--sp-02);
-  padding: 3px 0;
-}
-.libside__nodes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-03);
-}
-.libside__node {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  font-size: 0.75rem;
-  border: 1px solid var(--cds-border-subtle-01);
-  border-left-width: 3px;
-  background: var(--cds-layer-02);
-  cursor: grab;
-  user-select: none;
-}
-.libside__node:active {
-  cursor: grabbing;
-}
-.libside__forms {
-  display: flex;
-  gap: var(--sp-03);
-}
-.libside__empty {
-  font-size: 0.75rem;
-  color: var(--textDim);
-}
-.canvas {
-  flex: 1 1 auto;
-  padding: var(--sp-06);
-  overflow: auto;
-  min-width: 0;
-  /* Darkest layer, so the two rails read as raised panels either side of it. */
+  /* Darker than the floor rect drawn inside, so the placeable area reads as a
+     shop floor sitting on the surrounding surface. */
   background: var(--cds-background);
+}
+.splitWrap > .lc {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .side {
   width: 360px;
   flex: 0 0 360px;
   border-left: 1px solid var(--cds-border-strong-01);
   background: var(--cds-layer-01);
-  overflow: auto;
+  /* The panel below the tabbar owns the scrolling (see `.side > div`). If the
+     rail scrolled too, a sticky header inside the panel would drift off the top
+     of the rail as the rail itself scrolled. */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Carbon's .cds--visually-hidden labels are absolutely positioned. Without a
+     positioned ancestor here their containing block is the viewport, so they
+     escape this panel's clip and stretch the document — which is what made the
+     whole page scroll behind a shell that is exactly one viewport tall. */
+  position: relative;
 }
 .layoutTitle {
   font-weight: 600;
-  font-size: 0.875rem;
-  margin-bottom: var(--sp-03);
+  font-size: var(--type-body-size);
+  margin-bottom: var(--sp-2);
 }
 
-/* Scoped to the floorplan canvas ONLY. A bare `svg` selector here used to paint
-   a background, border and drop-shadow behind EVERY svg in the app — including
-   Carbon button icons and the Select/Dropdown chevron, so a glyph sat in its own
-   little box and vanished when its fill matched the forced background. Keeping
-   this on `.canvas-svg` leaves all Carbon UI icons untouched. */
-.canvas-svg {
+svg {
   background: var(--cds-layer-01);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  border-radius: 0;
+  box-shadow: var(--shadow-raised);
+  border-radius: var(--radius-none);
   border: 1px solid var(--cds-border-subtle-01);
   touch-action: none;
   max-width: 100%;
   height: auto;
   display: block;
-  /* Dragging stations/zones must never rubber-band-select the SVG labels. */
-  user-select: none;
-  -webkit-user-select: none;
+}
+
+/* The decorative rule above is meant for the layout canvas and inline charts —
+   the app's own block-level SVGs. Carbon renders its icons as bare <svg>, so it
+   must NOT turn every dropdown chevron, button glyph, notification icon or tag
+   affordance into a bordered, shadowed box. Reset those back to plain glyphs. */
+.cds--btn svg,
+.cds--tag svg,
+.cds--select svg,
+.cds--list-box svg,
+.cds--toggletip-button svg,
+.cds--number-input svg,
+.cds--text-input__field-wrapper svg,
+.cds--toggle svg,
+.cds--inline-notification svg,
+.cds--actionable-notification svg,
+.cds--toast-notification svg {
+  background: none;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  height: auto;
 }
 
 .legend {
   display: flex;
-  gap: var(--sp-06);
-  margin-top: var(--sp-05);
-  font-size: 0.75rem;
+  gap: var(--sp-5);
+  margin-top: var(--sp-4);
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
   flex-wrap: wrap;
 }
 .hint {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
-  margin-top: var(--sp-03);
-}
-
-/* ---------- DAG (process-flow) view ---------- */
-/* Fills the height of its container; the graph scrolls inside its own region
-   while the header and legend stay pinned. */
-.dag-view {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-.dag-view__head {
-  flex: 0 0 auto;
-}
-.dag-view__title {
-  font-size: 1rem;
-  line-height: 1.375;
-  font-weight: 600;
-  margin: 0;
-  color: var(--cds-text-primary);
-}
-.dag-view__caption {
-  font-size: 0.875rem;
-  line-height: 1.29;
-  color: var(--cds-text-secondary);
-  margin: var(--sp-02) 0 0;
-}
-.dag-view__cycle {
-  flex: 0 0 auto;
-  font-size: 0.8125rem;
-  color: var(--cds-text-primary);
-  background: var(--cds-layer-01);
-  border-left: 3px solid var(--red);
-  padding: var(--sp-03) var(--sp-04);
-  margin-top: var(--sp-04);
-}
-.dag-view__scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  margin-top: var(--sp-04);
-  padding-bottom: var(--sp-04);
-}
-/* The graph renders at its natural, legible size — never scaled down to fit —
-   and centres when narrower than the view; the region scrolls otherwise. */
-.dag-svg {
-  max-width: none;
-  width: auto;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
-.dag-view__legend {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-02) var(--sp-05);
-  margin-top: var(--sp-04);
-  padding-top: var(--sp-03);
-  border-top: 1px solid var(--cds-border-subtle-01);
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
+  margin-top: var(--sp-2);
 }
 
 /* ---------- tabs (Carbon contained-tab geometry) ---------- */
@@ -614,38 +559,36 @@ main {
   gap: 0;
   background: var(--cds-layer-accent-01);
 }
-.grouptabs .btn {
+.grouptabs .chip {
   flex: 1;
   min-width: 0;
   min-height: 2.5rem;
-  padding: 0 var(--sp-03);
-  font-size: 0.75rem;
-  white-space: nowrap;
   background: var(--cds-layer-accent-01);
-  border-bottom: 2px solid transparent;
-  justify-content: center;
 }
-.grouptabs .btn.on {
+.grouptabs .chip.on {
   background: var(--cds-layer-01);
-  color: var(--cds-text-primary);
-  border-bottom-color: var(--cds-interactive);
 }
 .grouptabs .help-tab {
   flex: 0 0 auto;
-  width: 2.5rem;
-  padding: 0;
 }
 .subtabs {
   display: flex;
   gap: 0;
-  padding: 0 var(--sp-05);
+  padding: 0 var(--sp-4);
   border-bottom: 1px solid var(--cds-border-subtle-01);
 }
-.subtabs .chip {
+/* One tab affordance, used by the view switcher, the group tabs, the sub-tabs
+   and the analysis nav. Underline marks the selected one. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   flex: 1;
   text-align: center;
-  font-size: 0.75rem;
-  padding: var(--sp-03) var(--sp-03);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  padding: var(--sp-2) var(--sp-3);
   border: 0;
   border-bottom: 2px solid transparent;
   color: var(--cds-text-secondary);
@@ -653,23 +596,128 @@ main {
   cursor: pointer;
   transition: color var(--dur) var(--ease);
 }
-.subtabs .chip:hover {
+.chip:hover {
   color: var(--cds-text-primary);
 }
-.subtabs .chip.on {
+.chip.on {
+  color: var(--cds-text-primary);
+  border-bottom-color: var(--cds-interactive);
+  font-weight: var(--fw-semibold);
+}
+
+.pad {
+  padding: var(--sp-5) var(--sp-4);
+}
+
+/* ---------- analysis path ----------
+ * The readout is one page read top to bottom, not a set of sibling tabs. The nav
+ * jumps within it instead of swapping its contents, so the numbering is the
+ * order the assessment is meant to be read in. */
+
+.an__nav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  /* Wraps rather than scrolls: a half-visible stage reads as a broken nav, and
+     the whole point is that the six stages are visible as a set. */
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 var(--sp-3);
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.an__nav .chip {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  white-space: nowrap;
+  font-size: var(--type-caption-size);
+  padding: var(--sp-2) var(--sp-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--cds-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+.an__nav .chip:hover {
+  color: var(--cds-text-primary);
+}
+.an__nav .chip.on {
   color: var(--cds-text-primary);
   border-bottom-color: var(--cds-interactive);
   font-weight: 600;
 }
+.an__navNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: var(--radius-round);
+  font-size: var(--type-caption-size);
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+.an__nav .chip.on .an__navNum {
+  background: var(--cds-interactive);
+  color: var(--cds-text-on-color);
+}
 
-.pad {
-  padding: var(--sp-06) var(--sp-05);
+/* Clears the sticky nav for the scrollIntoView path (the summary tiles jump
+   straight to a stage), which cannot measure the nav's wrapped height. */
+.an__sec {
+  scroll-margin-top: var(--sp-6);
+}
+.an__secHead {
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.an__secTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--type-section-size);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  color: var(--cds-text-primary);
+}
+.an__secNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: var(--radius-round);
+  flex: 0 0 auto;
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+.an__secQ {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+  color: var(--cds-text-secondary);
 }
 
 /* The rail's scrolling region, below the sticky tabs. */
 .side > .pad,
 .side > div:not(.tabbar) {
   overflow-y: auto;
+  /* Flex items floor at their content height, so without this the panel grew
+     `.side` instead of scrolling inside it — and a sticky header in the panel
+     then scrolled out of view along with the rail. */
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Carbon's .cds--visually-hidden labels are absolutely positioned; they need a
+     containing block here or they escape this clip and stretch the rail. */
+  position: relative;
 }
 
 /* ---------- rating widgets ---------- */
@@ -677,40 +725,40 @@ main {
 .grade {
   display: flex;
   align-items: center;
-  gap: var(--sp-05);
-  margin-bottom: var(--sp-05);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
 }
 .gradeBox {
   width: 3.5rem;
   height: 3.5rem;
-  border-radius: 0;
+  border-radius: var(--radius-none);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
 }
 .lab {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
   letter-spacing: 0.32px;
   font-weight: 600;
   text-transform: uppercase;
 }
 .kpi {
-  margin-bottom: var(--sp-04);
+  margin-bottom: var(--sp-3);
 }
 .kpiTop {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
-  margin-bottom: var(--sp-02);
+  margin-bottom: var(--sp-1);
 }
 .bar {
   height: 4px;
   background: var(--cds-layer-accent-01);
-  border-radius: 0;
+  border-radius: var(--radius-none);
   overflow: hidden;
 }
 .bar > div {
@@ -721,12 +769,12 @@ main {
   background: var(--cds-layer-02);
   border: 0;
   border-left: 3px solid var(--cds-interactive);
-  border-radius: 0;
-  padding: var(--sp-05);
-  margin: var(--sp-05) 0;
+  border-radius: var(--radius-none);
+  padding: var(--sp-4);
+  margin: var(--sp-4) 0;
 }
 .impVal {
-  font-size: 1.75rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
   color: var(--cds-text-primary);
 }
@@ -735,35 +783,38 @@ main {
 
 .field {
   display: block;
-  margin-bottom: var(--sp-05);
+  margin-bottom: var(--sp-4);
 }
 .field > span,
 .field label {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
   letter-spacing: 0.32px;
   display: block;
-  margin-bottom: var(--sp-03);
+  margin-bottom: var(--sp-2);
 }
 
-input,
-select,
-textarea {
+/* Plain (non-Carbon) fields elsewhere in the app keep this bridge styling.
+   Carbon fields (.cds--text-input, .cds--select-input, .cds--text-area,
+   .cds--number-input) are excluded so the design system owns its own look. */
+input:not([class*="cds--"]),
+select:not([class*="cds--"]),
+textarea:not([class*="cds--"]) {
   background: var(--cds-field-01);
   color: var(--cds-text-primary);
   border: 0;
   border-bottom: 1px solid var(--cds-border-strong-01);
-  border-radius: 0;
-  padding: 0 var(--sp-05);
+  border-radius: var(--radius-none);
+  padding: 0 var(--sp-4);
   min-height: 2.5rem;
-  font-size: 0.875rem;
+  font-size: var(--type-body-size);
   font-family: inherit;
   width: 100%;
   transition: background var(--dur) var(--ease);
 }
-textarea {
-  padding: var(--sp-04) var(--sp-05);
-  line-height: 1.43;
+textarea:not([class*="cds--"]) {
+  padding: var(--sp-3) var(--sp-4);
+  line-height: var(--lh-body);
 }
 /* Checkboxes and radios are not text fields. Without this they inherit
    width:100% and min-height:2.5rem above and render as a huge block that
@@ -776,14 +827,14 @@ input[type="radio"] {
   flex: 0 0 auto;
   accent-color: var(--cds-interactive);
 }
-input:hover:not(:disabled),
-select:hover:not(:disabled),
-textarea:hover:not(:disabled) {
+input:not([class*="cds--"]):hover:not(:disabled),
+select:not([class*="cds--"]):hover:not(:disabled),
+textarea:not([class*="cds--"]):hover:not(:disabled) {
   background: var(--cds-field-hover-01);
 }
-input:disabled,
-select:disabled,
-textarea:disabled {
+input:not([class*="cds--"]):disabled,
+select:not([class*="cds--"]):disabled,
+textarea:not([class*="cds--"]):disabled {
   color: var(--cds-text-disabled);
   border-bottom-color: transparent;
   cursor: not-allowed;
@@ -798,7 +849,7 @@ input[type="range"] {
 
 .row2 {
   display: flex;
-  gap: var(--sp-05);
+  gap: var(--sp-4);
 }
 .row2 > * {
   flex: 1;
@@ -806,8 +857,12 @@ input[type="range"] {
 }
 .splitWrap {
   display: flex;
-  gap: var(--sp-06);
-  flex-wrap: wrap;
+  /* Explicit: this shares .canvas__stage, which is a column. Both views must sit
+     side by side to be comparable. */
+  flex-direction: row;
+  gap: var(--sp-5);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ---------- tiles & status ---------- */
@@ -815,52 +870,52 @@ input[type="range"] {
 .card {
   background: var(--cds-layer-02);
   border: 0;
-  border-radius: 0;
-  padding: var(--sp-05);
-  margin-bottom: var(--sp-03);
+  border-radius: var(--radius-none);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-2);
 }
 .pill {
   display: inline-block;
-  padding: 0 var(--sp-03);
-  border-radius: 0;
-  font-size: 0.75rem;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-none);
+  font-size: var(--type-caption-size);
   line-height: 1.25rem;
 }
 .issue {
   border-left: 3px solid var(--cds-support-error);
-  padding: var(--sp-04) var(--sp-05);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--cds-notification-background-error, var(--cds-layer-02));
-  border-radius: 0;
-  margin-bottom: var(--sp-03);
-  font-size: 0.875rem;
+  border-radius: var(--radius-none);
+  margin-bottom: var(--sp-2);
+  font-size: var(--type-body-size);
   cursor: pointer;
 }
 .ok {
   border-left: 3px solid var(--cds-support-success);
-  padding: var(--sp-04) var(--sp-05);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--cds-layer-02);
-  border-radius: 0;
-  font-size: 0.875rem;
+  border-radius: var(--radius-none);
+  font-size: var(--type-body-size);
 }
 code {
   background: var(--cds-layer-02);
-  padding: 0 var(--sp-02);
-  border-radius: 0;
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-none);
   color: var(--cds-text-primary);
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
 }
 
 .schemaTbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
-  margin-bottom: var(--sp-05);
+  font-size: var(--type-caption-size);
+  margin-bottom: var(--sp-4);
 }
 .schemaTbl td,
 .schemaTbl th {
   border: 0;
   border-bottom: 1px solid var(--cds-border-subtle-01);
-  padding: var(--sp-03) var(--sp-04);
+  padding: var(--sp-2) var(--sp-3);
   text-align: left;
   vertical-align: top;
 }
@@ -868,19 +923,19 @@ code {
   background: var(--cds-layer-accent-01);
   color: var(--cds-text-primary);
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
 }
 
 /* ---------- toasts (Carbon inline notification) ---------- */
 
 .toasts {
   position: fixed;
-  bottom: var(--sp-05);
+  bottom: var(--sp-4);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-03);
+  gap: var(--sp-2);
   z-index: 9000;
   pointer-events: none;
 }
@@ -888,10 +943,10 @@ code {
   background: var(--cds-layer-02);
   border: 0;
   border-left: 3px solid var(--cds-support-info);
-  border-radius: 0;
-  padding: var(--sp-04) var(--sp-05);
-  font-size: 0.875rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-none);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--type-body-size);
+  box-shadow: var(--shadow-overlay);
   animation: toastIn var(--dur) var(--ease);
 }
 .toast.err {
@@ -907,132 +962,6 @@ code {
   }
 }
 
-/* ---------- node palette (node-RED idiom) ---------- */
-
-.palette {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-03);
-  flex-wrap: wrap;
-  padding: var(--sp-03) 0 var(--sp-04);
-  margin-bottom: var(--sp-03);
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-}
-.palette-lab {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.palette-node {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-02);
-  padding: var(--sp-02) var(--sp-03);
-  font-size: 0.75rem;
-  background: var(--cds-layer-02);
-  border: 1px solid var(--cds-border-subtle-01);
-  border-left-width: 3px;
-  cursor: grab;
-  user-select: none;
-}
-.palette-node:active {
-  cursor: grabbing;
-}
-.palette-node:hover {
-  background: var(--cds-layer-hover-02);
-}
-.palette-swatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 0;
-  flex: 0 0 auto;
-}
-.palette-form {
-  min-height: 1.5rem;
-  width: 1.75rem;
-  padding: 0;
-  font-size: 0.75rem;
-  background: var(--cds-layer-02);
-  color: var(--cds-text-primary);
-  border: 1px solid var(--cds-border-subtle-01);
-}
-.palette-form:hover {
-  background: var(--cds-layer-hover-02);
-}
-.palette-sep {
-  width: 1px;
-  align-self: stretch;
-  background: var(--cds-border-subtle-01);
-  margin: 0 var(--sp-02);
-}
-.palette-hint {
-  font-size: 0.75rem;
-}
-
-/* ---------- data quality / confidence (spec §5) ---------- */
-
-/* An estimated number renders as a range with a hatched fill — visibly soft, so
-   it can never be mistaken for a measured point. */
-.qty {
-  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  white-space: nowrap;
-}
-.qty-hatch {
-  padding: 0 2px;
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 3px,
-    var(--cds-border-subtle-01) 3px,
-    var(--cds-border-subtle-01) 4px
-  );
-  border-bottom: 1px dashed var(--amber);
-}
-.qmark {
-  font-size: 0.75rem;
-  margin-left: 3px;
-  vertical-align: 0.05em;
-}
-
-/* Compact 3-state provenance selector in the inspector label row. */
-.qsel {
-  display: inline-flex;
-  gap: 1px;
-  margin-left: auto;
-}
-.qsel-btn {
-  width: 1.1rem;
-  height: 1.1rem;
-  padding: 0;
-  font-size: 0.75rem;
-  line-height: 1;
-  background: var(--cds-layer-02);
-  color: var(--cds-text-secondary);
-  border: 1px solid transparent;
-  border-radius: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.qsel-btn:hover {
-  background: var(--cds-layer-hover-02);
-}
-
-/* When a field's value is estimated, mark its input so the softness shows even
-   while editing. */
-input.est-field {
-  border-bottom-style: dashed;
-  border-bottom-color: var(--amber);
-}
-
-/* Field label rows that carry a provenance control lay out as a row. */
-.field > span.field-lab-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-02);
-}
-
 /* ---------- help popover ---------- */
 
 .help {
@@ -1041,11 +970,11 @@ input.est-field {
   justify-content: center;
   width: 1rem;
   height: 1rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid var(--cds-text-secondary);
   color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  margin-left: var(--sp-02);
+  font-size: var(--type-caption-size);
+  margin-left: var(--sp-1);
   cursor: help;
   position: relative;
 }
@@ -1058,13 +987,13 @@ input.est-field {
   background: var(--cds-background-inverse, #f4f4f4);
   color: var(--cds-text-inverse, #161616);
   border: 0;
-  border-radius: 0;
-  padding: var(--sp-04);
-  font-size: 0.75rem;
-  line-height: 1.34;
+  border-radius: var(--radius-none);
+  padding: var(--sp-3);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
   letter-spacing: 0.32px;
   z-index: 30;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-overlay);
 }
 .help:hover .pop,
 .help:focus .pop {
@@ -1081,26 +1010,26 @@ input.est-field {
   align-items: center;
   justify-content: center;
   z-index: 9000;
-  padding: var(--sp-05);
+  padding: var(--sp-4);
 }
 .modal {
   background: var(--cds-layer-01);
   border: 0;
-  border-radius: 0;
-  padding: var(--sp-06);
-  max-width: 32rem;
+  border-radius: var(--radius-none);
+  padding: var(--sp-5);
+  max-width: var(--measure-read);
   width: 100%;
 }
 .modal h2 {
-  margin: 0 0 var(--sp-03);
-  font-size: 1.25rem;
+  margin: 0 0 var(--sp-2);
+  font-size: var(--type-section-size);
   font-weight: 400;
 }
 .modal p {
   color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.43;
-  margin: 0 0 var(--sp-06);
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
+  margin: 0 0 var(--sp-5);
 }
 .modal .btn {
   width: 100%;
@@ -1117,26 +1046,75 @@ input.est-field {
   gap: 1px;
 }
 
+/* An overlay over the canvas, not a column beside it. As a column it took its
+   width from the drawing surface on every screen, and closing it left a
+   vertical rail strip that still did. The canvas is now full width whenever
+   the drawer is shut, which is most of the time. */
 .explorer-side {
-  width: 300px;
-  flex: 0 0 300px;
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 20;
   border-right: 1px solid var(--cds-border-strong-01);
   background: var(--cds-layer-01);
-  overflow: auto;
+  box-shadow: var(--shadow-2, 0 0 12px rgba(0, 0, 0, 0.45));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
+/* The drawer's own resize handle, pinned to its right edge. */
+.explorer-side > .resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+}
+/* The drawer is a column: a fixed head, then the scrolling pane under it, so
+   the tabs stay put while a long library scrolls. */
 .explorer {
-  padding: var(--sp-05);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: var(--sp-4);
+}
+.explorer-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* Carbon's absolutely-positioned assistive text escapes a scroll container
+     that is not itself a containing block. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* The library does not scroll as a whole — its search box and its footer stay
+   put and only the list between them moves. */
+.lib {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.side-tabs {
+  display: flex;
+  gap: 1px;
+}
+.explorer-title {
+  margin: 0;
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
 }
 .explorer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sp-05);
+  margin-bottom: var(--sp-4);
 }
 .explorer-actions {
   display: flex;
   gap: 1px;
-  margin-bottom: var(--sp-05);
+  margin-bottom: var(--sp-4);
   flex-wrap: wrap;
 }
 .explorer-tree {
@@ -1147,802 +1125,12 @@ input.est-field {
   outline: 2px solid var(--cds-focus);
   outline-offset: -2px;
 }
-.tree-row,
-.tree-leaf {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-03);
-  padding: var(--sp-03) var(--sp-04);
-  min-height: 2rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  border-left: 2px solid transparent;
-}
-.tree-row:hover,
-.tree-leaf:hover {
-  background: var(--cds-layer-hover-01);
-}
-.tree-leaf.on,
-.tree-row.on {
-  background: var(--cds-layer-selected-01);
-  border-left-color: var(--cds-interactive);
-}
-.tree-twisty {
-  width: 1rem;
-  color: var(--cds-text-secondary);
-  flex: 0 0 auto;
-}
-.tree-grip {
-  cursor: grab;
-  color: var(--cds-text-secondary);
-  flex: 0 0 auto;
-}
-.tree-archive {
-  visibility: hidden;
-  margin-left: auto;
-  color: var(--cds-text-secondary);
-  background: transparent;
-  border: 0;
-}
-.tree-row:hover .tree-archive,
-.tree-leaf:hover .tree-archive {
-  visibility: visible;
-}
-.tree-archive:hover {
-  color: var(--cds-text-error);
-}
-.tree-input {
-  min-height: 2rem;
-  font-size: 0.875rem;
-}
-.tree-confirm {
-  display: flex;
-  gap: 1px;
-  padding: var(--sp-03) var(--sp-04);
-}
 
-/* Carbon TreeView rows: let the label span the row so the name sits left and
-   the action Menu / archive / confirm controls push to the right, and give the
-   drop-target the same focus outline the hand-rolled tree used. */
-.explorer-tree .cds--tree-node__label__details {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.explorer-tree .cds--tree-node__label__text {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-03);
-  width: 100%;
-  overflow: visible;
-}
-.explorer-tree .tree-label {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-03);
-  width: 100%;
-}
-.explorer-tree .tree-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.explorer-tree .tree-controls {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-}
-.explorer-tree .tree-node-row.drop {
-  outline: 2px solid var(--cds-focus);
-  outline-offset: -2px;
-}
+/* ---------- process library: the page ---------- */
 
-.resizer {
-  width: 2px;
-  flex: 0 0 2px;
-  cursor: col-resize;
-  background: var(--cds-border-subtle-01);
-  transition: background var(--dur) var(--ease);
-}
-.resizer:hover,
-.resizer:active {
-  background: var(--cds-interactive);
-}
-
-.side.collapsed {
-  width: auto;
-  flex: 0 0 auto;
-}
-.rail {
-  display: flex;
-  flex-direction: column;
-  padding: var(--sp-03);
-}
-.rail-btn {
-  writing-mode: vertical-rl;
-  min-height: 6rem;
-}
-
-/* ---------- pages (Compare / Site / Archive / Admin) ---------- */
-
-.page {
-  padding: var(--sp-06);
-  max-width: 1584px;
-  margin: 0 auto;
-  width: 100%;
-}
-.page-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-05);
-  margin-bottom: var(--sp-06);
-  flex-wrap: wrap;
-}
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 300;
-  margin: 0;
-}
-.stat-strip {
-  display: flex;
-  gap: 1px;
-  flex-wrap: wrap;
-  margin-bottom: var(--sp-06);
-}
-.stat-tile {
-  background: var(--cds-layer-01);
-  padding: var(--sp-05);
-  min-width: 11rem;
-  flex: 1;
-}
-.page-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  gap: 1px;
-  background: var(--cds-border-subtle-01);
-}
-.chart-card {
-  background: var(--cds-layer-01);
-  padding: var(--sp-05);
-}
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: var(--sp-05);
-}
-
-/* ---------- analysis dashboard ---------- */
-.dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: var(--cds-border-subtle-01);
-  padding: 1px 0;
-}
-.dash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 1px;
-}
-.dash-tile {
-  background: var(--cds-layer-01);
-  padding: var(--sp-05);
-}
-.dash-tile__lab {
-  font-size: 0.75rem;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: var(--textDim);
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.dash-tile__val {
-  font-size: 1.75rem;
-  font-weight: 600;
-  line-height: 1.2;
-  margin-top: 4px;
-}
-.dash-tile__sub {
-  font-size: 0.75rem;
-  color: var(--textDim);
-  margin-top: 2px;
-}
-.dash-panel {
-  background: var(--cds-layer-01);
-  padding: var(--sp-05);
-}
-.dash-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-03);
-  margin-bottom: var(--sp-04);
-}
-.dash-legend {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  font-size: 0.75rem;
-  color: var(--textDim);
-}
-.dash-legend__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  text-transform: capitalize;
-}
-.dash-legend__sw {
-  width: 10px;
-  height: 10px;
-  border-radius: 0;
-  display: inline-block;
-}
-.dash-dag {
-  overflow-x: auto;
-}
-.dash-note,
-.dash-empty {
-  font-size: 0.75rem;
-  color: var(--textDim);
-  margin-top: var(--sp-03);
-}
-.dash-empty {
-  padding: var(--sp-05) 0;
-}
-
-/* ---------- improved view summary ---------- */
-/* ---------- optimize layout modal (before/after) ---------- */
-.opt-modal__head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-03);
-  margin-bottom: var(--sp-05);
-}
-.opt-modal__rationale {
-  font-size: 0.875rem;
-  color: var(--cds-text-secondary);
-  line-height: 1.5;
-  margin: 0;
-}
-.opt-modal__foot {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-05);
-  margin-top: var(--sp-05);
-}
-.opt-modal__note {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  line-height: 1.5;
-  margin: 0;
-}
-.opt-modal__foot .cds--btn {
-  flex: 0 0 auto;
-}
-
-/* ---------- process library (master-detail) ---------- */
-.lib-layout {
-  display: grid;
-  grid-template-columns: minmax(16rem, 22rem) 1fr;
-  gap: 1px;
-  background: var(--cds-border-subtle-01);
-  border: 1px solid var(--cds-border-subtle-01);
-}
-.lib-list,
-.lib-detail {
-  background: var(--cds-background);
-  padding: var(--sp-05);
-  min-width: 0;
-}
-.lib-list {
-  max-height: 72vh;
-  overflow-y: auto;
-}
-.lib-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-03);
-  padding: var(--sp-03) var(--sp-04);
-  cursor: pointer;
-  border: 1px solid transparent;
-  background: var(--cds-layer-01);
-  margin-bottom: 1px;
-}
-.lib-item:hover {
-  background: var(--cds-layer-hover-01);
-}
-.lib-item.on {
-  border-color: var(--teal);
-  background: var(--cds-layer-hover-01);
-}
-.lib-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 0;
-  flex: 0 0 auto;
-}
-.lib-item__name {
-  flex: 1 1 auto;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lib-item__meta {
-  font-size: 0.75rem;
-  color: var(--textDim);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  flex: 0 0 auto;
-}
-.lib-tag {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--amber);
-  border: 1px solid var(--amber);
-  padding: 0 3px;
-  flex: 0 0 auto;
-}
-.lib-member {
-  border: 1px solid var(--cds-border-subtle-01);
-  margin-bottom: 1px;
-}
-.lib-member > summary {
-  padding: var(--sp-03) var(--sp-04);
-  cursor: pointer;
-  font-size: 0.75rem;
-}
-
-/* ---------- element documentation ---------- */
-.element-doc__head {
-  margin-bottom: var(--sp-04);
-}
-.element-doc__title {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.element-doc__sub {
-  font-size: 0.75rem;
-  color: var(--textDim);
-  text-transform: capitalize;
-}
-.element-doc__section {
-  margin-bottom: var(--sp-05);
-}
-.element-doc .cds--structured-list {
-  margin-bottom: 0;
-}
-
-/* ---------- responsive ---------- */
-
-@media (max-width: 1056px) {
-  main {
-    flex-direction: column;
-  }
-  .side,
-  .explorer-side {
-    width: 100%;
-    flex: 1 1 auto;
-    border-left: 0;
-    border-right: 0;
-    border-top: 1px solid var(--cds-border-subtle-01);
-  }
-  .resizer {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Editor input-rail tab bar: Carbon Tabs + a trailing collapse control. */
-.rail-tabbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-02);
-}
-.rail-tabbar .cds--tabs {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* ---------- Analysis: business-analytics dashboard ---------- */
-.bi {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-05);
-}
-/* Feasibility go/no-go banner (§20) — above the rating; the binding constraint
-   is the headline, the gate chips give the full breakdown at a glance. */
-.bi-feas {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-03);
-  padding: var(--sp-05);
-}
-.bi-feas__head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--sp-03);
-}
-.bi-feas__verdict {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.bi-feas__binding {
-  font-size: 0.875rem;
-}
-.bi-feas__gates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-03);
-}
-.bi-feas__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  padding: 0.1rem 0.5rem;
-  border: 1px solid;
-  border-radius: 1rem;
-  white-space: nowrap;
-}
-.bi-feas__mark {
-  font-weight: 700;
-}
-/* Snapshots panel (audit C-10) — capture form + release list + inline diff. */
-.snaps__capture {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-03);
-  padding: var(--sp-04);
-  background: var(--cds-layer-01);
-  border: 1px solid var(--cds-border-subtle-01);
-}
-.snaps__capture .cds--btn {
-  align-self: flex-start;
-}
-.snaps__list {
-  list-style: none;
-  margin: var(--sp-05) 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-03);
-}
-.snaps__item {
-  padding: var(--sp-04);
-  border: 1px solid var(--cds-border-subtle-01);
-  background: var(--cds-layer-01);
-}
-.snaps__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sp-03);
-}
-.snaps__label {
-  font-weight: 600;
-  font-size: 0.8125rem;
-}
-.snaps__time {
-  font-size: 0.6875rem;
-  color: var(--cds-text-secondary);
-  white-space: nowrap;
-}
-.snaps__note {
-  font-size: 0.75rem;
-  margin-top: 2px;
-}
-.snaps__meta {
-  font-size: 0.6875rem;
-  color: var(--cds-text-secondary);
-  margin-top: 2px;
-}
-.snaps__actions {
-  display: flex;
-  gap: var(--sp-03);
-  margin-top: var(--sp-03);
-}
-.snaps__btn {
-  background: none;
-  border: 1px solid var(--cds-border-subtle-01);
-  color: var(--cds-text-primary);
-  font-size: 0.6875rem;
-  padding: 0.15rem 0.5rem;
-  cursor: pointer;
-}
-.snaps__btn:hover {
-  background: var(--cds-layer-hover-01);
-}
-.snaps__btn--danger {
-  color: #d96b5b;
-}
-.snaps__diff {
-  margin-top: var(--sp-03);
-  padding-top: var(--sp-03);
-  border-top: 1px solid var(--cds-border-subtle-01);
-}
-.snaps__diffhead {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-03);
-  font-size: 0.75rem;
-  margin-bottom: var(--sp-03);
-}
-.snaps__difflist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.snaps__difflist li {
-  display: flex;
-  gap: var(--sp-03);
-  align-items: baseline;
-  font-size: 0.6875rem;
-}
-.snaps__diffkind {
-  font-weight: 700;
-  width: 1rem;
-  flex: 0 0 auto;
-}
-.snaps__diffname {
-  font-weight: 500;
-  flex: 0 0 auto;
-}
-.snaps__difffields {
-  color: var(--cds-text-secondary);
-}
-/* Cycle-variability card (audit C-09) — per-station p50/p95/p99 rows. */
-.bi-var {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-02);
-}
-.bi-var__line {
-  font-size: 0.8125rem;
-  margin-bottom: var(--sp-02);
-}
-.bi-var__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sp-03);
-  padding: 0.15rem 0;
-  cursor: pointer;
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-}
-.bi-var__row:hover {
-  background: var(--cds-layer-hover-01);
-}
-.bi-var__name {
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-.bi-var__stats {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  white-space: nowrap;
-}
-.bi-var__flag {
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.6875rem;
-}
-/* F-pattern — top bar: the hero grade anchors top-left, KPIs sweep right. */
-.bi__topbar {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1.1fr) 3fr;
-  gap: var(--sp-03);
-  align-items: stretch;
-}
-/* Supporting row under the full-width primary chart: the optimisation signal +
-   the cost/space breakdowns, wrapping as the width allows. */
-.bi__support {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: var(--sp-05);
-  align-items: start;
-}
-.bi__support > * {
-  min-width: 0; /* let scrollable children shrink inside their grid track */
-}
-.bi__bottom {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-05);
-}
-@media (max-width: 62rem) {
-  .bi__topbar {
-    grid-template-columns: 1fr;
-  }
-}
-/* The hero grade — the single most important figure, top-left. */
-.bi-hero {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: var(--sp-05);
-}
-.bi-hero__lab {
-  font-size: 0.75rem;
-  letter-spacing: 0.32px;
-  text-transform: uppercase;
-  color: var(--cds-text-secondary);
-}
-.bi-hero__grade {
-  font-family: "IBM Plex Sans", sans-serif;
-  font-size: 3.5rem;
-  font-weight: 300;
-  line-height: 1;
-  margin-top: var(--sp-03);
-}
-.bi-hero__score {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 1.25rem;
-  margin-top: var(--sp-02);
-}
-.bi-hero__score span {
-  color: var(--cds-text-secondary);
-  font-size: 0.875rem;
-}
-.bi-hero__sub {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  margin-top: var(--sp-03);
-  line-height: 1.4;
-}
-.bi-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--sp-03);
-}
-.bi-kpi {
-  padding: var(--sp-05);
-}
-.bi-kpi__lab {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-02);
-  font-size: 0.75rem;
-  letter-spacing: 0.32px;
-  text-transform: uppercase;
-  color: var(--cds-text-secondary);
-}
-.bi-kpi__val {
-  font-size: 1.75rem;
-  font-weight: 400;
-  line-height: 1.2;
-  margin-top: var(--sp-02);
-  font-family: "IBM Plex Sans", sans-serif;
-}
-.bi-kpi__sub {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  margin-top: var(--sp-02);
-}
-.bi-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--sp-05);
-}
-.bi-row--2 {
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-}
-.bi-card {
-  padding: var(--sp-05);
-}
-/* A card that spans the full width of its grid row (the flow chart wants room). */
-.bi-card--wide {
-  grid-column: 1 / -1;
-}
-.bi-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-03);
-  margin-bottom: var(--sp-04);
-}
-.bi-card__title {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-02);
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin: 0;
-}
-.bi-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-04);
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-}
-.bi-legend__item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-02);
-}
-.bi-legend__sw {
-  width: 0.75rem;
-  height: 0.75rem;
-  flex: 0 0 auto;
-  display: inline-block;
-}
-.bi-split__bar {
-  display: flex;
-  height: 0.75rem;
-  width: 100%;
-  overflow: hidden;
-  background: var(--cds-layer-accent-01);
-  margin-bottom: var(--sp-03);
-}
-.bi-split__seg {
-  height: 100%;
-  border-right: 2px solid var(--cds-layer-01);
-}
-.bi-split__seg:last-child {
-  border-right: 0;
-}
-.bi-scroll {
-  overflow-x: auto;
-}
-.bi-note {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  margin-top: var(--sp-04);
-  line-height: 1.4;
-}
-.bi-empty {
-  font-size: 0.875rem;
-  color: var(--cds-text-secondary);
-  padding: var(--sp-05) 0;
-}
-
-/* Material-flow card: inline KPI row + sub-label. */
-.bi-flowkpis {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-06);
-  margin-bottom: var(--sp-05);
-}
-.bi-flowkpi {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-}
-.bi-flowkpi__lab {
-  display: block;
-  margin-bottom: var(--sp-02);
-}
-.bi-flowkpi__val {
-  font-size: 1.25rem;
-  font-weight: 400;
-  color: var(--cds-text-primary);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-}
-.bi-card__sublab {
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-  margin-bottom: var(--sp-03);
-}
-
-/* ---- Concept catalog page (ported from the planner rework) ---- */
-.u-caption { font-size: 0.75rem; color: var(--cds-text-secondary); }
+/* Two panes: the list you scan, and the one entry you are working on. The
+   library spent one release inside a 320px drawer, which is not somewhere a
+   plant's process data can be maintained. */
 .lib-page__cols {
   display: grid;
   grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
@@ -2076,8 +1264,300 @@ input.est-field {
   min-width: 0;
 }
 
-.lib-page__section { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--cds-text-secondary); margin: 1rem 0 .25rem; }
-.lib-page__hintTitle { font-size: 0.875rem; font-weight: 600; margin-bottom: .5rem; }
+/* ---------- process library: the picker ---------- */
+
+.lib__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  margin-top: var(--sp-2);
+}
+/* The picker inside the editor rail, under Add-from-library. */
+.pnl-picker {
+  max-height: 22rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--sp-3);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+
+.lib__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  margin-top: var(--sp-3);
+}
+.lib__item {
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.lib__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+}
+/* The name is the row's own disclosure, so the whole label is the hit target
+   rather than a chevron the width of a fingernail. */
+.lib__disclose {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: none;
+  border: 0;
+  padding: var(--sp-2) 0;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-size: var(--type-body-size);
+  text-align: left;
+  cursor: pointer;
+}
+.lib__disclose:hover {
+  color: var(--cds-link-primary);
+}
+.lib__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib__sec {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+}
+.lib__edit {
+  padding: 0 0 var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.lib__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--sp-3);
+}
+.lib__editFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.lib__foot {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+.lib__empty {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-body);
+  padding: var(--sp-4) 0;
+}
+
+/* The same list under the parts matrix, for building a routing from it.
+   Inline rather than a pop-over: the table is its own scroll container, and a
+   floating panel anchored to a cell inside it has nowhere safe to sit. */
+.parts__picker {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
+  max-height: 26rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pnl-addstep {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+}
+
+/* The field and its library button share the cell, so the button does not
+   become another column the year headers have to align around. */
+.parts__routing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.parts__routing .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.parts__pickerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.tree-row,
+.tree-leaf {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 2rem;
+  font-size: var(--type-body-size);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.tree-row:hover,
+.tree-leaf:hover {
+  background: var(--cds-layer-hover-01);
+}
+.tree-leaf.on,
+.tree-row.on {
+  background: var(--cds-layer-selected-01);
+  border-left-color: var(--cds-interactive);
+}
+.tree-twisty {
+  width: 1rem;
+  color: var(--cds-text-secondary);
+  flex: 0 0 auto;
+}
+.tree-grip {
+  cursor: grab;
+  color: var(--cds-text-secondary);
+  flex: 0 0 auto;
+}
+.tree-archive {
+  visibility: hidden;
+  margin-left: auto;
+  color: var(--cds-text-secondary);
+  background: transparent;
+  border: 0;
+}
+.tree-row:hover .tree-archive,
+.tree-leaf:hover .tree-archive {
+  visibility: visible;
+}
+.tree-archive:hover {
+  color: var(--cds-text-error);
+}
+.tree-input {
+  min-height: 2rem;
+  font-size: var(--type-body-size);
+}
+.tree-confirm {
+  display: flex;
+  gap: 1px;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.resizer {
+  width: 2px;
+  flex: 0 0 2px;
+  cursor: col-resize;
+  background: var(--cds-border-subtle-01);
+  transition: background var(--dur) var(--ease);
+}
+.resizer:hover,
+.resizer:active {
+  background: var(--cds-interactive);
+}
+
+.side.collapsed {
+  width: auto;
+  flex: 0 0 auto;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-2);
+}
+
+/* ---------- pages (Compare / Site / Archive / Admin) ---------- */
+
+.page {
+  padding: var(--sp-5);
+  max-width: var(--measure-wide);
+  margin: 0 auto;
+  width: 100%;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+/* The leading ghost button carries Carbon's internal padding, which pushed its
+   label a pixel-ish off the page's left edge — enough to read as ragged next to
+   the prose below it. Pull the box, not the label. */
+.page-head > .cds--btn:first-child {
+  margin-left: calc(-1 * var(--sp-4));
+}
+.page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-left: auto;
+}
+.page-head__who {
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
+}
+.page-title {
+  font-size: var(--type-title-size);
+  font-weight: 300;
+  margin: 0;
+}
+.stat-strip {
+  display: flex;
+  gap: 1px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+.stat-tile {
+  background: var(--cds-layer-01);
+  padding: var(--sp-4);
+  min-width: 11rem;
+  flex: 1;
+}
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1px;
+  background: var(--cds-border-subtle-01);
+}
+.chart-card {
+  background: var(--cds-layer-01);
+  padding: var(--sp-4);
+}
+/* ---------- analysis page ----------
+ * Given the full width, the six stages are sections in a two-column read
+ * instead of a numbered single column with a jump-nav. The nav only ever
+ * existed to survive a 360px rail. */
+
+.anp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: var(--sp-6);
+  align-items: start;
+}
+.anp__sec--wide {
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.anp__h {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--type-section-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
+/* The panels were written for a narrow rail and set their own padding. */
+.anp .pad,
+.asp .pad {
+  padding: 0;
+}
 
 /* ---------- assessment report ----------
  * A document, not a dashboard: one column, numbered sections, generous rhythm,
@@ -2458,35 +1938,81 @@ input.est-field {
   }
 }
 
-/* KPI meter / share bar / metric tile — analysisKit surface styles */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--sp-4);
+}
+
+/* ---------- analysis kit (Carbon-composed readout panels) ----------
+ *
+ * Layout-only helpers for the standardized Rating / Balance / Automation / Cost
+ * panels. Every widget in those panels is a Carbon component; these classes only
+ * arrange them (flex rows, spacing, Carbon type tokens). No colours beyond the
+ * Carbon theme tokens live here. */
+
+.ak-panel {
+  padding: var(--sp-5) var(--sp-4);
+}
+
+/* Vertical rhythm between sections, matching Carbon's spacing-06. */
+.ak-panel > .cds--stack-vertical {
+  width: 100%;
+}
+
+.ak-section {
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.ak-footnote {
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+
 /* KPI meter: name + status Tag over a Carbon ProgressBar. */
 .ak-meter__head,
 .ak-share__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-03);
-  margin-bottom: var(--sp-02);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 .ak-meter__name,
 .ak-share__label {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-02);
+  gap: var(--sp-1);
   min-width: 0;
 }
 .ak-meter__value {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-03);
+  gap: var(--sp-2);
   flex: 0 0 auto;
 }
 .ak-meter__raw,
+.ak-share__sub {
+  margin-top: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-snug);
+}
 .ak-share__figure {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
 }
 
@@ -2501,216 +2027,534 @@ input.est-field {
   outline-offset: 2px;
 }
 
+/* Tiles sit ON the layer-01 side panel; a Carbon Tile defaults to that same
+   layer and vanishes. Raise the readout/editor tiles to layer-02 so cards,
+   metrics and list rows read as distinct surfaces. */
+.ak-metric,
+.ak-row,
+.ak-breakdown,
+.ak-empty,
+.wl-el {
+  background: var(--cds-layer-02);
+}
+.ak-row.cds--tile--clickable:hover,
+.wl-el.cds--tile--clickable:hover {
+  background: var(--cds-layer-hover-02);
+}
+
 /* Metric tile: a headline figure in a Carbon Tile. */
 .ak-metric {
-  padding: var(--sp-05);
+  padding: var(--sp-4);
+}
+
+/* Keyboard shortcut reference: key cap on the left, prose on the right. */
+.ak-shortcut {
+  display: grid;
+  grid-template-columns: 10.5rem 1fr;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--type-body-size);
+  color: var(--cds-text-secondary);
+  padding: var(--sp-1) 0;
+}
+
+.ak-kbd {
+  justify-self: start;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: var(--type-caption-size);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: var(--radius-none);
+  padding: 1px 6px;
+  color: var(--cds-text-primary);
+  white-space: nowrap;
+}
+
+/* Empty state: what a readout tab shows before there is anything to read out. */
+.ak-empty {
+  padding: var(--sp-5) var(--sp-4);
+}
+.ak-empty__title {
+  font-size: var(--type-section-size);
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--sp-2);
+}
+.ak-empty__body {
+  font-size: var(--type-body-size);
+  line-height: var(--lh-snug);
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+.ak-empty__action {
+  margin-top: var(--sp-4);
+}
+
+/* Empty canvas: the layout is a blank rectangle until the first step exists, so
+   the call to action lives on the canvas rather than only in the side rail. */
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  text-align: center;
+  pointer-events: none;
+  padding: var(--sp-4);
+}
+.canvas-empty__title {
+  font-size: var(--type-section-size);
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+.canvas-empty__body {
+  font-size: var(--type-body-size);
+  color: var(--cds-text-helper);
+  margin: 0;
+  max-width: 40ch;
+  line-height: var(--lh-snug);
+}
+.canvas-empty .cds--btn {
+  pointer-events: auto;
 }
 .ak-metric__label {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
   letter-spacing: 0.32px;
   font-weight: 600;
   text-transform: uppercase;
-  margin-bottom: var(--sp-02);
+  margin-bottom: var(--sp-1);
 }
 .ak-metric__value {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  font-size: 1.75rem;
+  font-size: var(--type-title-size);
   font-weight: 300;
-  line-height: 1.1;
+  line-height: var(--lh-tight);
   color: var(--cds-text-primary);
 }
 .ak-metric__unit {
-  font-size: 0.875rem;
+  font-size: var(--type-body-size);
   font-weight: 400;
   color: var(--cds-text-secondary);
 }
 .ak-metric__sub {
-  font-size: 0.75rem;
+  font-size: var(--type-caption-size);
   color: var(--cds-text-secondary);
-  margin-top: var(--sp-03);
-  line-height: 1.34;
+  margin-top: var(--sp-2);
+  line-height: var(--lh-snug);
 }
 
-
-/* ---------- assessment report — dashboard layout additions ----------
- * The report reuses the analysis dashboard's .bi vocabulary (hero, KPI band,
- * cards). These are the extras the document needs on top of it: a tile grid for
- * facts, a clean read-only table, and a horizontal scroller for wide tables. */
-
-.rep__topbar {
-  margin-bottom: var(--sp-03);
+/* Inline Toggletip help affordance sits on the text baseline. */
+.ak-help {
+  display: inline-flex;
 }
-.rep__support {
-  margin: 0;
-}
-
-/* A responsive grid of metric tiles — the airy stat-tile row. */
-.bi-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--sp-03);
-  margin: var(--sp-03) 0 var(--sp-05);
-}
-
-/* Wide tables scroll inside their card rather than pushing the page sideways. */
-.rep__scroll {
-  overflow-x: auto;
-}
-
-/* A read-only document table — lighter than the editor grids: no fills, just
-   rules, tabular figures, and a quietly emphasised total / picked / flagged row. */
-.bi-tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--type-body-size, 0.875rem);
-}
-.bi-tbl th {
-  text-align: left;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.32px;
-  text-transform: uppercase;
+.ak-help .cds--toggletip-button {
+  display: inline-flex;
+  align-items: center;
   color: var(--cds-text-secondary);
-  padding: var(--sp-02) var(--sp-03);
-  border-bottom: 1px solid var(--cds-border-strong-01);
-  white-space: nowrap;
 }
-.bi-tbl td {
-  padding: var(--sp-02) var(--sp-03);
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-  vertical-align: middle;
+
+/* Compact list-row tiles (links, ROI, potential, connections). */
+.ak-row {
+  padding: var(--sp-3) var(--sp-4);
 }
-.bi-tbl td .cds--tag {
-  margin: 0 0 0 var(--sp-02);
+.ak-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
 }
-.bi-tbl__num {
-  text-align: right;
+.ak-row__sub {
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-1);
+  line-height: var(--lh-snug);
+}
+/* Improvement card header: confidence chip stays top-aligned beside a title
+   that may wrap to two lines. */
+.ak-imp__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.ak-imp__title {
+  flex: 1;
+  min-width: 0;
+}
+.ak-kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  font-size: var(--type-body-size);
+  padding: var(--sp-1) 0;
+}
+.ak-kv__k {
+  color: var(--cds-text-secondary);
+}
+.ak-kv__v {
   font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  font-variant-numeric: tabular-nums;
+}
+
+/* Advice lists inside Carbon notifications. */
+.ak-adviceList {
+  list-style: none;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+}
+.ak-adviceList li {
+  position: relative;
+  padding-left: var(--sp-4);
+  margin-bottom: var(--sp-1);
+  line-height: var(--lh-snug);
+}
+.ak-adviceList li::before {
+  content: "·";
+  position: absolute;
+  left: var(--sp-2);
+}
+.ak-adviceList li:last-child {
+  margin-bottom: 0;
+}
+
+/* Progress meter inside a clickable list row sits below the header. */
+.ak-row .cds--progress-bar {
+  margin-top: var(--sp-2);
+}
+
+/* Two-up field row for the Carbon editor forms (replaces the old .row2). */
+.fk-row {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.fk-row > * {
+  flex: 1;
+  min-width: 0;
+}
+/* Inline action button aligned to the bottom of an adjacent field. */
+.fk-inline {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+}
+.fk-inline > .cds--form-item,
+.fk-inline > .cds--text-input-wrapper,
+.fk-inline > .cds--select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A list row: a full-width main control/label plus a trailing icon action. */
+.fk-listrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.fk-listrow__main {
+  flex: 1;
+  min-width: 0;
+}
+button.fk-listrow__main {
+  justify-content: flex-start;
+  max-width: none;
+}
+.fk-listrow__text {
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.bi-tbl__total td,
-.bi-tbl__pick td {
+
+/* Destructive icon-only ghost button (Carbon reserves danger kinds for
+   text buttons, so an icon delete gets its red accent here instead). */
+.fk-danger.cds--btn--ghost {
+  color: var(--cds-button-danger-secondary);
+}
+.fk-danger.cds--btn--ghost:hover:not(:disabled) {
+  background: var(--cds-button-danger-primary);
+  color: var(--cds-text-on-color);
+}
+
+/* ---------- variants (scenarios) ----------
+ * Saving is a toolbar action, so its modal is the one place variants are saved,
+ * loaded and deleted. */
+
+.modal.scn {
+  max-width: var(--measure-read);
+}
+/* `.modal .btn` stretches plain buttons full width for the stacked confirm
+   dialogs; this modal uses Carbon buttons in rows, so the footer aligns them
+   itself rather than inheriting that. */
+.scn__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+/* Saved-at, trailing its variant's name in both the menu and the list. */
+.scn__when {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  margin-left: var(--sp-2);
+}
+
+/* Cycle-breakdown editor tile. */
+.ak-breakdown {
+  padding: var(--sp-4);
+}
+
+/* ---------- workload panel ---------- */
+.wl-metrics {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: var(--type-body-size);
+}
+.wl-metrics__lab {
+  color: var(--cds-text-secondary);
+}
+.wl-classbar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  margin: var(--sp-3) 0 var(--sp-2);
   background: var(--cds-layer-accent-01);
-  font-weight: 600;
 }
-.bi-tbl__flag td:first-child {
-  box-shadow: inset 3px 0 0 var(--support-error, #da1e28);
+.wl-classbar > div {
+  min-width: 0;
+}
+.wl-el {
+  padding: var(--sp-3) var(--sp-4);
+}
+.wl-el__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--cds-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.wl-el__name {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.wl-el__sec {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-secondary);
+  flex: 0 0 auto;
+}
+.wl-el__body {
+  margin-top: var(--sp-3);
+}
+.ak-breakdown__total {
+  border-top: 1px solid var(--cds-border-subtle-01);
+  padding-top: var(--sp-3);
 }
 
-/* ---------- concepts + recommend pages (dashboard language) ----------
- * Both wear the .bi vocabulary (PageHead, cards, KPI band, .bi-tbl). These are
- * the master-detail and form extras the concepts editor needs on top of it. */
+/* ---------- responsive ---------- */
 
-.cc__cols {
-  display: grid;
-  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
-  gap: var(--sp-05);
-  align-items: start;
-}
-@media (max-width: 42rem) {
-  .cc__cols {
-    grid-template-columns: 1fr;
+@media (max-width: 1056px) {
+  main {
+    flex-direction: column;
+  }
+  .side,
+  .explorer-side {
+    width: 100%;
+    flex: 1 1 auto;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--cds-border-subtle-01);
+  }
+  .resizer {
+    display: none;
   }
 }
 
-.cc__rows {
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* An icon-only destructive action. Carbon's icon-only Button refuses the
+   danger kinds, so the colour is applied here rather than lost. */
+.cds--btn.btn--dangerIcon {
+  color: var(--cds-text-error);
+}
+.cds--btn.btn--dangerIcon:hover:not(:disabled) {
+  background: var(--cds-button-danger-primary);
+  color: var(--cds-text-on-color);
+}
+
+/* ---------- concept crossover ---------- */
+
+.xover__ask {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
   display: flex;
   flex-direction: column;
-  margin: calc(-1 * var(--sp-03)) 0 var(--sp-04);
+  align-items: flex-start;
+  gap: var(--sp-2);
 }
-.cc__row {
+.xover {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.xover > * {
+  width: 100%;
+}
+/* The volume axis, log-scaled, one block per stretch. Room above for the
+   "you are here" label so it never sits on top of a block. */
+.xover__band {
+  position: relative;
+  height: 1.5rem;
+  margin-top: var(--sp-6);
+  background: var(--cds-layer-01);
+}
+.xover__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--cds-background);
+}
+.xover__seg--none {
+  /* Nothing meets demand here — hatched rather than coloured, because it is
+     an absence and should not read as a sixth concept. */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--cds-layer-02) 0 4px,
+    transparent 4px 8px
+  );
+}
+.xover__you {
+  position: absolute;
+  top: -0.5rem;
+  bottom: -0.5rem;
+  width: 2px;
+  background: var(--cds-text-primary);
+}
+.xover__youLab {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  padding: 0 var(--sp-1);
+  white-space: nowrap;
+  font-size: var(--type-caption-size);
+  color: var(--cds-text-primary);
+  background: var(--cds-background);
+}
+.xover__axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+}
+.xover__dot {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--sp-2);
+  vertical-align: baseline;
+}
+.xover__hereTag {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+}
+.xover__table {
+  width: 100%;
+}
+
+/* ---------- decision weights & sensitivity ---------- */
+
+.dw {
+  margin: var(--sp-4) 0;
+  padding: var(--sp-4);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.dw__head {
   display: flex;
   align-items: center;
-  gap: var(--sp-02);
-  width: 100%;
-  padding: var(--sp-03) var(--sp-02);
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--cds-border-subtle-01);
-  border-left: 2px solid transparent;
-  color: var(--cds-text-primary);
-  font: inherit;
-  font-size: var(--type-body-size, 0.875rem);
-  text-align: left;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
 }
-.cc__row:hover {
-  background: var(--cds-layer-hover);
-}
-.cc__row.on {
-  border-left-color: var(--cds-interactive, #4589ff);
-  background: var(--cds-layer-selected);
-}
-.cc__rowName {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-weight: 500;
-}
-.cc__rowMeta {
-  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  font-size: 0.75rem;
-  color: var(--cds-text-secondary);
-}
-.cc__new {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--sp-03);
-}
-.cc__new .cds--form-item {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.cc__editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-03);
-}
-.cc__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--sp-03);
-}
-.cc__forms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-02);
-}
-.cc__section {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.32px;
-  font-weight: 600;
-  color: var(--cds-text-secondary);
-  margin: var(--sp-04) 0 var(--sp-02);
-}
-.cc__customRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--sp-03);
-}
-.cc__customRow .cds--form-item {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* recommend: the demand + weight inputs sit in the tile grid / card */
-.rec__field .cds--form-item,
-.rec__weights {
-  min-width: 0;
-}
-.rec__weights {
+.dw__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--sp-03) var(--sp-06);
+  gap: var(--sp-4);
+}
+.dw__row .cds--slider__range-label {
+  display: none;
+}
+.planner__weightsBar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.sens__at {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  margin-right: var(--sp-2);
+}
+.rec__inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  max-width: 42rem;
+}
+.rec__take {
+  margin: var(--sp-4) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
 }
 
-/* a clickable table row (recommend's ranked concepts) */
-.bi-tbl__click {
-  cursor: pointer;
+/* The weighted score, leading its row. */
+.planner__conceptCell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
 }
-.bi-tbl__click:hover td {
-  background: var(--cds-layer-hover);
+.planner__score {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  padding: 2px var(--sp-2);
+  text-align: center;
+  font-size: var(--type-body-size);
+  font-weight: var(--fw-semibold);
+  color: var(--cds-text-primary);
+  background: var(--cds-layer-02);
+  border-left: 2px solid var(--cds-interactive);
+}
+.planner__criteria {
+  color: var(--cds-text-placeholder);
 }

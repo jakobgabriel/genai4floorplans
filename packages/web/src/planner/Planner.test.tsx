@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent, within, waitFor } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
 import { fromCapabilities } from "@flowplan/core/model/library";
@@ -17,8 +17,8 @@ function renderApp() {
 /** The library starts empty and nothing is seeded, so a test that needs one
  *  puts it there — the same import the empty state offers. */
 function seedLibrary() {
-  const processes = fromCapabilities(CAPABILITY_HINTS.map((h) => ({ capabilityId: h.capabilityId, label: (h.capabilityId.split(".").pop() ?? h.capabilityId) })), (i) => "lib_" + i);
-  localStorage.setItem("flowplan_process_library", JSON.stringify({ processes, tags: [] }));
+  const processes = fromCapabilities(CAPABILITY_HINTS, (i) => "lib_" + i);
+  localStorage.setItem("flowplan_library", JSON.stringify({ processes, tags: [] }));
 }
 
 /** The inputs of one part row: part number, routing, then one per program year. */
@@ -181,18 +181,11 @@ describe("planner — parts & demand", () => {
     fireEvent.click(screen.getByRole("button", { name: /Build PN-001's routing from the library/ }));
 
     const pick = document.querySelector(".parts__picker") as HTMLElement;
-    // Each library process is an "Add — <name>" button; clicking one appends it
-    // to the part's routing. (Names come from the seeded capability catalog, so
-    // assert the mechanism, not a specific process name.)
-    const addButtons = within(pick).getAllByRole("button", { name: /^Add — / });
-    expect(addButtons.length).toBeGreaterThan(1);
-    fireEvent.click(addButtons[0]);
-    const afterOne = row(0)[1].value;
-    expect(afterOne.length).toBeGreaterThan(0);
-    fireEvent.click(addButtons[1]);
-    // A second pick extends the routing past the first.
-    expect(row(0)[1].value.length).toBeGreaterThan(afterOne.length);
-    expect(row(0)[1].value).toContain(" > ");
+    fireEvent.click(within(pick).getByRole("button", { name: /Add — Load \/ unload/ }));
+    expect(row(0)[1].value).toBe("Load / unload 15");
+
+    fireEvent.click(within(pick).getByRole("button", { name: /Add — Press/ }));
+    expect(row(0)[1].value).toBe("Load / unload 15 > Press 30");
 
     fireEvent.click(within(pick).getByRole("button", { name: "Done" }));
     expect(document.querySelector(".parts__picker")).toBeNull();
@@ -227,8 +220,11 @@ describe("planner — guided flow", () => {
     renderApp();
     toConcepts();
     fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
-    // Refine lands in the editor (chromeless — the stepper gives way to canvas).
+    // The editor is a stage of the process, not a separate destination.
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
+    // ...and the process stepper is still present around it.
+    expect(screen.getByText("Refine")).toBeTruthy();
+    expect(screen.getByText("Summary")).toBeTruthy();
   });
 
   it("reaches the Summary stage after refining", () => {
@@ -241,30 +237,20 @@ describe("planner — guided flow", () => {
     expect(screen.getByText("Loaded cost/part")).toBeTruthy();
   });
 
-  it("opens the full assessment report from the summary", async () => {
-    renderApp();
-    toConcepts();
-    fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
-    // The summary offers the document view; it reads as a record, not a panel.
-    fireEvent.click(screen.getByRole("button", { name: "Open the full report" }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Assessment report" })).toBeTruthy());
-    // The report prints, and it names the concept that was taken.
-    expect(screen.getByRole("button", { name: "Print" })).toBeTruthy();
-  });
-
-  it("opens the sample straight into the editor", () => {
+  it("keeps the stepper available from inside the editor", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
+    // Every earlier stage is reachable again from the stepper.
+    fireEvent.click(screen.getByText("Parts & demand"));
+    expect(screen.getByRole("heading", { name: "Parts & demand" })).toBeTruthy();
   });
 
   it("runs in four stages, not six", () => {
     renderApp();
-    // The stepper shows the four stages during planning (the editor is chromeless).
-    fireEvent.click(screen.getByText("Plan a cell"));
+    fireEvent.click(screen.getByText("See an example"));
     ["Parts & demand", "Concepts", "Refine", "Summary"].forEach((s) =>
-      expect(screen.getAllByText(s).length).toBeGreaterThan(0),
+      expect(screen.getByText(s)).toBeTruthy(),
     );
     expect(screen.queryByText("Situation")).toBeNull();
     expect(screen.queryByText("Process")).toBeNull();

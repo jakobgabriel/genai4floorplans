@@ -20,13 +20,6 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-// The right rail is inputs-only now; all derived analysis lives in the dedicated
-// Analysis view. Open it, then pick an analysis sub-tab.
-function openAnalysis(subTab: string) {
-  fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
-  fireEvent.click(screen.getByRole("tab", { name: subTab }));
-}
-
 // Smoke tests: the App must mount and wire its panels/views without crashing —
 // the type checker can't catch a bad prop hand-off or a dead reducer branch.
 describe("App", () => {
@@ -35,90 +28,141 @@ describe("App", () => {
     expect(screen.getByText("Start blank")).toBeTruthy();
   });
 
-  it("loads the sample cell and shows its rating + stations", () => {
+  it("loads the sample cell and opens the editor on its flow", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
-    // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
-    openAnalysis("Overview");
-    // The Overview is now a Carbon dashboard (stat tiles + Yamazumi + precedence).
-    expect(screen.getByText("Yamazumi — cycle time by station")).toBeTruthy();
+    // The rail edits the cell; the assessment is not in it.
+    expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Element" })).toBeTruthy();
+    expect(screen.queryByText("Actual-state rating")).toBeNull();
   });
 
-  it("switches between analysis sub-tabs without error", () => {
+  it("makes stations keyboard-reachable: a station is focusable, focus selects it, arrows move it", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
-    openAnalysis("Balance");
-    expect(screen.getByText(/Line balance & bottleneck/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Automation" }));
+    const cnc = document.querySelector('[data-station-id="cnc"]') as SVGGElement;
+    // The canvas was mouse-only — no tabindex, role or label on a station.
+    expect(cnc.getAttribute("tabindex")).toBe("0");
+    expect(cnc.getAttribute("role")).toBe("button");
+    expect(cnc.getAttribute("aria-label")).toMatch(/CNC Turning/);
+    // Focusing selects it (so the already-wired arrow move acts on it)...
+    const x0 = cnc.getAttribute("data-station-x");
+    fireEvent.focus(cnc);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect((document.querySelector('[data-station-id="cnc"]') as SVGGElement).getAttribute("data-station-x")).not.toBe(x0);
+  });
+
+  it("reads the whole analysis on its own page, in path order", async () => {
+    const { container } = renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Analysis" })).toBeTruthy());
+
+    const heads = [...container.querySelectorAll(".anp__h")].map((h) => h.textContent);
+    expect(heads).toEqual([
+      "Verdict",
+      "Flow & layout",
+      "Balance & bottleneck",
+      "Yield",
+      "Automation",
+      "Cost",
+    ]);
+    // Each stage rendered its body, not just its heading.
+    expect(screen.getByText(/Where the cost sits/)).toBeTruthy();
+    expect(screen.getByText(/Throughput per step/)).toBeTruthy();
     expect(screen.getByText(/Automation chaining/)).toBeTruthy();
-    // Schema lives behind the "Schema" tab in the inputs rail.
-    fireEvent.click(screen.getByRole("button", { name: "Actual" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Schema" }));
-    expect(screen.getByText(/Data model/)).toBeTruthy();
+    expect(screen.getByText(/Cost & ROI/)).toBeTruthy();
   });
 
-  // AI Chat is hidden for now, so there is no AI tab to drive. The offline
-  // strategist path is still covered by the engine/store tests.
-  it.skip("generates AI proposals from the Analysis AI Chat tab", async () => {
-    // intentionally skipped while the AI surface is hidden.
+  it("saves a variant from the toolbar and lists it in the Variants menu", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    // Saving is a toolbar action — reachable without opening any panel.
+    fireEvent.click(screen.getByRole("button", { name: /Save variant/ }));
+    // Both the toolbar button and the dialog's say "Save variant"; the dialog is later in the DOM.
+    const saves = screen.getAllByRole("button", { name: "Save variant" });
+    fireEvent.click(saves[saves.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Variants \(1\)/ }));
+    expect(screen.getByRole("menuitem", { name: /Manage variants/ })).toBeTruthy();
+    expect(screen.getAllByText(/Hydrobuchse/).length).toBeGreaterThan(0);
   });
 
-  it("renders the DAG view and the Yield panel", () => {
+  it("opens the assessment report as its own page", async () => {
+    const { container } = renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open report" }));
+    // hashchange is async.
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Assessment report" })).toBeTruthy());
+    const heads = [...container.querySelectorAll(".rep__secTitle")].map((h) => h.textContent);
+    expect(heads).toEqual(["1The brief", "2The concept", "3The layout", "4The assessment", "5What is still open"]);
+    // Read-only: the panels' editors have no place in a document.
+    expect(screen.queryByText("Rating weights")).toBeNull();
+    expect(screen.getByRole("button", { name: /Print/ })).toBeTruthy();
+  });
+
+  it("switches between the two rail tabs without error", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    fireEvent.click(screen.getByRole("tab", { name: "Element" }));
+    expect(screen.getByText("No step selected")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Flow" }));
+    expect(screen.getByText(/Draw connections/)).toBeTruthy();
+    // Schema lives behind the help icon in the tab bar.
+    fireEvent.click(screen.getByRole("button", { name: /Data model reference/ }));
+    expect(screen.getAllByText(/Data model/).length).toBeGreaterThan(0);
+  });
+
+  it("generates AI proposals from the assistant page", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Assistant" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Assistant" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Propose improvements/ }));
+    // a strategist proposal card appears (engine-scored, offline)
+    await waitFor(() => expect(screen.getByText(/Sequence steps by flow/)).toBeTruthy());
+  });
+
+  it("renders the DAG view", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
     // View toggle now sits in the sub-toolbar above the canvas.
-    fireEvent.click(screen.getByRole("button", { name: "DAG" }));
-    expect(screen.getByText("Process DAG")).toBeTruthy();
-    openAnalysis("Balance");
-    expect(screen.getByText(/Rolled throughput yield/)).toBeTruthy();
+    fireEvent.click(screen.getByText("DAG"));
+    expect(screen.getByText("PROCESS DAG")).toBeTruthy();
+  });
+
+  it("navigates to the dedicated Site overview page", async () => {
+    renderApp();
+    fireEvent.click(screen.getByText("See an example"));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByText("Site overview"));
+    // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
+    expect(screen.getByText("Total throughput")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy());
   });
 
   it("navigates to the dedicated Compare page", async () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
-    fireEvent.click(screen.getByTitle("More actions"));
-    fireEvent.click(screen.getByText("Compare scenarios"));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByText("Compare variants"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Actual" })).toBeTruthy());
-  });
-
-  it("opens the process library and shows an element's documentation", async () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
-    // The library rail's "manage" link opens the full library page.
-    fireEvent.click(screen.getByText("manage"));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
-    // Select the first catalog entry, then read its full data sheet.
-    fireEvent.click(screen.getByText("CNC turning"));
-    fireEvent.click(screen.getByRole("tab", { name: "Documentation" }));
-    // The doc surfaces the whole data model, not just name/cycle.
-    expect(screen.getByText("Capability (N:M)")).toBeTruthy();
-    expect(screen.getByText("turning")).toBeTruthy();
-  });
-
-  it("authors a custom (non-predefined) library element", async () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
-    fireEvent.click(screen.getByText("manage"));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "New element" }));
-    // A new custom entry appears, tagged and selected for editing.
-    expect(screen.getAllByText(/New element/).length).toBeGreaterThan(0);
-    expect(screen.getByText("custom")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy());
   });
 
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
     fireEvent.click(screen.getByText("See an example"));
-    fireEvent.click(screen.getByRole("button", { name: "DAG" }));
-    // click a DAG node to select + open Configure. The step name also appears in
-    // the DAG's bottleneck caption, so target the SVG <text> graph node.
-    const dagNode = screen.getAllByText("CNC Turning").find((el) => el.tagName.toLowerCase() === "text");
-    fireEvent.click(dagNode!);
-    // Footprint editing lives under the inspector's Advanced section.
-    fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
+    fireEvent.click(screen.getByText("DAG"));
+    // click a DAG node to select + open Configure. The name also appears in the
+    // Analysis page's per-step lists, and the canvas precedes the rail.
+    fireEvent.click(screen.getAllByText("CNC Turning")[0]);
     expect(screen.getByText(/Footprint shape/)).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cellTopology, entryExitDistance, type TopologyLayout } from "./topology";
+import { cellTopology, entryExitDistance, pathLength, type TopologyLayout } from "./topology";
 import { cellTemplate } from "./templates";
 import { generateCandidates } from "./generate";
 
@@ -124,46 +124,60 @@ describe("S — serpentine, alternating rows", () => {
   });
 });
 
-describe("W — double-U, folds into vertical legs", () => {
-  const l = cellTopology("W", 12, GRID);
-
-  it("uses four vertical legs for a long process", () => {
-    expect(l.legs).toBe(4);
-    expect([...new Set(l.slots.map((s) => s.x))]).toHaveLength(4);
+// The two properties that were silently false, and that made every form
+// comparison meaningless: the layout filled the grid whatever the station
+// count, so the path measured the same for three stations as for nine, and at
+// high counts the stations overlapped each other. Transport cost is distance ×
+// volume, so a constant path meant a constant cost per form — lowest for the
+// straight line, always, by construction rather than by any property of the
+// cell. That is the whole reason I-form used to win every comparison.
+describe("a form's path length depends on how many stations are on it", () => {
+  (["I", "U", "L", "S", "W"] as const).forEach((f) => {
+    it(`${f} grows with the station count`, () => {
+      const three = pathLength(cellTopology(f, 3, GRID));
+      const nine = pathLength(cellTopology(f, 9, GRID));
+      expect(nine).toBeGreaterThan(three);
+    });
   });
 
-  it("folds down then up between legs, never jumping the full height", () => {
-    const span = Math.max(...l.slots.map((s) => s.y)) - Math.min(...l.slots.map((s) => s.y));
-    for (let i = 1; i < l.slots.length; i++) {
-      expect(Math.abs(l.slots[i].y - l.slots[i - 1].y)).toBeLessThanOrEqual(span);
-    }
-  });
-
-  it("brings both ends to the front (top) for one-side access", () => {
-    expect(l.entry.y).toBeLessThanOrEqual(l.slots[0].y);
-    expect(l.exit.y).toBeLessThanOrEqual(Math.min(...l.slots.map((s) => s.y)) + 1);
-  });
-
-  it("places every station on a distinct cell (no overlaps)", () => {
-    expect(new Set(l.slots.map((s) => `${s.x},${s.y}`)).size).toBe(l.slots.length);
+  it("never places two stations closer together than one is wide", () => {
+    const STATION_W = 3;
+    const STATION_H = 2;
+    (["I", "U", "L", "S", "W"] as const).forEach((f) => {
+      for (let n = 2; n <= 12; n++) {
+        cellTopology(f, n, GRID).slots.forEach((a, i, all) => {
+          all.slice(i + 1).forEach((b) => {
+            const overlaps = Math.abs(a.x - b.x) < STATION_W && Math.abs(a.y - b.y) < STATION_H;
+            expect(overlaps, `${f} n=${n}: ${JSON.stringify(a)} overlaps ${JSON.stringify(b)}`).toBe(false);
+          });
+        });
+      }
+    });
   });
 });
 
-describe("O — a closed loop / racetrack", () => {
-  const l = cellTopology("O", 10, GRID);
+describe("W — a workshop, not a cell", () => {
+  const l = cellTopology("W", 9, GRID);
 
-  it("rings the stations around a rectangle (all four sides used)", () => {
-    const xs = new Set(l.slots.map((s) => s.x));
-    const ys = new Set(l.slots.map((s) => s.y));
-    expect(xs.size).toBeGreaterThan(1);
-    expect(ys.size).toBeGreaterThan(1);
-    expect(new Set(l.slots.map((s) => `${s.x},${s.y}`)).size).toBe(l.slots.length);
+  it("separates the stations instead of putting them on a path", () => {
+    // The defining property. Consecutive operations are far apart, and the
+    // transport that costs is what a functional layout actually pays for.
+    const hops = l.slots.slice(1).map((s, i) => Math.abs(s.x - l.slots[i].x) + Math.abs(s.y - l.slots[i].y));
+    const line = cellTopology("I", 9, GRID).slots;
+    const iHops = line.slice(1).map((s, i) => Math.abs(s.x - line[i].x));
+    expect(Math.min(...hops)).toBeGreaterThan(Math.max(...iHops));
   });
 
-  it("enters and leaves at the same open mouth — the defining loop property", () => {
-    // Near-zero gap between entry and exit is what makes it a loop, not a line.
-    expect(entryExitDistance(l)).toBeLessThanOrEqual(entryExitDistance(cellTopology("U", 10, GRID)));
-    expect(l.entryExitAdjacent).toBe(true);
+  it("costs materially more to move a part through than any cell form", () => {
+    (["I", "U", "L", "S"] as const).forEach((f) => {
+      expect(pathLength(l)).toBeGreaterThan(pathLength(cellTopology(f, 9, GRID)));
+    });
+  });
+
+  it("lays the islands out in rows and columns", () => {
+    expect(new Set(l.slots.map((s) => s.y)).size).toBeGreaterThan(1);
+    expect(new Set(l.slots.map((s) => s.x)).size).toBeGreaterThan(1);
+    expect(l.entryExitAdjacent).toBe(false);
   });
 });
 

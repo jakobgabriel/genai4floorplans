@@ -1,14 +1,5 @@
 # Line Planner — alignment status
 
-> **⚠ Teilweise überholt — siehe [`docs/audit-log-shopfloor-review.md`](audit-log-shopfloor-review.md).**
-> Ein fachliches Abnahme-Audit (2026-07) hat mehrere Aussagen dieses Dokuments als
-> veraltet nachgewiesen und die zugehörigen Punkte behoben. Insbesondere:
-> - „kein Yamazumi-Artefakt" ist **falsch** — `YamazumiChart` existiert und ist erreichbar.
-> - „space … no" (Kostenmodell) ist **überholt** — Flächen- **und** Instandhaltungskosten sind gebaut.
-> - der behauptete TS-Fehler in `parked/portfolioModel.ts` existiert **nicht mehr**.
-> - der Balancer ist inzwischen aus dem Editor erreichbar (`balanceWorkloadIntoCell`), die 7 Wastes werden ausgewertet, Takt/Kapazität/KPIs sind fachlich korrigiert.
-> Der Umsetzungsstand steht im Audit-Log, Abschnitt 0b. Die untenstehenden Zeilen sind der historische Stand.
-
 Where FlowPlan stands against [`docs/line-planner-spec.md`](line-planner-spec.md),
 honestly. Two columns matter: what exists, and what is claimed but not built.
 
@@ -229,11 +220,11 @@ gaps that were not being tracked at all:
 | Spec | Status |
 |---|---|
 | §3 seven interaction laws | Unaudited. `components/LayoutCanvas.tsx` needs a pass against Law 1 (no modals), Law 3 (invalid states permitted and visible), Law 5 (canvas primary) |
-| §5 confidence **rendered** as range + hatch | ✅ **Done** (branch `claude/feature-plan-design-overhaul-304leo`). `Station.dataQuality` (schema v9) + `components/confidence.tsx`: estimated numbers render as hatched ranges, measured/benchmarked as marked points, in the inspector, tooltip, open-points and the canvas Confidence overlay |
+| §5 confidence **rendered** as range + hatch | Engine propagates it correctly; **the UI shows point values.** §5 is a rendering requirement, and it is unmet — this is the F8 false-precision failure reappearing |
 | §26 performance budgets | No budgets declared, none measured. Canvas is DOM/SVG; §26 says SVG will not sustain 16 ms at tier L |
 | §27 incremental recomputation | Full recompute on edit; no dirty set |
 | §28 continuous validation | `engine/validate.ts` exists but is not wired as in-place, non-blocking, at-the-violation rendering |
-| §29 layer architecture | **Violated.** `engine/concepts.ts` `CONCEPTS` is a TypeScript constant; §29 and §35 both require rules-as-data |
+| §29 layer architecture | **Partly resolved.** The concept catalog is data now — `ConceptProfile[]`, passed into `generateCandidates`, edited on `#/concepts` and persisted; `CONCEPT_DEFAULTS` is a starting point rather than the only possible answer. The rating weights and the capability catalog behind inference are still constants. |
 | **§30–35 pattern library** | **Entirely unbuilt** |
 | §36 canvas + parameter rail + pattern palette | Partial. `LayoutCanvas`, `DagView`, `CyclePanel` exist; no pattern palette, no live testfit on parameter change |
 | §37 overlays | Not built. No overlay system at all |

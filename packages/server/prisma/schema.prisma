@@ -41,58 +41,16 @@ model User {
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   aiUsage      AiUsageLog[]
-  preference   UserPreference?
-}
-
-// Per-user application + UI preferences (theme, panel layout, non-secret AI
-// choice). One row per user; a JSON blob so adding a preference needs no
-// migration. Device-syncing preferences moves them off browser localStorage.
-model UserPreference {
-  userId    String   @id
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  prefs     Json     @default("{}")
-  updatedAt DateTime @updatedAt
 }
 
 model Team {
-  id            String             @id @default(cuid())
-  name          String
-  createdAt     DateTime           @default(now())
-  memberships   Membership[]
-  workspaces    Workspace[]
-  aiCreds       TeamAiCredential[]
-  aiUsage       AiUsageLog[]
-  libraryEntries LibraryEntry[]
-  subflows      Subflow[]
-}
-
-// Process library. A LibraryEntry is a standard building block (the client's
-// ProcessCatalogEntry, stored as JSON). teamId null = the GLOBAL seed catalog
-// shared by everyone; teamId set = a team's own custom entry. This matches the
-// locked "global catalog + per-team customs" model.
-model LibraryEntry {
-  id        String   @id @default(cuid())
-  teamId    String? // null = global catalog
-  entry     Json // the full ProcessCatalogEntry payload
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  @@index([teamId])
-}
-
-// A grouped/subflow element (node-RED subflow): member stations + internal flows,
-// stored as JSON. Team-scoped and reusable across the team's workspaces.
-model Subflow {
-  id        String   @id @default(cuid())
-  teamId    String
-  name      String
-  data      Json // { stations, flows, w, h, category }
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  @@index([teamId])
+  id          String             @id @default(cuid())
+  name        String
+  createdAt   DateTime           @default(now())
+  memberships Membership[]
+  workspaces  Workspace[]
+  aiCreds     TeamAiCredential[]
+  aiUsage     AiUsageLog[]
 }
 
 model Membership {
@@ -113,12 +71,10 @@ model Workspace {
   teamId    String
   name      String
   activeId  String? // mirrors Workspace.activeId; soft reference to a Cell.id
-  version   Int        @default(0) // optimistic-concurrency token; bumped on each tree save
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
   folders   Folder[]
-  concepts  Concept[]
   cells     Cell[]
   scenarios Scenario[]
 
@@ -135,13 +91,11 @@ model Folder {
   parentId    String? // null = top-level
   name        String
   position    Int        @default(0)
-  archived    Boolean    @default(false) // soft-deleted, recoverable from the Archive
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   parent      Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
   children    Folder[]   @relation("FolderTree")
-  concepts    Concept[]
   cells       Cell[]
   scenarios   Scenario[]
 
@@ -149,45 +103,21 @@ model Folder {
   @@index([parentId])
 }
 
-// A Concept is the workspace item: one manufacturing concept, living in a folder
-// and holding one or more layouts (Cells). Mirrors Folder's placement fields.
-// Deleting a concept cascades to its cells (a layout can't exist without one).
-model Concept {
-  id          String    @id @default(cuid())
-  workspaceId String
-  folderId    String? // null = workspace root
-  name        String
-  position    Int       @default(0)
-  archived    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  cells       Cell[]
-
-  @@index([workspaceId])
-  @@index([folderId])
-}
-
 model Cell {
   id            String    @id @default(cuid())
   workspaceId   String
-  folderId      String? // null = workspace root; mirrors the owning concept's folder
-  conceptId     String? // the owning concept (workspace item)
+  folderId      String? // null = workspace root
   name          String
   schemaVersion Int // denormalized copy of model.schemaVersion
   model         Json // the full Model object (JSONB)
-  position      Int       @default(0) // order among siblings in the concept
-  archived      Boolean   @default(false)
+  position      Int       @default(0) // order among siblings in the folder
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder        Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  concept       Concept?  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([folderId])
-  @@index([conceptId])
 }
 
 model Scenario {

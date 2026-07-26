@@ -3,7 +3,7 @@ import { Search, Tag } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 import type { LibraryProcess } from "@flowplan/core/model/library";
 import type { WorkClass } from "@flowplan/core/model/types";
-import type { LibraryApi } from "../store/processLibrary";
+import type { LibraryApi } from "../store/library";
 import { IconBtn, TabBtn } from "./Btn";
 import { Btn } from "./Btn";
 import { Footnote } from "./analysisKit";

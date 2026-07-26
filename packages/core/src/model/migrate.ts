@@ -47,61 +47,6 @@ const toV7: Migration = (m) => ({ ...m, schemaVersion: 7 });
 // absent on every existing model, so nothing is balanced differently on load.
 const toV8: Migration = (m) => ({ ...m, schemaVersion: 8 });
 
-// version 8 -> 9: per-field data quality on stations (spec §5). Sparse and
-// absent on every existing station, so a missing entry is treated as
-// "estimated" at render — an unmarked number reads as suspect, which is the
-// intended honest default. Purely metadata: no engine number changes, so grades
-// and golden fixtures are unaffected.
-const toV9: Migration = (m) => ({ ...m, schemaVersion: 9 });
-
-// version 9 -> 10: flow kinds (good/nok/rwk) for the four separated material
-// paths. Absent on every existing flow (⇒ "good"), so no analysis changes.
-const toV10: Migration = (m) => ({ ...m, schemaVersion: 10 });
-
-// version 10 -> 11: multi-year demand + shift model for capacity analysis.
-// Absent on every existing model, so no analysis changes on load.
-const toV11: Migration = (m) => ({ ...m, schemaVersion: 11 });
-
-// version 11 -> 12: zone kinds on NoGoZone (blocking/spacer/aisle/wall/column/
-// esd). Absent on every existing zone (⇒ "blocking"), so a legacy no-go zone
-// stays an obstacle and placement/floor-space are unchanged on load.
-const toV12: Migration = (m) => ({ ...m, schemaVersion: 12 });
-
-// version 12 -> 13: documentation groups (labelled/commented annotation boxes).
-// Absent on every existing model (⇒ none), so nothing renders or changes on load.
-const toV13: Migration = (m) => ({ ...m, schemaVersion: 13 });
-
-// version 13 -> 14: layout-realism envelope (audit C-03) — optional station
-// clearance/weightKg and model floorLoadKgPerM2/aisleWidth. All absent on every
-// existing model (⇒ checks skipped), so nothing changes on load.
-const toV14: Migration = (m) => ({ ...m, schemaVersion: 14 });
-
-// version 14 -> 15: envelope polygon + obstacle movable/moveCost (audit C-03
-// inc2). All absent on existing models (⇒ full-grid floor, fixed obstacles).
-const toV15: Migration = (m) => ({ ...m, schemaVersion: 15 });
-
-// version 15 -> 16: operator loops (audit C-13) — optional station
-// attendedFraction/operatorId and model walkSpeedMps. Absent on existing models
-// (⇒ type-default attended fraction, no explicit loops), so nothing changes.
-const toV16: Migration = (m) => ({ ...m, schemaVersion: 16 });
-
-// version 16 -> 17: equipment availability (audit C-02) — optional station
-// availabilityPct / mtbfHours / mttrHours. Absent ⇒ availability 1, no change.
-const toV17: Migration = (m) => ({ ...m, schemaVersion: 17 });
-
-// version 17 -> 18: part-number portfolio (audit C-11) — optional Model.parts
-// for the product-process feasibility matrix. Absent ⇒ no matrix, no change.
-const toV18: Migration = (m) => ({ ...m, schemaVersion: 18 });
-
-// version 18 -> 19: part campaignsPerYear for the capacity/changeover gate
-// (audit C-11 Gate 3). Optional, absent ⇒ 1, so nothing changes.
-const toV19: Migration = (m) => ({ ...m, schemaVersion: 19 });
-
-// version 19 -> 20: cycle-time variability (audit C-09) — optional Station
-// cycleCV. Absent ⇒ 0 (deterministic cycle), so mean-based analysis is
-// unchanged and the p50/p95/p99 view only appears where a CV is entered.
-const toV20: Migration = (m) => ({ ...m, schemaVersion: 20 });
-
 const MIGRATIONS: Record<number, Migration> = {
   0: toV1,
   1: toV2,
@@ -111,18 +56,6 @@ const MIGRATIONS: Record<number, Migration> = {
   5: toV6,
   6: toV7,
   7: toV8,
-  8: toV9,
-  9: toV10,
-  10: toV11,
-  11: toV12,
-  12: toV13,
-  13: toV14,
-  14: toV15,
-  15: toV16,
-  16: toV17,
-  17: toV18,
-  18: toV19,
-  19: toV20,
 };
 
 export function migrate(raw: unknown): Model {
