@@ -14,7 +14,7 @@ function renderApp() {
 
 function loadSample() {
   renderApp();
-  fireEvent.click(screen.getByText("Start from the sample cell"));
+  fireEvent.click(screen.getByText("See an example"));
 }
 
 // Balance now lives in the dedicated Analysis view (the rail is inputs-only).

@@ -1940,3 +1940,777 @@ input.est-field {
   color: var(--cds-text-secondary);
   margin-bottom: var(--sp-03);
 }
+
+/* ---- Concept catalog page (ported from the planner rework) ---- */
+.u-caption { font-size: 0.75rem; color: var(--cds-text-secondary); }
+.lib-page__cols {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .lib-page__cols {
+    grid-template-columns: 1fr;
+  }
+}
+.lib-page__list,
+.lib-page__detail {
+  min-width: 0;
+}
+.lib-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+  margin: var(--sp-3) 0;
+}
+.lib-page__rows {
+  display: flex;
+  flex-direction: column;
+}
+.lib-page__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-2);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  border-left: 2px solid transparent;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-size: var(--type-body-size);
+  text-align: left;
+  cursor: pointer;
+}
+.lib-page__row:hover {
+  background: var(--cds-layer-hover-01);
+}
+.lib-page__row.on {
+  background: var(--cds-layer-selected-01);
+  border-left-color: var(--cds-interactive);
+}
+.lib-page__rowName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-page__rowMeta {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+}
+.lib-page__none,
+.lib-page__hint {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
+  padding: var(--sp-4);
+}
+.lib-page__empty {
+  max-width: var(--measure-read);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.lib-page__emptyTitle {
+  font-size: var(--type-title-size);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+.lib-page__emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+.lib-page__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.lib-page__editorHead {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+.lib-page__editorHead .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.lib-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-3);
+}
+.lib-page__tagPick,
+.lib-page__tagEdit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+.lib-page__tagEdit {
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}
+.lib-page__tagRow,
+.lib-page__tagNew,
+.lib-page__customRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+.lib-page__tagRow .cds--form-item,
+.lib-page__tagNew .cds--form-item,
+.lib-page__customRow .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lib-page__section { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--cds-text-secondary); margin: 1rem 0 .25rem; }
+.lib-page__hintTitle { font-size: 0.875rem; font-weight: 600; margin-bottom: .5rem; }
+
+/* ---------- assessment report ----------
+ * A document, not a dashboard: one column, numbered sections, generous rhythm,
+ * and no controls inside the content. */
+
+.rep {
+  max-width: var(--measure-read);
+}
+.rep__head {
+  position: sticky;
+  top: 3rem;
+  z-index: 4;
+  background: var(--cds-background);
+  padding: var(--sp-3) 0;
+  margin-bottom: var(--sp-4);
+}
+.rep__headSpacer {
+  flex: 1;
+}
+
+.rep__cover {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-4);
+  border-bottom: 2px solid var(--cds-border-strong-01);
+}
+.rep__title {
+  margin: 0;
+  font-size: var(--type-title-size);
+  font-weight: 300;
+  line-height: var(--lh-tight);
+}
+.rep__meta {
+  margin: var(--sp-2) 0 0;
+  color: var(--cds-text-secondary);
+  font-size: var(--type-body-size);
+}
+.rep__grade {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.rep__gradeLetter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: var(--type-title-size);
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  border: 2px solid var(--cds-border-strong-01);
+}
+.rep__gradeScore {
+  font-size: var(--type-title-size);
+  font-weight: 300;
+}
+.rep__gradeMax {
+  font-size: var(--type-section-size);
+  color: var(--cds-text-secondary);
+}
+
+/* The six readings across the top — the same order as the Analysis page. */
+.rep__strip {
+  display: grid;
+  /* Fixed 3×2 rather than auto-fit: six readings into an auto-fit track left a
+     ragged 4+2 with two empty cells, and at narrow tracks the sub-line ("2 steps
+     worth automating") was cut off mid-word. */
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--cds-border-subtle-01);
+  margin: var(--sp-5) 0;
+}
+.rep__stripItem {
+  background: var(--cds-layer-01);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-items: flex-start;
+}
+.rep__stripHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+}
+.rep__stripValue {
+  font-size: var(--type-title-size);
+  font-weight: 300;
+  line-height: var(--lh-tight);
+}
+/* Carbon's Tag is a single nowrap line capped to its own width, which clipped
+   the reading and let it spill past the tile. */
+.rep__stripItem .cds--tag {
+  margin: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 1.5rem;
+  white-space: normal;
+}
+.rep__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-round);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  background: var(--cds-layer-accent-01);
+  color: var(--cds-text-secondary);
+}
+
+.rep__sec {
+  margin-top: var(--sp-6);
+  /* Sections are the natural page unit when this goes to paper. */
+  break-inside: avoid;
+}
+.rep__secHead {
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.rep__secTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--type-section-size);
+  font-weight: 400;
+}
+.rep__secLead {
+  margin: var(--sp-1) 0 0;
+  color: var(--cds-text-secondary);
+  font-size: var(--type-body-size);
+}
+
+/* Label/value pairs — the brief, the concept metrics, the cost breakdown. */
+.rep__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-5);
+}
+.rep__fact dt {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+  margin-bottom: var(--sp-1);
+}
+.rep__fact dd {
+  margin: 0;
+  font-size: var(--type-section-size);
+  font-weight: 300;
+}
+
+.rep__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-body-size);
+  margin: 0 0 var(--sp-4);
+}
+.rep__table th {
+  text-align: left;
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+}
+.rep__table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  vertical-align: middle;
+}
+.rep__table td .cds--tag {
+  margin: 0 0 0 var(--sp-2);
+}
+.rep__numCol {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rep__rowPick,
+.rep__rowFlag {
+  background: var(--cds-layer-accent-01);
+}
+.rep__taken {
+  color: var(--cds-text-secondary);
+  font-size: var(--type-caption-size);
+}
+
+.rep__pick {
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.rep__pickHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.rep__pickTitle {
+  margin: 0;
+  font-size: var(--type-section-size);
+  font-weight: 400;
+}
+.rep__pickWhy {
+  margin: 0 0 var(--sp-4);
+  color: var(--cds-text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
+}
+
+/* The layout picture. LayoutCanvas fills the box it is given, so the box
+   carries the height. */
+.rep__canvas {
+  height: 26rem;
+  display: flex;
+  background: var(--cds-layer-01);
+}
+.rep__canvas > .lc {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Sub-headings inside a section carry their own air — a section is long enough
+   that a label butting straight onto the previous paragraph reads as its
+   continuation rather than the start of something new. */
+.rep__sec .ak-section {
+  margin-top: var(--sp-5);
+}
+.rep__sec > .rep__secHead + .ak-section {
+  margin-top: 0;
+}
+.rep__sec .ak-footnote {
+  margin-bottom: var(--sp-4);
+}
+/* The closing note sits apart from the last section. */
+.rep > .ak-footnote {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--cds-border-subtle-01);
+}
+
+.rep__meters,
+.rep__bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.rep__actions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.rep__actions > li {
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--cds-border-subtle-01);
+}
+.rep__actionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.rep__actionTitle {
+  margin: 0;
+  font-size: var(--type-section-size);
+  font-weight: 600;
+}
+.rep__actionBody {
+  margin: var(--sp-1) 0 0;
+  color: var(--cds-text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--lh-body);
+}
+
+.rep__empty {
+  padding: var(--sp-5);
+  max-width: var(--measure-read);
+}
+.rep__emptyTitle {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--type-section-size);
+  font-weight: 400;
+}
+
+/* Printing. Everything on the page reads its colour from a token, so pointing
+   the tokens at a light palette turns the same markup into a white sheet
+   instead of a page of dark ink. */
+@media print {
+  /* `!important` because Carbon's own g100 theme block also targets :root and is
+     emitted after this file — same specificity, later wins. */
+  :root {
+    --cds-background: #ffffff !important;
+    --cds-layer: #ffffff !important;
+    --cds-layer-01: #ffffff !important;
+    --cds-layer-02: #f4f4f4 !important;
+    --cds-layer-accent-01: #e8e8e8 !important;
+    --cds-layer-selected-01: #e8e8e8 !important;
+    --cds-field: #f4f4f4 !important;
+    --cds-field-01: #f4f4f4 !important;
+    --cds-text-primary: #161616 !important;
+    --cds-text-secondary: #525252 !important;
+    --cds-border-subtle-01: #e0e0e0 !important;
+    --cds-border-strong-01: #8d8d8d !important;
+  }
+  html,
+  body,
+  .wrap {
+    background: #ffffff;
+    /* Descendants inherit the *resolved* colour, not the token, so re-pointing
+       the token alone left everything that does not declare its own colour
+       still white — white text on the new white page. */
+    color: #161616;
+  }
+  /* Belt and braces: the layer tokens resolve inside Carbon's own theme block,
+     so the surfaces are re-pointed by class as well as by token. Without this
+     the tiles, the chosen-concept panel and the flagged table rows printed as
+     dark blocks on an otherwise white sheet. */
+  .rep,
+  .rep__strip,
+  .rep__stripItem,
+  .rep__pick,
+  .rep__canvas,
+  .rep__rowPick,
+  .rep__rowFlag,
+  .rep .cds--tile {
+    background: #ffffff !important;
+    color: #161616 !important;
+  }
+  .rep__strip {
+    /* The 1px grid gaps were the strip's only separators. */
+    border: 1px solid #e0e0e0 !important;
+    gap: 0 !important;
+  }
+  .rep__stripItem {
+    border-right: 1px solid #e0e0e0 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+  }
+  .rep__rowPick,
+  .rep__rowFlag {
+    background: #f4f4f4 !important;
+  }
+  /* Elements that name their own colour need it re-pointed too. */
+  .rep__gradeLetter {
+    color: #161616 !important;
+    border-color: #8d8d8d !important;
+  }
+  .rep__num {
+    background: #e8e8e8 !important;
+    color: #525252 !important;
+  }
+  .rep {
+    max-width: none;
+    padding: 0;
+  }
+  .rep__head {
+    display: none;
+  }
+  .rep__canvas {
+    height: 18rem;
+  }
+  .rep__cover {
+    padding-top: 0;
+  }
+}
+
+/* KPI meter / share bar / metric tile — analysisKit surface styles */
+/* KPI meter: name + status Tag over a Carbon ProgressBar. */
+.ak-meter__head,
+.ak-share__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-02);
+}
+.ak-meter__name,
+.ak-share__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+  min-width: 0;
+}
+.ak-meter__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-03);
+  flex: 0 0 auto;
+}
+.ak-meter__raw,
+.ak-share__figure {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+.ak-share--clickable {
+  cursor: pointer;
+}
+.ak-share--clickable:hover .ak-share__label {
+  color: var(--cds-text-primary);
+}
+.ak-share--clickable:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
+
+/* Metric tile: a headline figure in a Carbon Tile. */
+.ak-metric {
+  padding: var(--sp-05);
+}
+.ak-metric__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-02);
+}
+.ak-metric__value {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.1;
+  color: var(--cds-text-primary);
+}
+.ak-metric__unit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--cds-text-secondary);
+}
+.ak-metric__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-03);
+  line-height: 1.34;
+}
+
+
+/* ---------- assessment report — dashboard layout additions ----------
+ * The report reuses the analysis dashboard's .bi vocabulary (hero, KPI band,
+ * cards). These are the extras the document needs on top of it: a tile grid for
+ * facts, a clean read-only table, and a horizontal scroller for wide tables. */
+
+.rep__topbar {
+  margin-bottom: var(--sp-03);
+}
+.rep__support {
+  margin: 0;
+}
+
+/* A responsive grid of metric tiles — the airy stat-tile row. */
+.bi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-03);
+  margin: var(--sp-03) 0 var(--sp-05);
+}
+
+/* Wide tables scroll inside their card rather than pushing the page sideways. */
+.rep__scroll {
+  overflow-x: auto;
+}
+
+/* A read-only document table — lighter than the editor grids: no fills, just
+   rules, tabular figures, and a quietly emphasised total / picked / flagged row. */
+.bi-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-body-size, 0.875rem);
+}
+.bi-tbl th {
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-02) var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+  white-space: nowrap;
+}
+.bi-tbl td {
+  padding: var(--sp-02) var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  vertical-align: middle;
+}
+.bi-tbl td .cds--tag {
+  margin: 0 0 0 var(--sp-02);
+}
+.bi-tbl__num {
+  text-align: right;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bi-tbl__total td,
+.bi-tbl__pick td {
+  background: var(--cds-layer-accent-01);
+  font-weight: 600;
+}
+.bi-tbl__flag td:first-child {
+  box-shadow: inset 3px 0 0 var(--support-error, #da1e28);
+}
+
+/* ---------- concepts + recommend pages (dashboard language) ----------
+ * Both wear the .bi vocabulary (PageHead, cards, KPI band, .bi-tbl). These are
+ * the master-detail and form extras the concepts editor needs on top of it. */
+
+.cc__cols {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: var(--sp-05);
+  align-items: start;
+}
+@media (max-width: 42rem) {
+  .cc__cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cc__rows {
+  display: flex;
+  flex-direction: column;
+  margin: calc(-1 * var(--sp-03)) 0 var(--sp-04);
+}
+.cc__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  width: 100%;
+  padding: var(--sp-03) var(--sp-02);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  border-left: 2px solid transparent;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-size: var(--type-body-size, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+}
+.cc__row:hover {
+  background: var(--cds-layer-hover);
+}
+.cc__row.on {
+  border-left-color: var(--cds-interactive, #4589ff);
+  background: var(--cds-layer-selected);
+}
+.cc__rowName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+}
+.cc__rowMeta {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.cc__new {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-03);
+}
+.cc__new .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cc__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+}
+.cc__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-03);
+}
+.cc__forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-02);
+}
+.cc__section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  margin: var(--sp-04) 0 var(--sp-02);
+}
+.cc__customRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-03);
+}
+.cc__customRow .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* recommend: the demand + weight inputs sit in the tile grid / card */
+.rec__field .cds--form-item,
+.rec__weights {
+  min-width: 0;
+}
+.rec__weights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-03) var(--sp-06);
+}
+
+/* a clickable table row (recommend's ranked concepts) */
+.bi-tbl__click {
+  cursor: pointer;
+}
+.bi-tbl__click:hover td {
+  background: var(--cds-layer-hover);
+}

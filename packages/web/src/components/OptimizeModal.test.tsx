@@ -14,7 +14,7 @@ function renderApp() {
 
 function loadSample() {
   renderApp();
-  fireEvent.click(screen.getByText("Start from the sample cell"));
+  fireEvent.click(screen.getByText("See an example"));
 }
 
 beforeEach(() => {

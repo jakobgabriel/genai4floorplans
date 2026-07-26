@@ -4,536 +4,577 @@ import {
   ClickableTile,
   Column,
   Grid,
-  IconButton,
   InlineNotification,
-  MultiSelect,
   NumberInput,
-  Select,
-  SelectItem,
+  StructuredListBody,
+  StructuredListCell,
+  StructuredListHead,
+  StructuredListRow,
+  StructuredListWrapper,
   Tag,
-  TextArea,
   TextInput,
   Tile,
 } from "@carbon/react";
-import { Add, TrashCan } from "@carbon/icons-react";
-import { CONCEPTS } from "@flowplan/core/engine/concepts";
-import { CAPABILITY_HINTS, inferWorkload } from "@flowplan/core/engine/infer";
-import type { Candidate, ProcessStep } from "@flowplan/core/engine/generate";
-import {
-  CONFIDENCES,
-  ERGONOMIC_LOADS,
-  TIME_METHODS,
-  TRANSPORT,
-  WORK_CLASSES,
-  type Confidence,
-  type DemandYear,
-  type ErgonomicLoad,
-  type TimeMethod,
-  type Transport,
-  type VariantMode,
-  type WorkClass,
-  type Model,
-} from "@flowplan/core/model/types";
-import { USE_CASES, type UseCase, type UseCaseId } from "./usecases";
-import { parseSteps } from "./parseSteps";
+import { inferWorkload } from "@flowplan/core/engine/infer";
+import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
+import { CONCEPTS, type ConceptCatalog } from "@flowplan/core/engine/concepts";
+import { Crossover } from "./Crossover";
+import { Sensitivity } from "./Sensitivity";
+import { DecisionWeightsEditor } from "./DecisionWeights";
+import type { DecisionWeightsApi } from "../store/decisionWeights";
+import { Btn } from "../components/Btn";
 import { ConceptTable } from "./ConceptTable";
+import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
+import { LibraryPicker } from "../components/LibraryPicker";
+import type { LibraryApi } from "../store/processLibrary";
+import { routingStepFrom } from "@flowplan/core/model/library";
+import { Footnote, SectionLabel } from "../components/analysisKit";
+import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/parts";
+import { formatRouting, parseRouting } from "./parseSteps";
+import { analysisPath, type AnalysisStepId } from "../components/analysisPath";
+import type { FlowPlanApi } from "../store/useFlowPlan";
 import { money, moneyWhole, num } from "../format";
-import { LayoutCanvas } from "../components/LayoutCanvas";
-import { TEAL, scoreColor } from "../components/colors";
-import { navigate } from "../store/useHashRoute";
 
 // Individual stages of the planning process. Each is a plain presentational
 // component; all state and navigation live in App, so the stepper stays
 // authoritative and the editor can sit between two of these stages.
 
-// ---- situation ------------------------------------------------------------
+// ---- start ----------------------------------------------------------------
 
-export function SituationStep({
-  onPick,
+/**
+ * The way in. Two things you can do: plan something new, or open something that
+ * exists.
+ *
+ * This replaced a screen that asked you to classify yourself into one of five
+ * lifecycle cases — "Plan a new process", "Choose a concept", "Improve a
+ * planned cell", "Improve a running cell", "Monitor serial production" — each a
+ * tall tile listing what you need and what you get. Four of them were the same
+ * two paths wearing different labels: the first two both ran the full flow, and
+ * the next two both just opened the editor on a cell you already had. So the
+ * screen made you read five paragraphs and make a taxonomy decision to reach a
+ * choice the buttons below make for you.
+ *
+ * Monitoring is genuinely not built, so it stays — as one honest line, not as a
+ * tile you can evaluate and click.
+ */
+export function StartScreen({
+  onPlan,
+  onLibrary,
+  onConcepts,
   onSample,
   onBlank,
   onImport,
   hasCell,
-  onSkip,
+  onOpen,
+  cellCount,
+  processCount,
+  conceptCount,
+  conceptsEdited,
 }: {
-  onPick: (id: UseCaseId) => void;
+  onPlan: () => void;
+  onLibrary: () => void;
+  onConcepts: () => void;
   onSample: () => void;
   onBlank: () => void;
   onImport: () => void;
+  /** True when there is saved work of the planner's own to go back to. */
   hasCell: boolean;
-  onSkip: () => void;
+  onOpen: () => void;
+  cellCount: number;
+  processCount: number;
+  conceptCount: number;
+  conceptsEdited: boolean;
 }) {
   return (
-    <section className="planner">
+    <section className="planner planner--start">
       <header className="planner__head">
-        <h1 className="planner__title">What are you planning?</h1>
-        <p className="planner__sub">
-          Pick the situation. FlowPlan asks only for what that case needs — nothing else.
-        </p>
-        {hasCell ? (
-          <Button kind="ghost" size="sm" onClick={onSkip}>
-            Skip to the editor →
-          </Button>
-        ) : null}
+        <h1 className="planner__title">FlowPlan</h1>
+        <p className="planner__sub">Manufacturing cell sizing, concept comparison and layout assessment.</p>
       </header>
 
-      <Grid className="planner__grid" condensed>
-        {USE_CASES.map((u) => {
-          const off = u.availability === "unavailable";
-          const Wrapper = off ? Tile : ClickableTile;
-          return (
-            <Column key={u.id} sm={4} md={4} lg={8}>
-              <Wrapper
-                className={"planner__tile" + (off ? " planner__tile--off" : "")}
-                {...(off ? {} : { onClick: () => onPick(u.id) })}
-              >
-                <div className="planner__tileHead">
-                  <h3>{u.label}</h3>
-                  {u.availability === "ready" ? null : (
-                    <Tag type={u.availability === "partial" ? "magenta" : "gray"} size="sm">
-                      {u.availability === "partial" ? "Partial" : "Not built"}
-                    </Tag>
-                  )}
-                </div>
-                <p className="planner__q">“{u.question}”</p>
-                <p className="planner__meta">
-                  <b>You need:</b> {u.needs.join(" · ")}
-                </p>
-                <p className="planner__meta">
-                  <b>You get:</b> {u.gives}
-                </p>
-                {u.caveat ? <p className="planner__caveat">{u.caveat}</p> : null}
-                <p className="planner__lifecycle">{u.lifecycle}</p>
-              </Wrapper>
-            </Column>
-          );
-        })}
-      </Grid>
+      {/* Two destinations, not one with a side door. The library used to be a
+          tab inside the editor's drawer, which said it only exists in service
+          of whatever cell you have open — but looking a process up is a reason
+          to open this tool on its own. */}
+      <div className="portal">
+        <PortalTile
+          title="Plan a cell"
+          body="Size a cell from its part demand, compare costed concepts, refine and assess the layout."
+          meta="Parts & demand → Concepts → Refine → Summary"
+          onClick={onPlan}
+        />
+        <PortalTile
+          title="Process library"
+          body="Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells."
+          meta={processCount === 0 ? "Empty" : `${processCount} process${processCount === 1 ? "" : "es"}`}
+          onClick={onLibrary}
+        />
+        <PortalTile
+          title="Manufacturing concepts"
+          body="Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex."
+          meta={
+            conceptCount === 0
+              ? "None defined"
+              : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
+          }
+          onClick={onConcepts}
+        />
+        <PortalTile
+          title={hasCell ? "Open a layout" : "See an example"}
+          body={hasCell ? "Return to the workspace." : "A worked cell with a routing and a full assessment."}
+          meta={hasCell ? `${cellCount} layout${cellCount === 1 ? "" : "s"} saved` : "Sample cell"}
+          onClick={hasCell ? onOpen : onSample}
+        />
+      </div>
 
       <div className="planner__escape">
-        <span className="planner__escapeLab">Or go straight in:</span>
-        <Button kind="ghost" size="sm" onClick={onSample}>
-          Start from the sample cell
-        </Button>
-        <Button kind="ghost" size="sm" onClick={onBlank}>
+        {hasCell ? (
+          <Button kind="ghost" size="md" onClick={onSample}>
+            Open the sample cell
+          </Button>
+        ) : null}
+        <Button kind="ghost" size="md" onClick={onBlank}>
           Start blank
         </Button>
-        <Button kind="ghost" size="sm" onClick={onImport}>
+        <Button kind="ghost" size="md" onClick={onImport}>
           Import a JSON model
         </Button>
       </div>
+
+      <div className="planner__later">
+        <p className="planner__laterRow">
+          Serial-production monitoring is not implemented — see docs/lifecycle-cases-implementation.md §6.
+        </p>
+      </div>
     </section>
   );
 }
 
-// ---- demand ---------------------------------------------------------------
+/**
+ * A portal tile — a button, not Carbon's `ClickableTile`.
+ *
+ * ClickableTile renders an anchor, and with no `href` that anchor is neither a
+ * link nor a control: it is not keyboard-focusable, screen readers do not
+ * announce it as actionable, and in jsdom clicking one queues a navigation to
+ * the document URL *without* its fragment — which silently reset the hash
+ * route a moment after any subsequent navigation, so every page opened from
+ * the front door bounced straight back to the editor.
+ *
+ * These tiles run a function. That is a button.
+ */
+function PortalTile({
+  title,
+  body,
+  meta,
+  onClick,
+}: {
+  title: string;
+  body: string;
+  meta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="portal__tile" onClick={onClick}>
+      <span className="portal__title">{title}</span>
+      <span className="portal__body">{body}</span>
+      <span className="portal__meta">{meta}</span>
+    </button>
+  );
+}
 
-// The wizard's demand model mirrors the engine's Demand (multi-year units + a
-// shift model) while keeping the scalar figures the rest of the app reads.
-// annualVolume tracks the sizing (first) year; annualShifts is derived from the
-// shift model. A mix of variant modes is optional (single-model when empty).
+// ---- parts & demand -------------------------------------------------------
+
 export interface DemandValues {
   name: string;
-  /** Sizing-year units — mirrors years[0].units, kept for takt/cost sizing. */
-  annualVolume: number;
   programYears: number;
-  /** Derived: shiftsPerDay × workingDaysPerYear. */
   annualShifts: number;
-  /** Hours produced per shift. */
   shiftHours: number;
-  /** Units required per program year. */
-  years: DemandYear[];
-  shiftsPerDay: number;
-  workingDaysPerYear: number;
-  /** Overall equipment effectiveness, 0–1. */
-  oee: number;
-  /** Mix modes for mixed-model balancing. Empty ⇒ single-model. */
-  variantModes: VariantMode[];
-  /** Default inter-station transport for the generated flows. */
-  transport: Transport;
-  /** Default part weight (kg) stamped on the generated flows. */
-  partWeightKg: number;
+  /** The parts this cell makes, with a routing and a demand per program year
+   *  each. The only source of what the cell has to do — see `PartTable`. */
+  parts: Part[];
 }
-
-export const DEFAULT_DEMAND: DemandValues = {
-  name: "New product",
-  annualVolume: 250000,
-  programYears: 5,
-  annualShifts: 460,
-  shiftHours: 8,
-  years: [{ year: 1, units: 250000 }],
-  shiftsPerDay: 2,
-  workingDaysPerYear: 230,
-  oee: 0.85,
-  variantModes: [],
-  transport: "manual",
-  partWeightKg: 1,
-};
-
-/** The engine Demand carried onto the generated model. */
-export function toDemand(v: DemandValues) {
-  return { years: v.years, shiftsPerDay: v.shiftsPerDay, hoursPerShift: v.shiftHours, workingDaysPerYear: v.workingDaysPerYear, oee: v.oee };
-}
-
-let vmCounter = 0;
 
 export function DemandStep({
   values,
+  lib,
   onChange,
 }: {
   values: DemandValues;
+  lib: LibraryApi;
   onChange: (patch: Partial<DemandValues>) => void;
 }) {
-  const annualShifts = Math.max(1, values.shiftsPerDay * values.workingDaysPerYear);
-  const perShift = annualShifts > 0 ? values.annualVolume / annualShifts : 0;
-  const takt = perShift > 0 ? (values.shiftHours * 3600) / perShift : 0;
-  const programParts = values.years.length > 1 ? values.years.reduce((a, y) => a + y.units, 0) : values.annualVolume * values.programYears;
+  const derived = useMemo(() => derivePortfolio(values.parts), [values.parts]);
+  // The routing every part contributes to, so what was the Process step's
+  // inference preview reads here instead of on a screen of its own.
+  const unionSteps = derived ? derived.steps : [];
 
-  const setYear = (i: number, units: number) => {
-    const years = values.years.map((y, k) => (k === i ? { ...y, units } : y));
-    onChange(i === 0 ? { years, annualVolume: units } : { years });
-  };
-  const addYear = () => {
-    const last = values.years[values.years.length - 1];
-    onChange({ years: values.years.concat([{ year: (last?.year ?? 0) + 1, units: last?.units ?? 0 }]) });
-  };
-  const removeYear = (i: number) => {
-    if (values.years.length <= 1) return;
-    const years = values.years.filter((_, k) => k !== i);
-    onChange({ years, annualVolume: years[0].units });
-  };
-
-  const setShiftsPerDay = (v: number) => onChange({ shiftsPerDay: v, annualShifts: Math.max(1, v * values.workingDaysPerYear) });
-  const setWorkingDays = (v: number) => onChange({ workingDaysPerYear: v, annualShifts: Math.max(1, values.shiftsPerDay * v) });
-
-  const totalShare = values.variantModes.reduce((a, m) => a + m.share, 0);
-
-  return (
-    <section className="planner">
-      <h2 className="planner__h2">How many, and for how long?</h2>
-      <p className="planner__sub">Everything downstream is sized from this. Volume can vary per program year.</p>
-
-      <Grid condensed>
-        <Column sm={4} md={8} lg={16}>
-          <TextInput id="pl-name" labelText="Product or process name" value={values.name} onChange={(e) => onChange({ name: e.target.value })} />
-        </Column>
-      </Grid>
-
-      <h3 className="planner__h3">Demand over the program</h3>
-      <Grid condensed className="planner__rowGrid">
-        {values.years.map((y, i) => (
-          <Column key={i} sm={4} md={4} lg={5}>
-            <div className="planner__yearRow">
-              <NumberInput
-                id={`pl-vol-${i}`}
-                label={i === 0 ? "Annual volume (good parts)" : `Year ${y.year} units`}
-                min={0}
-                step={1000}
-                value={y.units}
-                onChange={(_: unknown, s: { value: number | string }) => setYear(i, Math.max(0, Number(s.value) || 0))}
-              />
-              {i > 0 ? (
-                <IconButton kind="ghost" size="sm" label={`Remove year ${y.year}`} onClick={() => removeYear(i)}>
-                  <TrashCan />
-                </IconButton>
-              ) : null}
-            </div>
-          </Column>
-        ))}
-        <Column sm={4} md={4} lg={6}>
-          <Button kind="ghost" size="md" renderIcon={Add} onClick={addYear} className="planner__addYear">
-            Add a program year
-          </Button>
-        </Column>
-      </Grid>
-
-      <h3 className="planner__h3">Shift model</h3>
-      <Grid condensed>
-        <Column sm={2} md={4} lg={4}>
-          <NumberInput id="pl-spd" label="Shifts per day" min={1} step={1} value={values.shiftsPerDay} onChange={(_: unknown, s: { value: number | string }) => setShiftsPerDay(Math.max(1, Number(s.value) || 1))} />
-        </Column>
-        <Column sm={2} md={4} lg={4}>
-          <NumberInput id="pl-hours" label="Shift hours" min={1} step={0.5} value={values.shiftHours} onChange={(_: unknown, s: { value: number | string }) => onChange({ shiftHours: Math.max(1, Number(s.value) || 1) })} />
-        </Column>
-        <Column sm={2} md={4} lg={4}>
-          <NumberInput id="pl-days" label="Working days / year" min={1} step={1} value={values.workingDaysPerYear} onChange={(_: unknown, s: { value: number | string }) => setWorkingDays(Math.max(1, Number(s.value) || 1))} />
-        </Column>
-        <Column sm={2} md={4} lg={4}>
-          <NumberInput id="pl-oee" label="OEE %" min={1} max={100} step={1} value={Math.round(values.oee * 100)} onChange={(_: unknown, s: { value: number | string }) => onChange({ oee: Math.min(1, Math.max(0.01, (Number(s.value) || 85) / 100)) })} />
-        </Column>
-        <Column sm={4} md={4} lg={4}>
-          <NumberInput id="pl-years" label="Program years" min={1} step={1} helperText="Amortises equipment into cost/part." value={values.programYears} onChange={(_: unknown, s: { value: number | string }) => onChange({ programYears: Math.max(1, Number(s.value) || 1) })} />
-        </Column>
-      </Grid>
-
-      <h3 className="planner__h3">Variant mix <span className="planner__hint">— optional; leave empty for a single model</span></h3>
-      <div className="planner__variants">
-        {values.variantModes.map((m, i) => (
-          <div key={m.id} className="planner__variantRow">
-            <TextInput
-              id={`pl-vm-name-${i}`}
-              labelText={i === 0 ? "Variant name" : ""}
-              hideLabel={i > 0}
-              value={m.name}
-              onChange={(e) => onChange({ variantModes: values.variantModes.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })}
-            />
-            <NumberInput
-              id={`pl-vm-share-${i}`}
-              label={i === 0 ? "Share %" : ""}
-              hideLabel={i > 0}
-              min={0}
-              max={100}
-              step={5}
-              value={Math.round(m.share * 100)}
-              onChange={(_: unknown, s: { value: number | string }) => onChange({ variantModes: values.variantModes.map((x, k) => (k === i ? { ...x, share: Math.min(1, Math.max(0, (Number(s.value) || 0) / 100)) } : x)) })}
-            />
-            <IconButton kind="ghost" size="sm" label={`Remove ${m.name}`} onClick={() => onChange({ variantModes: values.variantModes.filter((_, k) => k !== i) })}>
-              <TrashCan />
-            </IconButton>
-          </div>
-        ))}
-        <Button
-          kind="ghost"
-          size="sm"
-          renderIcon={Add}
-          onClick={() => onChange({ variantModes: values.variantModes.concat([{ id: "vm" + ++vmCounter, name: `Variant ${values.variantModes.length + 1}`, share: 0, elementOverrides: {} }]) })}
-        >
-          Add a variant mode
-        </Button>
-        {values.variantModes.length > 0 && Math.abs(totalShare - 1) > 0.001 ? (
-          <InlineNotification kind="warning" lowContrast hideCloseButton title="Shares don't sum to 100%" subtitle={`Currently ${Math.round(totalShare * 100)}%. The balancer normalises, but round shares read better.`} />
-        ) : null}
-      </div>
-
-      <Tile className="planner__derived">
-        <div>
-          <span className="planner__derivedLab">Demand</span>
-          <span className="planner__derivedVal">{num(perShift)}/shift</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Takt</span>
-          <span className="planner__derivedVal">{takt > 0 ? takt.toFixed(1) + "s" : "—"}</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Shifts / year</span>
-          <span className="planner__derivedVal">{num(annualShifts)}</span>
-        </div>
-        <div>
-          <span className="planner__derivedLab">Program</span>
-          <span className="planner__derivedVal">{num(programParts)} parts</span>
-        </div>
-      </Tile>
-    </section>
+  const numField = (id: string, label: string, key: keyof DemandValues, min: number, helper?: string) => (
+    <Column sm={4} md={4} lg={4}>
+      <NumberInput
+        id={id}
+        label={label}
+        helperText={helper}
+        min={min}
+        value={values[key] as number}
+        onChange={(_: unknown, s: { value: number | string }) => onChange({ [key]: Math.max(min, Number(s.value) || min) })}
+      />
+    </Column>
   );
-}
-
-// ---- process --------------------------------------------------------------
-
-// Distinct capability ids from the seed catalog, for the per-step selector.
-const CAPABILITY_OPTIONS: string[] = Array.from(new Set(CAPABILITY_HINTS.map((h) => h.capabilityId))).sort();
-
-/** A predecessor option: an earlier step, keyed by its index. */
-interface PredItem {
-  id: string;
-  text: string;
-}
-
-/** Map a ProcessStep to the RawStep the inference consumes (identical mapping to
- *  the engine's buildModel, so the preview matches what generation will produce). */
-function toRaw(s: ProcessStep) {
-  return {
-    name: s.name,
-    seconds: s.cycleTimeSec,
-    capabilityId: s.capabilityId,
-    classification: s.classification,
-    wasteClass: s.wasteClass,
-    attendedFraction: s.attendedFraction,
-    ergonomicLoad: s.ergonomicLoad,
-    timeMethod: s.timeMethod,
-    confidence: s.confidence,
-    predecessors: s.predecessors,
-    scrapRate: s.scrapRate,
-  };
-}
-
-export function ProcessStepView({
-  steps,
-  onChange,
-  routing,
-  onRouting,
-}: {
-  steps: ProcessStep[];
-  onChange: (steps: ProcessStep[]) => void;
-  routing: { transport: Transport; partWeightKg: number };
-  onRouting: (patch: { transport?: Transport; partWeightKg?: number }) => void;
-}) {
-  const [paste, setPaste] = useState("");
-  // The live inference resolves every unspecified field, so each row can show
-  // the real value it will generate with — overrides simply pin it.
-  const inferred = useMemo(() => inferWorkload(steps.map(toRaw)), [steps]);
-
-  const update = (i: number, patch: Partial<ProcessStep>) => onChange(steps.map((s, k) => (k === i ? { ...s, ...patch } : s)));
-  const remove = (i: number) => onChange(steps.filter((_, k) => k !== i).map((s) => ({ ...s, predecessors: undefined })));
-  const add = () => onChange(steps.concat([{ name: `Step ${steps.length + 1}`, cycleTimeSec: 30 }]));
-  const seedFromPaste = () => {
-    const parsed = parseSteps(paste);
-    if (parsed.length) onChange(steps.concat(parsed));
-    setPaste("");
-  };
 
   return (
     <section className="planner planner--wide">
-      <h2 className="planner__h2">What are the process steps?</h2>
+      <h2 className="planner__h2">Parts &amp; demand</h2>
       <p className="planner__sub">
-        Each step is a work element. Only the name is required — capability, work class, operator binding and ergonomics
-        are inferred and shown below; edit any of them to pin your own value.
+        Part numbers, routings and demand per program year. The cell is sized on the busiest year and balanced across
+        the mix.
       </p>
 
-      <div className="planner__steps">
-        {steps.map((s, i) => {
-          const el = inferred.elements[i];
-          const resolved = {
-            capabilityId: s.capabilityId ?? el?.capabilityId ?? "",
-            seconds: s.cycleTimeSec ?? el?.time.seconds ?? 30,
-            classification: (s.classification ?? el?.classification ?? "VA") as WorkClass,
-            attended: s.attendedFraction ?? el?.attendedFraction ?? 1,
-            ergo: (s.ergonomicLoad ?? el?.ergonomicLoad ?? "medium") as ErgonomicLoad,
-            method: (s.timeMethod ?? el?.time.method ?? "estimate") as TimeMethod,
-            confidence: (s.confidence ?? el?.time.confidence ?? "low") as Confidence,
-          };
-          const isPinned = (f: keyof ProcessStep) => s[f] != null;
-          const pred = s.predecessors ?? (i > 0 ? [i - 1] : []);
-          const predItems: PredItem[] = steps.slice(0, i).map((p, k) => ({ id: String(k), text: p.name || `Step ${k + 1}` }));
-          return (
-            <Tile key={i} className="planner__step">
-              <div className="planner__stepHead">
-                <span className="planner__stepNo">{i + 1}</span>
-                <TextInput
-                  id={`st-name-${i}`}
-                  labelText="Step name"
-                  hideLabel
-                  placeholder="Step name"
-                  value={s.name}
-                  onChange={(e) => update(i, { name: e.target.value })}
-                />
-                <IconButton kind="ghost" size="sm" label={`Remove ${s.name || "step"}`} onClick={() => remove(i)} disabled={steps.length <= 1}>
-                  <TrashCan />
-                </IconButton>
-              </div>
-              <div className="planner__stepGrid">
-                <Select id={`st-cap-${i}`} size="sm" labelText={`Capability${isPinned("capabilityId") ? " ✏" : ""}`} value={resolved.capabilityId} onChange={(e) => update(i, { capabilityId: e.target.value || undefined })}>
-                  <SelectItem value="" text="Auto (from name)" />
-                  {CAPABILITY_OPTIONS.map((c) => (
-                    <SelectItem key={c} value={c} text={c} />
-                  ))}
-                  {resolved.capabilityId && !CAPABILITY_OPTIONS.includes(resolved.capabilityId) ? <SelectItem value={resolved.capabilityId} text={resolved.capabilityId} /> : null}
-                </Select>
-                <NumberInput id={`st-cyc-${i}`} size="sm" label={`Cycle s${isPinned("cycleTimeSec") ? " ✏" : ""}`} min={0.1} step={1} value={resolved.seconds} onChange={(_: unknown, o: { value: number | string }) => update(i, { cycleTimeSec: Math.max(0.1, Number(o.value) || 0.1) })} />
-                <NumberInput id={`st-ppc-${i}`} size="sm" label="Parts/cyc" min={1} step={1} value={s.partsPerCycle ?? 1} onChange={(_: unknown, o: { value: number | string }) => update(i, { partsPerCycle: Math.max(1, Math.floor(Number(o.value) || 1)) })} />
-                <Select id={`st-cls-${i}`} size="sm" labelText={`Class${isPinned("classification") ? " ✏" : ""}`} value={resolved.classification} onChange={(e) => update(i, { classification: e.target.value as WorkClass })}>
-                  {WORK_CLASSES.map((c) => (
-                    <SelectItem key={c} value={c} text={c} />
-                  ))}
-                </Select>
-                <NumberInput id={`st-att-${i}`} size="sm" label={`Attended %${isPinned("attendedFraction") ? " ✏" : ""}`} min={0} max={100} step={5} value={Math.round(resolved.attended * 100)} onChange={(_: unknown, o: { value: number | string }) => update(i, { attendedFraction: Math.min(1, Math.max(0, (Number(o.value) || 0) / 100)) })} />
-                <Select id={`st-erg-${i}`} size="sm" labelText={`Ergo${isPinned("ergonomicLoad") ? " ✏" : ""}`} value={resolved.ergo} onChange={(e) => update(i, { ergonomicLoad: e.target.value as ErgonomicLoad })}>
-                  {ERGONOMIC_LOADS.map((c) => (
-                    <SelectItem key={c} value={c} text={c} />
-                  ))}
-                </Select>
-                <NumberInput id={`st-scr-${i}`} size="sm" label="Scrap %" min={0} max={100} step={0.5} value={+((s.scrapRate ?? 0) * 100).toFixed(1)} onChange={(_: unknown, o: { value: number | string }) => update(i, { scrapRate: Math.min(1, Math.max(0, (Number(o.value) || 0) / 100)) || undefined })} />
-                <Select id={`st-mth-${i}`} size="sm" labelText="Method" value={resolved.method} onChange={(e) => update(i, { timeMethod: e.target.value as TimeMethod })}>
-                  {TIME_METHODS.map((c) => (
-                    <SelectItem key={c} value={c} text={c} />
-                  ))}
-                </Select>
-                <Select id={`st-cnf-${i}`} size="sm" labelText="Confidence" value={resolved.confidence} onChange={(e) => update(i, { confidence: e.target.value as Confidence })}>
-                  {CONFIDENCES.map((c) => (
-                    <SelectItem key={c} value={c} text={c} />
-                  ))}
-                </Select>
-                {i > 0 ? (
-                  <div className="planner__pred">
-                    <MultiSelect<PredItem>
-                      id={`st-pred-${i}`}
-                      size="sm"
-                      label="Predecessors"
-                      titleText="Predecessors"
-                      items={predItems}
-                      itemToString={(it) => (it ? it.text : "")}
-                      initialSelectedItems={predItems.filter((it) => pred.includes(Number(it.id)))}
-                      onChange={(d: { selectedItems: PredItem[] }) => update(i, { predecessors: d.selectedItems.map((it) => Number(it.id)) })}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </Tile>
-          );
-        })}
-      </div>
+      <PartTable
+        parts={values.parts}
+        years={values.programYears}
+        lib={lib}
+        // Shortening the program drops the years it removes. The derivation
+        // reads its length from the longest demand curve, so a retained-but-
+        // hidden year would keep counting toward the program volume that
+        // amortises capex — a number affecting the answer from off-screen.
+        onYears={(programYears) =>
+          onChange({
+            programYears,
+            parts: values.parts.map((p) => ({ ...p, demandByYear: p.demandByYear.slice(0, programYears) })),
+          })
+        }
+        onChange={(parts) => onChange({ parts })}
+      />
 
-      <div className="planner__stepActions">
-        <Button kind="tertiary" size="md" renderIcon={Add} onClick={add}>
-          Add a step
-        </Button>
-      </div>
-
-      <ProcessSummary steps={steps} inferred={inferred} />
-
-      <h3 className="planner__h3">Material routing</h3>
-      <p className="planner__sub">Defaults stamped on every generated flow. Refine per edge in the editor.</p>
+      <SectionLabel>Program</SectionLabel>
       <Grid condensed>
-        <Column sm={2} md={4} lg={4}>
-          <Select id="rt-transport" labelText="Transport mode" value={routing.transport} onChange={(e) => onRouting({ transport: e.target.value as Transport })}>
-            {TRANSPORT.map((t) => (
-              <SelectItem key={t} value={t} text={t} />
-            ))}
-          </Select>
+        <Column sm={4} md={4} lg={4}>
+          <TextInput
+            id="pl-name"
+            labelText="Cell or program name"
+            value={values.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+          />
         </Column>
-        <Column sm={2} md={4} lg={4}>
-          <NumberInput id="rt-weight" label="Part weight (kg)" min={0} step={0.1} value={routing.partWeightKg} onChange={(_: unknown, o: { value: number | string }) => onRouting({ partWeightKg: Math.max(0, Number(o.value) || 0) })} />
-        </Column>
+        {numField("pl-shifts", "Shifts per year", "annualShifts", 1)}
+        {numField("pl-hours", "Shift hours", "shiftHours", 1)}
       </Grid>
 
-      <details className="planner__paste">
-        <summary>Paste from a spreadsheet to add rows</summary>
-        <TextArea
-          id="pl-paste"
-          labelText="Steps to append"
-          helperText="One per line: name then cycle seconds. Tab, comma or semicolon all work."
-          rows={5}
-          value={paste}
-          onChange={(e) => setPaste(e.target.value)}
-        />
-        <Button kind="ghost" size="sm" onClick={seedFromPaste} disabled={!paste.trim()}>
-          Add pasted rows
-        </Button>
-      </details>
+      {unionSteps.length > 0 ? <InferencePreview steps={unionSteps} /> : null}
     </section>
   );
 }
 
-/** Live rollup of the structured steps — total content and how much is still
- *  inferred vs pinned, so the planner sees exactly what remains a guess (§9). */
-function ProcessSummary({ steps, inferred }: { steps: ProcessStep[]; inferred: ReturnType<typeof inferWorkload> }) {
-  if (steps.length === 0) return <p className="planner__count">No steps yet — add one to begin.</p>;
+/** A program longer than this is not a program, it is a typo. */
+const MAX_PROGRAM_YEARS = 25;
+
+/**
+ * The part portfolio, asked at the point the flow asks "how many".
+ *
+ * This replaced a hand-entered mix — two rows of "Mix A, 50%" — because those
+ * percentages had to come from somewhere, and the somewhere is the part list a
+ * planner already has. Part number, routing, and demand per program year is
+ * what an RFQ actually contains.
+ *
+ * Everything the generator needs is derived from it (see
+ * `@flowplan/core/engine/parts`): the cell is sized against the peak year
+ * rather than an average, capex is amortised over every part and every year,
+ * the routing is the union so there is a station for every step any part needs,
+ * and the mix modes fall out of which parts share work content — skipping, per
+ * mode, the steps its parts do not use.
+ *
+ * It belongs before Concepts because `generateCell` consumes all of that. Asked
+ * later, the answer could not change the cell it describes.
+ */
+function PartTable({
+  parts,
+  years,
+  lib,
+  onYears,
+  onChange,
+}: {
+  parts: Part[];
+  years: number;
+  lib: LibraryApi;
+  onYears: (y: number) => void;
+  onChange: (p: Part[]) => void;
+}) {
+  const derived = useMemo(() => derivePortfolio(parts), [parts]);
+  // Which row is building its routing from the library, if any. Resolved
+  // against the live list so appending a step re-reads the row it just changed.
+  const [pickFor, setPickFor] = useState<string | null>(null);
+  const picking = parts.find((p) => p.id === pickFor) ?? null;
+  // No second cap here. The column count used to be `min(years, 10)`, which
+  // silently truncated a longer program: you could ask for twelve years, see
+  // ten, and have no way to enter demand for the last two.
+  const cols = Math.max(1, Math.min(years, MAX_PROGRAM_YEARS));
+
+  const patch = (id: string, p: Partial<Part>) => onChange(parts.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  const setDemand = (part: Part, y: number, v: number) => {
+    const d = Array.from({ length: cols }, (_, i) => part.demandByYear[i] ?? 0);
+    d[y] = Math.max(0, v);
+    patch(part.id, { demandByYear: d });
+  };
+  const add = () => {
+    const n = parts.length + 1;
+    onChange(
+      parts.concat([
+        { id: "part-" + n + "-" + Date.now(), partNumber: "PN-" + String(n).padStart(3, "0"), steps: [], demandByYear: [] },
+      ]),
+    );
+  };
+
+  return (
+    <section className="planner__mix">
+      {/* The year count lives on the table it governs. It used to be a
+          "Program years" field in a group below, so the control that adds a
+          column was not visible from the columns. */}
+      <div className="planner__mixHead">
+        <Footnote>
+          Routing format: <code>Load 5 &gt; Press 10</code> — step name, cycle in seconds. Omit a time to infer it.
+        </Footnote>
+        <div className="parts__years">
+          <span className="parts__yearsLab">
+            {cols} program year{cols === 1 ? "" : "s"}
+          </span>
+          <Button
+            kind="ghost"
+            size="sm"
+            hasIconOnly
+            renderIcon={Subtract}
+            iconDescription="One year fewer"
+            tooltipPosition="bottom"
+            disabled={cols <= 1}
+            onClick={() => onYears(cols - 1)}
+          />
+          <Button
+            kind="ghost"
+            size="sm"
+            hasIconOnly
+            renderIcon={Add}
+            iconDescription="One year more"
+            tooltipPosition="bottom"
+            disabled={cols >= MAX_PROGRAM_YEARS}
+            onClick={() => onYears(cols + 1)}
+          />
+        </div>
+      </div>
+      <div className="parts u-scroll-x">
+        <table className="parts__table">
+          <thead>
+            <tr>
+              <th>Part number</th>
+              <th>Routing</th>
+              {Array.from({ length: cols }, (_, y) => (
+                <th key={y} className="parts__num">
+                  Yr {y + 1}
+                </th>
+              ))}
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {parts.map((part) => (
+              <tr key={part.id}>
+                <td>
+                  <TextInput
+                    id={"pn-" + part.id}
+                    labelText="Part number"
+                    hideLabel
+                    size="sm"
+                    value={part.partNumber}
+                    onChange={(e) => patch(part.id, { partNumber: e.target.value })}
+                  />
+                </td>
+                <td>
+                  <div className="parts__routing">
+                    <TextInput
+                      id={"rt-" + part.id}
+                      labelText="Routing"
+                      hideLabel
+                      size="sm"
+                      placeholder="Load 5 > Press 10 > Weld 20"
+                      value={formatRouting(part.steps)}
+                      onChange={(e) => patch(part.id, { steps: parseRouting(e.target.value) })}
+                    />
+                    {/* Typing a routing from memory is what the library exists
+                        to stop. The field stays — this is the other way in. */}
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      hasIconOnly
+                      renderIcon={Catalog}
+                      iconDescription={`Build ${part.partNumber}'s routing from the library`}
+                      tooltipPosition="left"
+                      onClick={() => setPickFor(pickFor === part.id ? null : part.id)}
+                    />
+                  </div>
+                </td>
+                {Array.from({ length: cols }, (_, y) => (
+                  <td key={y}>
+                    <TextInput
+                      id={"d-" + part.id + "-" + y}
+                      labelText={"Year " + (y + 1)}
+                      hideLabel
+                      size="sm"
+                      value={String(part.demandByYear[y] ?? "")}
+                      onChange={(e) => setDemand(part, y, Number(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+                    />
+                  </td>
+                ))}
+                <td>
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    hasIconOnly
+                    renderIcon={TrashCan}
+                    iconDescription={`Remove ${part.partNumber}`}
+                    tooltipPosition="left"
+                    disabled={parts.length === 1}
+                    onClick={() => onChange(parts.filter((x) => x.id !== part.id))}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="planner__mixFoot">
+        <Button kind="ghost" size="sm" renderIcon={Add} onClick={add}>
+          Add a part
+        </Button>
+      </div>
+
+      {picking ? (
+        <div className="parts__picker">
+          <div className="parts__pickerHead">
+            <SectionLabel>Add a step to {picking.partNumber}</SectionLabel>
+            <Button kind="ghost" size="sm" onClick={() => setPickFor(null)}>
+              Done
+            </Button>
+          </div>
+          <LibraryPicker
+            lib={lib}
+            onPick={(p) => patch(picking.id, { steps: picking.steps.concat([routingStepFrom(p)]) })}
+          />
+        </div>
+      ) : null}
+
+      {derived ? <PortfolioReadout d={derived} /> : null}
+      {derived && derived.ignored.length > 0 ? (
+        <InlineNotification
+          kind="info"
+          lowContrast
+          hideCloseButton
+          title={`Not counted: ${derived.ignored.join(", ")}`}
+          subtitle="Requires a routing and demand in at least one year."
+        />
+      ) : null}
+    </section>
+  );
+}
+
+/** What the parts add up to — the numbers the concepts will actually use. */
+function PortfolioReadout({ d }: { d: PortfolioDerivation }) {
+  return (
+    <Tile className="planner__derived">
+      <div>
+        <span className="planner__derivedLab">Sized for</span>
+        <span className="planner__derivedVal">{num(d.peakVolume)}</span>
+        <span className="planner__derivedNote">year {d.peakYear}, the busiest</span>
+      </div>
+      <div>
+        <span className="planner__derivedLab">Program</span>
+        <span className="planner__derivedVal">{num(d.programVolume)}</span>
+        <span className="planner__derivedNote">all parts, all {d.years} years</span>
+      </div>
+      <div>
+        <span className="planner__derivedLab">Distinct mixes</span>
+        <span className="planner__derivedVal">{d.modes.length}</span>
+        <span className="planner__derivedNote">
+          {d.modes.length === 1 ? "one work content" : "by work content"}
+        </span>
+      </div>
+      <div>
+        <span className="planner__derivedLab">Union routing</span>
+        <span className="planner__derivedVal">{d.steps.length}</span>
+        <span className="planner__derivedNote">steps across all parts</span>
+      </div>
+    </Tile>
+  );
+}
+
+/**
+ * What the tool inferred from the step names. The planner types names; this
+ * shows every field that was guessed so nothing is presented as fact (spec §9).
+ */
+function InferencePreview({ steps }: { steps: ProcessStep[] }) {
+  const inferred = useMemo(() => inferWorkload(steps.map((s) => ({ name: s.name, seconds: s.cycleTimeSec }))), [steps]);
+  if (steps.length === 0) return <p className="planner__count">No steps yet.</p>;
+
   const total = inferred.elements.reduce((a, e) => a + e.time.seconds, 0);
-  const va = inferred.elements.reduce((a, e) => a + (e.classification === "VA" ? e.time.seconds : 0), 0);
-  const vaPct = total > 0 ? Math.round((va / total) * 100) : 0;
+
   return (
     <>
       <p className="planner__count">
-        {steps.length} step{steps.length === 1 ? "" : "s"} · {Math.round(total)}s total work content · {vaPct}% value-add · {inferred.matchRatePct}% of names recognised
+        {steps.length} step{steps.length === 1 ? "" : "s"} · {total}s total work content ·{" "}
+        {inferred.matchRatePct}% of names recognised
       </p>
+
       {inferred.unmatched.length > 0 ? (
         <InlineNotification
           kind="warning"
           lowContrast
           hideCloseButton
           title="Some steps were not recognised"
-          subtitle={`${inferred.unmatched.join(", ")} — these get generic defaults until you pick a capability. Naming a step after its operation (weld, press, inspect, pack) also resolves it.`}
+          subtitle={`${inferred.unmatched.join(", ")} — generic defaults applied. Name steps after the operation (weld, press, inspect, pack) to match.`}
         />
       ) : null}
+
+      <StructuredListWrapper ariaLabel="Inferred work elements" className="planner__table planner__table--infer">
+        <StructuredListHead>
+          <StructuredListRow head>
+            <StructuredListCell head>Step</StructuredListCell>
+            <StructuredListCell head>Time</StructuredListCell>
+            <StructuredListCell head>Capability</StructuredListCell>
+            <StructuredListCell head>Class</StructuredListCell>
+            <StructuredListCell head>Operator</StructuredListCell>
+          </StructuredListRow>
+        </StructuredListHead>
+        <StructuredListBody>
+          {inferred.elements.map((e, i) => (
+            <StructuredListRow key={e.id}>
+              <StructuredListCell>{e.name}</StructuredListCell>
+              <StructuredListCell>
+                {e.time.seconds}s
+                {steps[i]?.cycleTimeSec == null ? <div className="planner__inferred">inferred</div> : null}
+              </StructuredListCell>
+              <StructuredListCell>
+                {e.capabilityId ?? "—"}
+                <div className="planner__inferred">inferred</div>
+              </StructuredListCell>
+              <StructuredListCell>
+                <Tag type={e.classification === "VA" ? "green" : e.classification === "NNVA" ? "gray" : "red"} size="sm">
+                  {e.classification}
+                </Tag>
+                {e.wasteClass ? <div className="planner__cellSub">{e.wasteClass}</div> : null}
+              </StructuredListCell>
+              <StructuredListCell>
+                {Math.round(e.attendedFraction * 100)}%
+                <div className="planner__inferred">inferred</div>
+              </StructuredListCell>
+            </StructuredListRow>
+          ))}
+        </StructuredListBody>
+      </StructuredListWrapper>
+
+      <InlineNotification
+        kind="info"
+        lowContrast
+        hideCloseButton
+        title="Inferred fields"
+        subtitle="Capability, work class and operator binding are derived from the step name. Low confidence — correct in the editor."
+      />
     </>
   );
 }
@@ -545,161 +586,161 @@ export function ConceptsStep({
   selectedId,
   onSelect,
   perShift,
-  programYears,
+  peakYear,
+  brief,
+  weightsApi,
 }: {
   candidates: Candidate[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   perShift: number;
-  programYears: number;
+  /** Set when the volume came from a part portfolio's busiest year. */
+  peakYear?: number;
+  /** The brief the candidates came from, for the crossover and sensitivity sweeps. */
+  brief: GenerateBrief;
+  weightsApi: DecisionWeightsApi;
 }) {
+  const [showWeights, setShowWeights] = useState(false);
   return (
     <section className="planner planner--wide">
-      <h2 className="planner__h2">Which concept?</h2>
+      <h2 className="planner__h2">Concept comparison</h2>
       <p className="planner__sub">
-        {candidates.length} options for {num(perShift)} parts/shift. Cost per part is fully loaded — operating cost plus
-        equipment amortised over {programYears} years.
+        {num(perShift)} parts/shift{peakYear ? ` · year-${peakYear} peak` : ""} · cost per part fully loaded
+        (operating + amortised capex)
       </p>
+      {/* The ranking is a weighted judgement, not a fact, so the weighting is
+          one click away from the table it produced. */}
+      <div className="planner__weightsBar">
+        <Btn size="compact" variant="ghost" onClick={() => setShowWeights((v) => !v)}>
+          {showWeights ? "Hide weights" : "Weights"}
+        </Btn>
+        <Footnote>{weightsApi.isDefault ? "Default weighting" : "Custom weighting"}</Footnote>
+      </div>
+      {showWeights ? <DecisionWeightsEditor api={weightsApi} /> : null}
+
       <ConceptTable candidates={candidates} selectedId={selectedId} onSelect={onSelect} />
+
+      {/* The table answers "what is best at this volume". Demand is a forecast,
+          so the two questions after it are always "where does that change?" and
+          "does it survive being wrong?" */}
+      <Crossover
+        brief={brief}
+        atVolume={brief.annualVolume}
+        currency={candidates[0]?.cost.currency ?? "$"}
+      />
+      <Sensitivity brief={brief} weights={weightsApi.weights} />
     </section>
   );
 }
 
 // ---- summary --------------------------------------------------------------
 
-/** One decision figure in the summary's KPI panel. */
-function SumKpi({ lab, val, sub, color, big }: { lab: string; val: string; sub?: string; color?: string; big?: boolean }) {
+/**
+ * The six stages of the analysis path as one at-a-glance grid.
+ *
+ * Same order, same figures and same wording as the Analysis page, so the plan is
+ * read the same way whether you are standing in the editor or looking at the
+ * summary. Each tile opens the stage it summarises.
+ */
+function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: AnalysisStepId) => void }) {
+  const path = analysisPath(api);
   return (
-    <div className={"sum1__kpi" + (big ? " sum1__kpi--big" : "")}>
-      <span className="sum1__kpiLab">{lab}</span>
-      <span className="sum1__kpiVal" style={{ color }}>{val}</span>
-      {sub ? <span className="sum1__kpiSub">{sub}</span> : null}
-    </div>
+    <section className="glance">
+      <h3 className="planner__h2 glance__h">The cell as it now stands</h3>
+      <p className="planner__sub">
+        Measured on the layout in the editor, not on the concept estimate above — the two differ once you
+        refine it. Open any one to see the working.
+      </p>
+      <div className="glance__grid">
+        {path.map((s, i) => (
+          <ClickableTile key={s.id} className="glance__tile" onClick={() => onOpen?.(s.id)}>
+            <div className="glance__head">
+              <span className="glance__num">{i + 1}</span>
+              <span className="glance__label">{s.label}</span>
+            </div>
+            <div className="glance__value">{s.value}</div>
+            <Tag type={s.tone} size="sm">
+              {s.sub}
+            </Tag>
+            {s.question ? <p className="glance__q">{s.question}</p> : null}
+          </ClickableTile>
+        ))}
+      </div>
+    </section>
   );
 }
 
-/** The refined workspace model's live analysis, so the summary reflects what the
- *  user actually built in the editor rather than the original generated concept. */
-export interface LiveSummary {
-  model: Model;
-  letter: string;
-  composite: number;
-  loadedCostPerPart: number;
-  costPerPart: number;
-  capexPerPart: number;
-  capexTotal: number;
-  lineOut: number;
-  takt: number;
-  meetsDemand: boolean;
-  operators: number;
-  stations: number;
-  parallelUnits: number;
-  overCapacityPct: number;
-  floorSpace: { total: number; cell: number; materialSupply: number; unit: string };
-  currency: string;
-}
-
-// The Summary is a decision one-pager: the chosen concept, the numbers a
-// business case turns on, a layout thumbnail, and — the "why this one" — a
-// head-to-head against the other concepts. The headline figures reflect the
-// LIVE refined layout when available (so editor changes carry through); the
-// concept comparison stays anchored to the generated candidate set.
 export function SummaryStep({
   picked,
-  live = null,
-  useCase,
-  candidates = [],
-  onRefine,
+  api,
+  onOpenAnalysis,
+  onOpenReport,
+  catalog = CONCEPTS,
 }: {
   picked: Candidate | null;
-  live?: LiveSummary | null;
-  useCase: UseCase | null;
-  candidates?: Candidate[];
-  onRefine?: () => void;
+  api: FlowPlanApi;
+  onOpenAnalysis?: (id: AnalysisStepId) => void;
+  onOpenReport?: () => void;
+  catalog?: ConceptCatalog;
 }) {
+  const hasCell = api.model.stations.some((s) => s.role === "process");
   if (!picked) {
     return (
       <section className="planner">
-        <h2 className="planner__h2">Nothing chosen yet</h2>
-        <p className="planner__sub">Go back to Concepts and pick an option.</p>
+        {hasCell ? (
+          <>
+            <h2 className="planner__h2">{api.model.name}</h2>
+            <p className="planner__sub">Pick a concept to compare this against a costed starting point.</p>
+            <AnalysisGlance api={api} onOpen={onOpenAnalysis} />
+          </>
+        ) : (
+          <>
+            <h2 className="planner__h2">No concept chosen</h2>
+            <p className="planner__sub">Pick one on the Concepts step.</p>
+          </>
+        )}
       </section>
     );
   }
   const m = picked.metrics;
-  // Headline metrics: the live refined layout when present, else the candidate.
-  const k = live ?? picked.metrics;
-  const cur = live?.currency ?? picked.cost.currency;
-  const foot = live?.floorSpace ?? picked.cost.floorSpace;
-  const vizModel = live?.model ?? picked.model;
-  const gradeLetter = live?.letter ?? m.letter;
-  const gradeComposite = live?.composite ?? m.composite;
-
-  // Head-to-head: rank every concept by the loaded cost/part a business case
-  // turns on (lower = better). The picked one is highlighted.
-  const ranked = [...candidates].sort((a, b) => a.metrics.loadedCostPerPart - b.metrics.loadedCostPerPart);
-  const worst = Math.max(m.loadedCostPerPart, ...ranked.map((c) => c.metrics.loadedCostPerPart), 1e-9);
+  const cur = picked.cost.currency;
 
   return (
-    <section className="planner sum1">
-      {/* Header — the choice + its grade, top-left. */}
-      <div className="sum1__head">
+    <section className="planner">
+      <h2 className="planner__h2">{picked.conceptLabel}</h2>
+      <p className="planner__sub">{picked.rationale}</p>
+
+      <SectionLabel>Costed from the brief</SectionLabel>
+      <Tile className="planner__derived">
         <div>
-          <h2 className="planner__h2">{picked.conceptLabel}</h2>
-          <p className="planner__sub">{picked.rationale}</p>
+          <span className="planner__derivedLab">Loaded cost/part</span>
+          <span className="planner__derivedVal">{money(cur, m.loadedCostPerPart)}</span>
+          <span className="planner__derivedNote">incl. capex</span>
         </div>
-        <Tile className="sum1__grade">
-          <span className="sum1__gradeLab">Rating{live ? " · refined" : ""}</span>
-          <span className="sum1__gradeVal" style={{ color: scoreColor(gradeComposite) }}>{gradeLetter}</span>
-          <span className="sum1__gradeScore">{gradeComposite.toFixed(0)} / 100</span>
-        </Tile>
-      </div>
-
-      {/* Layout thumbnail + the decision figures. */}
-      <div className="sum1__grid">
-        <Tile className="sum1__viz">
-          <div className="sum1__vizLab">Layout{live ? " · as refined" : ""}</div>
-          <div className="sum1__vizCanvas">
-            <LayoutCanvas model={vizModel} stations={vizModel.stations} flows={vizModel.flows} label="" badge={TEAL} cell={14} />
-          </div>
-        </Tile>
-        <Tile className="sum1__kpis">
-          <SumKpi lab="Loaded cost / part" val={money(cur, k.loadedCostPerPart)} sub={`${money(cur, k.costPerPart)} opex + ${money(cur, k.capexPerPart)} capex`} big />
-          <SumKpi lab="Output / shift" val={num(k.lineOut)} sub={`takt ${k.takt > 0 ? k.takt.toFixed(1) + "s" : "—"} · demand ${k.meetsDemand ? "met" : "not met"}`} color={k.meetsDemand ? undefined : "var(--cds-support-error)"} />
-          <SumKpi lab="Capex" val={moneyWhole(cur, k.capexTotal)} />
-          <SumKpi lab="Operators" val={String(k.operators)} sub={`${k.stations} stations · ${k.parallelUnits} units`} />
-          <SumKpi lab="Footprint" val={`${num(foot.total)} ${foot.unit}`} sub={`cell ${num(foot.cell)} + supply ${num(foot.materialSupply)}`} />
-          <SumKpi lab="Over-capacity" val={`${k.overCapacityPct}%`} sub="line vs demand" color={k.overCapacityPct > 30 ? "var(--cds-support-warning)" : undefined} />
-        </Tile>
-      </div>
-
-      {/* Why this concept — head-to-head on loaded cost/part. */}
-      {ranked.length > 1 ? (
-        <Tile className="sum1__cmp">
-          <h3 className="sum1__cmpH">Why this concept — loaded cost / part vs alternatives</h3>
-          {ranked.map((c) => {
-            const isPicked = c.id === picked.id;
-            return (
-              <div key={c.id} className={"sum1__cmpRow" + (isPicked ? " sum1__cmpRow--on" : "")}>
-                <span className="sum1__cmpName">{c.conceptLabel}{isPicked ? " ✓" : ""}</span>
-                <span className="sum1__cmpTrack">
-                  <span className="sum1__cmpBar" style={{ width: `${(c.metrics.loadedCostPerPart / worst) * 100}%`, background: isPicked ? TEAL : "var(--cds-border-strong-01)" }} />
-                </span>
-                <span className="sum1__cmpVal">{money(cur, c.metrics.loadedCostPerPart)} · {c.metrics.letter}</span>
-              </div>
-            );
-          })}
-        </Tile>
-      ) : null}
+        <div>
+          <span className="planner__derivedLab">Capex</span>
+          <span className="planner__derivedVal">{moneyWhole(cur, m.capexTotal)}</span>
+        </div>
+        <div>
+          <span className="planner__derivedLab">Operators</span>
+          <span className="planner__derivedVal">{m.operators}</span>
+        </div>
+        <div>
+          <span className="planner__derivedLab">Output</span>
+          <span className="planner__derivedVal">{num(m.lineOut)}/shift</span>
+          <span className="planner__derivedNote">as generated</span>
+        </div>
+      </Tile>
 
       {m.conceptFit < 40 ? (
         <InlineNotification
           kind="warning"
           lowContrast
           hideCloseButton
-          title="Outside the usual volume range"
-          subtitle={`${picked.conceptLabel} normally suits ${num(CONCEPTS[picked.concept].viableVolume[0])}–${num(
-            CONCEPTS[picked.concept].viableVolume[1],
-          )} parts/year. Treat this as a comparison point, not a recommendation.`}
+          title="Outside the concept's volume band"
+          subtitle={`${picked.conceptLabel} normally suits ${num(catalog[picked.concept]?.viableVolume[0] ?? 0)}–${num(
+            catalog[picked.concept]?.viableVolume[1] ?? 0,
+          )} parts/year. Band editable on the Concepts page.`}
         />
       ) : null}
 
@@ -707,23 +748,19 @@ export function SummaryStep({
         kind="info"
         lowContrast
         hideCloseButton
-        title="This is a starting point, not a plan"
-        subtitle={
-          live
-            ? "These headline figures reflect your refined layout. Concept costs remain planning heuristics — validate before quoting."
-            : "Concept costs are planning heuristics and layouts are template placements. Refine the layout before quoting."
-        }
+        title="Planning estimate"
+        subtitle="Concept costs are heuristics; layouts are template placements. Refine before quoting."
       />
 
-      {/* Next actions. */}
-      <div className="sum1__actions">
-        {onRefine ? (
-          <Button kind="primary" onClick={onRefine}>Refine the layout</Button>
-        ) : null}
-        <Button kind="tertiary" onClick={() => navigate("/compare")}>Compare scenarios</Button>
-      </div>
+      {hasCell ? <AnalysisGlance api={api} onOpen={onOpenAnalysis} /> : null}
 
-      {useCase ? <p className="planner__lifecycle">{useCase.lifecycle}</p> : null}
+      {onOpenReport ? (
+        <div className="planner__actions">
+          <Btn variant="secondary" onClick={onOpenReport}>
+            Open the full report
+          </Btn>
+        </div>
+      ) : null}
     </section>
   );
 }

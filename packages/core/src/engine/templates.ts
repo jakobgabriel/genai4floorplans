@@ -51,3 +51,13 @@ export function applyForm(model: Model, form: CellForm): Station[] {
     return s;
   });
 }
+
+/** Human labels for the cell forms, for pickers and rankings. */
+export const FORM_LABELS: Record<CellForm, string> = {
+  I: "Straight line",
+  U: "U-cell",
+  L: "L-cell",
+  S: "Serpentine",
+  W: "Workshop",
+  O: "Loop",
+};

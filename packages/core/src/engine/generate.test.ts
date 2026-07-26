@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CONCEPTS, CONCEPT_KINDS, conceptFit, rankConcepts } from "./concepts";
+import { CONCEPTS, CONCEPT_KINDS, byKind, conceptFit, rankConcepts } from "./concepts";
 import { conceptCrossover, filterCandidates, generateCandidates, rankCandidates, type GenerateBrief } from "./generate";
 import { validateFlow } from "./validate";
 import { hasCollision } from "./geometry";
@@ -63,6 +63,29 @@ describe("generateCandidates", () => {
     const a = rankCandidates(generateCandidates(brief())).map((c) => c.id);
     const b = rankCandidates(generateCandidates(brief())).map((c) => c.id);
     expect(a).toEqual(b);
+  });
+
+  it("lets an edited catalog re-rank — a narrowed band drops that concept's fit", () => {
+    // The Concepts page edits a profile's viable band; pushing the band far from
+    // the brief's volume must lower that concept's fit in the generated result.
+    const edited = Object.values(CONCEPTS).map((p) =>
+      p.kind === "cell" ? { ...p, viableVolume: [1, 2] as [number, number] } : p,
+    );
+    const baseFit = generateCandidates(brief()).find((c) => c.concept === "cell")!.metrics.conceptFit;
+    const tunedFit = generateCandidates(brief({ catalog: byKind(edited) })).find((c) => c.concept === "cell")!.metrics
+      .conceptFit;
+    expect(baseFit).toBeGreaterThan(0);
+    expect(tunedFit).toBe(0);
+  });
+
+  it("generates candidates for a concept authored in the catalog", () => {
+    // A net-new kind added on the Concepts page has to produce real candidates,
+    // not be silently ignored because it is not one of the shipped five.
+    const withCustom = Object.values(CONCEPTS).concat([{ ...CONCEPTS.cell, kind: "custom-x", label: "Custom X" }]);
+    const cands = generateCandidates(brief({ catalog: byKind(withCustom) }));
+    const mine = cands.filter((c) => c.concept === "custom-x");
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine[0].conceptLabel).toBe("Custom X");
   });
 
   it("emits models that pass the ordinary flow validator", () => {

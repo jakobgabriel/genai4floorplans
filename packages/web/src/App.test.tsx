@@ -37,7 +37,7 @@ describe("App", () => {
 
   it("loads the sample cell and shows its rating + stations", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     // grade letter + a station from the sample appear
     expect(screen.getAllByText(/CNC Turning/).length).toBeGreaterThan(0);
     openAnalysis("Overview");
@@ -47,7 +47,7 @@ describe("App", () => {
 
   it("switches between analysis sub-tabs without error", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     openAnalysis("Balance");
     expect(screen.getByText(/Line balance & bottleneck/)).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Automation" }));
@@ -66,7 +66,7 @@ describe("App", () => {
 
   it("renders the DAG view and the Yield panel", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     // View toggle now sits in the sub-toolbar above the canvas.
     fireEvent.click(screen.getByRole("button", { name: "DAG" }));
     expect(screen.getByText("Process DAG")).toBeTruthy();
@@ -76,7 +76,7 @@ describe("App", () => {
 
   it("navigates to the dedicated Compare page", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     fireEvent.click(screen.getByTitle("More actions"));
     fireEvent.click(screen.getByText("Compare scenarios"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare scenarios" })).toBeTruthy());
@@ -86,7 +86,7 @@ describe("App", () => {
 
   it("opens the process library and shows an element's documentation", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     // The library rail's "manage" link opens the full library page.
     fireEvent.click(screen.getByText("manage"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
@@ -100,7 +100,7 @@ describe("App", () => {
 
   it("authors a custom (non-predefined) library element", async () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     fireEvent.click(screen.getByText("manage"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Process library" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "New element" }));
@@ -111,7 +111,7 @@ describe("App", () => {
 
   it("opens the freeform footprint editor without crashing", () => {
     renderApp();
-    fireEvent.click(screen.getByText("Start from the sample cell"));
+    fireEvent.click(screen.getByText("See an example"));
     fireEvent.click(screen.getByRole("button", { name: "DAG" }));
     // click a DAG node to select + open Configure. The step name also appears in
     // the DAG's bottleneck caption, so target the SVG <text> graph node.
