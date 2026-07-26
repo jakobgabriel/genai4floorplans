@@ -9,12 +9,13 @@ import { PageHead } from "../components/PageHead";
 import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
 import { BarChart, Stat, type Bar } from "../components/charts";
-import { scoreColor, TEAL } from "../components/colors";
+import { useAccents } from "../components/colors";
 
 // Dedicated full-page scenario comparison: a KPI table (best-in-column),
 // summary stats, and charts across the current layout + all saved scenarios.
 export function ComparePage({ api }: { api: FlowPlanApi }) {
   const { toast } = useToast();
+  const { scoreColor, TEAL } = useAccents();
 
   const folderPath = useMemo(() => {
     const byId = new Map(api.folders.map((f) => [f.id, f]));

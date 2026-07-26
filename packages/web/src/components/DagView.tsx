@@ -1,7 +1,7 @@
 import type { Model } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import { dagLayout } from "@flowplan/core/engine/dag";
-import { AMBER, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD } from "./colors";
+import { useAccents } from "./colors";
 
 // Process flow rendered as a layered DAG: topological columns, directed
 // arrowheads, scrap stubs, and an explicit cycle warning when the flow graph
@@ -13,6 +13,7 @@ const ROW_GAP = 74;
 const PAD = 24;
 
 export function DagView({ model, chain, selId, onSelect, criticalPath = [] }: { model: Model; chain: ChainResult; selId: string | null; onSelect: (id: string) => void; criticalPath?: string[] }) {
+  const { AMBER, LINE, PANEL2, RED, TEAL, TEALD, TEXT, TEXTD } = useAccents();
   const dag = dagLayout(model.stations, model.flows);
   const kind: Record<string, string> = {};
   chain.links.forEach((l) => (kind[l.from + ">" + l.to] = l.kind));

@@ -3,7 +3,7 @@ import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceS
 import { PageHead } from "../components/PageHead";
 import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
-import { TEAL } from "../components/colors";
+import { useAccents } from "../components/colors";
 
 const ROLES: Role[] = ["OWNER", "EDITOR", "VIEWER"];
 
@@ -79,6 +79,7 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
 }
 
 function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void }) {
+  const { TEAL } = useAccents();
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [detail, setDetail] = useState<TeamDetail | null>(null);

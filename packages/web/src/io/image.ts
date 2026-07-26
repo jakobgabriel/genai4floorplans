@@ -1,10 +1,13 @@
 import { triggerDownload } from "./download";
-import { EXPORT_BG as BG } from "../components/colors";
+import { readAccents } from "../components/colors";
 
 /** Grab the live layout SVG (e.g. label "ACTUAL") and return standalone markup. */
 export function serializeLayout(label: string): { svg: string; width: number; height: number } | null {
   const el = document.querySelector(`svg[data-layout="${label}"]`) as SVGSVGElement | null;
   if (!el) return null;
+  // Read the export backdrop for the *active* theme so a light-theme export is
+  // white, not the dark canvas colour.
+  const BG = readAccents().EXPORT_BG;
   const clone = el.cloneNode(true) as SVGSVGElement;
   const vb = (el.getAttribute("viewBox") || "0 0 800 500").split(/\s+/).map(Number);
   const width = vb[2] || el.clientWidth || 800;
@@ -49,7 +52,7 @@ export function svgToPngBlob(svg: string, width: number, height: number, scale =
       canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("no 2d context"));
-      ctx.fillStyle = BG;
+      ctx.fillStyle = readAccents().EXPORT_BG;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");

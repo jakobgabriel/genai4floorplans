@@ -1,5 +1,5 @@
 import type { StationCycle } from "@flowplan/core/engine/cycle";
-import { CYCLE_COL, LINE, RED, scoreColor, TEAL, TEXTD } from "./colors";
+import { useAccents } from "./colors";
 
 // Lightweight inline-SVG charts (no charting dependency — consistent with the
 // hand-drawn layout canvas). Used by the Compare and Site pages.
@@ -16,6 +16,7 @@ export interface Bar {
 
 // Horizontal bar chart — readable with long category labels (scenario/cell names).
 export function BarChart({ bars, max, unit, colorByScore = false }: { bars: Bar[]; max?: number; unit?: string; colorByScore?: boolean }) {
+  const { scoreColor, TEAL, TEXTD } = useAccents();
   const top = max ?? Math.max(1, ...bars.map((b) => b.value));
   const rowH = 26;
   const labelW = 132;
@@ -49,6 +50,7 @@ export function BarChart({ bars, max, unit, colorByScore = false }: { bars: Bar[
 // Undecomposed stations render as a single hatched "unknown" bar rather than
 // being silently drawn as value-add.
 export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; takt?: number; onSelect?: (id: string) => void }) {
+  const { CYCLE_COL, LINE, RED, TEXTD } = useAccents();
   if (rows.length === 0) return null;
   const rowH = 30;
   const labelW = 116;

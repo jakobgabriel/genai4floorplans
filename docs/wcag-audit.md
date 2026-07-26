@@ -24,11 +24,11 @@ The app has two themes (dark `cds--g100`, light `cds--white`) and two languages
 | 1.3.4 | Orientation | **Pass** | No orientation lock; layout reflows. |
 | 1.3.5 | Identify input purpose | **N/A** | No fields collecting user personal data. |
 | 1.4.1 | Use of colour | **Pass** | Status is colour **plus** text/letter/number (Carbon Tags carry the value; legends pair a swatch with a word). |
-| 1.4.3 | Contrast (minimum) | **Fixed (partial)** | Carbon text tokens meet AA in both themes. Light-theme accent tokens (`--data-*`) darkened to keep AA where the colour is resolved from CSS. **Gap:** canvas/inline accents captured as hex in `colors.ts` at load do not re-resolve on a light surface — see Known gaps. |
+| 1.4.3 | Contrast (minimum) | **Fixed** | Carbon text tokens meet AA in both themes. The canvas/chart palette is now theme-reactive: `colors.ts` holds a per-theme palette read at render time via `useAccents()`, so on the light theme the accents darken (teal `#0f766e`, amber `#8a5a00`, red `#b42318`) and station fills become pale tints with dark labels — all ≥4.5:1 on white. |
 | 1.4.4 | Resize text | **Pass** | Type in `rem`; zoom to 200% reflows without loss. |
 | 1.4.5 | Images of text | **Pass** | No text baked into images. |
 | 1.4.10 | Reflow | **Pass** | Responsive grids; wide tables scroll inside their own container. |
-| 1.4.11 | Non-text contrast | **Fixed (partial)** | Focus rings and controls meet 3:1. Same canvas-accent caveat as 1.4.3. |
+| 1.4.11 | Non-text contrast | **Fixed** | Focus rings and controls meet 3:1. Canvas graphics (station outlines, flow links, port dots, Yamazumi/bar segments) use the theme-reactive palette, so they hold ≥3:1 on both surfaces. |
 | 1.4.12 | Text spacing | **Pass** | No fixed line-heights that clip on user spacing. |
 | 1.4.13 | Content on hover/focus | **Pass** | Tooltips are Carbon (dismissible, hoverable, persistent). |
 
@@ -80,17 +80,10 @@ The app has two themes (dark `cds--g100`, light `cds--white`) and two languages
 
 ## Known gaps (next steps)
 
-1. **Canvas accent contrast on the light theme (1.4.3 / 1.4.11).** `colors.ts`
-   captures the `--data-*` accents as hex at module load and the canvas applies
-   them as SVG presentation attributes, so they don't re-resolve when the
-   surface is light. Remedy: make the accent colours reactive to the active
-   theme (a `useAccents()` hook re-reading the CSS variables on theme change, or
-   applying them via `style` so `var()` resolves), then re-verify canvas and
-   legend contrast at 3:1 on white. Tracked separately from this structural pass.
-2. **Automated + manual verification.** Run `axe-core`/Lighthouse on each route
+1. **Automated + manual verification.** Run `axe-core`/Lighthouse on each route
    in both themes, and a screen-reader walkthrough (NVDA/VoiceOver) of the
    guided flow, the editor, and the plans store.
-3. **Full translation coverage.** i18n currently covers the portal and plans
+2. **Full translation coverage.** i18n currently covers the portal and plans
    store; the editor and library pages resolve through the English fallback and
    should be moved into the dictionaries so language is complete, not partial.
 
@@ -101,4 +94,8 @@ The app has two themes (dark `cds--g100`, light `cds--white`) and two languages
 - `<main>` landmark on routed pages — 1.3.1.
 - Visible focus on the portal tiles, language select, skip link — 2.4.7.
 - `html lang` driven by the language switch — 3.1.1.
-- Light-theme accent tokens darkened for AA where CSS-resolved — 1.4.3 (partial).
+- Theme-reactive canvas/chart palette (`useAccents()` / per-theme palette in
+  `colors.ts`): light accents darkened and station fills turned to pale tints,
+  so the canvas, legends and Yamazumi/bar charts hold AA on the white theme —
+  1.4.3 / 1.4.11. Verified in-browser on the editor canvas and the analysis
+  charts in both themes.

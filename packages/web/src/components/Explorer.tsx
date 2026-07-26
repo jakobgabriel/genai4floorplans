@@ -16,7 +16,7 @@ import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
 import { navigate } from "../store/useHashRoute";
 import { Menu } from "./Menu";
-import { TEAL } from "./colors";
+import { useAccents } from "./colors";
 
 // Left drawer presenting the workspace as a nested folder tree of layouts. All
 // editing is in-app (inline inputs + inline confirm — no browser prompt/confirm).
@@ -78,6 +78,7 @@ function InlineInput({ initial, placeholder, onCommit, onCancel }: { initial: st
 }
 
 function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string; depth: number }) {
+  const { TEAL } = useAccents();
   const active = id === ctx.api.activeId;
   return (
     <div
