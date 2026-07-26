@@ -878,6 +878,7 @@ export function AutomationSection({ api, setSel, setTab }: { api: FlowPlanApi; s
 // Freeform footprint editor: paint which cells of the w×h bounding box the
 // station occupies. "Fill" clears the mask back to a plain rectangle.
 function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station }) {
+  const t = useT();
   const w = Math.max(1, Math.round(station.w));
   const h = Math.max(1, Math.round(station.h));
   const occ = new Set(stationCells({ x: 0, y: 0, w, h, cells: station.cells }).map((c) => c.x + "," + c.y));
@@ -893,7 +894,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
   const isRect = !(station.cells && station.cells.length);
   return (
     <div className="cds--form-item">
-      <div className="cds--label">Footprint shape {isRect ? "(rectangle)" : "(custom)"}</div>
+      <div className="cds--label">{isRect ? t("cfg.footprintRect") : t("cfg.footprintCustom")}</div>
       <div className="u-row u-row--top">
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${w}, 16px)`, gap: 2 }}>
           {Array.from({ length: h }).map((_, dy) =>
@@ -919,7 +920,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
           )}
         </div>
         <Button kind="tertiary" size="sm" onClick={() => api.commit({ type: "UPDATE_STATION", id: station.id, patch: { cells: undefined } })}>
-          Fill (rect)
+          {t("cfg.fillRect")}
         </Button>
       </div>
     </div>
@@ -928,6 +929,7 @@ function CellShapeEditor({ api, station }: { api: FlowPlanApi; station: Station 
 
 export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }: PanelProps) {
   const { toast } = useToast();
+  const t = useT();
   const m = api.model;
   const s = m.stations.find((x) => x.id === selId);
   const [renameVal, setRenameVal] = useState("");
@@ -938,8 +940,8 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
     return (
       <div className="pad ak-panel">
         <EmptyState
-          title="No step selected"
-          body="Select a step on the layout to configure it."
+          title={t("cfg.noStep.title")}
+          body={t("cfg.noStep.body")}
           action={<AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />}
         />
       </div>
@@ -953,7 +955,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
     <div className="pad ak-panel">
       <Stack gap={6}>
         <div className="ak-row__head">
-          <SectionLabel>Configure · {s.id}</SectionLabel>
+          <SectionLabel>{t("cfg.heading", { id: s.id })}</SectionLabel>
           <div className="fk-inline">
             {/* Duplicating a station was reachable only through Ctrl+D, which is
                 advertised nowhere in the UI. */}
@@ -967,7 +969,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
                 setSel(clone.id);
               }}
             >
-              Duplicate
+              {t("common.duplicate")}
             </Button>
             <Button
               kind="danger--tertiary"
@@ -975,19 +977,19 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
               renderIcon={TrashCan}
               onClick={() => { api.commit({ type: "DELETE_STATION", id: s.id }); setSel(null); }}
             >
-              Delete
+              {t("scenario.delete")}
             </Button>
           </div>
         </div>
 
         <Stack gap={4}>
-          <TextField id="cfg-name" labelText="Name" value={s.name} onFocus={api.checkpoint} onChange={(v) => live({ name: v })} />
+          <TextField id="cfg-name" labelText={t("cfg.name")} value={s.name} onFocus={api.checkpoint} onChange={(v) => live({ name: v })} />
           <div className="fk-inline">
             <TextField
               id="cfg-rename"
-              labelText="Station id (rename)"
+              labelText={t("cfg.stationId")}
               placeholder={s.id}
-              helperText="Renaming rewrites every flow that references this station."
+              helperText={t("cfg.stationIdHelp")}
               value={renameVal}
               onChange={setRenameVal}
             />
@@ -997,45 +999,45 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
               onClick={() => {
                 const nid = renameVal.trim();
                 if (!nid) return;
-                if (m.stations.some((x) => x.id === nid)) { toast("That id is already taken", "err"); return; }
+                if (m.stations.some((x) => x.id === nid)) { toast(t("cfg.idTaken"), "err"); return; }
                 api.commit({ type: "RENAME_STATION", oldId: s.id, newId: nid });
                 setSel(nid);
                 setRenameVal("");
               }}
             >
-              Rename
+              {t("cfg.rename")}
             </Button>
           </div>
           <FieldRow>
-            <SelectField id="cfg-role" labelText="Role (I/O flexible)" value={s.role} options={ROLES} onChange={(v) => up({ role: v })} />
-            <SelectField id="cfg-type" labelText="Type" value={s.type} options={STATION_TYPES} onChange={(v) => up({ type: v })} />
+            <SelectField id="cfg-role" labelText={t("cfg.role")} value={s.role} options={ROLES} onChange={(v) => up({ role: v })} />
+            <SelectField id="cfg-type" labelText={t("cfg.type")} value={s.type} options={STATION_TYPES} onChange={(v) => up({ type: v })} />
           </FieldRow>
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Footprint &amp; ports</SectionLabel>
+          <SectionLabel>{t("cfg.footprint")}</SectionLabel>
           <FieldRow>
-            <NumberField id="cfg-w" label="Width" value={s.w} min={1} onFocus={api.checkpoint} onChange={(v) => live({ w: Math.max(1, Number(v) || 1) })} />
-            <NumberField id="cfg-h" label="Height" value={s.h} min={1} onFocus={api.checkpoint} onChange={(v) => live({ h: Math.max(1, Number(v) || 1) })} />
+            <NumberField id="cfg-w" label={t("cfg.width")} value={s.w} min={1} onFocus={api.checkpoint} onChange={(v) => live({ w: Math.max(1, Number(v) || 1) })} />
+            <NumberField id="cfg-h" label={t("cfg.height")} value={s.h} min={1} onFocus={api.checkpoint} onChange={(v) => live({ h: Math.max(1, Number(v) || 1) })} />
           </FieldRow>
           <CellShapeEditor api={api} station={s} />
           <FieldRow>
-            <SelectField id="cfg-in" labelText="IN port" helperText="Edge material enters." value={s.inSide ?? "left"} options={SIDES} onChange={(v) => up({ inSide: v as Side })} />
-            <SelectField id="cfg-out" labelText="OUT port" helperText="Edge material exits." value={s.outSide ?? "right"} options={SIDES} onChange={(v) => up({ outSide: v as Side })} />
+            <SelectField id="cfg-in" labelText={t("cfg.inPort")} helperText={t("cfg.inPortHelp")} value={s.inSide ?? "left"} options={SIDES} onChange={(v) => up({ inSide: v as Side })} />
+            <SelectField id="cfg-out" labelText={t("cfg.outPort")} helperText={t("cfg.outPortHelp")} value={s.outSide ?? "right"} options={SIDES} onChange={(v) => up({ outSide: v as Side })} />
           </FieldRow>
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Throughput</SectionLabel>
+          <SectionLabel>{t("cfg.throughput")}</SectionLabel>
           <FieldRow>
-            <NumberField id="cfg-cap" label="Capacity/shift" value={s.capacityPerShift} min={0} onFocus={api.checkpoint} onChange={(v) => live({ capacityPerShift: Number(v) || 0 })} />
-            <NumberField id="cfg-ops" label="Operators" value={s.operators} min={0} onFocus={api.checkpoint} onChange={(v) => live({ operators: Number(v) || 0 })} />
+            <NumberField id="cfg-cap" label={t("cfg.capacity")} value={s.capacityPerShift} min={0} onFocus={api.checkpoint} onChange={(v) => live({ capacityPerShift: Number(v) || 0 })} />
+            <NumberField id="cfg-ops" label={t("cfg.operators")} value={s.operators} min={0} onFocus={api.checkpoint} onChange={(v) => live({ operators: Number(v) || 0 })} />
           </FieldRow>
           <FieldRow>
             <NumberField
               id="cfg-parallel"
-              label="Parallel units (×N)"
-              helperText="Identical lanes; capacity scales ×N."
+              label={t("cfg.parallel")}
+              helperText={t("cfg.parallelHelp")}
               value={s.parallelUnits ?? 1}
               min={1}
               onFocus={api.checkpoint}
@@ -1044,8 +1046,8 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
             {outFlows.length > 1 ? (
               <SelectField
                 id="cfg-split"
-                labelText="Split mode"
-                helperText="distribute = share; fork = full count."
+                labelText={t("cfg.splitMode")}
+                helperText={t("cfg.splitModeHelp")}
                 value={s.splitMode ?? "distribute"}
                 options={SPLIT_MODES}
                 onChange={(v) => up({ splitMode: v })}
@@ -1057,19 +1059,19 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
           {inCount > 1 ? (
             <SelectField
               id="cfg-merge"
-              labelText="Merge mode"
-              helperText="sum = rates add; assemble = one of each input."
+              labelText={t("cfg.mergeMode")}
+              helperText={t("cfg.mergeModeHelp")}
               value={s.mergeMode ?? "sum"}
               options={MERGE_MODES}
               onChange={(v) => up({ mergeMode: v })}
             />
           ) : null}
           <FieldRow>
-            <SelectField id="cfg-scrapside" labelText="Scrap port" value={s.scrapSide ?? "bottom"} options={SIDES} onChange={(v) => up({ scrapSide: v as Side })} />
+            <SelectField id="cfg-scrapside" labelText={t("cfg.scrapPort")} value={s.scrapSide ?? "bottom"} options={SIDES} onChange={(v) => up({ scrapSide: v as Side })} />
             <NumberField
               id="cfg-scraprate"
-              label="Scrap rate (%)"
-              helperText="Shown in Balance ▸ Yield; not graded."
+              label={t("cfg.scrapRate")}
+              helperText={t("cfg.scrapRateHelp")}
               value={Math.round((s.scrapRate ?? 0) * 100)}
               min={0}
               max={100}
@@ -1080,27 +1082,27 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Cycle time</SectionLabel>
+          <SectionLabel>{t("cfg.cycleTime")}</SectionLabel>
           <FieldRow>
             <NumberField
               id="cfg-cycle"
-              label="Cycle time (s)"
-              helperText={s.cycle ? "Derived from the breakdown below." : undefined}
+              label={t("cfg.cycleTimeS")}
+              helperText={s.cycle ? t("cfg.cycleTimeDerived") : undefined}
               value={s.cycleTimeSec}
               min={0}
               disabled={!!s.cycle}
               onFocus={api.checkpoint}
               onChange={(v) => live({ cycleTimeSec: Number(v) || 0 })}
             />
-            <NumberField id="cfg-changeover" label="Changeover (min)" value={s.changeoverMin} min={0} onFocus={api.checkpoint} onChange={(v) => live({ changeoverMin: Number(v) || 0 })} />
+            <NumberField id="cfg-changeover" label={t("cfg.changeover")} value={s.changeoverMin} min={0} onFocus={api.checkpoint} onChange={(v) => live({ changeoverMin: Number(v) || 0 })} />
           </FieldRow>
           <CycleBreakdownEditor api={api} s={s} />
           <FieldRow>
-            <SelectField id="cfg-ergo" labelText="Ergonomic risk" value={s.ergoRisk} options={ERGO} onChange={(v) => up({ ergoRisk: v })} />
+            <SelectField id="cfg-ergo" labelText={t("cfg.ergo")} value={s.ergoRisk} options={ERGO} onChange={(v) => up({ ergoRisk: v })} />
             <NumberField
               id="cfg-shifthours"
-              label="Shift hours (override)"
-              helperText="Blank = cell default."
+              label={t("cfg.shiftOverride")}
+              helperText={t("cfg.shiftOverrideHelp")}
               value={s.shiftHours ?? ""}
               min={0}
               allowEmpty
@@ -1111,12 +1113,12 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Automation &amp; placement</SectionLabel>
+          <SectionLabel>{t("cfg.automationPlacement")}</SectionLabel>
           <FieldRow>
-            <SelectField id="cfg-auto" labelText="Automation state" value={s.auto} options={AUTO} onChange={(v) => up({ auto: v })} />
+            <SelectField id="cfg-auto" labelText={t("cfg.autoState")} value={s.auto} options={AUTO} onChange={(v) => up({ auto: v })} />
             <SelectField
               id="cfg-autooverride"
-              labelText="Automate? (override)"
+              labelText={t("cfg.automateOverride")}
               value={s.autoOverride ?? "auto"}
               onChange={(v) => up({ autoOverride: v === "auto" ? null : v })}
             >
@@ -1128,21 +1130,21 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
           <Toggle
             id="cfg-fixed"
             size="sm"
-            labelText="Placement"
-            labelA="Movable"
-            labelB="Fixed — won't be moved"
+            labelText={t("cfg.placement")}
+            labelA={t("cfg.movable")}
+            labelB={t("cfg.fixed")}
             toggled={!!s.fixed}
             onToggle={(checked) => up({ fixed: checked })}
           />
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Cost</SectionLabel>
+          <SectionLabel>{t("cfg.cost")}</SectionLabel>
           <FieldRow>
             <NumberField
               id="cfg-capex"
-              label="Equipment capex"
-              helperText="One-time equipment cost (Cost tab)."
+              label={t("cfg.capex")}
+              helperText={t("cfg.capexHelp")}
               value={s.capex ?? 0}
               min={0}
               onFocus={api.checkpoint}
@@ -1150,8 +1152,8 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
             />
             <NumberField
               id="cfg-autocapex"
-              label="Automation capex"
-              helperText="Cost to automate — drives ROI payback."
+              label={t("cfg.autoCapex")}
+              helperText={t("cfg.autoCapexHelp")}
               value={s.automationCapex ?? 0}
               min={0}
               onFocus={api.checkpoint}
@@ -1161,20 +1163,20 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Notes</SectionLabel>
+          <SectionLabel>{t("cfg.notes")}</SectionLabel>
           <TextField
             id="cfg-utils"
-            labelText="Utilities (comma-sep)"
+            labelText={t("cfg.utilities")}
             value={(s.utilities ?? []).join(", ")}
             onFocus={api.checkpoint}
             onChange={(v) => live({ utilities: v.split(",").map((x) => x.trim()).filter(Boolean) })}
           />
-          <TextAreaField id="cfg-notes" labelText="Notes" rows={3} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(v) => live({ notes: v })} />
+          <TextAreaField id="cfg-notes" labelText={t("cfg.notes")} rows={3} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(v) => live({ notes: v })} />
         </Stack>
 
         <Stack gap={4}>
-          <SectionLabel>Connections</SectionLabel>
-          <Footnote>Outgoing flows from this step:</Footnote>
+          <SectionLabel>{t("cfg.connections")}</SectionLabel>
+          <Footnote>{t("cfg.outgoingFlows")}</Footnote>
           {outFlows.map((f, i) => (
             <Tile key={i} className="ak-row">
               <div className="ak-row__head">
@@ -1184,7 +1186,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
                   className="fk-danger"
                   hasIconOnly
                   size="sm"
-                  iconDescription={`Remove flow to ${f.to}`}
+                  iconDescription={t("cfg.removeFlow", { to: f.to })}
                   tooltipPosition="left"
                   renderIcon={TrashCan}
                   onClick={() => api.commit({ type: "REMOVE_FLOW", from: f.from, to: f.to })}
@@ -1193,7 +1195,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
               <FieldRow>
                 <NumberField
                   id={`flow-vol-${i}`}
-                  label="Volume"
+                  label={t("cfg.volume")}
                   value={f.volume}
                   min={0}
                   onFocus={api.checkpoint}
@@ -1201,7 +1203,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
                 />
                 <SelectField
                   id={`flow-transport-${i}`}
-                  labelText="Transport"
+                  labelText={t("cfg.transport")}
                   value={f.transport}
                   options={TRANSPORT}
                   onChange={(v) => api.commit({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { transport: v as Flow["transport"] } })}
@@ -1210,14 +1212,14 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
             </Tile>
           ))}
           <div className="fk-inline">
-            <SelectField id="cfg-addflow" labelText="Add flow to…" value={addTo} onChange={setAddTo}>
-              <SelectItem value="" text="Select a step…" disabled />
+            <SelectField id="cfg-addflow" labelText={t("cfg.addFlow")} value={addTo} onChange={setAddTo}>
+              <SelectItem value="" text={t("cfg.selectStep")} disabled />
               {m.stations.filter((x) => x.id !== s.id).map((x) => (
                 <SelectItem key={x.id} value={x.id} text={x.name} />
               ))}
             </SelectField>
             <Button size="sm" kind="secondary" renderIcon={Add} onClick={() => { if (addTo) { api.commit({ type: "ADD_FLOW", from: s.id, to: addTo }); setAddTo(""); } }}>
-              Add
+              {t("cfg.add")}
             </Button>
           </div>
         </Stack>
