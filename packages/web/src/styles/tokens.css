@@ -2457,3 +2457,144 @@ input.est-field {
     padding-top: 0;
   }
 }
+
+/* KPI meter / share bar / metric tile — analysisKit surface styles */
+/* KPI meter: name + status Tag over a Carbon ProgressBar. */
+.ak-meter__head,
+.ak-share__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-03);
+  margin-bottom: var(--sp-02);
+}
+.ak-meter__name,
+.ak-share__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-02);
+  min-width: 0;
+}
+.ak-meter__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-03);
+  flex: 0 0 auto;
+}
+.ak-meter__raw,
+.ak-share__figure {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+.ak-share--clickable {
+  cursor: pointer;
+}
+.ak-share--clickable:hover .ak-share__label {
+  color: var(--cds-text-primary);
+}
+.ak-share--clickable:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
+
+/* Metric tile: a headline figure in a Carbon Tile. */
+.ak-metric {
+  padding: var(--sp-05);
+}
+.ak-metric__label {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-02);
+}
+.ak-metric__value {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.1;
+  color: var(--cds-text-primary);
+}
+.ak-metric__unit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--cds-text-secondary);
+}
+.ak-metric__sub {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  margin-top: var(--sp-03);
+  line-height: 1.34;
+}
+
+
+/* ---------- assessment report — dashboard layout additions ----------
+ * The report reuses the analysis dashboard's .bi vocabulary (hero, KPI band,
+ * cards). These are the extras the document needs on top of it: a tile grid for
+ * facts, a clean read-only table, and a horizontal scroller for wide tables. */
+
+.rep__topbar {
+  margin-bottom: var(--sp-03);
+}
+.rep__support {
+  margin: 0;
+}
+
+/* A responsive grid of metric tiles — the airy stat-tile row. */
+.bi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-03);
+  margin: var(--sp-03) 0 var(--sp-05);
+}
+
+/* Wide tables scroll inside their card rather than pushing the page sideways. */
+.rep__scroll {
+  overflow-x: auto;
+}
+
+/* A read-only document table — lighter than the editor grids: no fills, just
+   rules, tabular figures, and a quietly emphasised total / picked / flagged row. */
+.bi-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-body-size, 0.875rem);
+}
+.bi-tbl th {
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+  padding: var(--sp-02) var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+  white-space: nowrap;
+}
+.bi-tbl td {
+  padding: var(--sp-02) var(--sp-03);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  vertical-align: middle;
+}
+.bi-tbl td .cds--tag {
+  margin: 0 0 0 var(--sp-02);
+}
+.bi-tbl__num {
+  text-align: right;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bi-tbl__total td,
+.bi-tbl__pick td {
+  background: var(--cds-layer-accent-01);
+  font-weight: 600;
+}
+.bi-tbl__flag td:first-child {
+  box-shadow: inset 3px 0 0 var(--support-error, #da1e28);
+}
