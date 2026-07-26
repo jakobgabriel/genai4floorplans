@@ -134,8 +134,7 @@ describe("App", () => {
 
   it("generates AI proposals from the assistant page", async () => {
     renderSampleEditor();
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Assistant" }));
+    window.location.hash = "/assistant";
     await waitFor(() => expect(screen.getByRole("heading", { name: "Assistant" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /Propose improvements/ }));
     // a strategist proposal card appears (engine-scored, offline)
@@ -151,9 +150,8 @@ describe("App", () => {
 
   it("navigates to the dedicated Site overview page", async () => {
     renderSampleEditor();
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(screen.getByText("Site overview"));
-    // Site is now a dedicated page (hash route), not a pop-up (hashchange is async).
+    window.location.hash = "/site";
+    // Site is a dedicated page (hash route), not a pop-up (hashchange is async).
     await waitFor(() => expect(screen.getByRole("heading", { name: "Site overview" })).toBeTruthy());
     expect(screen.getByText("Total throughput")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
@@ -162,8 +160,7 @@ describe("App", () => {
 
   it("navigates to the dedicated Compare page", async () => {
     renderSampleEditor();
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(screen.getByText("Compare variants"));
+    window.location.hash = "/compare";
     await waitFor(() => expect(screen.getByRole("heading", { name: "Compare variants" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Editor" }));
     await waitFor(() => expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy());

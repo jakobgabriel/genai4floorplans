@@ -39,19 +39,14 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
       <PageHead
         title="Manufacturing concepts"
         actions={
-          <>
-            <Btn size="compact" variant="ghost" onClick={() => api.restoreDefaults()}>
-              Restore defaults
-            </Btn>
-            <Btn
-              variant="primary"
-              size="compact"
-              icon={Add}
-              onClick={() => setSel(api.add(newLabel.trim() || "New concept").kind)}
-            >
-              New concept
-            </Btn>
-          </>
+          <Btn
+            variant="primary"
+            size="compact"
+            icon={Add}
+            onClick={() => setSel(api.add(newLabel.trim() || "New concept").kind)}
+          >
+            New concept
+          </Btn>
         }
       />
 
@@ -60,10 +55,7 @@ export function ConceptsPage({ api }: { api: ConceptApi }) {
           <h2 className="lib-page__emptyTitle">No concepts</h2>
           <p>Concept comparison needs at least one profile.</p>
           <div className="lib-page__emptyActions">
-            <Btn variant="primary" onClick={() => api.restoreDefaults()}>
-              Restore defaults
-            </Btn>
-            <Btn variant="secondary" onClick={() => setSel(api.add("New concept").kind)}>
+            <Btn variant="primary" onClick={() => setSel(api.add("New concept").kind)}>
               New concept
             </Btn>
           </div>

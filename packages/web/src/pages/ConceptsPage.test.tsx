@@ -104,14 +104,6 @@ describe("the concept catalog is data", () => {
     );
   });
 
-  it("restores the shipped profiles after they are deleted", async () => {
-    await openConcepts();
-    fireEvent.click(listRow("Job shop"));
-    fireEvent.click(screen.getByRole("button", { name: /Delete Job shop/ }));
-    await waitFor(() => expect(stored()).toHaveLength(4));
-    fireEvent.click(screen.getByRole("button", { name: /Restore defaults/ }));
-    await waitFor(() => expect(stored()).toHaveLength(5));
-  });
 });
 
 // The point of making it data: the engines have to actually read the edited

@@ -103,17 +103,17 @@
    should not be reachable only from inside the other. */
 .portal {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-5);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
 }
 
 .portal__tile {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 11rem;
-  padding: var(--sp-5);
+  min-height: 7rem;
+  padding: var(--sp-4);
   text-align: left;
   font: inherit;
   color: var(--cds-text-primary);
@@ -130,17 +130,17 @@
 }
 
 .portal__title {
-  font-size: var(--type-section-size);
+  font-size: var(--type-body-size);
   font-weight: var(--fw-semibold);
   line-height: var(--lh-snug);
-  margin: 0 0 var(--sp-3);
+  margin: 0 0 var(--sp-2);
 }
 
 .portal__body {
   color: var(--cds-text-secondary);
-  font-size: var(--type-body-size);
+  font-size: var(--type-caption-size);
   line-height: var(--lh-body);
-  margin: 0 0 var(--sp-4);
+  margin: 0 0 var(--sp-3);
 }
 
 /* Pinned to the bottom so the tiles' footers line up whatever the body length. */

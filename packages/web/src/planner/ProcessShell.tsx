@@ -24,14 +24,16 @@ interface Props {
    * panel happens to be tallest.
    */
   fill?: boolean;
+  /** Return to the portal (the front door). Wired to the FlowPlan wordmark. */
+  onHome?: () => void;
   children: ReactNode;
 }
 
-export function ProcessShell({ step, reached, onGoto, actions, fill, children }: Props) {
+export function ProcessShell({ step, reached, onGoto, actions, fill, onHome, children }: Props) {
   const index = FLOW_STEPS.indexOf(step);
 
   return (
-    <AppFrame actions={actions} fill={fill}>
+    <AppFrame actions={actions} fill={fill} onHome={onHome}>
       <nav className="shell__steps" aria-label="Planning process">
         <ProgressIndicator
           currentIndex={index}
@@ -63,10 +65,12 @@ export function ProcessShell({ step, reached, onGoto, actions, fill, children }:
 export function AppFrame({
   actions,
   fill,
+  onHome,
   children,
 }: {
   actions?: ReactNode;
   fill?: boolean;
+  onHome?: () => void;
   children: ReactNode;
 }) {
   const { theme } = useTheme();
@@ -78,7 +82,8 @@ export function AppFrame({
         Skip to main content
       </a>
       <Header aria-label="FlowPlan">
-        <HeaderName href="#" prefix="Flow">
+        {/* The wordmark is the way back to the portal. */}
+        <HeaderName href="#" prefix="Flow" onClick={onHome ? (e) => { e.preventDefault(); onHome(); } : undefined}>
           Plan
         </HeaderName>
         <HeaderGlobalBar>

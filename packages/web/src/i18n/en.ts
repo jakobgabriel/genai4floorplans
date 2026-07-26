@@ -43,7 +43,6 @@ export const en: Record<string, string> = {
   "portal.concepts.none": "None defined",
   "portal.concepts.shipped": "{n} concepts · as shipped",
   "portal.concepts.edited": "{n} concepts · edited",
-  "portal.notImplemented": "Serial-production monitoring is not implemented — see docs/lifecycle-cases-implementation.md §6.",
 
   // cell plans store
   "plans.title": "Cell plans",
