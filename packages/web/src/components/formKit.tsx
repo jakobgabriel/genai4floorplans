@@ -15,6 +15,7 @@ import { NumberInput, Select, SelectItem, TextArea, TextInput } from "@carbon/re
 export function TextField({
   id,
   labelText,
+  hideLabel,
   value,
   placeholder,
   helperText,
@@ -24,6 +25,7 @@ export function TextField({
 }: {
   id: string;
   labelText: string;
+  hideLabel?: boolean;
   value: string;
   placeholder?: string;
   helperText?: string;
@@ -35,6 +37,7 @@ export function TextField({
     <TextInput
       id={id}
       labelText={labelText}
+      hideLabel={hideLabel}
       placeholder={placeholder}
       helperText={helperText}
       value={value}
