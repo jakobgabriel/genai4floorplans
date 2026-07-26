@@ -192,6 +192,10 @@ export function App() {
   const [showReset, setShowReset] = useState(false);
   const [showOptimize, setShowOptimize] = useState(false);
   const [route] = useHashRoute();
+  // Hash navigation keeps the window scroll where it was, so opening a
+  // document-style page (the report especially) dropped you into its middle.
+  // Reset to the top on every route change, as a normal page load would.
+  useEffect(() => { window.scrollTo(0, 0); }, [route]);
   // Editor panel layout is a user preference (Postgres when signed in, else
   // localStorage): collapse + drag-width of the inputs rail and the library rail.
   const panelPrefs = getPreferences().panels ?? {};
