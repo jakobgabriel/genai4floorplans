@@ -1,4 +1,4 @@
-import { Button, Select, SelectItem, TextInput } from "@carbon/react";
+import { Button, Checkbox, Select, SelectItem, TextInput } from "@carbon/react";
 import { Add, TrashCan } from "@carbon/icons-react";
 import { FIELD_TYPES, type CustomField, type FieldType } from "@flowplan/core/model/library";
 import { IconBtn } from "./Btn";
@@ -6,18 +6,45 @@ import { SectionLabel } from "./analysisKit";
 
 // A typed custom-field editor, shared by the process library and the concept
 // catalog. A field is a label, a type, and a value; the type drives the input
-// (a number spinner, a date picker, a URL field) and how the value reads back —
-// so "Drawing rev" as a date and "Datasheet" as a link are entered as what they
-// are, not as free text everyone has to remember the format of.
+// (a number spinner, a date/time picker, a checkbox, a currency or percent
+// field, a link) and how the value reads back — so "Drawing rev" as a date and
+// "Datasheet" as a link are entered as what they are, not as free text everyone
+// has to remember the format of.
 
-const TYPE_LABEL: Record<FieldType, string> = { text: "Text", number: "Number", date: "Date", url: "Link" };
-const INPUT_TYPE: Record<FieldType, string> = { text: "text", number: "number", date: "date", url: "url" };
+const TYPE_LABEL: Record<FieldType, string> = {
+  text: "Text",
+  number: "Number",
+  date: "Date",
+  time: "Time",
+  boolean: "Yes / No",
+  currency: "Currency",
+  percent: "Percent",
+  url: "Link",
+};
+// The native <input type> each field maps to. currency and percent are numeric
+// with a unit shown alongside; boolean renders as a checkbox instead.
+const INPUT_TYPE: Record<FieldType, string> = {
+  text: "text",
+  number: "number",
+  date: "date",
+  time: "time",
+  boolean: "text",
+  currency: "number",
+  percent: "number",
+  url: "url",
+};
 const PLACEHOLDER: Record<FieldType, string> = {
   text: "Value",
   number: "0",
   date: "",
+  time: "",
+  boolean: "",
+  currency: "0.00",
+  percent: "0",
   url: "https://…",
 };
+// A trailing unit rendered inside the value cell for the numeric money/ratio types.
+const UNIT: Partial<Record<FieldType, string>> = { currency: "¤", percent: "%" };
 
 export function CustomFields({
   fields,
@@ -61,16 +88,32 @@ export function CustomFields({
                 <SelectItem key={x} value={x} text={TYPE_LABEL[x]} />
               ))}
             </Select>
-            <TextInput
-              id={"cf-v-" + f.id}
-              labelText="Value"
-              hideLabel
-              size="sm"
-              type={INPUT_TYPE[t]}
-              placeholder={PLACEHOLDER[t]}
-              value={f.value}
-              onChange={(e) => onUpdate(f.id, { value: e.target.value })}
-            />
+            {t === "boolean" ? (
+              <div className="cf-bool">
+                <Checkbox
+                  id={"cf-v-" + f.id}
+                  labelText={f.value === "true" ? "Yes" : "No"}
+                  checked={f.value === "true"}
+                  onChange={(_e: unknown, { checked }: { checked: boolean }) =>
+                    onUpdate(f.id, { value: checked ? "true" : "false" })
+                  }
+                />
+              </div>
+            ) : (
+              <div className="cf-value">
+                <TextInput
+                  id={"cf-v-" + f.id}
+                  labelText="Value"
+                  hideLabel
+                  size="sm"
+                  type={INPUT_TYPE[t]}
+                  placeholder={PLACEHOLDER[t]}
+                  value={f.value}
+                  onChange={(e) => onUpdate(f.id, { value: e.target.value })}
+                />
+                {UNIT[t] ? <span className="cf-unit">{UNIT[t]}</span> : null}
+              </div>
+            )}
             <IconBtn
               size="compact"
               icon={TrashCan}

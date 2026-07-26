@@ -82,46 +82,58 @@ export function StartScreen({
   conceptsEdited: boolean;
 }) {
   return (
-    <section className="planner planner--start">
+    <section className="planner planner--start" aria-label="FlowPlan home">
       <header className="planner__head">
         <h1 className="planner__title">FlowPlan</h1>
         <p className="planner__sub">Manufacturing cell sizing, concept comparison and layout assessment.</p>
       </header>
 
-      {/* Two destinations, not one with a side door. The library used to be a
-          tab inside the editor's drawer, which said it only exists in service
-          of whatever cell you have open — but looking a process up is a reason
-          to open this tool on its own. */}
-      <div className="portal">
-        <PortalTile
-          title="Plan a cell"
-          body="Size a cell from its part demand, compare costed concepts, refine and assess the layout."
-          meta="Parts & demand → Concepts → Refine → Summary"
-          onClick={onPlan}
-        />
-        <PortalTile
-          title="Process library"
-          body="Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells."
-          meta={processCount === 0 ? "Empty" : `${processCount} process${processCount === 1 ? "" : "es"}`}
-          onClick={onLibrary}
-        />
-        <PortalTile
-          title="Manufacturing concepts"
-          body="Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex."
-          meta={
-            conceptCount === 0
-              ? "None defined"
-              : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
-          }
-          onClick={onConcepts}
-        />
-        <PortalTile
-          title="Cell plans"
-          body="Every plan you have saved, in one place — open one to keep working, or manage the store."
-          meta={cellCount === 0 ? "No plans yet" : `${cellCount} plan${cellCount === 1 ? "" : "s"} saved`}
-          onClick={onOpenPlans}
-        />
-      </div>
+      {/* Two tool categories, not one flat row: the things you plan with, and
+          the catalogs you plan from. Each is a labelled region so the front
+          door reads as a structure rather than a wall of tiles. */}
+      <section className="portal-group" aria-labelledby="portal-plan">
+        <h2 className="portal-group__title" id="portal-plan">
+          Cells &amp; planning
+        </h2>
+        <div className="portal">
+          <PortalTile
+            title="Plan a cell"
+            body="Size a cell from its part demand, compare costed concepts, refine and assess the layout."
+            meta="Parts & demand → Concepts → Refine → Summary"
+            onClick={onPlan}
+          />
+          <PortalTile
+            title="Cell plans"
+            body="Every plan you have saved, in one place — open one to keep working, or manage the store."
+            meta={cellCount === 0 ? "No plans yet" : `${cellCount} plan${cellCount === 1 ? "" : "s"} saved`}
+            onClick={onOpenPlans}
+          />
+        </div>
+      </section>
+
+      <section className="portal-group" aria-labelledby="portal-lib">
+        <h2 className="portal-group__title" id="portal-lib">
+          Libraries
+        </h2>
+        <div className="portal">
+          <PortalTile
+            title="Process library"
+            body="Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells."
+            meta={processCount === 0 ? "Empty" : `${processCount} process${processCount === 1 ? "" : "es"}`}
+            onClick={onLibrary}
+          />
+          <PortalTile
+            title="Manufacturing concepts"
+            body="Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex."
+            meta={
+              conceptCount === 0
+                ? "None defined"
+                : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
+            }
+            onClick={onConcepts}
+          />
+        </div>
+      </section>
 
       <div className="planner__escape">
         <Button kind="ghost" size="md" onClick={onBlank}>

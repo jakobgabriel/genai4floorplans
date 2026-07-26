@@ -1,7 +1,7 @@
 import type { Model } from "../model/types";
 import { cellTopology } from "./topology";
 
-export type CellForm = "I" | "U" | "L" | "S" | "W";
+export type CellForm = "I" | "U" | "L" | "S" | "W" | "P" | "C" | "O";
 
 export interface Slot {
   x: number;
@@ -28,4 +28,7 @@ export const FORM_LABELS: Record<CellForm, string> = {
   L: "L-cell",
   S: "Serpentine",
   W: "Workshop",
+  P: "Parallel lines",
+  C: "Spine (comb)",
+  O: "Loop",
 };

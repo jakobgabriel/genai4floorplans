@@ -788,8 +788,8 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
 
         <Stack gap={3}>
           <SectionLabel>Cell form templates</SectionLabel>
-          <div style={{ display: "flex", gap: "var(--sp-02)", flexWrap: "wrap" }}>
-            {(["I", "U", "L", "S", "W"] as CellForm[]).map((fm) => (
+          <div style={{ display: "flex", gap: "var(--sp-02)", flexWrap: "wrap" }} role="group" aria-label="Cell form templates">
+            {(Object.keys(FORM_LABELS) as CellForm[]).map((fm) => (
               <Button key={fm} kind="tertiary" size="sm" title={FORM_LABELS[fm]} onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(FORM_LABELS[fm] + " applied"); }}>
                 {FORM_LABELS[fm]}
               </Button>

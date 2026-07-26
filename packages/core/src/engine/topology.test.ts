@@ -124,6 +124,40 @@ describe("S — serpentine, alternating rows", () => {
   });
 });
 
+describe("P — parallel lines, same direction", () => {
+  const l = cellTopology("P", 6, GRID);
+  it("uses two rows", () => {
+    expect(rowsOf(l)).toHaveLength(2);
+    expect(l.legs).toBe(2);
+  });
+  it("runs BOTH lines the same way — it is not a snake", () => {
+    expect(directions(l)).toEqual([1, 1]);
+  });
+});
+
+describe("C — spine/comb, stations alternating off a centre line", () => {
+  const l = cellTopology("C", 6, GRID);
+  it("hangs stations above and below a spine", () => {
+    expect(rowsOf(l).length).toBe(2);
+  });
+  it("enters and leaves on the spine at opposite ends", () => {
+    expect(l.entry.x).toBeLessThan(l.slots[0].x);
+    expect(l.exit.x).toBeGreaterThan(l.slots[l.slots.length - 1].x);
+    expect(l.entryExitAdjacent).toBe(false);
+  });
+});
+
+describe("O — a closed loop", () => {
+  const l = cellTopology("O", 8, GRID);
+  it("returns to where it started: load and unload sit together", () => {
+    expect(l.entryExitAdjacent).toBe(true);
+    expect(entryExitDistance(l)).toBeLessThan(entryExitDistance(cellTopology("I", 8, GRID)));
+  });
+  it("runs around four legs", () => {
+    expect(l.legs).toBe(4);
+  });
+});
+
 // The two properties that were silently false, and that made every form
 // comparison meaningless: the layout filled the grid whatever the station
 // count, so the path measured the same for three stations as for nine, and at
@@ -132,7 +166,8 @@ describe("S — serpentine, alternating rows", () => {
 // straight line, always, by construction rather than by any property of the
 // cell. That is the whole reason I-form used to win every comparison.
 describe("a form's path length depends on how many stations are on it", () => {
-  (["I", "U", "L", "S", "W"] as const).forEach((f) => {
+  // O is a closed loop of fixed perimeter, so its path does not grow with count.
+  (["I", "U", "L", "S", "W", "P", "C"] as const).forEach((f) => {
     it(`${f} grows with the station count`, () => {
       const three = pathLength(cellTopology(f, 3, GRID));
       const nine = pathLength(cellTopology(f, 9, GRID));
@@ -143,7 +178,7 @@ describe("a form's path length depends on how many stations are on it", () => {
   it("never places two stations closer together than one is wide", () => {
     const STATION_W = 3;
     const STATION_H = 2;
-    (["I", "U", "L", "S", "W"] as const).forEach((f) => {
+    (["I", "U", "L", "S", "W", "P", "C", "O"] as const).forEach((f) => {
       for (let n = 2; n <= 12; n++) {
         cellTopology(f, n, GRID).slots.forEach((a, i, all) => {
           all.slice(i + 1).forEach((b) => {

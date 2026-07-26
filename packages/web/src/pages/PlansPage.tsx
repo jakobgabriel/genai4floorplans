@@ -103,7 +103,9 @@ export function PlansPage({
                 <th className="plans__num">Output</th>
                 <th className="plans__num">Cost/part</th>
                 <th className="plans__num">Steps</th>
-                <th />
+                <th>
+                  <span className="cds--visually-hidden">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
