@@ -1424,6 +1424,35 @@ code {
 
 /* The field and its library button share the cell, so the button does not
    become another column the year headers have to align around. */
+.routing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.routing__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+/* A step chip with its reorder arrows, so the routing can be adjusted without
+   retyping the line. */
+.routing__chip {
+  display: inline-flex;
+  align-items: center;
+}
+.routing__move {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--cds-text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+.routing__move:hover {
+  color: var(--cds-text-primary);
+}
 .parts__routing {
   display: flex;
   align-items: center;
