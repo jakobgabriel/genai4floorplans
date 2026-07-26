@@ -16,7 +16,6 @@ import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
 import { navigate } from "../store/useHashRoute";
 import { Menu } from "./Menu";
-import { useAccents } from "./colors";
 
 // Left drawer presenting the workspace as a nested folder tree of layouts. All
 // editing is in-app (inline inputs + inline confirm — no browser prompt/confirm).
@@ -78,7 +77,6 @@ function InlineInput({ initial, placeholder, onCommit, onCancel }: { initial: st
 }
 
 function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string; depth: number }) {
-  const { TEAL } = useAccents();
   const active = id === ctx.api.activeId;
   return (
     <div
@@ -92,9 +90,13 @@ function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string;
         <Draggable size={16} />
       </span>
       <button
-        className="tree-leaf"
+        // Active is shown by the selected background + left-accent border (the
+        // `.on` state), not teal text on a grey row — that combination failed
+        // AA contrast (axe). Bold + aria-current carry it for AT.
+        className={"tree-leaf" + (active ? " on" : "")}
+        aria-current={active ? "true" : undefined}
         onClick={() => ctx.api.switchCell(id)}
-        style={{ color: active ? TEAL : undefined, fontWeight: active ? 600 : 400 }}
+        style={{ fontWeight: active ? 600 : 400 }}
         title="Open layout"
       >
         <Grid size={16} /> {name}

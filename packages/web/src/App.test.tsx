@@ -66,12 +66,20 @@ describe("App", () => {
     // The canvas was mouse-only — no tabindex, role or label on a station.
     expect(cnc.getAttribute("tabindex")).toBe("0");
     expect(cnc.getAttribute("role")).toBe("button");
+    // The label carries type, movability and grid position for a screen reader.
     expect(cnc.getAttribute("aria-label")).toMatch(/CNC Turning/);
+    expect(cnc.getAttribute("aria-label")).toMatch(/column \d+, row \d+/);
     // Focusing selects it (so the already-wired arrow move acts on it)...
     const x0 = cnc.getAttribute("data-station-x");
     fireEvent.focus(cnc);
+    // ...selection is exposed as a pressed state and announced politely.
+    expect((document.querySelector('[data-station-id="cnc"]') as SVGGElement).getAttribute("aria-pressed")).toBe("true");
+    const live = document.querySelector('[role="status"][aria-live="polite"]') as HTMLElement;
+    expect(live.textContent).toMatch(/Selected CNC Turning/);
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect((document.querySelector('[data-station-id="cnc"]') as SVGGElement).getAttribute("data-station-x")).not.toBe(x0);
+    // The move is announced too, so a non-sighted user knows it happened.
+    expect(live.textContent).toMatch(/CNC Turning moved to column/);
   });
 
   it("reads the whole analysis on its own page, in path order", async () => {
