@@ -2744,3 +2744,27 @@ button.fk-listrow__main {
   align-items: center;
   min-height: 2rem;
 }
+
+/* Language selector in the top bar — a native select styled to sit in the
+   Carbon header's global bar beside the theme toggle. */
+.topbar__lang {
+  display: inline-flex;
+  align-items: center;
+}
+.topbar__lang select {
+  height: 3rem;
+  padding: 0 var(--sp-3);
+  background: transparent;
+  color: var(--cds-text-primary, #f4f4f4);
+  border: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.topbar__lang select:focus-visible {
+  outline: 2px solid var(--cds-focus, #ffffff);
+  outline-offset: -2px;
+}
+.topbar__lang option {
+  color: #161616;
+}

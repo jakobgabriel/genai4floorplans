@@ -7,6 +7,7 @@ import type { FlowPlanApi } from "../store/useFlowPlan";
 import { PageHead } from "../components/PageHead";
 import { Btn, IconBtn, TabBtn } from "../components/Btn";
 import { scoreTag } from "../components/analysisKit";
+import { useT } from "../i18n";
 
 /**
  * The store of cell plans.
@@ -33,6 +34,7 @@ export function PlansPage({
   /** Start a fresh plan. */
   onNew: () => void;
 }) {
+  const t = useT();
   const [view, setView] = useState<PlansView>("tiles");
   const [renaming, setRenaming] = useState<string | null>(null);
 
@@ -65,19 +67,19 @@ export function PlansPage({
   return (
     <div className="page plans">
       <PageHead
-        title="Cell plans"
+        title={t("plans.title")}
         actions={
           <>
-            <div className="plans__views" role="group" aria-label="View">
+            <div className="plans__views" role="group" aria-label={t("common.tiles") + " / " + t("common.list")}>
               <TabBtn selected={view === "list"} onClick={() => setView("list")}>
-                List
+                {t("common.list")}
               </TabBtn>
               <TabBtn selected={view === "tiles"} onClick={() => setView("tiles")}>
-                Tiles
+                {t("common.tiles")}
               </TabBtn>
             </div>
             <Btn variant="primary" size="compact" icon={Add} onClick={onNew}>
-              New plan
+              {t("common.newPlan")}
             </Btn>
           </>
         }
@@ -85,11 +87,11 @@ export function PlansPage({
 
       {plans.length === 0 ? (
         <Tile className="plans__empty">
-          <h2 className="plans__emptyTitle">No plans yet</h2>
-          <p>Plan a cell, and it is saved here as you go.</p>
+          <h2 className="plans__emptyTitle">{t("plans.empty.title")}</h2>
+          <p>{t("plans.empty.body")}</p>
           <div className="plans__emptyActions">
             <Btn variant="primary" icon={Add} onClick={onNew}>
-              New plan
+              {t("common.newPlan")}
             </Btn>
           </div>
         </Tile>
@@ -98,13 +100,13 @@ export function PlansPage({
           <table className="plans__list">
             <thead>
               <tr>
-                <th>Plan</th>
-                <th className="plans__num">Grade</th>
-                <th className="plans__num">Output</th>
-                <th className="plans__num">Cost/part</th>
-                <th className="plans__num">Steps</th>
+                <th>{t("plans.col.plan")}</th>
+                <th className="plans__num">{t("plans.col.grade")}</th>
+                <th className="plans__num">{t("plans.col.output")}</th>
+                <th className="plans__num">{t("plans.col.cost")}</th>
+                <th className="plans__num">{t("plans.col.steps")}</th>
                 <th>
-                  <span className="cds--visually-hidden">Actions</span>
+                  <span className="cds--visually-hidden">{t("plans.col.actions")}</span>
                 </th>
               </tr>
             </thead>

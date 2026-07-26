@@ -15,6 +15,7 @@ import {
   TextInput,
   Tile,
 } from "@carbon/react";
+import { useT } from "../i18n";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
 import { Crossover } from "./Crossover";
@@ -81,11 +82,12 @@ export function StartScreen({
   conceptCount: number;
   conceptsEdited: boolean;
 }) {
+  const t = useT();
   return (
     <section className="planner planner--start" aria-label="FlowPlan home">
       <header className="planner__head">
         <h1 className="planner__title">FlowPlan</h1>
-        <p className="planner__sub">Manufacturing cell sizing, concept comparison and layout assessment.</p>
+        <p className="planner__sub">{t("portal.subtitle")}</p>
       </header>
 
       {/* Two tool categories, not one flat row: the things you plan with, and
@@ -93,19 +95,20 @@ export function StartScreen({
           door reads as a structure rather than a wall of tiles. */}
       <section className="portal-group" aria-labelledby="portal-plan">
         <h2 className="portal-group__title" id="portal-plan">
-          Cells &amp; planning
+          {t("portal.group.planning")}
         </h2>
         <div className="portal">
+          <PortalTile title={t("portal.planACell.title")} body={t("portal.planACell.body")} meta={t("portal.planACell.meta")} onClick={onPlan} />
           <PortalTile
-            title="Plan a cell"
-            body="Size a cell from its part demand, compare costed concepts, refine and assess the layout."
-            meta="Parts & demand → Concepts → Refine → Summary"
-            onClick={onPlan}
-          />
-          <PortalTile
-            title="Cell plans"
-            body="Every plan you have saved, in one place — open one to keep working, or manage the store."
-            meta={cellCount === 0 ? "No plans yet" : `${cellCount} plan${cellCount === 1 ? "" : "s"} saved`}
+            title={t("portal.cellPlans.title")}
+            body={t("portal.cellPlans.body")}
+            meta={
+              cellCount === 0
+                ? t("portal.cellPlans.empty")
+                : cellCount === 1
+                  ? t("portal.cellPlans.count_one")
+                  : t("portal.cellPlans.count", { n: cellCount })
+            }
             onClick={onOpenPlans}
           />
         </div>
@@ -113,22 +116,28 @@ export function StartScreen({
 
       <section className="portal-group" aria-labelledby="portal-lib">
         <h2 className="portal-group__title" id="portal-lib">
-          Libraries
+          {t("portal.group.libraries")}
         </h2>
         <div className="portal">
           <PortalTile
-            title="Process library"
-            body="Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells."
-            meta={processCount === 0 ? "Empty" : `${processCount} process${processCount === 1 ? "" : "es"}`}
+            title={t("portal.library.title")}
+            body={t("portal.library.body")}
+            meta={
+              processCount === 0
+                ? t("portal.library.empty")
+                : processCount === 1
+                  ? t("portal.library.count_one")
+                  : t("portal.library.count", { n: processCount })
+            }
             onClick={onLibrary}
           />
           <PortalTile
-            title="Manufacturing concepts"
-            body="Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex."
+            title={t("portal.concepts.title")}
+            body={t("portal.concepts.body")}
             meta={
               conceptCount === 0
-                ? "None defined"
-                : `${conceptCount} concept${conceptCount === 1 ? "" : "s"}${conceptsEdited ? " · edited" : " · as shipped"}`
+                ? t("portal.concepts.none")
+                : t(conceptsEdited ? "portal.concepts.edited" : "portal.concepts.shipped", { n: conceptCount })
             }
             onClick={onConcepts}
           />
@@ -137,17 +146,15 @@ export function StartScreen({
 
       <div className="planner__escape">
         <Button kind="ghost" size="md" onClick={onBlank}>
-          Start blank
+          {t("common.startBlank")}
         </Button>
         <Button kind="ghost" size="md" onClick={onImport}>
-          Import a JSON model
+          {t("common.importJson")}
         </Button>
       </div>
 
       <div className="planner__later">
-        <p className="planner__laterRow">
-          Serial-production monitoring is not implemented — see docs/lifecycle-cases-implementation.md §6.
-        </p>
+        <p className="planner__laterRow">{t("portal.notImplemented")}</p>
       </div>
     </section>
   );
