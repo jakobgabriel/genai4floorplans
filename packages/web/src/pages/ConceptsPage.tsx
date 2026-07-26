@@ -218,7 +218,7 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         <SectionLabel>Layout forms</SectionLabel>
         <div className="lib-page__tagPick" role="group" aria-label="Layout forms">
           {FORMS.map((f) => (
-            <TabBtn key={f} selected={c.forms.includes(f)} onClick={() => toggleForm(f)}>
+            <TabBtn key={f} toggle selected={c.forms.includes(f)} onClick={() => toggleForm(f)}>
               {FORM_LABELS[f]}
             </TabBtn>
           ))}

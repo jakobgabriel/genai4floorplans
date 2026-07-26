@@ -123,8 +123,8 @@ describe("tags", () => {
     // One process, two categories — which is why this is tagging and not a
     // single category field.
     const picker = document.querySelector(".lib-page__tagPick") as HTMLElement;
-    fireEvent.click(within(picker).getByRole("tab", { name: "Joining" }));
-    fireEvent.click(within(picker).getByRole("tab", { name: "Fume extraction" }));
+    fireEvent.click(within(picker).getByRole("button", { name: "Joining" }));
+    fireEvent.click(within(picker).getByRole("button", { name: "Fume extraction" }));
     await waitFor(() => expect(stored().processes[0].tags).toHaveLength(2));
   });
 
@@ -148,7 +148,7 @@ describe("tags", () => {
     fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));
     await waitFor(() => expect(stored().tags).toHaveLength(1));
     const picker = document.querySelector(".lib-page__tagPick") as HTMLElement;
-    fireEvent.click(within(picker).getByRole("tab", { name: "Joining" }));
+    fireEvent.click(within(picker).getByRole("button", { name: "Joining" }));
     await waitFor(() => expect(stored().processes[0].tags).toHaveLength(1));
 
     fireEvent.click(screen.getByRole("button", { name: /Delete the Joining tag/ }));

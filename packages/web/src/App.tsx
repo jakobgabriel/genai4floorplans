@@ -654,7 +654,7 @@ export function App() {
         )}
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
-            <div className="views">
+            <div className="views" role="tablist" aria-label="Layout view">
               {vBtn("actual", "Actual")}
               {vBtn("improved", "Improved")}
               {vBtn("split", "Both")}
@@ -688,11 +688,16 @@ export function App() {
           <>
           <div className="tabbar">
             <div className="grouptabs">
-              {RAIL_TABS.map((t) => (
-                <TabBtn key={t.tab} selected={tab === t.tab} onClick={() => setTab(t.tab)}>
-                  {t.label}
-                </TabBtn>
-              ))}
+              {/* Only the tabs live in the tablist (aria-required-children); the
+                  icon controls beside them are buttons, not tabs. display:contents
+                  keeps the flex row visually intact. */}
+              <div className="grouptabs__tabs" role="tablist" aria-label="Editor panel">
+                {RAIL_TABS.map((t) => (
+                  <TabBtn key={t.tab} selected={tab === t.tab} onClick={() => setTab(t.tab)}>
+                    {t.label}
+                  </TabBtn>
+                ))}
+              </div>
               <IconBtn
                 size="compact"
                 icon={Help}

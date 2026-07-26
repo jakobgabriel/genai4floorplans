@@ -78,11 +78,26 @@ The app has two themes (dark `cds--g100`, light `cds--white`) and two languages
 
 ---
 
+## Automated pass (axe-core)
+
+`axe-core` was run against seven screens — portal, process library, concepts,
+plans store, admin, the editor, and the analysis page — in **both themes**,
+filtered to the `wcag2a / wcag2aa / wcag21a / wcag21aa` rule sets. The first
+pass surfaced these; all are now fixed and a re-run reports **zero violations**:
+
+| Rule | Impact | Where | Fix |
+|------|--------|-------|-----|
+| `color-contrast` | serious | Portal tile meta text (both themes) | Repointed `.portal__meta` from `--cds-text-placeholder` (intentionally low-contrast) to `--cds-text-secondary` (AA). |
+| `label` | critical | Admin sign-in & console inputs | Associated every `<label>` via `htmlFor`/`id`; added `aria-label` to the console's placeholder-only inputs and role select. |
+| `aria-required-parent` | critical | Plans view toggle, editor view + panel tabs | Single-select `role="tab"` groups now sit in a `role="tablist"` (plans `.plans__views`, editor `.views`, editor `.grouptabs__tabs`). |
+| `aria-required-children` | critical | Editor panel tablist | The icon buttons beside the panel tabs are no longer inside the tablist — only the tabs are (a `display:contents` wrapper keeps the row intact). |
+| (semantics) | — | Concepts "Layout forms", Library tag assignment | These are **multi-select**, so `TabBtn` now renders them as `aria-pressed` toggle buttons rather than single-select tabs. |
+
 ## Known gaps (next steps)
 
-1. **Automated + manual verification.** Run `axe-core`/Lighthouse on each route
-   in both themes, and a screen-reader walkthrough (NVDA/VoiceOver) of the
-   guided flow, the editor, and the plans store.
+1. **Manual screen-reader walkthrough.** Automated tools catch ~a third of
+   issues; a NVDA/VoiceOver pass over the guided flow, the editor and the plans
+   store is still worth doing.
 2. **Full translation coverage.** i18n currently covers the portal and plans
    store; the editor and library pages resolve through the English fallback and
    should be moved into the dictionaries so language is complete, not partial.
@@ -99,3 +114,6 @@ The app has two themes (dark `cds--g100`, light `cds--white`) and two languages
   so the canvas, legends and Yamazumi/bar charts hold AA on the white theme —
   1.4.3 / 1.4.11. Verified in-browser on the editor canvas and the analysis
   charts in both themes.
+- Automated axe-core sweep (7 screens × 2 themes) driven to zero violations:
+  portal meta contrast, admin input labels, tab/tablist parentage, and the
+  tab-vs-toggle semantics of multi-select filters — see the table above.

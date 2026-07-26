@@ -70,7 +70,9 @@ export function PlansPage({
         title={t("plans.title")}
         actions={
           <>
-            <div className="plans__views" role="group" aria-label={t("common.tiles") + " / " + t("common.list")}>
+            {/* TabBtn carries role="tab", which ARIA requires to sit inside a
+                role="tablist" (axe: aria-required-parent). */}
+            <div className="plans__views" role="tablist" aria-label={t("common.tiles") + " / " + t("common.list")}>
               <TabBtn selected={view === "list"} onClick={() => setView("list")}>
                 {t("common.list")}
               </TabBtn>

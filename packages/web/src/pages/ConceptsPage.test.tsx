@@ -98,7 +98,7 @@ describe("the concept catalog is data", () => {
     const forms = document.querySelector(".lib-page__tagPick") as HTMLElement;
     // Transfer line ships with a single form; turning it off would silently
     // remove the concept from every comparison.
-    fireEvent.click(within(forms).getByRole("tab", { name: "Straight line" }));
+    fireEvent.click(within(forms).getByRole("button", { name: "Straight line" }));
     await waitFor(() =>
       expect(stored().find((c: { kind: string }) => c.kind === "transfer-line").forms).toEqual(["I"]),
     );

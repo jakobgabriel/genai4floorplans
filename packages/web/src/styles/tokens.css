@@ -562,6 +562,11 @@ svg {
   gap: 0;
   background: var(--cds-layer-accent-01);
 }
+/* The tablist wrapper carries ARIA only; its box disappears so the tab chips
+   remain direct participants in the .grouptabs flex row. */
+.grouptabs__tabs {
+  display: contents;
+}
 .grouptabs .chip {
   flex: 1;
   min-width: 0;
