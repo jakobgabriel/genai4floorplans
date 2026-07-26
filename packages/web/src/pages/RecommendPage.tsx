@@ -20,8 +20,10 @@ import {
   type GenerateBrief,
 } from "@flowplan/core/engine/generate";
 import { DEFAULT_PROGRAM_YEARS } from "@flowplan/core/engine/generate";
+import { byKind } from "@flowplan/core/engine/concepts";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { DecisionWeightsApi } from "../store/decisionWeights";
+import { useConcepts } from "../store/concepts";
 import { navigate } from "../store/useHashRoute";
 
 // What concept would suit the cell you already have? The routing comes off the
@@ -57,6 +59,10 @@ export function RecommendPage({
   );
   const [pickedId, setPicked] = useState<string | null>(null);
   const [showWeights, setShowWeights] = useState(false);
+  // Rank against the catalog the user edits on the Concepts page, not the
+  // shipped defaults — the same catalog the guided planner ranks with.
+  const conceptApi = useConcepts();
+  const catalog = useMemo(() => byKind(conceptApi.concepts), [conceptApi.concepts]);
 
   const brief: GenerateBrief = useMemo(
     () => ({
@@ -74,9 +80,10 @@ export function RecommendPage({
       programYears,
       currency: model.costConfig?.currency,
       laborCostPerHour: model.costConfig?.laborCostPerHour,
+      catalog,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [model, annualVolume, annualShifts, programYears, shiftHours],
+    [model, annualVolume, annualShifts, programYears, shiftHours, catalog],
   );
 
   const candidates = useMemo(

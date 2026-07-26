@@ -17,7 +17,7 @@ import {
 } from "@carbon/react";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
-import { CONCEPTS } from "@flowplan/core/engine/concepts";
+import { CONCEPTS, type ConceptCatalog } from "@flowplan/core/engine/concepts";
 import { Crossover } from "./Crossover";
 import { Sensitivity } from "./Sensitivity";
 import { DecisionWeightsEditor } from "./DecisionWeights";
@@ -675,11 +675,13 @@ export function SummaryStep({
   api,
   onOpenAnalysis,
   onOpenReport,
+  catalog = CONCEPTS,
 }: {
   picked: Candidate | null;
   api: FlowPlanApi;
   onOpenAnalysis?: (id: AnalysisStepId) => void;
   onOpenReport?: () => void;
+  catalog?: ConceptCatalog;
 }) {
   const hasCell = api.model.stations.some((s) => s.role === "process");
   if (!picked) {
@@ -736,8 +738,8 @@ export function SummaryStep({
           lowContrast
           hideCloseButton
           title="Outside the concept's volume band"
-          subtitle={`${picked.conceptLabel} normally suits ${num(CONCEPTS[picked.concept]?.viableVolume[0] ?? 0)}–${num(
-            CONCEPTS[picked.concept]?.viableVolume[1] ?? 0,
+          subtitle={`${picked.conceptLabel} normally suits ${num(catalog[picked.concept]?.viableVolume[0] ?? 0)}–${num(
+            catalog[picked.concept]?.viableVolume[1] ?? 0,
           )} parts/year. Band editable on the Concepts page.`}
         />
       ) : null}

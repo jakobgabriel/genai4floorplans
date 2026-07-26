@@ -926,7 +926,7 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} api={api} onOpenAnalysis={() => { goTo("refine"); setView("analysis"); }} onOpenReport={() => navigate("/report")} /> : null}
+      {step === "summary" ? <SummaryStep picked={picked} api={api} catalog={conceptCatalog} onOpenAnalysis={() => { goTo("refine"); setView("analysis"); }} onOpenReport={() => navigate("/report")} /> : null}
 
       {step !== "refine" ? stepNav : null}
 
