@@ -1,9 +1,10 @@
 import type { Station } from "@flowplan/core/model/types";
 import { stationRate } from "@flowplan/core/engine/balance";
-import { AUTO_COL, ERGO_COL } from "./colors";
+import { useAccents } from "./colors";
 
 // Lightweight HTML tooltip positioned over the canvas on station hover.
 export function StationTooltip({ station, x, y, shiftHours }: { station: Station; x: number; y: number; shiftHours: number }) {
+  const { AUTO_COL, ERGO_COL } = useAccents();
   const rate = stationRate(station, shiftHours);
   const row = (k: string, v: string) => (
     <div className="u-row u-row--between">

@@ -6,7 +6,7 @@ import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
-import { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } from "./colors";
+import { useAccents } from "./colors";
 
 const PAD = 12;
 
@@ -62,6 +62,7 @@ interface Props {
 }
 
 export function LayoutCanvas(props: Props) {
+  const { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
   const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell: cellProp, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);

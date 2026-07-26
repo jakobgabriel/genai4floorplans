@@ -59,7 +59,7 @@ import {
   type PanelProps,
   type Tab,
 } from "./components/panels";
-import { AMBER, RED, TEAL } from "./components/colors";
+import { useAccents } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
@@ -92,6 +92,7 @@ const RAIL_TABS: { tab: Tab; label: string }[] = [
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
+  const { TEAL, AMBER, RED } = useAccents();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("flow");
   const [selId, setSel] = useState<string | null>(null);

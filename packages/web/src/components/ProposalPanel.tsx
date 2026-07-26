@@ -1,7 +1,7 @@
 import { Btn } from "./Btn";
 import type { Model } from "@flowplan/core/model/types";
 import { isProposalStale, type PlacementProposal } from "@flowplan/core/engine/proposal";
-import { AMBER, TEAL, TEXT, TEXTD } from "./colors";
+import { useAccents } from "./colors";
 
 // Spec §4 — proposals are accepted per-item or wholesale, always explicitly.
 //
@@ -22,6 +22,7 @@ export interface ProposalPanelProps {
 }
 
 export function ProposalPanel({ proposal, model, onAcceptAll, onDismiss }: ProposalPanelProps) {
+  const { AMBER, TEAL, TEXT, TEXTD } = useAccents();
   const stale = isProposalStale(proposal, model);
   const n = proposal.items.length;
   const pct = proposal.flowCostDeltaPct;

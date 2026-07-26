@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { cycleAnalysis } from "@flowplan/core/engine/cycle";
-import { scoreColor } from "./colors";
+import { useAccents } from "./colors";
 import { money, num } from "../format";
 
 // Always-on headline metrics. The point is that every edit — dragging a
@@ -10,6 +10,7 @@ import { money, num } from "../format";
 // That single live number is what makes the layout feel consequential rather
 // than decorative.
 export function HeaderKpis({ api }: { api: FlowPlanApi }) {
+  const { scoreColor } = useAccents();
   const { model, rating } = api;
   const cost = useMemo(() => costAnalysis(model), [model]);
   const cyc = useMemo(() => cycleAnalysis(model.stations, rating.balance.takt), [model.stations, rating.balance.takt]);

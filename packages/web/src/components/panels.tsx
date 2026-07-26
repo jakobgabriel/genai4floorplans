@@ -27,7 +27,7 @@ import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { stationCells } from "@flowplan/core/engine/geometry";
 import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
-import { CYCLE_COL } from "./colors";
+import { useAccents } from "./colors";
 import { useToast } from "./ui";
 import type { CanvasMode } from "./LayoutCanvas";
 import { LibraryPicker } from "./LibraryPicker";
@@ -453,6 +453,7 @@ export function BalanceSection({ api, setSel, setTab }: { api: FlowPlanApi; setS
 // Value-add vs waste. Only meaningful once at least one step is decomposed, so
 // the section leads with a prompt rather than an empty chart.
 function CycleSection({ api, setSel, setTab }: { api: FlowPlanApi; setSel: (id: string | null) => void; setTab: (t: Tab) => void }) {
+  const { CYCLE_COL } = useAccents();
   const takt = api.rating.balance.takt;
   const analysis = cycleAnalysis(api.model.stations, takt);
   const tips = cycleAdvice(analysis);

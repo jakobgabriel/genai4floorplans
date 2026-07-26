@@ -7,7 +7,7 @@ import { Btn } from "../components/Btn";
 import { LayoutCanvas } from "../components/LayoutCanvas";
 import { Footnote, KpiMeter, SectionLabel, ShareBar, scoreTag } from "../components/analysisKit";
 import { analysisPath } from "../components/analysisPath";
-import { TEAL } from "../components/colors";
+import { useAccents } from "../components/colors";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { yieldAnalysis } from "@flowplan/core/engine/yield";
 import { autoPotential } from "@flowplan/core/engine/automation";
@@ -52,6 +52,7 @@ export function ReportPage({
   /** What the parts derive to — null when the cell was built by hand. */
   portfolio: PortfolioDerivation | null;
 }) {
+  const { TEAL } = useAccents();
   const model = api.model;
   const r = api.rating;
   const bal = r.balance;

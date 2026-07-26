@@ -7,12 +7,13 @@ import { costAnalysis } from "@flowplan/core/engine/cost";
 import { navigate } from "../store/useHashRoute";
 import { PageHead } from "../components/PageHead";
 import { BarChart, Stat, type Bar } from "../components/charts";
-import { scoreColor, TEAL, TEXTD } from "../components/colors";
+import { useAccents } from "../components/colors";
 
 // Dedicated full-page site rollup across all layouts (cells): summary stats,
 // charts (score / throughput / cost per layout), and a per-layout table grouped
 // by folder. Each layout is rated independently — inter-cell flow isn't modeled.
 export function SitePage({ api }: { api: FlowPlanApi }) {
+  const { scoreColor, TEAL } = useAccents();
   const folderPath = useMemo(() => {
     const byId = new Map(api.folders.map((f) => [f.id, f]));
     return (id: string | null): string => {
@@ -109,6 +110,7 @@ export function SitePage({ api }: { api: FlowPlanApi }) {
 }
 
 function FolderGroup({ label, children }: { label: string; children: ReactNode }) {
+  const { TEXTD } = useAccents();
   return (
     <Fragment>
       {label ? (
