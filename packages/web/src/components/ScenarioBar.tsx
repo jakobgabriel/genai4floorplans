@@ -79,7 +79,7 @@ export function ScenarioControls({ api, onCompare }: { api: FlowPlanApi; onCompa
         Save variant
       </Btn>
       <Menu
-        label={`Variants${scenarios.length ? ` (${scenarios.length})` : ""} ▾`}
+        label={`Variants${scenarios.length ? ` (${scenarios.length})` : ""}`}
         title="Load, manage and compare saved variants"
         items={items}
       />

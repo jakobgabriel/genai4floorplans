@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn, IconBtn } from "./Btn";
-import { Archive, Checkmark, Close } from "@carbon/icons-react";
+import {
+  Archive,
+  Checkmark,
+  ChevronDown,
+  ChevronRight,
+  Close,
+  Draggable,
+  Folder as FolderIcon,
+  Grid,
+  OverflowMenuVertical,
+} from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { Folder } from "../store/workspace";
 import { blankModel } from "@flowplan/core/model/sample";
@@ -77,16 +87,20 @@ function CellRow({ ctx, id, name, depth }: { ctx: Ctx; id: string; name: string;
       onDragStart={() => ctx.setDrag({ type: "cell", id })}
       onDragEnd={() => { ctx.setDrag(null); ctx.setDropTarget(null); }}
     >
-      <span className="tree-grip" title="Drag to move into a folder">⠿</span>
+      <span className="tree-grip" title="Drag to move into a folder">
+        <Draggable size={16} />
+      </span>
       <button
         className="tree-leaf"
         onClick={() => ctx.api.switchCell(id)}
         style={{ color: active ? TEAL : undefined, fontWeight: active ? 600 : 400 }}
         title="Open layout"
       >
-        ▦ {name}
+        <Grid size={16} /> {name}
       </button>
-      <button className="tree-archive" title="Archive layout" onClick={() => ctx.api.archiveCell(id)}>🗄</button>
+      <button className="tree-archive" title="Archive layout" onClick={() => ctx.api.archiveCell(id)}>
+        <Archive size={16} />
+      </button>
     </div>
   );
 }
@@ -108,12 +122,14 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); ctx.dropInto(folder.id); }}
       >
         <button className="tree-twisty" onClick={() => ctx.toggle(folder.id)} title={isCollapsed ? "Expand" : "Collapse"}>
-          {isCollapsed ? "▸" : "▾"}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
         {renaming ? (
           <InlineInput initial={folder.name} onCommit={(n) => { ctx.api.renameFolder(folder.id, n); ctx.setEdit(null); }} onCancel={() => ctx.setEdit(null)} />
         ) : (
-          <button className="tree-leaf" onClick={() => ctx.toggle(folder.id)} title="Folder">🗀 {folder.name}</button>
+          <button className="tree-leaf" onClick={() => ctx.toggle(folder.id)} title="Folder">
+            <FolderIcon size={16} /> {folder.name}
+          </button>
         )}
         {ctx.confirmId === folder.id ? (
           <span className="tree-confirm">
@@ -123,7 +139,13 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
           </span>
         ) : (
           <Menu
-            label="⋯"
+            caret={false}
+            label={
+              <>
+                <OverflowMenuVertical size={16} />
+                <span className="cds--visually-hidden">Folder actions</span>
+              </>
+            }
             title="Folder actions"
             items={[
               { label: "New sub-folder", onClick: () => ctx.startNew(folder.id) },
@@ -138,7 +160,7 @@ function FolderNode({ ctx, folder, depth }: { ctx: Ctx; folder: Folder; depth: n
         <div>
           {ctx.edit?.kind === "new" && ctx.edit.parentId === folder.id ? (
             <div className="tree-row" style={{ paddingLeft: 8 + (depth + 1) * 16 }}>
-              <span className="tree-twisty" /> 🗀{" "}
+              <span className="tree-twisty" /> <FolderIcon size={16} />{" "}
               <InlineInput initial="" placeholder="Folder name" onCommit={(n) => { ctx.api.createFolder(n, folder.id); ctx.setEdit(null); }} onCancel={() => ctx.setEdit(null)} />
             </div>
           ) : null}
@@ -213,7 +235,7 @@ export function Explorer({ api }: { api: FlowPlanApi }) {
         >
           {edit?.kind === "new" && edit.parentId === null ? (
             <div className="tree-row">
-              <span className="tree-twisty" /> 🗀{" "}
+              <span className="tree-twisty" /> <FolderIcon size={16} />{" "}
               <InlineInput initial="" placeholder="Folder name" onCommit={(n) => { api.createFolder(n, null); setEdit(null); }} onCancel={() => setEdit(null)} />
             </div>
           ) : null}

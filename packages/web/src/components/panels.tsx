@@ -12,7 +12,7 @@ import {
   Tile,
   Toggle,
 } from "@carbon/react";
-import { Add, Catalog, Copy, Draw, TrashCan } from "@carbon/icons-react";
+import { Add, Catalog, ChevronDown, ChevronRight, Copy, Draw, TrashCan } from "@carbon/icons-react";
 import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, scoreTag } from "./analysisKit";
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -338,8 +338,9 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
         size="sm"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        renderIcon={open ? ChevronDown : ChevronRight}
       >
-        {open ? "▾" : "▸"} Adjust KPI weights{custom ? " (custom)" : ""}
+        Adjust KPI weights{custom ? " (custom)" : ""}
       </Button>
       {open ? (
         <Stack gap={5}>

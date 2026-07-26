@@ -17,7 +17,8 @@ import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankByDecision, type Generat
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
-import { Add, ChartLine, Close, Folders, Help, Idea, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Add, ChartLine, Close, Folders, Help, Idea, OverflowMenuVertical, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Loading } from "@carbon/react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
 import { FlowEditorPopover } from "./components/FlowEditorPopover";
@@ -452,7 +453,15 @@ export function App() {
   // loads with a light placeholder.
   const routePage = (node: ReactNode) => (
     <div className="wrap">
-      <Suspense fallback={<div className="wrap-loading" aria-busy="true" />}>{node}</Suspense>
+      <Suspense
+        fallback={
+          <div className="wrap-loading">
+            <Loading withOverlay={false} description="Loading" />
+          </div>
+        }
+      >
+        {node}
+      </Suspense>
     </div>
   );
   if (route === "/report")
@@ -537,7 +546,7 @@ export function App() {
       <span className="hsep" />
       <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
         <Menu
-          label="Export ▾"
+          label="Export"
           title="Load, export & report"
           items={[
             { label: "Load JSON…", onClick: () => fileRef.current?.click() },
@@ -556,7 +565,13 @@ export function App() {
           ]}
         />
         <Menu
-          label="⋯"
+          caret={false}
+          label={
+            <>
+              <OverflowMenuVertical size={20} />
+              <span className="cds--visually-hidden">More actions</span>
+            </>
+          }
           title="More actions"
           items={[
             { label: "Process library", onClick: () => navigate("/library") },

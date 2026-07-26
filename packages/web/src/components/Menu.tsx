@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown } from "@carbon/icons-react";
 import { Btn } from "./Btn";
 
 // A small dropdown menu: a button that toggles a popover list of actions. Closes
@@ -18,11 +19,14 @@ export function Menu({
   items,
   title,
   align = "right",
+  caret = true,
 }: {
   label: ReactNode;
   items: MenuItem[];
   title?: string;
   align?: "left" | "right";
+  /** Trailing chevron on a text trigger; pass false for an icon-only trigger. */
+  caret?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -46,7 +50,10 @@ export function Menu({
   return (
     <div className="menu" ref={ref}>
       <Btn size="compact" title={title} hasPopup expanded={open} onClick={() => setOpen((v) => !v)}>
-        {label}
+        <span className="menu__trigger">
+          {label}
+          {caret ? <ChevronDown size={16} /> : null}
+        </span>
       </Btn>
       {open ? (
         <div className={"menu-pop" + (align === "left" ? " left" : "")} role="menu">

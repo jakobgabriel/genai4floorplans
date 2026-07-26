@@ -404,9 +404,17 @@ main {
   outline-offset: 1px;
 }
 /* Placeholder while a lazily-loaded route page's chunk arrives. Reserves the
-   height so the surrounding chrome does not jump. */
+   height so the surrounding chrome does not jump, and centres the spinner. */
 .wrap-loading {
   min-height: 60vh;
+  display: grid;
+  place-items: center;
+}
+/* A menu trigger's label sits inline with its chevron (or overflow icon). */
+.menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2, 0.25rem);
 }
 .canvas__stage {
   flex: 1 1 auto;

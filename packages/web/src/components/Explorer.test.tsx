@@ -93,7 +93,7 @@ describe("Explorer", () => {
     const api = makeApi();
     render(<Explorer api={api} />);
     const cellRow = screen.getByText(/Root layout/).closest(".tree-row") as HTMLElement;
-    const folderRow = screen.getByText(/🗀 Line 1/).closest(".tree-row") as HTMLElement;
+    const folderRow = screen.getByText(/Line 1/).closest(".tree-row") as HTMLElement;
     fireEvent.dragStart(cellRow);
     fireEvent.dragOver(folderRow);
     fireEvent.drop(folderRow);
