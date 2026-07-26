@@ -1,17 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  Button,
-  NumberInput,
-  Slider,
-  StructuredListBody,
-  StructuredListCell,
-  StructuredListHead,
-  StructuredListRow,
-  StructuredListWrapper,
-  Tag,
-  Tile,
-} from "@carbon/react";
-import { ArrowLeft } from "@carbon/icons-react";
+import { NumberInput, Slider, Tag, Tile } from "@carbon/react";
 import {
   DECISION_WEIGHTS,
   conceptCrossoverRanges,
@@ -25,12 +13,20 @@ import type { FlowPlanApi } from "../store/useFlowPlan";
 import type { DecisionWeightsApi } from "../store/decisionWeights";
 import { useConcepts } from "../store/concepts";
 import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
+import { Btn } from "../components/Btn";
+import { KpiTile, DashCard } from "../components/dashKit";
+import { Footnote } from "../components/analysisKit";
+import { scoreColor } from "../components/colors";
 
 // What concept would suit the cell you already have? The routing comes off the
 // canvas — whatever process steps are on the layout, at their current cycles —
 // and the sweep ranks the concepts by a weighted, editable decision rather than
 // cost alone. Taking a concept loads it as a NEW layout beside the open one; it
 // never overwrites the cell you have been editing.
+//
+// It wears the same airy `.bi` dashboard language as the report and the
+// analysis overview: a hero for the leading concept, a KPI band, and cards.
 
 const money = (n: number, cur = "$") => cur + Math.round(n).toLocaleString();
 const num = (n: number) => Math.round(n).toLocaleString();
@@ -42,13 +38,7 @@ const WEIGHT_LABELS: Record<keyof typeof DECISION_WEIGHTS, string> = {
   flexibility: "Flexibility",
 };
 
-export function RecommendPage({
-  api,
-  weightsApi,
-}: {
-  api: FlowPlanApi;
-  weightsApi: DecisionWeightsApi;
-}) {
+export function RecommendPage({ api, weightsApi }: { api: FlowPlanApi; weightsApi: DecisionWeightsApi }) {
   const model = api.model;
   const process = model.stations.filter((s) => s.role === "process");
   const shiftHours = model.shiftHours ?? 8;
@@ -100,126 +90,193 @@ export function RecommendPage({
 
   if (process.length === 0) {
     return (
-      <div className="page">
-        <div className="page-head">
-          <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
-          <h1 className="page-title">Concept recommendations</h1>
-        </div>
-        <Tile className="lib-page__empty">
-          <h2 className="lib-page__emptyTitle">This cell has no process steps</h2>
+      <div className="page bi">
+        <PageHead title="Concept recommendations" />
+        <Tile className="bi-card bi-card--wide rep__empty">
+          <h2 className="rep__emptyTitle">This cell has no process steps</h2>
           <p>No work content to rank against.</p>
-          <div style={{ marginTop: 12 }}>
-            <Button onClick={() => navigate("/")}>Back to the editor</Button>
-          </div>
+          <Btn variant="primary" onClick={() => navigate("/")}>
+            Back to the editor
+          </Btn>
         </Tile>
       </div>
     );
   }
 
+  const cur = model.costConfig?.currency ?? "$";
+
   return (
-    <div className="page rec">
-      <div className="page-head">
-        <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
-        <h1 className="page-title">Concept recommendations</h1>
-        <Button size="sm" kind="ghost" style={{ marginLeft: "auto" }} onClick={() => setShowWeights((v) => !v)}>
-          {showWeights ? "Hide weights" : "Weights"}
-        </Button>
-      </div>
+    <div className="page bi">
+      <PageHead
+        title="Concept recommendations"
+        actions={
+          <Btn variant="ghost" size="compact" onClick={() => setShowWeights((v) => !v)}>
+            {showWeights ? "Hide weights" : "Weights"}
+          </Btn>
+        }
+      />
 
-      <p className="u-caption">
-        {model.name} · {process.length} process step{process.length === 1 ? "" : "s"} ·{" "}
-        {num(process.reduce((a, s) => a + s.cycleTimeSec, 0))}s work content
-      </p>
-
-      <h4 className="lib-page__section">Demand</h4>
-      <div className="lib-page__grid">
-        <NumberInput id="rec-vol" label="Annual volume" value={annualVolume} min={1} helperText="From this cell's output" onChange={(_e, { value }) => setVolume(Math.max(1, Number(value) || 1))} />
-        <NumberInput id="rec-shifts" label="Shifts per year" value={annualShifts} min={1} onChange={(_e, { value }) => setShifts(Math.max(1, Number(value) || 1))} />
-        <NumberInput id="rec-years" label="Program years" value={programYears} min={1} onChange={(_e, { value }) => setYears(Math.max(1, Number(value) || 1))} />
-      </div>
-
-      {showWeights ? (
-        <Tile className="dw">
-          <h4 className="lib-page__section">What "best" means</h4>
-          {(Object.keys(DECISION_WEIGHTS) as Array<keyof typeof DECISION_WEIGHTS>).map((k) => (
-            <Slider
-              key={k}
-              labelText={WEIGHT_LABELS[k]}
-              min={0}
-              max={100}
-              step={5}
-              value={Math.round(weightsApi.weights[k] * 100)}
-              onChange={({ value }) => weightsApi.set(k, value / 100)}
-            />
-          ))}
-          <Button size="sm" kind="ghost" onClick={weightsApi.reset} disabled={weightsApi.isDefault}>
-            Reset weighting
-          </Button>
-        </Tile>
-      ) : null}
-
-      <h4 className="lib-page__section">Ranked concepts</h4>
-      <StructuredListWrapper isCondensed selection>
-        <StructuredListHead>
-          <StructuredListRow head>
-            <StructuredListCell head>Concept</StructuredListCell>
-            <StructuredListCell head>Score</StructuredListCell>
-            <StructuredListCell head>Loaded cost/part</StructuredListCell>
-            <StructuredListCell head>Capex</StructuredListCell>
-            <StructuredListCell head>Operators</StructuredListCell>
-            <StructuredListCell head>Fit</StructuredListCell>
-          </StructuredListRow>
-        </StructuredListHead>
-        <StructuredListBody>
-          {candidates.map((c) => (
-            <StructuredListRow key={c.id} onClick={() => setPicked(c.id)} className={c.id === picked?.id ? "rec__on" : undefined}>
-              <StructuredListCell>
-                {c.conceptLabel} <span className="u-caption">{c.form}</span>{" "}
-                {c.metrics.meetsDemand ? null : <Tag type="red" size="sm">Misses demand</Tag>}
-              </StructuredListCell>
-              <StructuredListCell>{Math.round(c.metrics.decisionScore ?? 0)}</StructuredListCell>
-              <StructuredListCell>{money(c.metrics.loadedCostPerPart, c.cost.currency)}</StructuredListCell>
-              <StructuredListCell>{money(c.metrics.capexTotal, c.cost.currency)}</StructuredListCell>
-              <StructuredListCell>{c.metrics.operators}</StructuredListCell>
-              <StructuredListCell>{Math.round(c.metrics.conceptFit)}</StructuredListCell>
-            </StructuredListRow>
-          ))}
-        </StructuredListBody>
-      </StructuredListWrapper>
-
+      {/* ── the leading concept as the hero, its metrics across the band ── */}
       {picked ? (
-        <div className="rec__take">
-          <Button
-            onClick={() => {
-              api.addCell(picked.model, `${model.name} — ${picked.conceptLabel}`);
-              navigate("/");
-            }}
-          >
-            Open {picked.conceptLabel} ({picked.form}) as a new layout
-          </Button>
-          <p className="u-caption">Added as a new layout; the open cell is not modified.</p>
+        <div className="bi__topbar rep__topbar">
+          <Tile className="bi-hero">
+            <div className="bi-hero__lab">Recommended</div>
+            <div className="bi-hero__grade" style={{ fontSize: "2rem", color: scoreColor(picked.metrics.decisionScore ?? 0) }}>
+              {picked.conceptLabel}
+            </div>
+            <div className="bi-hero__score">
+              {Math.round(picked.metrics.decisionScore ?? 0)}
+              <span> / 100 · {picked.form}-form</span>
+            </div>
+            <div className="bi-hero__sub">
+              {model.name} · {process.length} step{process.length === 1 ? "" : "s"} ·{" "}
+              {num(process.reduce((a, s) => a + s.cycleTimeSec, 0))}s work content
+            </div>
+          </Tile>
+          <div className="bi-kpis">
+            <KpiTile label="Loaded cost / part" value={money(picked.metrics.loadedCostPerPart, cur)} sub="incl. amortised capex" />
+            <KpiTile label="Capex" value={money(picked.metrics.capexTotal, cur)} />
+            <KpiTile label="Operators" value={picked.metrics.operators} />
+            <KpiTile label="Output" value={num(picked.metrics.lineOut)} sub="/shift" />
+            <KpiTile label="Volume fit" value={Math.round(picked.metrics.conceptFit)} color={scoreColor(picked.metrics.conceptFit)} />
+          </div>
         </div>
       ) : null}
 
-      {crossover.length > 1 ? (
-        <>
-          <h4 className="lib-page__section">Where the best concept changes with volume</h4>
-          <table className="rep__table">
+      <DashCard
+        title="Demand"
+        help="The routing is fixed by the cell's process steps; these set the volume the concepts are ranked against."
+        actions={
+          picked ? (
+            <Btn
+              variant="primary"
+              size="compact"
+              onClick={() => {
+                api.addCell(picked.model, `${model.name} — ${picked.conceptLabel}`);
+                navigate("/");
+              }}
+            >
+              Open {picked.conceptLabel} ({picked.form}) as a new layout
+            </Btn>
+          ) : undefined
+        }
+      >
+        <div className="bi-tiles">
+          <div className="rec__field">
+            <NumberInput id="rec-vol" label="Annual volume" value={annualVolume} min={1} helperText="From this cell's output" onChange={(_e, { value }) => setVolume(Math.max(1, Number(value) || 1))} />
+          </div>
+          <div className="rec__field">
+            <NumberInput id="rec-shifts" label="Shifts per year" value={annualShifts} min={1} onChange={(_e, { value }) => setShifts(Math.max(1, Number(value) || 1))} />
+          </div>
+          <div className="rec__field">
+            <NumberInput id="rec-years" label="Program years" value={programYears} min={1} onChange={(_e, { value }) => setYears(Math.max(1, Number(value) || 1))} />
+          </div>
+        </div>
+        {picked ? <Footnote>Taking a concept opens it as a new layout beside the current cell — the open cell is not modified.</Footnote> : null}
+      </DashCard>
+
+      {showWeights ? (
+        <DashCard
+          title="What “best” means"
+          help="The weighted decision behind the ranking. Raise a criterion to let it drive the winner."
+          actions={
+            <Btn variant="ghost" size="compact" onClick={weightsApi.reset} disabled={weightsApi.isDefault}>
+              Reset weighting
+            </Btn>
+          }
+        >
+          <div className="rec__weights">
+            {(Object.keys(DECISION_WEIGHTS) as Array<keyof typeof DECISION_WEIGHTS>).map((k) => (
+              <Slider
+                key={k}
+                labelText={WEIGHT_LABELS[k]}
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round(weightsApi.weights[k] * 100)}
+                onChange={({ value }) => weightsApi.set(k, value / 100)}
+              />
+            ))}
+          </div>
+        </DashCard>
+      ) : null}
+
+      <DashCard title="Ranked concepts" lead="Every concept × form, scored by the weighted decision. Click a row to inspect it.">
+        <div className="rep__scroll">
+          <table className="bi-tbl">
             <thead>
-              <tr><th>From (parts/yr)</th><th>Best concept</th><th className="rep__numCol">Lead</th></tr>
+              <tr>
+                <th>Concept</th>
+                <th>Form</th>
+                <th className="bi-tbl__num">Score</th>
+                <th className="bi-tbl__num">Loaded / part</th>
+                <th className="bi-tbl__num">Capex</th>
+                <th className="bi-tbl__num">Ops</th>
+                <th className="bi-tbl__num">Fit</th>
+              </tr>
             </thead>
             <tbody>
-              {crossover.map((seg, i) => (
-                <tr key={i}>
-                  <td>{num(seg.from)}{seg.to ? `–${num(seg.to)}` : "+"}</td>
-                  <td>{seg.winnerLabel}</td>
-                  <td className="rep__numCol">{seg.minMarginPct != null ? `${Math.round(seg.minMarginPct)}%` : "—"}</td>
+              {candidates.map((c) => (
+                <tr
+                  key={c.id}
+                  onClick={() => setPicked(c.id)}
+                  className={c.id === picked?.id ? "bi-tbl__pick bi-tbl__click" : "bi-tbl__click"}
+                >
+                  <td>
+                    {c.conceptLabel}
+                    {c.id === picked?.id ? (
+                      <Tag type="green" size="sm">
+                        top
+                      </Tag>
+                    ) : null}
+                    {c.metrics.meetsDemand ? null : (
+                      <Tag type="red" size="sm">
+                        misses demand
+                      </Tag>
+                    )}
+                  </td>
+                  <td>{c.form}</td>
+                  <td className="bi-tbl__num">{Math.round(c.metrics.decisionScore ?? 0)}</td>
+                  <td className="bi-tbl__num">{money(c.metrics.loadedCostPerPart, c.cost.currency)}</td>
+                  <td className="bi-tbl__num">{money(c.metrics.capexTotal, c.cost.currency)}</td>
+                  <td className="bi-tbl__num">{c.metrics.operators}</td>
+                  <td className="bi-tbl__num">{Math.round(c.metrics.conceptFit)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="u-caption">The winner and how far ahead it is of the next concept, across the volume sweep.</p>
-        </>
+        </div>
+      </DashCard>
+
+      {crossover.length > 1 ? (
+        <DashCard
+          title="Where the best concept changes with volume"
+          lead="The winner and how far ahead it is of the next concept, across the volume sweep."
+        >
+          <div className="rep__scroll">
+            <table className="bi-tbl">
+              <thead>
+                <tr>
+                  <th>From (parts/yr)</th>
+                  <th>Best concept</th>
+                  <th className="bi-tbl__num">Lead</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crossover.map((seg, i) => (
+                  <tr key={i}>
+                    <td>
+                      {num(seg.from)}
+                      {seg.to ? `–${num(seg.to)}` : "+"}
+                    </td>
+                    <td>{seg.winnerLabel}</td>
+                    <td className="bi-tbl__num">{seg.minMarginPct != null ? `${Math.round(seg.minMarginPct)}%` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DashCard>
       ) : null}
     </div>
   );

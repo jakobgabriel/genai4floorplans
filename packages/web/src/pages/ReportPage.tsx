@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Tag, Tile } from "@carbon/react";
 import { Printer } from "@carbon/icons-react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
@@ -7,7 +6,7 @@ import { PageHead } from "../components/PageHead";
 import { Btn } from "../components/Btn";
 import { LayoutCanvas } from "../components/LayoutCanvas";
 import { MetricTile, KpiMeter, ShareBar, Footnote, scoreTag } from "../components/analysisKit";
-import { HelpPopover } from "../components/ui";
+import { KpiTile, DashCard as Card } from "../components/dashKit";
 import { analysisPath } from "../components/analysisPath";
 import { TEAL, AMBER, RED, scoreColor } from "../components/colors";
 import { costAnalysis } from "@flowplan/core/engine/cost";
@@ -45,40 +44,6 @@ const whole = (cur: string, n: number) => cur + Math.round(n).toLocaleString();
 const num = (n: number) => Math.round(n).toLocaleString();
 
 const TONE_COLOR: Record<string, string | undefined> = { green: TEAL, blue: undefined, red: RED, gray: undefined };
-
-/** A headline number in the KPI band — the dashboard's `.bi-kpi` tile. */
-function KpiTile({ label, value, sub, color, help }: { label: string; value: string; sub?: string; color?: string; help?: string }) {
-  return (
-    <Tile className="bi-kpi">
-      <div className="bi-kpi__lab">
-        {label}
-        {help ? <HelpPopover text={help} /> : null}
-      </div>
-      <div className="bi-kpi__val" style={{ color }}>
-        {value}
-      </div>
-      {sub ? <div className="bi-kpi__sub">{sub}</div> : null}
-    </Tile>
-  );
-}
-
-/** A section as a dashboard card: a titled Carbon Tile. `wide` spans the full
- *  row (default); drop it for cards that pair up in a two-column support row. */
-function Card({ n, title, help, lead, wide = true, children }: { n?: string; title: string; help?: string; lead?: string; wide?: boolean; children: ReactNode }) {
-  return (
-    <Tile className={"bi-card" + (wide ? " bi-card--wide" : "")}>
-      <div className="bi-card__head">
-        <h3 className="bi-card__title">
-          {n ? <span className="rep__num">{n}</span> : null}
-          {title}
-          {help ? <HelpPopover text={help} /> : null}
-        </h3>
-      </div>
-      {lead ? <p className="bi-card__sublab">{lead}</p> : null}
-      {children}
-    </Tile>
-  );
-}
 
 /** A horizontal proportion bar — one row of a cost/space split. */
 function SplitBar({ parts }: { parts: { label: string; value: number; color: string }[] }) {

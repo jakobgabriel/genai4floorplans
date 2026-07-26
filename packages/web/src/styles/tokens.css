@@ -2598,3 +2598,119 @@ input.est-field {
 .bi-tbl__flag td:first-child {
   box-shadow: inset 3px 0 0 var(--support-error, #da1e28);
 }
+
+/* ---------- concepts + recommend pages (dashboard language) ----------
+ * Both wear the .bi vocabulary (PageHead, cards, KPI band, .bi-tbl). These are
+ * the master-detail and form extras the concepts editor needs on top of it. */
+
+.cc__cols {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: var(--sp-05);
+  align-items: start;
+}
+@media (max-width: 42rem) {
+  .cc__cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cc__rows {
+  display: flex;
+  flex-direction: column;
+  margin: calc(-1 * var(--sp-03)) 0 var(--sp-04);
+}
+.cc__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-02);
+  width: 100%;
+  padding: var(--sp-03) var(--sp-02);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  border-left: 2px solid transparent;
+  color: var(--cds-text-primary);
+  font: inherit;
+  font-size: var(--type-body-size, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+}
+.cc__row:hover {
+  background: var(--cds-layer-hover);
+}
+.cc__row.on {
+  border-left-color: var(--cds-interactive, #4589ff);
+  background: var(--cds-layer-selected);
+}
+.cc__rowName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+}
+.cc__rowMeta {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+.cc__new {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-03);
+}
+.cc__new .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cc__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-03);
+}
+.cc__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-03);
+}
+.cc__forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-02);
+}
+.cc__section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  margin: var(--sp-04) 0 var(--sp-02);
+}
+.cc__customRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-03);
+}
+.cc__customRow .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* recommend: the demand + weight inputs sit in the tile grid / card */
+.rec__field .cds--form-item,
+.rec__weights {
+  min-width: 0;
+}
+.rec__weights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-03) var(--sp-06);
+}
+
+/* a clickable table row (recommend's ranked concepts) */
+.bi-tbl__click {
+  cursor: pointer;
+}
+.bi-tbl__click:hover td {
+  background: var(--cds-layer-hover);
+}
