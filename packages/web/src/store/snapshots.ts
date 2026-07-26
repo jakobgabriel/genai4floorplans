@@ -1,4 +1,5 @@
 import type { Model } from "@flowplan/core/model/types";
+import { SCHEMA_VERSION } from "@flowplan/core/model/types";
 
 // Immutable snapshots (spec §6, audit C-10). A snapshot is a FROZEN copy of a
 // layout's model at a moment — a release / baseline you can always return to and
@@ -80,7 +81,7 @@ export function captureSnapshot(cellId: string, model: Model, label: string, not
     ...(note && note.trim() ? { note: note.trim() } : {}),
     createdAt: Date.now(),
     parentId,
-    schemaVersion: model.schemaVersion,
+    schemaVersion: model.schemaVersion ?? SCHEMA_VERSION,
     model: freeze(model),
   };
   const store = load();

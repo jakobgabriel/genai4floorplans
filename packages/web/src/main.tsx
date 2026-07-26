@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ToastProvider } from "./components/ui";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { bootstrapSession } from "./store/bootstrap";
 // Carbon first, then the app's own tokens: Carbon's reset touches html/body, and
 // the existing editor theme must keep winning there. Carbon components are all
@@ -19,9 +20,11 @@ root.render(<div style={{ padding: "2rem", fontFamily: "'IBM Plex Sans',sans-ser
 bootstrapSession().finally(() => {
   root.render(
     <StrictMode>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
+      <ErrorBoundary>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </ErrorBoundary>
     </StrictMode>,
   );
 });
