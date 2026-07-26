@@ -44,7 +44,7 @@ import type { ProcessStep } from "../engine/generate";
  */
 
 /** How a custom field's value is entered and shown. Defaults to plain text. */
-export const FIELD_TYPES = ["text", "number", "date", "url"] as const;
+export const FIELD_TYPES = ["text", "number", "date", "time", "boolean", "currency", "percent", "url"] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
 /** One planner-defined field on a process or concept. The tool stores it, types

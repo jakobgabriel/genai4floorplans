@@ -25,7 +25,7 @@ import { NumberField, SelectField, TextAreaField, TextField } from "../component
  * sit side by side rather than one being buried inside the other.
  */
 
-const FORMS: CellForm[] = ["I", "U", "L", "S", "W"];
+const FORMS = Object.keys(FORM_LABELS) as CellForm[];
 const n0 = (v: number | string) => Math.max(0, Number(v) || 0);
 const num = (n: number) => Math.round(n).toLocaleString();
 

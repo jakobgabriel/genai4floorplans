@@ -1,7 +1,7 @@
 import type { Model } from "../model/types";
 // Declared here rather than imported from ./templates, which now wraps this
 // module — importing back would be circular.
-export type CellForm = "I" | "U" | "L" | "S" | "W";
+export type CellForm = "I" | "U" | "L" | "S" | "W" | "P" | "C" | "O";
 export interface Slot {
   x: number;
   y: number;
@@ -202,6 +202,69 @@ export function cellTopology(form: CellForm, n: number, grid: Grid): TopologyLay
       legs: rowsN,
       // Nothing here helps an operator close a loop: there is no cell to stand in.
       entryExitAdjacent: false,
+    };
+  }
+
+  if (form === "P") {
+    // Parallel lines — two straight runs flowing the SAME direction, not a
+    // snake. This is the high-volume answer: duplicate the line to double the
+    // rate (or carry a second model) rather than lengthen it. Incoming splits
+    // to both lines at the left; shipping merges them at the right.
+    const perLine = Math.ceil(n / 2);
+    const xs = run(left + GAP, right - GAP, perLine, PITCH_X, W);
+    const yTop = Math.max(top, midY - PITCH_Y);
+    const yBot = Math.min(bottom, midY + PITCH_Y);
+    const slots: Slot[] = [];
+    for (let i = 0; i < perLine && slots.length < n; i++) slots.push({ x: xs[i], y: yTop });
+    for (let i = 0; i < perLine && slots.length < n; i++) slots.push({ x: xs[i], y: yBot });
+    return {
+      slots,
+      entry: { x: clamp(xs[0] - GAP, 0, right), y: midY },
+      exit: { x: clamp(xs[xs.length - 1] + GAP, 0, right), y: midY },
+      legs: 2,
+      entryExitAdjacent: false,
+    };
+  }
+
+  if (form === "C") {
+    // Comb / spine — a central feed line with stations hung alternately above
+    // and below it, the way mixed-model assembly branches sub-assembly feeders
+    // off a main spine. The flow runs straight along the spine; the branches
+    // are what keep the feeders off the critical path.
+    const xs = run(left + GAP, right - GAP, n, PITCH_X, W);
+    const above = Math.max(top, midY - PITCH_Y);
+    const below = Math.min(bottom, midY + PITCH_Y);
+    const slots = xs.map((x, i) => ({ x, y: i % 2 === 0 ? above : below }));
+    return {
+      slots,
+      entry: { x: clamp(xs[0] - GAP, 0, right), y: midY },
+      exit: { x: clamp(xs[xs.length - 1] + GAP, 0, right), y: midY },
+      legs: 1,
+      entryExitAdjacent: false,
+    };
+  }
+
+  if (form === "O") {
+    // Closed loop — stations set around a rectangular circuit, the way a rotary
+    // cell or a loop conveyor runs. Load and unload sit together on the open
+    // (left) side, so the part comes back to where it started: the loop's
+    // defining property, shared with the U but around four legs, not two.
+    const perTop = Math.max(1, Math.ceil(n / 3));
+    const perRight = Math.max(0, Math.ceil((n - perTop) / 2));
+    const perBot = Math.max(0, n - perTop - perRight);
+    const xsTop = run(left + GAP, right - GAP, perTop, PITCH_X, W);
+    const ysRight = run(top + H, bottom - H, Math.max(1, perRight), PITCH_Y, H);
+    const xsBot = run(left + GAP, right - GAP, Math.max(1, perBot), PITCH_X, W);
+    const slots: Slot[] = [];
+    for (let i = 0; i < perTop && slots.length < n; i++) slots.push({ x: xsTop[i], y: top });
+    for (let i = 0; i < perRight && slots.length < n; i++) slots.push({ x: right, y: ysRight[i] });
+    for (let i = perBot - 1; i >= 0 && slots.length < n; i--) slots.push({ x: xsBot[i], y: bottom });
+    return {
+      slots,
+      entry: { x: left, y: clamp(midY - Math.round(PITCH_Y / 2), 0, bottom) },
+      exit: { x: left, y: clamp(midY + Math.round(PITCH_Y / 2), 0, bottom) },
+      legs: 4,
+      entryExitAdjacent: true,
     };
   }
 

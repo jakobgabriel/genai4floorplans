@@ -2722,3 +2722,25 @@ button.fk-listrow__main {
   gap: var(--sp-2);
   justify-content: flex-end;
 }
+
+/* typed custom-field value cell: input + optional unit, or a boolean checkbox */
+.cf-value {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.cf-value .cds--form-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cf-unit {
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.cf-bool {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+}
