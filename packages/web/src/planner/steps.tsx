@@ -36,6 +36,13 @@ import { navigate } from "../store/useHashRoute";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { money, moneyWhole, num } from "../format";
 
+/** A copy of `arr` with items at `i` and `j` swapped — for reordering steps. */
+function swap<T>(arr: T[], i: number, j: number): T[] {
+  const next = arr.slice();
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+
 // Individual stages of the planning process. Each is a plain presentational
 // component; all state and navigation live in App, so the stepper stays
 // authoritative and the editor can sit between two of these stages.
@@ -393,27 +400,50 @@ function PartTable({
                   />
                 </td>
                 <td>
-                  <div className="parts__routing">
-                    <TextInput
-                      id={"rt-" + part.id}
-                      labelText="Routing"
-                      hideLabel
-                      size="sm"
-                      placeholder="Load 5 > Press 10 > Weld 20"
-                      value={formatRouting(part.steps)}
-                      onChange={(e) => patch(part.id, { steps: parseRouting(e.target.value) })}
-                    />
-                    {/* Typing a routing from memory is what the library exists
-                        to stop. The field stays — this is the other way in. */}
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      hasIconOnly
-                      renderIcon={Catalog}
-                      iconDescription={`Build ${part.partNumber}'s routing from the library`}
-                      tooltipPosition="left"
-                      onClick={() => setPickFor(pickFor === part.id ? null : part.id)}
-                    />
+                  <div className="routing">
+                    {/* The parsed steps, as chips: you see exactly what the tool
+                        read, drop any one in a click, and reorder with the
+                        arrows — without retyping the whole line. Fast bulk entry
+                        stays in the field below. */}
+                    {part.steps.length > 0 ? (
+                      <div className="routing__chips">
+                        {part.steps.map((s, i) => (
+                          <span key={i} className="routing__chip">
+                            {i > 0 ? (
+                              <button type="button" className="routing__move" title="Move earlier" aria-label={`Move ${s.name} earlier`} onClick={() => patch(part.id, { steps: swap(part.steps, i, i - 1) })}>‹</button>
+                            ) : null}
+                            <Tag type="cool-gray" size="sm" filter onClose={() => patch(part.id, { steps: part.steps.filter((_, j) => j !== i) })} title={`Remove ${s.name}`}>
+                              {s.name}{s.cycleTimeSec != null ? ` ${s.cycleTimeSec}s` : ""}
+                            </Tag>
+                            {i < part.steps.length - 1 ? (
+                              <button type="button" className="routing__move" title="Move later" aria-label={`Move ${s.name} later`} onClick={() => patch(part.id, { steps: swap(part.steps, i, i + 1) })}>›</button>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="parts__routing">
+                      <TextInput
+                        id={"rt-" + part.id}
+                        labelText="Routing"
+                        hideLabel
+                        size="sm"
+                        placeholder="Load 5 > Press 10 > Weld 20"
+                        value={formatRouting(part.steps)}
+                        onChange={(e) => patch(part.id, { steps: parseRouting(e.target.value) })}
+                      />
+                      {/* Typing a routing from memory is what the library exists
+                          to stop. The field stays — this is the other way in. */}
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        hasIconOnly
+                        renderIcon={Catalog}
+                        iconDescription={`Build ${part.partNumber}'s routing from the library`}
+                        tooltipPosition="left"
+                        onClick={() => setPickFor(pickFor === part.id ? null : part.id)}
+                      />
+                    </div>
                   </div>
                 </td>
                 {Array.from({ length: cols }, (_, y) => (
