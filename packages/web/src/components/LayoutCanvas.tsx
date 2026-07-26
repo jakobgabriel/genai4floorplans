@@ -1,5 +1,6 @@
-import { Btn } from "./Btn";
+import { IconBtn } from "./Btn";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ZoomIn, ZoomOut, CenterToFit } from "@carbon/icons-react";
 import type { Flow, Model, NoGoZone, Station, ZoneKind } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
@@ -7,6 +8,7 @@ import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
 import { useAccents } from "./colors";
+import { useT } from "../i18n";
 
 const PAD = 12;
 
@@ -64,6 +66,7 @@ interface Props {
 }
 
 export function LayoutCanvas(props: Props) {
+  const t = useT();
   const { AMBER, AUTO_COL, BLUE, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
   // Each zone kind reads in its own colour; esd/cleanroom are overlays.
   const zoneColor: Record<ZoneKind, string> = { blocked: RED, pathway: AMBER, esd: BLUE, cleanroom: TEAL };
@@ -219,6 +222,45 @@ export function LayoutCanvas(props: Props) {
     setZoom((z) => Math.max(0.5, Math.min(4, z * factor)));
   }
 
+  const zoomBy = (factor: number) => setZoom((z) => Math.max(0.5, Math.min(4, z * factor)));
+
+  // Reframe so every station and zone is in view, centred with a little margin.
+  // With the unbounded canvas a step can be dragged out of sight — this brings
+  // the whole layout back in one click, even when the floor is larger than the
+  // stage (cell pinned at its minimum).
+  function fitView() {
+    if (!stations.length) {
+      setZoom(1);
+      setOff({ x: 0, y: 0 });
+      return;
+    }
+    let minGX = Infinity, minGY = Infinity, maxGX = -Infinity, maxGY = -Infinity;
+    for (const s of stations) {
+      minGX = Math.min(minGX, s.x);
+      minGY = Math.min(minGY, s.y);
+      maxGX = Math.max(maxGX, s.x + s.w);
+      maxGY = Math.max(maxGY, s.y + s.h);
+    }
+    for (const z of model.noGoZones ?? []) {
+      minGX = Math.min(minGX, z.x);
+      minGY = Math.min(minGY, z.y);
+      maxGX = Math.max(maxGX, z.x + z.w);
+      maxGY = Math.max(maxGY, z.y + z.h);
+    }
+    const minX = PAD + minGX * cell;
+    const maxX = PAD + maxGX * cell;
+    const minY = PAD + minGY * cell;
+    const maxY = PAD + maxGY * cell;
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 1.15;
+    const z = Math.max(0.5, Math.min(4, Math.min(baseW / (contentW * margin), baseH / (contentH * margin))));
+    const nvbW = baseW / z;
+    const nvbH = baseH / z;
+    setZoom(z);
+    setOff({ x: (minX + maxX) / 2 - nvbW / 2, y: (minY + maxY) / 2 - nvbH / 2 });
+  }
+
   const byId: Record<string, Station> = {};
   stations.forEach((s) => (byId[s.id] = s));
   const linkKind: Record<string, string> = {};
@@ -266,13 +308,16 @@ export function LayoutCanvas(props: Props) {
     <div className="lc">
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
-        {interactive && zoom !== 1 ? (
-          <Btn size="compact" variant="ghost" onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
-            Reset zoom
-          </Btn>
-        ) : null}
       </div>
       <div className="lc__stage" ref={stageRef}>
+      {interactive ? (
+        <div className="lc__zoom" role="group" aria-label={t("canvas.zoom.group")}>
+          <IconBtn size="compact" icon={ZoomOut} label={t("canvas.zoom.out")} tooltipPosition="top" onClick={() => zoomBy(1 / 1.15)} />
+          <span className="lc__zoom-pct" aria-hidden="true">{Math.round(zoom * 100)}%</span>
+          <IconBtn size="compact" icon={ZoomIn} label={t("canvas.zoom.in")} tooltipPosition="top" onClick={() => zoomBy(1.15)} />
+          <IconBtn size="compact" icon={CenterToFit} label={t("canvas.zoom.fit")} tooltipPosition="top" onClick={fitView} />
+        </div>
+      ) : null}
       <svg
         ref={svgRef}
         className="lc__svg"

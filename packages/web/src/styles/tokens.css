@@ -449,6 +449,30 @@ main {
   min-height: 12rem;
   min-width: 0;
 }
+/* Zoom cluster floats over the bottom-right of the canvas (Node-RED style),
+   out of the way of the layout but always reachable. */
+.lc__zoom {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.lc__zoom-pct {
+  min-width: 3ch;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
 /* Absolute fill means the stage's size comes from the flex chain above rather
    than from the SVG, so measuring it can't feed back into its own size. */
 .lc__svg {

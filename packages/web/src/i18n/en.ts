@@ -172,6 +172,10 @@ export const en: Record<string, string> = {
   "flowPanel.zones.remove": "Remove zone {i}",
   "flowPanel.zones.added": "{kind} zone added",
   "editor.hint.zone": "Drawing a {kind} zone: drag a rectangle. Esc to exit.",
+  "canvas.zoom.group": "Zoom controls",
+  "canvas.zoom.in": "Zoom in",
+  "canvas.zoom.out": "Zoom out",
+  "canvas.zoom.fit": "Fit to view",
 
   // configure (station) panel
   "cfg.noStep.title": "No step selected",

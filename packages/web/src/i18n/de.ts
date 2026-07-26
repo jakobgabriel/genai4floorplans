@@ -173,6 +173,10 @@ export const de: Record<string, string> = {
   "flowPanel.zones.remove": "Zone {i} entfernen",
   "flowPanel.zones.added": "{kind}-Zone hinzugefügt",
   "editor.hint.zone": "Zeichne eine {kind}-Zone: ziehe ein Rechteck. Esc zum Beenden.",
+  "canvas.zoom.group": "Zoom-Steuerung",
+  "canvas.zoom.in": "Vergrößern",
+  "canvas.zoom.out": "Verkleinern",
+  "canvas.zoom.fit": "Einpassen",
 
   // configure (station) panel
   "cfg.noStep.title": "Kein Schritt ausgewählt",
