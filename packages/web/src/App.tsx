@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFlowPlan } from "./store/useFlowPlan";
-import { SAMPLE, blankModel } from "@flowplan/core/model/sample";
+import { blankModel } from "@flowplan/core/model/sample";
 import { parseModelText } from "@flowplan/core/io/json";
 import { downloadJSON } from "./io/download";
 import { downloadKpiCsv } from "./io/csv";
@@ -17,7 +17,7 @@ import { DEFAULT_PROGRAM_YEARS, generateCandidates, rankByDecision, type Generat
 import { derivePortfolio } from "@flowplan/core/engine/portfolio";
 import { FORM_LABELS } from "@flowplan/core/engine/templates";
 import { Btn, IconBtn, TabBtn } from "./components/Btn";
-import { Add, ChartLine, Close, Folders, Help, Idea, OverflowMenuVertical, Redo, SidePanelClose, Undo } from "@carbon/icons-react";
+import { Add, ChartLine, Close, Folders, Help, Idea, Redo, Settings as SettingsIcon, SidePanelClose, Undo } from "@carbon/icons-react";
 import { Loading } from "@carbon/react";
 import { HeaderKpis } from "./components/HeaderKpis";
 import { SettingsModal } from "./components/SettingsModal";
@@ -44,7 +44,6 @@ const SitePage = lazy(() => import("./pages/SitePage").then((m) => ({ default: m
 const ArchivePage = lazy(() => import("./pages/ArchivePage").then((m) => ({ default: m.ArchivePage })));
 const AdminPage = lazy(() => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })));
 import { useHashRoute, navigate } from "./store/useHashRoute";
-import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ScenarioControls } from "./components/ScenarioBar";
 import { StationTooltip } from "./components/StationTooltip";
 import { ProposalPanel } from "./components/ProposalPanel";
@@ -144,7 +143,6 @@ export function App() {
   }, []);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
-  const [showReset, setShowReset] = useState(false);
   const [route] = useHashRoute();
   // Collapsible in-layout sidebars (persisted). Left = workspace Explorer, right = config panel.
   // Shut unless the planner left it open. It overlays the canvas now, so a
@@ -611,31 +609,7 @@ export function App() {
             { label: "Open report", onClick: () => navigate("/report") },
           ]}
         />
-        <Menu
-          caret={false}
-          label={
-            <>
-              <OverflowMenuVertical size={20} />
-              <span className="cds--visually-hidden">More actions</span>
-            </>
-          }
-          title="More actions"
-          items={[
-            { label: "Process library", onClick: () => navigate("/library") },
-            { label: "Manufacturing concepts", onClick: () => navigate("/concepts") },
-            { label: "Assistant", onClick: () => navigate("/assistant") },
-            { label: "Settings", onClick: () => setShowSettings(true) },
-            { label: "Compare variants", onClick: () => navigate("/compare") },
-            { label: "Site overview", onClick: () => navigate("/site") },
-            { label: "Archived items", onClick: () => navigate("/archive") },
-            { label: "Admin (teams & workspaces)", onClick: () => navigate("/admin") },
-            {
-              label: "Reset to sample",
-              danger: true,
-              onClick: () => setShowReset(true),
-            },
-          ]}
-        />
+        <IconBtn size="compact" icon={SettingsIcon} label="Settings" onClick={() => setShowSettings(true)} />
     </div>
   );
 
@@ -646,11 +620,13 @@ export function App() {
             beside the canvas. */}
         {explorerCollapsed ? null : (
           <aside className="explorer-side" style={{ width: explorerWidth }}>
+            {/* A header bar, matching the right config panel's tab bar and the
+                app's top bars, rather than a title floating in the padding. */}
+            <div className="explorer-head">
+              <h2 className="explorer-title">Cell plans</h2>
+              <IconBtn size="compact" icon={Close} label="Close the panel" tooltipPosition="left" onClick={() => setExplorerCollapsed(true)} />
+            </div>
             <div className="explorer">
-              <div className="explorer-head">
-                <h2 className="explorer-title">Layouts</h2>
-                <IconBtn size="compact" icon={Close} label="Close the panel" tooltipPosition="left" onClick={() => setExplorerCollapsed(true)} />
-              </div>
               <Explorer api={api} />
             </div>
             {/* Inside the drawer, riding its right edge — as a flex sibling it
@@ -854,17 +830,6 @@ export function App() {
       {showSettings ? (
         <SettingsModal initial={settings} onClose={() => setShowSettings(false)} onSaved={setSettings} />
       ) : null}
-      {showReset ? (
-        <ConfirmDialog
-          title="Reset to sample"
-          message="Reset to the sample layout? Your current changes will be lost (unless exported or saved as a scenario)."
-          confirmLabel="Reset"
-          danger
-          onConfirm={() => { api.reset(SAMPLE); setSel(null); setView("actual"); }}
-          onClose={() => setShowReset(false)}
-        />
-      ) : null}
-
       <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
     </ProcessShell>
   );

@@ -18,7 +18,6 @@ import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
 import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
-import { FORM_LABELS, type CellForm } from "@flowplan/core/engine/templates";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
 import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
@@ -745,7 +744,6 @@ function MissingRoleIssue({
 }
 
 export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProcess }: PanelProps) {
-  const { toast } = useToast();
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
   return (
@@ -785,18 +783,6 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
           <Button kind={mode === "flow" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
             {mode === "flow" ? "Picking… tap source then target" : "Draw a flow on the canvas"}
           </Button>
-        </Stack>
-
-        <Stack gap={3}>
-          <SectionLabel>Cell form templates</SectionLabel>
-          <div style={{ display: "flex", gap: "var(--sp-02)", flexWrap: "wrap" }} role="group" aria-label="Cell form templates">
-            {(Object.keys(FORM_LABELS) as CellForm[]).map((fm) => (
-              <Button key={fm} kind="tertiary" size="sm" title={FORM_LABELS[fm]} onClick={() => { api.commit({ type: "APPLY_TEMPLATE", form: fm }); toast(FORM_LABELS[fm] + " applied"); }}>
-                {FORM_LABELS[fm]}
-              </Button>
-            ))}
-          </div>
-          <Footnote>Rearranges movable steps. Fixed and I/O stations are unaffected.</Footnote>
         </Stack>
 
         <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />

@@ -1113,11 +1113,18 @@ code {
   font-weight: var(--fw-semibold);
   line-height: var(--lh-snug);
 }
+/* A header bar, aligned with the app top bar and the right config panel's tab
+   bar: same height, same strong bottom border, flush to the drawer edges. */
 .explorer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sp-4);
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  min-height: 3rem;
+  padding: 0 var(--sp-2) 0 var(--sp-4);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+  background: var(--cds-layer-01);
 }
 .explorer-actions {
   display: flex;
