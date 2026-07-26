@@ -674,10 +674,12 @@ export function SummaryStep({
   picked,
   api,
   onOpenAnalysis,
+  onOpenReport,
 }: {
   picked: Candidate | null;
   api: FlowPlanApi;
   onOpenAnalysis?: (id: AnalysisStepId) => void;
+  onOpenReport?: () => void;
 }) {
   const hasCell = api.model.stations.some((s) => s.role === "process");
   if (!picked) {
@@ -749,6 +751,14 @@ export function SummaryStep({
       />
 
       {hasCell ? <AnalysisGlance api={api} onOpen={onOpenAnalysis} /> : null}
+
+      {onOpenReport ? (
+        <div className="planner__actions">
+          <Btn variant="secondary" onClick={onOpenReport}>
+            Open the full report
+          </Btn>
+        </div>
+      ) : null}
     </section>
   );
 }

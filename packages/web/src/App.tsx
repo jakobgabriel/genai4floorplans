@@ -36,6 +36,7 @@ import { ArchivePage } from "./pages/ArchivePage";
 import { AdminPage } from "./pages/AdminPage";
 import { ConceptsPage } from "./pages/ConceptsPage";
 import { RecommendPage } from "./pages/RecommendPage";
+import { ReportPage } from "./pages/ReportPage";
 import { useConcepts } from "./store/concepts";
 import { useDecisionWeights } from "./store/decisionWeights";
 import { useHashRoute, navigate } from "./store/useHashRoute";
@@ -630,6 +631,8 @@ export function App() {
   if (route === "/library") return page(<LibraryPage api={api} subflows={subflows} library={library} />, "library");
   if (route === "/concepts") return page(<ConceptsPage api={conceptApi} />, null);
   if (route === "/recommend") return page(<RecommendPage api={api} weightsApi={weightsApi} />, null);
+  if (route === "/report")
+    return page(<ReportPage api={api} picked={picked} candidates={candidates} demand={demand} portfolio={portfolio} />, null);
   if (route === "/compare") return page(<ComparePage api={api} />, "compare");
   if (route === "/archive") return page(<ArchivePage api={api} />, "workspace");
   if (route === "/admin") return page(<AdminPage />, null);
@@ -917,7 +920,7 @@ export function App() {
         </>
       ) : null}
 
-      {step === "summary" ? <SummaryStep picked={picked} api={api} onOpenAnalysis={() => { goTo("refine"); setView("analysis"); }} /> : null}
+      {step === "summary" ? <SummaryStep picked={picked} api={api} onOpenAnalysis={() => { goTo("refine"); setView("analysis"); }} onOpenReport={() => navigate("/report")} /> : null}
 
       {step !== "refine" ? stepNav : null}
 

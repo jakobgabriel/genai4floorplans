@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
-import { render, cleanup, screen, fireEvent, within } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { App } from "../App";
 import { ToastProvider } from "../components/ui";
 import { fromCapabilities } from "@flowplan/core/model/library";
@@ -239,6 +239,18 @@ describe("planner — guided flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
     expect(screen.getByText("Planning estimate")).toBeTruthy();
     expect(screen.getByText("Loaded cost/part")).toBeTruthy();
+  });
+
+  it("opens the full assessment report from the summary", async () => {
+    renderApp();
+    toConcepts();
+    fireEvent.click(screen.getByRole("button", { name: "Refine this layout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to summary" }));
+    // The summary offers the document view; it reads as a record, not a panel.
+    fireEvent.click(screen.getByRole("button", { name: "Open the full report" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Assessment report" })).toBeTruthy());
+    // The report prints, and it names the concept that was taken.
+    expect(screen.getByRole("button", { name: "Print" })).toBeTruthy();
   });
 
   it("opens the sample straight into the editor", () => {
