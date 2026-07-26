@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Folder, Grid } from "@carbon/icons-react";
 import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { PageHead } from "../components/PageHead";
@@ -36,7 +37,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                 <tbody>
                   {api.archivedFolders.map((f) => (
                     <tr key={f.id}>
-                      <td>🗀 {f.name}</td>
+                      <td><span className="cell-icon"><Folder size={16} /> {f.name}</span></td>
                       <td className="u-muted">{folderName(f.parentId) || "Workspace root"}</td>
                       <td className="u-row">
                         <Btn size="compact" variant="ghost" onClick={() => api.restoreFolder(f.id)}>Restore</Btn>
@@ -58,7 +59,7 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
                 <tbody>
                   {api.archivedCells.map((c) => (
                     <tr key={c.id}>
-                      <td>▦ {c.name}</td>
+                      <td><span className="cell-icon"><Grid size={16} /> {c.name}</span></td>
                       <td className="u-muted">{folderName(c.folderId) || "Workspace root"}</td>
                       <td className="u-row">
                         <Btn size="compact" variant="ghost" onClick={() => api.restoreCell(c.id)}>Restore</Btn>

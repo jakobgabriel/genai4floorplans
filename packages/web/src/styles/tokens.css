@@ -416,6 +416,12 @@ main {
   align-items: center;
   gap: var(--sp-2, 0.25rem);
 }
+/* A leading icon aligned with a table-cell or list label (folder, layout). */
+.cell-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
 .canvas__stage {
   flex: 1 1 auto;
   min-height: 0;

@@ -248,7 +248,7 @@ export function Explorer({ api }: { api: FlowPlanApi }) {
         </div>
         <div className="u-caption">
           Drag a layout or folder onto a folder to move it (or onto empty space for the root). Archiving a
-          folder archives its contents too — restore them from the Archive (🗄).
+          folder archives its contents too — restore them from the Archive.
         </div>
     </div>
   );

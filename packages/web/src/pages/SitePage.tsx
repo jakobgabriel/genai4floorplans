@@ -1,4 +1,5 @@
 import { Fragment, useMemo, type ReactNode } from "react";
+import { Folder } from "@carbon/icons-react";
 import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { buildRating } from "@flowplan/core/engine/rating";
@@ -111,7 +112,7 @@ function FolderGroup({ label, children }: { label: string; children: ReactNode }
   return (
     <Fragment>
       {label ? (
-        <tr><td colSpan={6} style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}>🗀 {label}</td></tr>
+        <tr><td colSpan={6} style={{ color: TEXTD, fontWeight: 600, paddingTop: 8 }}><span className="cell-icon"><Folder size={16} /> {label}</span></td></tr>
       ) : null}
       {children}
     </Fragment>
