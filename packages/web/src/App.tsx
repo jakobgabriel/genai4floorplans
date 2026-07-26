@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFlowPlan } from "./store/useFlowPlan";
 import { SAMPLE, blankModel } from "@flowplan/core/model/sample";
 import { parseModelText } from "@flowplan/core/io/json";
@@ -24,19 +24,23 @@ import { FlowEditorPopover } from "./components/FlowEditorPopover";
 import { Explorer } from "./components/Explorer";
 import { Resizer } from "./components/Resizer";
 import { useLibrary } from "./store/library";
-import { LibraryPage } from "./pages/LibraryPage";
-import { ConceptsPage } from "./pages/ConceptsPage";
 import { useConcepts } from "./store/concepts";
 import { useDecisionWeights } from "./store/decisionWeights";
-import { RecommendPage } from "./pages/RecommendPage";
 import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/library";
-import { AnalysisPage } from "./pages/AnalysisPage";
-import { AssistantPage } from "./pages/AssistantPage";
-import { ComparePage } from "./pages/ComparePage";
-import { ReportPage } from "./pages/ReportPage";
-import { SitePage } from "./pages/SitePage";
-import { ArchivePage } from "./pages/ArchivePage";
-import { AdminPage } from "./pages/AdminPage";
+// The dedicated pages are behind hash routes and none is part of first paint —
+// the app opens on the portal or the editor. Loading them on demand keeps the
+// heaviest views (the report, the AI assistant, the charted comparisons) out
+// of the initial bundle; a route that is never visited is never downloaded.
+const LibraryPage = lazy(() => import("./pages/LibraryPage").then((m) => ({ default: m.LibraryPage })));
+const ConceptsPage = lazy(() => import("./pages/ConceptsPage").then((m) => ({ default: m.ConceptsPage })));
+const RecommendPage = lazy(() => import("./pages/RecommendPage").then((m) => ({ default: m.RecommendPage })));
+const AnalysisPage = lazy(() => import("./pages/AnalysisPage").then((m) => ({ default: m.AnalysisPage })));
+const AssistantPage = lazy(() => import("./pages/AssistantPage").then((m) => ({ default: m.AssistantPage })));
+const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const ReportPage = lazy(() => import("./pages/ReportPage").then((m) => ({ default: m.ReportPage })));
+const SitePage = lazy(() => import("./pages/SitePage").then((m) => ({ default: m.SitePage })));
+const ArchivePage = lazy(() => import("./pages/ArchivePage").then((m) => ({ default: m.ArchivePage })));
+const AdminPage = lazy(() => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })));
 import { useHashRoute, navigate } from "./store/useHashRoute";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ScenarioControls } from "./components/ScenarioBar";
@@ -443,44 +447,41 @@ export function App() {
   }
 
   // Dedicated pages (hash routes). They render full-screen with their own back
-  // navigation; all hooks above have already run, so these early returns are safe.
+  // navigation; all hooks above have already run, so these early returns are
+  // safe. Each page is lazy, so a Suspense boundary covers the moment its chunk
+  // loads with a light placeholder.
+  const routePage = (node: ReactNode) => (
+    <div className="wrap">
+      <Suspense fallback={<div className="wrap-loading" aria-busy="true" />}>{node}</Suspense>
+    </div>
+  );
   if (route === "/report")
-    return (
-      <div className="wrap">
-        <ReportPage
-          api={api}
-          // Only a concept that was actually carried into the workspace counts
-          // as "taken" — the pre-selected top rank on Concepts does not.
-          picked={candidates.find((c) => c.id === loadedCandidate.current) ?? null}
-          candidates={candidates}
-          demand={demand}
-          portfolio={portfolio}
-        />
-      </div>
+    return routePage(
+      <ReportPage
+        api={api}
+        // Only a concept that was actually carried into the workspace counts
+        // as "taken" — the pre-selected top rank on Concepts does not.
+        picked={candidates.find((c) => c.id === loadedCandidate.current) ?? null}
+        candidates={candidates}
+        demand={demand}
+        portfolio={portfolio}
+      />,
     );
-  if (route === "/analysis") return <div className="wrap"><AnalysisPage {...panelProps} /></div>;
+  if (route === "/analysis") return routePage(<AnalysisPage {...panelProps} />);
   if (route === "/assistant")
-    return (
-      <div className="wrap">
-        <AssistantPage api={api} settings={settings} openSettings={() => setShowSettings(true)} />
-      </div>
-    );
+    return routePage(<AssistantPage api={api} settings={settings} openSettings={() => setShowSettings(true)} />);
   // The library is a destination in its own right — reachable from the front
   // door, and useful with no cell open at all.
-  if (route === "/library") return <div className="wrap"><LibraryPage lib={lib} /></div>;
-  if (route === "/concepts") return <div className="wrap"><ConceptsPage api={conceptApi} /></div>;
+  if (route === "/library") return routePage(<LibraryPage lib={lib} />);
+  if (route === "/concepts") return routePage(<ConceptsPage api={conceptApi} />);
   // Concepts for the cell that is actually open, rather than only on the way
   // past in the planning flow.
   if (route === "/recommend")
-    return (
-      <div className="wrap">
-        <RecommendPage api={api} concepts={conceptApi.concepts} weightsApi={weightsApi} />
-      </div>
-    );
-  if (route === "/compare") return <div className="wrap"><ComparePage api={api} /></div>;
-  if (route === "/site") return <div className="wrap"><SitePage api={api} /></div>;
-  if (route === "/archive") return <div className="wrap"><ArchivePage api={api} /></div>;
-  if (route === "/admin") return <div className="wrap"><AdminPage /></div>;
+    return routePage(<RecommendPage api={api} concepts={conceptApi.concepts} weightsApi={weightsApi} />);
+  if (route === "/compare") return routePage(<ComparePage api={api} />);
+  if (route === "/site") return routePage(<SitePage api={api} />);
+  if (route === "/archive") return routePage(<ArchivePage api={api} />);
+  if (route === "/admin") return routePage(<AdminPage />);
   // A link that matches no page — show it as one, rather than dropping the
   // planner onto whatever cell happens to be open.
   if (route === "/404")

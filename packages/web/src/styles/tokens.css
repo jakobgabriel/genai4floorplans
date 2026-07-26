@@ -403,6 +403,11 @@ main {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+/* Placeholder while a lazily-loaded route page's chunk arrives. Reserves the
+   height so the surrounding chrome does not jump. */
+.wrap-loading {
+  min-height: 60vh;
+}
 .canvas__stage {
   flex: 1 1 auto;
   min-height: 0;
