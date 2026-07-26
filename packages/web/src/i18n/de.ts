@@ -157,7 +157,7 @@ export const de: Record<string, string> = {
   "flowPanel.layout.title": "Layout-Einstellungen",
   "flowPanel.layout.cellName": "Zellenname",
   "flowPanel.layout.gridW": "Rasterbreite",
-  "flowPanel.layout.gridWHelp": "Stationen werden beim Verkleinern neu eingepasst.",
+  "flowPanel.layout.gridWHelp": "Die Fläche wächst beim Platzieren von selbst; ein kleinerer Wert räumt auf.",
   "flowPanel.layout.gridH": "Rasterhöhe",
   "flowPanel.layout.shift": "Schichtlänge (Stunden)",
   "flowPanel.layout.shiftHelp": "Standard des Austaktungsmodells; Stationen können dies in „Konfigurieren“ überschreiben.",

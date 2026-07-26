@@ -53,6 +53,29 @@ function clampStations(model: Model): Station[] {
   });
 }
 
+// The floor is not a fixed pen — it grows to hold whatever you place. There is
+// no wall to bump into: dragging a station or drawing a zone past the edge
+// extends the floor to fit (plus a little breathing room). It only ever grows
+// automatically; shrinking is a deliberate act (the Grid width/height fields).
+const GRID_MARGIN = 2;
+export const GRID_MAX = 400;
+
+function fitGrid(model: Model): Model {
+  let needW = model.gridW;
+  let needH = model.gridH;
+  for (const s of model.stations) {
+    needW = Math.max(needW, s.x + s.w + GRID_MARGIN);
+    needH = Math.max(needH, s.y + s.h + GRID_MARGIN);
+  }
+  for (const z of model.noGoZones ?? []) {
+    needW = Math.max(needW, z.x + z.w + GRID_MARGIN);
+    needH = Math.max(needH, z.y + z.h + GRID_MARGIN);
+  }
+  const gridW = Math.min(GRID_MAX, needW);
+  const gridH = Math.min(GRID_MAX, needH);
+  return gridW === model.gridW && gridH === model.gridH ? model : { ...model, gridW, gridH };
+}
+
 // Pure model reducer. History (undo/redo) is layered on top in store/history.ts.
 export function modelReducer(model: Model, action: ModelAction): Model {
   switch (action.type) {
@@ -63,8 +86,8 @@ export function modelReducer(model: Model, action: ModelAction): Model {
       return { ...model, name: action.name };
 
     case "SET_GRID": {
-      const gridW = Math.max(4, Math.min(80, Math.round(action.gridW)));
-      const gridH = Math.max(4, Math.min(80, Math.round(action.gridH)));
+      const gridW = Math.max(4, Math.min(GRID_MAX, Math.round(action.gridW)));
+      const gridH = Math.max(4, Math.min(GRID_MAX, Math.round(action.gridH)));
       const next = { ...model, gridW, gridH };
       return { ...next, stations: clampStations(next) };
     }
@@ -79,7 +102,7 @@ export function modelReducer(model: Model, action: ModelAction): Model {
       return { ...model, costConfig: { ...(model.costConfig ?? {}), ...action.patch } };
 
     case "ADD_STATION":
-      return { ...model, stations: model.stations.concat([action.station]) };
+      return fitGrid({ ...model, stations: model.stations.concat([action.station]) });
 
     case "UPDATE_STATION":
       return {
@@ -112,11 +135,12 @@ export function modelReducer(model: Model, action: ModelAction): Model {
     case "MOVE_STATION": {
       const s = model.stations.find((x) => x.id === action.id);
       if (!s) return model;
-      const { x, y } = clampToGrid(s, action.x, action.y, model.gridW, model.gridH);
-      return {
-        ...model,
-        stations: model.stations.map((st) => (st.id === action.id ? { ...st, x, y } : st)),
-      };
+      // Unbounded canvas: keep the origin non-negative, but let the far edge run
+      // past the current floor — fitGrid grows the floor to catch it.
+      const x = Math.max(0, Math.round(action.x));
+      const y = Math.max(0, Math.round(action.y));
+      const moved = { ...model, stations: model.stations.map((st) => (st.id === action.id ? { ...st, x, y } : st)) };
+      return fitGrid(moved);
     }
 
     case "RENAME_STATION": {
@@ -164,7 +188,7 @@ export function modelReducer(model: Model, action: ModelAction): Model {
       };
 
     case "ADD_NOGO":
-      return { ...model, noGoZones: model.noGoZones.concat([action.zone]) };
+      return fitGrid({ ...model, noGoZones: model.noGoZones.concat([action.zone]) });
 
     case "UPDATE_NOGO":
       return {

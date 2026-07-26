@@ -156,7 +156,7 @@ export const en: Record<string, string> = {
   "flowPanel.layout.title": "Layout settings",
   "flowPanel.layout.cellName": "Cell name",
   "flowPanel.layout.gridW": "Grid width",
-  "flowPanel.layout.gridWHelp": "Stations re-clamp when shrunk.",
+  "flowPanel.layout.gridWHelp": "The floor grows on its own as you place things; set a smaller value to tidy up.",
   "flowPanel.layout.gridH": "Grid height",
   "flowPanel.layout.shift": "Shift length (hours)",
   "flowPanel.layout.shiftHelp": "Balance-model default; stations can override in Configure.",
