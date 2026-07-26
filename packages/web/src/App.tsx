@@ -34,6 +34,7 @@ import { stationFromProcess, type LibraryProcess } from "@flowplan/core/model/li
 // of the initial bundle; a route that is never visited is never downloaded.
 const LibraryPage = lazy(() => import("./pages/LibraryPage").then((m) => ({ default: m.LibraryPage })));
 const ConceptsPage = lazy(() => import("./pages/ConceptsPage").then((m) => ({ default: m.ConceptsPage })));
+const PlansPage = lazy(() => import("./pages/PlansPage").then((m) => ({ default: m.PlansPage })));
 const RecommendPage = lazy(() => import("./pages/RecommendPage").then((m) => ({ default: m.RecommendPage })));
 const AnalysisPage = lazy(() => import("./pages/AnalysisPage").then((m) => ({ default: m.AnalysisPage })));
 const AssistantPage = lazy(() => import("./pages/AssistantPage").then((m) => ({ default: m.AssistantPage })));
@@ -62,6 +63,18 @@ import { AMBER, RED, TEAL } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
 const CELL = 30;
+
+// A blank planning brief — one empty part row so the required table is never an
+// empty frame. Used for first paint and for starting a genuinely new plan.
+function blankDemand(): DemandValues {
+  return {
+    name: "New product",
+    programYears: DEFAULT_PROGRAM_YEARS,
+    annualShifts: 460,
+    shiftHours: 8,
+    parts: [{ id: "part-1", partNumber: "PN-001", steps: [], demandByYear: [] }],
+  };
+}
 
 // The editor rail edits the thing on the canvas: the flow between steps, and
 // the step you have selected. Nothing else.
@@ -104,18 +117,24 @@ export function App() {
     setReached((r) => widen(r, reachedThrough(s)));
   }, []);
   // ---- planning brief (lifted out of the planner so the stepper owns it) ----
-  const [demand, setDemand] = useState<DemandValues>({
-    name: "New product",
-    programYears: DEFAULT_PROGRAM_YEARS,
-    annualShifts: 460,
-    shiftHours: 8,
-    // One row so the required table is never an empty frame with an Add button.
-    parts: [{ id: "part-1", partNumber: "PN-001", steps: [], demandByYear: [] }],
-  });
+  const [demand, setDemand] = useState<DemandValues>(blankDemand);
   const [pickedId, setPickedId] = useState<string | null>(null);
   // Which candidate has already been loaded into the workspace, so advancing
   // to Refine twice does not create duplicate cells.
   const loadedCandidate = useRef<string | null>(null);
+  // Planning a cell is a NEW plan every time: reset the parts matrix and any
+  // concept already chosen so nothing from the last session is carried in, then
+  // enter the flow at its first stage. The saved cells (the plans store) are
+  // untouched — this starts a fresh brief, it does not delete anything.
+  const startNewPlan = useCallback(() => {
+    setDemand(blankDemand());
+    setPickedId(null);
+    loadedCandidate.current = null;
+    goTo("demand");
+    // Also leave any route page (the plans store opens this too), so the fresh
+    // brief actually shows instead of the page it was launched from.
+    navigate("/");
+  }, [goTo]);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -483,6 +502,20 @@ export function App() {
   // door, and useful with no cell open at all.
   if (route === "/library") return routePage(<LibraryPage lib={lib} />);
   if (route === "/concepts") return routePage(<ConceptsPage api={conceptApi} />);
+  // The store of saved plans, reachable from the front door. Opening one makes
+  // it active and drops into the editor; a new plan starts a fresh brief.
+  if (route === "/plans")
+    return routePage(
+      <PlansPage
+        api={api}
+        onOpen={(id) => {
+          api.switchCell(id);
+          goTo("refine");
+          navigate("/");
+        }}
+        onNew={startNewPlan}
+      />,
+    );
   // Concepts for the cell that is actually open, rather than only on the way
   // past in the planning flow.
   if (route === "/recommend")
@@ -736,19 +769,17 @@ export function App() {
     return (
       <AppFrame>
         <StartScreen
-          // Only when there is work of the planner's own to go back to. On a
-          // first run the app seeds the sample, so a `cells.length` test was
-          // always true and just duplicated "Open the sample cell".
-          hasCell={resumed}
           cellCount={api.cells.length}
           processCount={lib.processes.length}
-          onOpen={() => goTo("refine")}
-          onPlan={() => goTo("demand")}
+          // Planning a cell is a NEW plan: wipe the parts matrix and any concept
+          // already picked, so the flow opens on a blank brief rather than
+          // resuming whatever was entered last time.
+          onPlan={startNewPlan}
           onLibrary={() => navigate("/library")}
           onConcepts={() => navigate("/concepts")}
+          onOpenPlans={() => navigate("/plans")}
           conceptCount={conceptApi.concepts.length}
           conceptsEdited={!conceptApi.isPristine}
-          onSample={() => { api.reset(SAMPLE); goTo("refine"); }}
           onBlank={() => { api.reset(blankModel()); setTab("flow"); goTo("refine"); }}
           onImport={() => fileRef.current?.click()}
         />

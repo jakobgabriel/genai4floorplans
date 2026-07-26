@@ -14,10 +14,11 @@ function renderApp() {
   );
 }
 
-/** Sample cell open, then the recommender for it. */
+/** Sample cell open, then the recommender for it. The sample is the seeded plan
+ *  in the store; a resumed session opens straight into the editor on it. */
 async function openRecommend() {
+  localStorage.setItem("flowplan_started", "1");
   renderApp();
-  fireEvent.click(screen.getByText("See an example"));
   fireEvent.click(screen.getByRole("button", { name: "Recommend" }));
   await waitFor(() => expect(screen.getByRole("heading", { name: "Concept recommendations" })).toBeTruthy());
 }

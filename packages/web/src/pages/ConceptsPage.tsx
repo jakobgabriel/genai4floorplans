@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, SelectItem, Tag, Tile } from "@carbon/react";
+import { SelectItem, Tag, Tile } from "@carbon/react";
 import { Add, Copy, TrashCan } from "@carbon/icons-react";
 import { rankConcepts, byKind, type ConceptProfile } from "@flowplan/core/engine/concepts";
 import { FORM_LABELS, type CellForm } from "@flowplan/core/engine/templates";
@@ -8,6 +8,7 @@ import type { ConceptApi } from "../store/concepts";
 import { PageHead } from "../components/PageHead";
 import { Btn, IconBtn, TabBtn } from "../components/Btn";
 import { Footnote, SectionLabel } from "../components/analysisKit";
+import { CustomFields } from "../components/CustomFields";
 import { NumberField, SelectField, TextAreaField, TextField } from "../components/formKit";
 
 /**
@@ -275,17 +276,12 @@ function ConceptEditor({ api, c, onRemoved }: { api: ConceptApi; c: ConceptProfi
         <NumberField id={"c-chg-" + c.kind} label="Changeover (min)" value={c.changeoverMin} min={0} onChange={(v) => up({ changeoverMin: n0(v) })} />
       </div>
 
-      <SectionLabel>Custom fields</SectionLabel>
-      {(c.custom ?? []).map((f) => (
-        <div className="lib-page__customRow" key={f.id}>
-          <TextField id={"cf-l-" + f.id} labelText="Field" value={f.label} placeholder="Standard no." onChange={(v) => api.updateField(c.kind, f.id, { label: v })} />
-          <TextField id={"cf-v-" + f.id} labelText="Value" value={f.value} placeholder="WN-2024-11" onChange={(v) => api.updateField(c.kind, f.id, { value: v })} />
-          <IconBtn size="compact" icon={TrashCan} label={"Remove the " + (f.label || "empty") + " field"} tooltipPosition="left" onClick={() => api.removeField(c.kind, f.id)} />
-        </div>
-      ))}
-      <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => api.addField(c.kind)}>
-        Add a field
-      </Button>
+      <CustomFields
+        fields={c.custom ?? []}
+        onAdd={() => api.addField(c.kind)}
+        onUpdate={(id, patch) => api.updateField(c.kind, id, patch)}
+        onRemove={(id) => api.removeField(c.kind, id)}
+      />
     </div>
   );
 }

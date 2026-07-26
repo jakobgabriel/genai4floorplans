@@ -14,6 +14,13 @@ function renderApp() {
   );
 }
 
+// The sample is the seeded plan in the Cell plans store now; a resumed session
+// (flowplan_started) opens straight into the editor on it.
+function renderSampleEditor() {
+  localStorage.setItem("flowplan_started", "1");
+  renderApp();
+}
+
 /** The library starts empty and nothing is seeded, so a test that needs one
  *  puts it there — the same import the empty state offers. */
 function seedLibrary() {
@@ -59,9 +66,12 @@ describe("planner — entry", () => {
 
   it("keeps direct entry points for people who don't want the guided path", () => {
     renderApp();
-    expect(screen.getByText("See an example")).toBeTruthy();
+    // The sample moved off the portal into the Cell plans store; the direct
+    // ways in that remain are a blank start and a JSON import.
+    expect(screen.queryByText("See an example")).toBeNull();
     expect(screen.getByRole("button", { name: "Start blank" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Import a JSON model" })).toBeTruthy();
+    expect(screen.getByText("Cell plans")).toBeTruthy();
   });
 
   it("states what is not implemented rather than offering it as a choice", () => {
@@ -70,8 +80,7 @@ describe("planner — entry", () => {
   });
 
   it("opens the sample cell straight into the editor", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
+    renderSampleEditor();
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
   });
 });
@@ -238,8 +247,7 @@ describe("planner — guided flow", () => {
   });
 
   it("keeps the stepper available from inside the editor", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
+    renderSampleEditor();
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();
     // Every earlier stage is reachable again from the stepper.
     fireEvent.click(screen.getByText("Parts & demand"));
@@ -247,8 +255,7 @@ describe("planner — guided flow", () => {
   });
 
   it("runs in four stages, not six", () => {
-    renderApp();
-    fireEvent.click(screen.getByText("See an example"));
+    renderSampleEditor();
     ["Parts & demand", "Concepts", "Refine", "Summary"].forEach((s) =>
       expect(screen.getByText(s)).toBeTruthy(),
     );

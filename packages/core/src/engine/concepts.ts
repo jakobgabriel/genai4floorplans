@@ -1,4 +1,5 @@
 import type { AutoState, ErgoRisk, StationType, Transport } from "../model/types";
+import type { CustomField } from "../model/library";
 import type { CellForm } from "./templates";
 
 // Manufacturing concepts (lifecycle case 2).
@@ -57,7 +58,7 @@ export interface ConceptProfile {
   changeoverMin: number;
   ergoRisk: ErgoRisk;
   /** Free-form fields the planner adds. Never read by any engine. */
-  custom?: Array<{ id: string; label: string; value: string }>;
+  custom?: CustomField[];
 }
 
 export type ConceptCatalog = Record<ConceptKind, ConceptProfile>;

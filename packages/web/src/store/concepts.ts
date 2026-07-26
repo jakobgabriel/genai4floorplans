@@ -4,6 +4,7 @@ import {
   blankConcept,
   type ConceptProfile,
 } from "@flowplan/core/engine/concepts";
+import type { CustomField } from "@flowplan/core/model/library";
 
 // The concept catalog, persisted like the process library.
 //
@@ -85,7 +86,7 @@ export interface ConceptApi {
   isPristine: boolean;
 
   addField: (kind: string) => void;
-  updateField: (kind: string, fieldId: string, patch: Partial<{ label: string; value: string }>) => void;
+  updateField: (kind: string, fieldId: string, patch: Partial<CustomField>) => void;
   removeField: (kind: string, fieldId: string) => void;
 }
 
@@ -140,7 +141,7 @@ export function useConcepts(): ConceptApi {
 
   const addField = useCallback(
     (kind: string) =>
-      mapOne(kind, (c) => ({ ...c, custom: (c.custom ?? []).concat([{ id: newId("fld"), label: "", value: "" }]) })),
+      mapOne(kind, (c) => ({ ...c, custom: (c.custom ?? []).concat([{ id: newId("fld"), label: "", value: "", type: "text" }]) })),
     [mapOne],
   );
 
