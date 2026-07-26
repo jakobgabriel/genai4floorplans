@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   ClickableTile,
@@ -50,6 +50,23 @@ export interface PanelProps {
   lib?: LibraryApi;
   /** Place a library process on the canvas. */
   onAddProcess?: (p: LibraryProcess) => void;
+}
+
+/**
+ * A foldable rail section: a section header that opens/closes its body. Used to
+ * fold away the secondary controls (settings, cost, notes) so a rail leads with
+ * the everyday actions instead of a long stack of always-open sections.
+ * Native <details> — keyboard-operable and screen-reader-labelled for free.
+ */
+function FoldSection({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="fk-fold" open={defaultOpen}>
+      <summary className="fk-fold__sum">{title}</summary>
+      <div className="fk-fold__body">
+        <Stack gap={4}>{children}</Stack>
+      </div>
+    </details>
+  );
 }
 
 /**
@@ -625,8 +642,7 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
   const t = useT();
   const m = api.model;
   return (
-    <Stack gap={4}>
-      <SectionLabel>{t("flowPanel.layout.title")}</SectionLabel>
+    <FoldSection title={t("flowPanel.layout.title")}>
       <TextField id="cell-name" labelText={t("flowPanel.layout.cellName")} value={m.name} onFocus={api.checkpoint} onChange={(v) => api.live({ type: "SET_NAME", name: v })} />
       <FieldRow>
         <NumberField
@@ -656,7 +672,7 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
         onFocus={api.checkpoint}
         onChange={(v) => api.live({ type: "SET_SHIFT_HOURS", shiftHours: Number(v) || 8 })}
       />
-    </Stack>
+    </FoldSection>
   );
 }
 
@@ -664,8 +680,7 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
   const t = useT();
   const zones = api.model.noGoZones ?? [];
   return (
-    <Stack gap={4}>
-      <SectionLabel>{t("flowPanel.nogo.title")}</SectionLabel>
+    <FoldSection title={t("flowPanel.nogo.title")}>
       <Button kind={mode === "nogo" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
         {mode === "nogo" ? t("flowPanel.nogo.drawing") : t("flowPanel.nogo.draw")}
       </Button>
@@ -691,7 +706,7 @@ function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMod
           ))}
         </Stack>
       ) : null}
-    </Stack>
+    </FoldSection>
   );
 }
 
@@ -1118,8 +1133,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
           </FieldRow>
         </Stack>
 
-        <Stack gap={4}>
-          <SectionLabel>{t("cfg.automationPlacement")}</SectionLabel>
+        <FoldSection title={t("cfg.automationPlacement")}>
           <FieldRow>
             <SelectField id="cfg-auto" labelText={t("cfg.autoState")} value={s.auto} options={AUTO} onChange={(v) => up({ auto: v })} />
             <SelectField
@@ -1142,10 +1156,9 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
             toggled={!!s.fixed}
             onToggle={(checked) => up({ fixed: checked })}
           />
-        </Stack>
+        </FoldSection>
 
-        <Stack gap={4}>
-          <SectionLabel>{t("cfg.cost")}</SectionLabel>
+        <FoldSection title={t("cfg.cost")}>
           <FieldRow>
             <NumberField
               id="cfg-capex"
@@ -1166,10 +1179,9 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
               onChange={(v) => live({ automationCapex: Math.max(0, Number(v) || 0) })}
             />
           </FieldRow>
-        </Stack>
+        </FoldSection>
 
-        <Stack gap={4}>
-          <SectionLabel>{t("cfg.notes")}</SectionLabel>
+        <FoldSection title={t("cfg.notes")}>
           <TextField
             id="cfg-utils"
             labelText={t("cfg.utilities")}
@@ -1178,7 +1190,7 @@ export function ConfigurePanel({ api, selId, setSel, setTab, lib, onAddProcess }
             onChange={(v) => live({ utilities: v.split(",").map((x) => x.trim()).filter(Boolean) })}
           />
           <TextAreaField id="cfg-notes" labelText={t("cfg.notes")} rows={3} value={s.notes ?? ""} onFocus={api.checkpoint} onChange={(v) => live({ notes: v })} />
-        </Stack>
+        </FoldSection>
 
         <Stack gap={4}>
           <SectionLabel>{t("cfg.connections")}</SectionLabel>
