@@ -1,4 +1,4 @@
-import type { Confidence, VariantMode, WorkElement } from "./types";
+import type { Confidence, VariantMode, WorkElement } from "../model/types";
 
 // Multi-part line feasibility (spec §15).
 //

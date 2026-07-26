@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Station } from "../model/types";
-import { normalizeStation } from "../model/defaults";
+import { normalizeFlow, normalizeStation } from "../model/defaults";
 import { balanceAnalysis, stationRate } from "./balance";
 describe("mixed-flow utilisation", () => {
   // A station sized for a 60s worst part but running a mix that averages 40s.
@@ -32,8 +32,8 @@ describe("mixed-flow utilisation", () => {
       normalizeStation({ id: "out", name: "Out", role: "output", x: 9, y: 0, w: 2, h: 2, capacityPerShift: 10000 } as Station),
     ];
     const flows = [
-      { from: "in", to: "st1", volume: 100, unitCost: 1 },
-      { from: "st1", to: "out", volume: 100, unitCost: 1 },
+      normalizeFlow({ from: "in", to: "st1", volume: 100, unitCost: 1 }),
+      normalizeFlow({ from: "st1", to: "out", volume: 100, unitCost: 1 }),
     ];
     const step = balanceAnalysis(stations, flows, 8).steps.find((s) => s.id === "st1")!;
     expect(step.cycle).toBe(40); // what it runs
