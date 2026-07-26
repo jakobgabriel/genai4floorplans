@@ -1257,6 +1257,17 @@ code {
   flex-wrap: wrap;
   gap: 1px;
 }
+/* Scalable tag assignment: assigned chips over a search-to-add combo box. */
+.tagpicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.tagpicker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
 .lib-page__tagEdit {
   flex-direction: column;
   gap: var(--sp-3);

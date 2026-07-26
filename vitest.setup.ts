@@ -10,6 +10,12 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
 }
 
+// jsdom has no layout, so Carbon's ComboBox/Dropdown blow up calling
+// scrollIntoView on the highlighted option. Stub it.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 // jsdom has scrollTo but only to log "Not implemented" on every call; the hash
 // router scrolls a new page to its top on every route change.
 if (typeof window !== "undefined") {

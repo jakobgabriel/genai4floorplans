@@ -22,6 +22,15 @@ async function openLibrary() {
 
 const stored = () => JSON.parse(localStorage.getItem("flowplan_library") ?? "null");
 
+/** Assign an existing tag through the search-to-add combo box. */
+async function assignTag(name: string) {
+  const picker = document.querySelector(".tagpicker") as HTMLElement;
+  const input = within(picker).getByRole("combobox");
+  fireEvent.change(input, { target: { value: name } });
+  const opt = await within(picker).findByRole("option", { name });
+  fireEvent.click(opt);
+}
+
 beforeEach(() => {
   cleanup();
   document.body.innerHTML = "";
@@ -122,9 +131,8 @@ describe("tags", () => {
 
     // One process, two categories — which is why this is tagging and not a
     // single category field.
-    const picker = document.querySelector(".lib-page__tagPick") as HTMLElement;
-    fireEvent.click(within(picker).getByRole("button", { name: "Joining" }));
-    fireEvent.click(within(picker).getByRole("button", { name: "Fume extraction" }));
+    await assignTag("Joining");
+    await assignTag("Fume extraction");
     await waitFor(() => expect(stored().processes[0].tags).toHaveLength(2));
   });
 
@@ -147,8 +155,7 @@ describe("tags", () => {
     fireEvent.change(screen.getByLabelText("New tag"), { target: { value: "Joining" } });
     fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));
     await waitFor(() => expect(stored().tags).toHaveLength(1));
-    const picker = document.querySelector(".lib-page__tagPick") as HTMLElement;
-    fireEvent.click(within(picker).getByRole("button", { name: "Joining" }));
+    await assignTag("Joining");
     await waitFor(() => expect(stored().processes[0].tags).toHaveLength(1));
 
     fireEvent.click(screen.getByRole("button", { name: /Delete the Joining tag/ }));
