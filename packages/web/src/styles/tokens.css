@@ -2362,6 +2362,38 @@ code {
   flex: 0 0 auto;
   fill: var(--cds-support-success);
 }
+/* A foldable rail section — the header reads like a SectionLabel, with a
+   chevron that turns when open, so secondary controls fold away by default. */
+.fk-fold > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  list-style: none;
+  padding: var(--sp-1) 0;
+  font-size: var(--type-caption-size);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+.fk-fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fk-fold > summary::before {
+  content: "›";
+  display: inline-block;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform var(--dur) var(--ease);
+}
+.fk-fold[open] > summary::before {
+  transform: rotate(90deg);
+}
+.fk-fold__body {
+  padding-top: var(--sp-3);
+}
+
 /* A disclosure for rare/advanced controls (e.g. renaming a station id), so the
    everyday fields lead and the plumbing folds away. */
 .fk-advanced > summary {
