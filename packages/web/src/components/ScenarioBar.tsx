@@ -77,9 +77,7 @@ export function ScenarioControls({ api, onCompare }: { api: FlowPlanApi; onCompa
 
   return (
     <>
-      <Btn size="compact" icon={Save} onClick={() => setOpen(true)}>
-        {t("scenario.save")}
-      </Btn>
+      <IconBtn size="compact" icon={Save} label={t("scenario.save")} onClick={() => setOpen(true)} />
       <Menu
         label={scenarios.length ? t("scenario.menuCount", { n: scenarios.length }) : t("scenario.menu")}
         title={t("scenario.menuTitle")}

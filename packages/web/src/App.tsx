@@ -604,15 +604,9 @@ export function App() {
         {cellName.length > 22 ? cellName.slice(0, 21).trimEnd() + "…" : cellName}
       </Btn>
       <span className="hsep" />
-      {/* Analysis and the assistant left the rail; they are reachable here. */}
-      <Btn size="compact" icon={ChartLine} onClick={() => navigate("/analysis")} title="The full assessment">
-        {t("editor.analysis")}
-      </Btn>
-      {/* Not "Concepts" — the stepper already has a stage by that name, and
-          this is the verb, not the stage. */}
-      <Btn size="compact" icon={Idea} onClick={() => navigate("/recommend")} title="Concepts for this cell's work content">
-        {t("editor.recommend")}
-      </Btn>
+      {/* Icon-only to keep the bar lean; the label rides the tooltip + a11y name. */}
+      <IconBtn size="compact" icon={ChartLine} label={t("editor.analysis")} onClick={() => navigate("/analysis")} />
+      <IconBtn size="compact" icon={Idea} label={t("editor.recommend")} onClick={() => navigate("/recommend")} />
       <span className="hsep" />
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
       <span className="hsep" />
