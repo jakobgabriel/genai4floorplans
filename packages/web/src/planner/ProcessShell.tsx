@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Header, HeaderGlobalBar, HeaderGlobalAction, HeaderName, ProgressIndicator, ProgressStep, Theme } from "@carbon/react";
 import type { FlowStep } from "./flow";
-import { FLOW_STEPS, STEP_META } from "./flow";
+import { FLOW_STEPS } from "./flow";
 import { CARBON_THEME, useTheme } from "../store/theme";
+import { useT } from "../i18n";
 import { TopBarControls } from "../components/TopBarControls";
 
 // One shell for the whole application. The process stepper is always present,
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function ProcessShell({ step, reached, onGoto, actions, fill, onHome, children }: Props) {
+  const t = useT();
   const index = FLOW_STEPS.indexOf(step);
 
   return (
@@ -44,7 +46,7 @@ export function ProcessShell({ step, reached, onGoto, actions, fill, onHome, chi
           }}
         >
           {FLOW_STEPS.map((s) => (
-            <ProgressStep key={s} label={STEP_META[s].label} disabled={!reached.includes(s)} />
+            <ProgressStep key={s} label={t("flow.step." + s + ".label")} disabled={!reached.includes(s)} />
           ))}
         </ProgressIndicator>
       </nav>
