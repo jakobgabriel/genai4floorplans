@@ -54,8 +54,13 @@ export interface BtnProps extends Common {
    *  Selected reads as primary, unselected as ghost — one implementation of
    *  what `.btn.on` used to do in four places. */
   selected?: boolean;
-  /** Marks the button as controlling a region, for toggles and menus. */
+  /** Marks the button as controlling a region, for toggles. */
   pressed?: boolean;
+  /** For a menu/disclosure trigger: announces the popup and whether it is open,
+   *  so assistive tech reports "menu, collapsed/expanded" rather than a bare
+   *  button. Use instead of `pressed` on a menu button. */
+  hasPopup?: boolean;
+  expanded?: boolean;
   type?: "button" | "submit";
 }
 
@@ -65,6 +70,8 @@ export function Btn({
   size = "default",
   selected,
   pressed,
+  hasPopup,
+  expanded,
   icon,
   disabled,
   title,
@@ -83,6 +90,8 @@ export function Btn({
       className={className}
       renderIcon={icon as never}
       aria-pressed={pressed ?? (selected !== undefined ? selected : undefined)}
+      aria-haspopup={hasPopup ? "menu" : undefined}
+      aria-expanded={hasPopup ? !!expanded : undefined}
       onClick={onClick}
     >
       {children}

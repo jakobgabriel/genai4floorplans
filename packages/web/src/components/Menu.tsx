@@ -45,7 +45,7 @@ export function Menu({
 
   return (
     <div className="menu" ref={ref}>
-      <Btn size="compact" title={title} pressed={open} onClick={() => setOpen((v) => !v)}>
+      <Btn size="compact" title={title} hasPopup expanded={open} onClick={() => setOpen((v) => !v)}>
         {label}
       </Btn>
       {open ? (

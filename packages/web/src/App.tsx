@@ -244,11 +244,11 @@ export function App() {
   // ---- keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // A dialog owns the keyboard while it is open: Escape closes it, Delete
-      // edits its fields. Without this, those keys also reached the canvas
-      // behind the dialog — Escape cleared the selection, Delete removed a
+      // An open dialog or dropdown menu owns the keyboard: Escape closes it,
+      // Delete edits its fields. Without this, those keys also reached the
+      // canvas behind it — Escape cleared the selection, Delete removed a
       // station the planner could not even see.
-      if (document.querySelector(".cds--modal.is-visible")) return;
+      if (document.querySelector(".cds--modal.is-visible, .menu-pop")) return;
       const t = e.target as HTMLElement;
       const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
       const mod = e.metaKey || e.ctrlKey;
