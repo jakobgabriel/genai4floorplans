@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Header, HeaderGlobalBar, HeaderGlobalAction, HeaderName, ProgressIndicator, ProgressStep, Theme } from "@carbon/react";
 import type { FlowStep } from "./flow";
 import { FLOW_STEPS, STEP_META } from "./flow";
+import { CARBON_THEME, useTheme } from "../store/theme";
+import { TopBarControls } from "../components/TopBarControls";
 
 // One shell for the whole application. The process stepper is always present,
 // so the editor is visibly a *stage of planning* rather than a separate tool you
@@ -67,13 +69,17 @@ export function AppFrame({
   fill?: boolean;
   children: ReactNode;
 }) {
+  const { theme } = useTheme();
   return (
-    <Theme theme="g100">
+    <Theme theme={CARBON_THEME[theme]}>
       <Header aria-label="FlowPlan">
         <HeaderName href="#" prefix="Flow">
           Plan
         </HeaderName>
-        <HeaderGlobalBar>{actions}</HeaderGlobalBar>
+        <HeaderGlobalBar>
+          {actions}
+          <TopBarControls />
+        </HeaderGlobalBar>
       </Header>
       <div className={"shell" + (fill ? " shell--fill" : "")}>{children}</div>
     </Theme>
