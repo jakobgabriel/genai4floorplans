@@ -5,18 +5,21 @@ import { buildRating } from "@flowplan/core/engine/rating";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { PageHead } from "../components/PageHead";
-import { Btn, IconBtn } from "../components/Btn";
+import { Btn, IconBtn, TabBtn } from "../components/Btn";
 import { scoreTag } from "../components/analysisKit";
 
 /**
  * The store of cell plans.
  *
  * Every plan the workspace holds, in one place, reachable from the front door
- * — not buried in the editor's Explorer drawer. Each card opens its plan into
- * the editor, and the numbers on it (grade, output, cost) are the same the
- * engine shows once it is open, so a plan can be recognised without opening it.
+ * — not buried in the editor's Explorer drawer. It offers two layouts: tiles
+ * (a card per plan, room for the headline numbers) and a list (a dense row per
+ * plan, more plans on screen at once). Each opens its plan into the editor, and
+ * the numbers are the engine's own, so a plan can be recognised without opening
+ * it.
  */
 
+type PlansView = "tiles" | "list";
 const num = (n: number) => Math.round(n).toLocaleString();
 
 export function PlansPage({
@@ -30,23 +33,57 @@ export function PlansPage({
   /** Start a fresh plan. */
   onNew: () => void;
 }) {
-  // Full models (the active cell carries its live edits) so each card can carry
-  // its rating without the store having to open the plan first.
-  const cells = useMemo(() => api.snapshotCells(), [api]);
+  const [view, setView] = useState<PlansView>("tiles");
   const [renaming, setRenaming] = useState<string | null>(null);
+
+  // Full models (the active cell carries its live edits), enriched with the
+  // engine's rating and cost so both layouts read the same figures.
+  const plans = useMemo(
+    () =>
+      api.snapshotCells().map((c) => {
+        const rating = buildRating(c.model, { restarts: 0 });
+        const cost = costAnalysis(c.model);
+        return {
+          cell: c,
+          active: c.id === api.activeId,
+          letter: rating.letter,
+          composite: rating.composite,
+          output: rating.balance.lineOut,
+          costPerPart: cost.currency + cost.costPerPart.toFixed(2),
+          steps: c.model.stations.filter((s) => s.role === "process").length,
+        };
+      }),
+    [api],
+  );
+
+  const rename = (id: string, el: HTMLInputElement) => {
+    const v = el.value.trim();
+    if (v) api.renameCell(id, v);
+    setRenaming(null);
+  };
 
   return (
     <div className="page plans">
       <PageHead
         title="Cell plans"
         actions={
-          <Btn variant="primary" size="compact" icon={Add} onClick={onNew}>
-            New plan
-          </Btn>
+          <>
+            <div className="plans__views" role="group" aria-label="View">
+              <TabBtn selected={view === "list"} onClick={() => setView("list")}>
+                List
+              </TabBtn>
+              <TabBtn selected={view === "tiles"} onClick={() => setView("tiles")}>
+                Tiles
+              </TabBtn>
+            </div>
+            <Btn variant="primary" size="compact" icon={Add} onClick={onNew}>
+              New plan
+            </Btn>
+          </>
         }
       />
 
-      {cells.length === 0 ? (
+      {plans.length === 0 ? (
         <Tile className="plans__empty">
           <h2 className="plans__emptyTitle">No plans yet</h2>
           <p>Plan a cell, and it is saved here as you go.</p>
@@ -56,87 +93,142 @@ export function PlansPage({
             </Btn>
           </div>
         </Tile>
+      ) : view === "list" ? (
+        <div className="plans__scroll">
+          <table className="plans__list">
+            <thead>
+              <tr>
+                <th>Plan</th>
+                <th className="plans__num">Grade</th>
+                <th className="plans__num">Output</th>
+                <th className="plans__num">Cost/part</th>
+                <th className="plans__num">Steps</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((p) => (
+                <tr key={p.cell.id} className={p.active ? "plans__rowActive" : undefined}>
+                  <td>
+                    {renaming === p.cell.id ? (
+                      <TextInput
+                        id={"rename-" + p.cell.id}
+                        labelText="Plan name"
+                        hideLabel
+                        size="sm"
+                        autoFocus
+                        defaultValue={p.cell.name}
+                        onBlur={(e) => rename(p.cell.id, e.target)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                          if (e.key === "Escape") setRenaming(null);
+                        }}
+                      />
+                    ) : (
+                      <button type="button" className="plans__nameLink" onClick={() => onOpen(p.cell.id)}>
+                        {p.cell.name}
+                      </button>
+                    )}
+                  </td>
+                  <td className="plans__num">
+                    <Tag type={scoreTag(p.composite)} size="sm">
+                      {p.letter}
+                    </Tag>
+                  </td>
+                  <td className="plans__num">{num(p.output)}/sh</td>
+                  <td className="plans__num">{p.costPerPart}</td>
+                  <td className="plans__num">{p.steps}</td>
+                  <td className="plans__rowActions">
+                    <Btn variant="ghost" size="compact" onClick={() => onOpen(p.cell.id)}>
+                      Open
+                    </Btn>
+                    <IconBtn size="compact" icon={Edit} label={"Rename " + p.cell.name} onClick={() => setRenaming(p.cell.id)} />
+                    <IconBtn
+                      size="compact"
+                      icon={Copy}
+                      label={"Duplicate " + p.cell.name}
+                      onClick={() => api.addCell(p.cell.model, p.cell.name + " (copy)", p.cell.folderId)}
+                    />
+                    <IconBtn
+                      size="compact"
+                      variant="danger"
+                      icon={TrashCan}
+                      label={"Archive " + p.cell.name}
+                      tooltipPosition="left"
+                      onClick={() => api.archiveCell(p.cell.id)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="plans__grid">
-          {cells.map((c) => {
-            const process = c.model.stations.filter((s) => s.role === "process");
-            const rating = buildRating(c.model, { restarts: 0 });
-            const cost = costAnalysis(c.model);
-            const active = c.id === api.activeId;
-            return (
-              <Tile key={c.id} className={"plan-card" + (active ? " plan-card--active" : "")}>
-                <div className="plan-card__head">
-                  {renaming === c.id ? (
-                    <TextInput
-                      id={"rename-" + c.id}
-                      labelText="Plan name"
-                      hideLabel
-                      size="sm"
-                      autoFocus
-                      defaultValue={c.name}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v) api.renameCell(c.id, v);
-                        setRenaming(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                        if (e.key === "Escape") setRenaming(null);
-                      }}
-                    />
-                  ) : (
-                    <button type="button" className="plan-card__name" onClick={() => onOpen(c.id)}>
-                      {c.name}
-                    </button>
-                  )}
-                  <Tag type={scoreTag(rating.composite)} size="sm">
-                    {rating.letter}
-                  </Tag>
-                </div>
+          {plans.map((p) => (
+            <Tile key={p.cell.id} className={"plan-card" + (p.active ? " plan-card--active" : "")}>
+              <div className="plan-card__head">
+                {renaming === p.cell.id ? (
+                  <TextInput
+                    id={"rename-" + p.cell.id}
+                    labelText="Plan name"
+                    hideLabel
+                    size="sm"
+                    autoFocus
+                    defaultValue={p.cell.name}
+                    onBlur={(e) => rename(p.cell.id, e.target)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                  />
+                ) : (
+                  <button type="button" className="plan-card__name" onClick={() => onOpen(p.cell.id)}>
+                    {p.cell.name}
+                  </button>
+                )}
+                <Tag type={scoreTag(p.composite)} size="sm">
+                  {p.letter}
+                </Tag>
+              </div>
 
-                <dl className="plan-card__stats">
-                  <div>
-                    <dt>Output</dt>
-                    <dd>{num(rating.balance.lineOut)}/sh</dd>
-                  </div>
-                  <div>
-                    <dt>Cost/part</dt>
-                    <dd>{cost.currency + cost.costPerPart.toFixed(2)}</dd>
-                  </div>
-                  <div>
-                    <dt>Steps</dt>
-                    <dd>{process.length}</dd>
-                  </div>
-                </dl>
-
-                <div className="plan-card__actions">
-                  <Btn variant="primary" size="compact" onClick={() => onOpen(c.id)}>
-                    Open
-                  </Btn>
-                  <IconBtn
-                    size="compact"
-                    icon={Edit}
-                    label={"Rename " + c.name}
-                    onClick={() => setRenaming(c.id)}
-                  />
-                  <IconBtn
-                    size="compact"
-                    icon={Copy}
-                    label={"Duplicate " + c.name}
-                    onClick={() => api.addCell(c.model, c.name + " (copy)", c.folderId)}
-                  />
-                  <IconBtn
-                    size="compact"
-                    variant="danger"
-                    icon={TrashCan}
-                    label={"Archive " + c.name}
-                    tooltipPosition="left"
-                    onClick={() => api.archiveCell(c.id)}
-                  />
+              <dl className="plan-card__stats">
+                <div>
+                  <dt>Output</dt>
+                  <dd>{num(p.output)}/sh</dd>
                 </div>
-              </Tile>
-            );
-          })}
+                <div>
+                  <dt>Cost/part</dt>
+                  <dd>{p.costPerPart}</dd>
+                </div>
+                <div>
+                  <dt>Steps</dt>
+                  <dd>{p.steps}</dd>
+                </div>
+              </dl>
+
+              <div className="plan-card__actions">
+                <Btn variant="primary" size="compact" onClick={() => onOpen(p.cell.id)}>
+                  Open
+                </Btn>
+                <IconBtn size="compact" icon={Edit} label={"Rename " + p.cell.name} onClick={() => setRenaming(p.cell.id)} />
+                <IconBtn
+                  size="compact"
+                  icon={Copy}
+                  label={"Duplicate " + p.cell.name}
+                  onClick={() => api.addCell(p.cell.model, p.cell.name + " (copy)", p.cell.folderId)}
+                />
+                <IconBtn
+                  size="compact"
+                  variant="danger"
+                  icon={TrashCan}
+                  label={"Archive " + p.cell.name}
+                  tooltipPosition="left"
+                  onClick={() => api.archiveCell(p.cell.id)}
+                />
+              </div>
+            </Tile>
+          ))}
         </div>
       )}
     </div>

@@ -3,6 +3,22 @@ import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
 import { App } from "./App";
 import { ToastProvider } from "./components/ui";
+import { SAMPLE } from "@flowplan/core/model/sample";
+
+// The app no longer seeds anything, so a test that needs the sample in the
+// editor puts it in the workspace itself, then resumes straight into it.
+function seedSample() {
+  localStorage.setItem(
+    "flowplan_workspace",
+    JSON.stringify({
+      version: 1,
+      cells: [{ id: "cell_sample", name: SAMPLE.name, model: SAMPLE, folderId: null, archived: false }],
+      activeId: "cell_sample",
+      folders: [],
+    }),
+  );
+  localStorage.setItem("flowplan_started", "1");
+}
 
 function renderApp() {
   return render(
@@ -12,11 +28,10 @@ function renderApp() {
   );
 }
 
-// The sample is no longer a portal tile — it is the seeded plan in the Cell
-// plans store. A returning session (flowplan_started) opens straight into the
-// editor on that seeded sample, which is what the sample-in-editor tests need.
+// Put the sample in the workspace and resume into it — the editor opens on the
+// sample, which is what the sample-in-editor tests need now that nothing seeds.
 function renderSampleEditor() {
-  localStorage.setItem("flowplan_started", "1");
+  seedSample();
   return renderApp();
 }
 

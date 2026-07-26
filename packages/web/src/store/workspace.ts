@@ -1,7 +1,6 @@
 import type { Model } from "@flowplan/core/model/types";
 import { migrate } from "@flowplan/core/model/migrate";
 import { loadAutosave } from "./scenarios";
-import { SAMPLE } from "@flowplan/core/model/sample";
 
 // A workspace holds several named cells (each a full Model) so FlowPlan stops
 // being single-cell. Persisted in localStorage; the active cell drives the app.
@@ -56,22 +55,30 @@ export function loadWorkspace(): Workspace {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const ws = JSON.parse(raw) as Workspace;
-      if (ws && Array.isArray(ws.cells) && ws.cells.length) {
+      // A stored workspace loads as-is, even with no cells — an emptied store is
+      // a real state now, and it can still hold folders. Only a missing or
+      // unreadable entry falls through to the first-run path.
+      if (ws && Array.isArray(ws.cells)) {
         const cells = ws.cells.map(migrateCell);
         const folders = Array.isArray(ws.folders) ? ws.folders.map(migrateFolder) : [];
-        const activeId = cells.some((c) => c.id === ws.activeId) ? ws.activeId : cells[0].id;
+        const activeId = cells.some((c) => c.id === ws.activeId) ? ws.activeId : (cells[0]?.id ?? "");
         return { cells, folders, activeId };
       }
     }
   } catch {
     /* ignore */
   }
-  // First run / legacy: seed from the old autosave or the sample. Normalize it
-  // the same way the stored path does (migrateCell), so a fresh seed and a
-  // reloaded one are byte-for-byte the same rather than drifting on first save.
-  const seed = migrate(loadAutosave() ?? SAMPLE);
-  const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null, archived: false };
-  return { cells: [cell], folders: [], activeId: cell.id };
+  // First run: an empty workspace. No seed and no example cell — the app opens
+  // on the portal, and the first plan is created when the planner or "Start
+  // blank" runs. A legacy single-cell autosave (the user's own prior data, not
+  // a seed) is still carried across if one exists.
+  const auto = loadAutosave();
+  if (auto) {
+    const seed = migrate(auto);
+    const cell: Cell = { id: newId("cell"), name: seed.name || "Cell A", model: seed, folderId: null, archived: false };
+    return { cells: [cell], folders: [], activeId: cell.id };
+  }
+  return { cells: [], folders: [], activeId: "" };
 }
 
 function migrateFolder(f: Folder): Folder {
