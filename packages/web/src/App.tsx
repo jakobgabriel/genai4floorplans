@@ -61,6 +61,7 @@ import {
 } from "./components/panels";
 import { SectionLabel } from "./components/analysisKit";
 import { InlineNotification } from "@carbon/react";
+import { useT } from "./i18n";
 import { useAccents } from "./components/colors";
 
 type View = "actual" | "improved" | "split" | "dag";
@@ -94,6 +95,7 @@ const RAIL_TABS: { tab: Tab; label: string }[] = [
 export function App() {
   const api = useFlowPlan();
   const { toast } = useToast();
+  const t = useT();
   const { TEAL, AMBER, RED } = useAccents();
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("flow");
@@ -545,16 +547,16 @@ export function App() {
     return (
       <div className="wrap">
         <div className="page">
-          <h1 className="page-title">Page not found</h1>
-          <p className="u-muted">That link doesn’t point to a page in this app.</p>
+          <h1 className="page-title">{t("editor.notFound.title")}</h1>
+          <p className="u-muted">{t("editor.notFound.body")}</p>
           <Btn variant="primary" size="compact" onClick={() => navigate("/")}>
-            Back to the editor
+            {t("editor.notFound.back")}
           </Btn>
         </div>
       </div>
     );
 
-  const cellName = api.cells.find((c) => c.id === api.activeId)?.name ?? "Layouts";
+  const cellName = api.cells.find((c) => c.id === api.activeId)?.name ?? t("editor.drawer.title");
 
   const editorToolbar = (
     <div className="editorbar">
@@ -562,7 +564,7 @@ export function App() {
       <div className="spacer" />
       {/* One primary per view: leaving the editor is it. */}
       <Btn variant="primary" size="compact" onClick={() => goTo("summary")}>
-        Continue to summary
+        {t("editor.continueToSummary")}
       </Btn>
       <span className="hsep" />
       <Btn
@@ -579,40 +581,40 @@ export function App() {
       <span className="hsep" />
       {/* Analysis and the assistant left the rail; they are reachable here. */}
       <Btn size="compact" icon={ChartLine} onClick={() => navigate("/analysis")} title="The full assessment">
-        Analysis
+        {t("editor.analysis")}
       </Btn>
       {/* Not "Concepts" — the stepper already has a stage by that name, and
           this is the verb, not the stage. */}
       <Btn size="compact" icon={Idea} onClick={() => navigate("/recommend")} title="Concepts for this cell's work content">
-        Recommend
+        {t("editor.recommend")}
       </Btn>
       <span className="hsep" />
       <ScenarioControls api={api} onCompare={() => navigate("/compare")} />
       <span className="hsep" />
-      <IconBtn size="compact" icon={Undo} label="Undo (Ctrl/Cmd+Z)" disabled={!api.canUndo} onClick={api.undo} />
-      <IconBtn size="compact" icon={Redo} label="Redo (Ctrl/Cmd+Shift+Z)" disabled={!api.canRedo} onClick={api.redo} />
+      <IconBtn size="compact" icon={Undo} label={t("editor.undo")} disabled={!api.canUndo} onClick={api.undo} />
+      <IconBtn size="compact" icon={Redo} label={t("editor.redo")} disabled={!api.canRedo} onClick={api.redo} />
       <span className="hsep" />
       <input ref={fileRef} type="file" accept=".json,application/json" onChange={importFile} style={{ display: "none" }} />
         <Menu
-          label="Export"
-          title="Load, export & report"
+          label={t("editor.export")}
+          title={t("editor.export.title")}
           items={[
-            { label: "Load JSON…", onClick: () => fileRef.current?.click() },
-            { label: "Export JSON", onClick: () => downloadJSON(model) },
-            { label: "Export CSV", onClick: () => downloadKpiCsv(model) },
+            { label: t("editor.export.loadJson"), onClick: () => fileRef.current?.click() },
+            { label: t("editor.export.exportJson"), onClick: () => downloadJSON(model) },
+            { label: t("editor.export.exportCsv"), onClick: () => downloadKpiCsv(model) },
             {
-              label: "Export PNG",
+              label: t("editor.export.exportPng"),
               onClick: async () => {
                 const ok = await downloadLayoutPNG("ACTUAL", (model.name || "layout").replace(/\s+/g, "_"));
-                if (!ok) toast("Switch to the Actual view to export the layout", "warn");
+                if (!ok) toast(t("editor.export.pngWarn"), "warn");
               },
             },
             // The report is a page in the app now, not a hand-written HTML
             // popup — same content, but themed, printable and linkable.
-            { label: "Open report", onClick: () => navigate("/report") },
+            { label: t("editor.export.openReport"), onClick: () => navigate("/report") },
           ]}
         />
-        <IconBtn size="compact" icon={SettingsIcon} label="Settings" onClick={() => setShowSettings(true)} />
+        <IconBtn size="compact" icon={SettingsIcon} label={t("editor.settings")} onClick={() => setShowSettings(true)} />
     </div>
   );
 
@@ -626,8 +628,8 @@ export function App() {
             {/* A header bar, matching the right config panel's tab bar and the
                 app's top bars, rather than a title floating in the padding. */}
             <div className="explorer-head">
-              <h2 className="explorer-title">Cell plans</h2>
-              <IconBtn size="compact" icon={Close} label="Close the panel" tooltipPosition="left" onClick={() => setExplorerCollapsed(true)} />
+              <h2 className="explorer-title">{t("editor.drawer.title")}</h2>
+              <IconBtn size="compact" icon={Close} label={t("editor.drawer.close")} tooltipPosition="left" onClick={() => setExplorerCollapsed(true)} />
             </div>
             <div className="explorer">
               <Explorer api={api} />
@@ -635,7 +637,7 @@ export function App() {
             {/* Add process steps to the open cell straight from the left, next
                 to the plans tree, as well as from the Flow rail. */}
             <div className="explorer-foot">
-              <SectionLabel>Add process step</SectionLabel>
+              <SectionLabel>{t("editor.drawer.addStep")}</SectionLabel>
               <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={addProcessStep} />
             </div>
             {/* Inside the drawer, riding its right edge — as a flex sibling it
@@ -646,10 +648,10 @@ export function App() {
         <div className="canvas" style={{ position: "relative" }}>
           <div className="viewbar">
             <div className="views" role="tablist" aria-label="Layout view">
-              {vBtn("actual", "Actual")}
-              {vBtn("improved", "Improved")}
-              {vBtn("split", "Both")}
-              {vBtn("dag", "DAG")}
+              {vBtn("actual", t("editor.view.actual"))}
+              {vBtn("improved", t("editor.view.improved"))}
+              {vBtn("split", t("editor.view.both"))}
+              {vBtn("dag", t("editor.view.dag"))}
             </div>
           </div>
           {/* A manually-added step isn't in the part flow until something routes
@@ -664,8 +666,8 @@ export function App() {
                   kind="info"
                   lowContrast
                   hideCloseButton
-                  title={orphans.length === 1 ? `“${orphans[0].name}” has no parts routed to it yet` : `${orphans.length} steps have no parts routed to them yet`}
-                  subtitle="Assign parts by drawing a flow into the step (Flow ▸ Draw a flow on the canvas) so parts route through it — or remove it."
+                  title={orphans.length === 1 ? t("editor.orphan.one", { name: orphans[0].name }) : t("editor.orphan.many", { n: orphans.length })}
+                  subtitle={t("editor.orphan.help")}
                 />
               </div>
             );
@@ -674,11 +676,11 @@ export function App() {
           {emptyCanvas}
           <div className="legend">
             <span>
-              role outline: <span style={{ color: TEAL }}>▢</span>input <span style={{ color: AMBER }}>▢</span>output
+              {t("editor.legend.roleOutline")} <span style={{ color: TEAL }}>▢</span>{t("editor.legend.input")} <span style={{ color: AMBER }}>▢</span>{t("editor.legend.output")}
             </span>
-            <span>dots: ergo (TL) · automation (TR)</span>
+            <span>{t("editor.legend.dots")}</span>
             <span>
-              links: <span style={{ color: TEAL }}>━</span>chained <span style={{ color: RED }}>┅</span>auto-island <span style={{ color: AMBER }}>┅</span>mixed
+              {t("editor.legend.links")} <span style={{ color: TEAL }}>━</span>{t("editor.legend.chained")} <span style={{ color: RED }}>┅</span>{t("editor.legend.autoIsland")} <span style={{ color: AMBER }}>┅</span>{t("editor.legend.mixed")}
             </span>
           </div>
         </div>
@@ -690,7 +692,7 @@ export function App() {
           {configCollapsed ? (
             <div className="rail">
               <Btn size="compact" variant="ghost" className="rail-btn" onClick={() => setConfigCollapsed(false)}>
-                Config
+                {t("editor.config")}
               </Btn>
             </div>
           ) : (

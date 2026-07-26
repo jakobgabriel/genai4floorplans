@@ -28,6 +28,7 @@ import { autoPotential } from "@flowplan/core/engine/automation";
 import { YamazumiChart } from "./charts";
 import { useAccents } from "./colors";
 import { useToast } from "./ui";
+import { useT } from "../i18n";
 import type { CanvasMode } from "./LayoutCanvas";
 import { LibraryPicker } from "./LibraryPicker";
 import type { LibraryApi } from "../store/library";
@@ -63,6 +64,7 @@ export interface PanelProps {
  * mid-edit, and a step you place has to land on the canvas you are looking at.
  */
 export function AddStepButtons({ api, setSel, setTab, lib, onAddProcess }: Pick<PanelProps, "api" | "setSel" | "setTab" | "lib" | "onAddProcess">) {
+  const t = useT();
   const [picking, setPicking] = useState(false);
   const blank = () => {
     const ns = makeStation(api.model);
@@ -76,16 +78,16 @@ export function AddStepButtons({ api, setSel, setTab, lib, onAddProcess }: Pick<
       <div className="pnl-addstep">
         {canPick ? (
           <Button kind="secondary" size="sm" renderIcon={Catalog} onClick={() => setPicking((v) => !v)}>
-            {picking ? "Close the library" : "Add from library"}
+            {picking ? t("editor.addStep.closeLibrary") : t("editor.addStep.fromLibrary")}
           </Button>
         ) : null}
         <Button kind={canPick ? "ghost" : "secondary"} size="sm" renderIcon={Add} onClick={blank}>
-          Blank step
+          {t("editor.addStep.blank")}
         </Button>
       </div>
       {picking && lib && onAddProcess ? (
         <div className="pnl-picker">
-          <LibraryPicker lib={lib} onPick={onAddProcess} actionLabel="Add to cell" />
+          <LibraryPicker lib={lib} onPick={onAddProcess} actionLabel={t("editor.addStep.addToCell")} />
         </div>
       ) : null}
     </Stack>
