@@ -1539,27 +1539,68 @@ code {
  * instead of a numbered single column with a jump-nav. The nav only ever
  * existed to survive a 360px rail. */
 
-.anp__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
-  gap: var(--sp-6);
-  align-items: start;
-}
 .anp__sec--wide {
   margin-bottom: var(--sp-6);
   padding-bottom: var(--sp-5);
   border-bottom: 1px solid var(--border);
 }
-.anp__h {
-  margin: 0 0 var(--sp-4);
-  font-size: var(--type-section-size);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-snug);
-}
 /* The panels were written for a narrow rail and set their own padding. */
 .anp .pad,
 .asp .pad {
   padding: 0;
+}
+
+/* Full-width, collapsible assessment sections. One column: each stage spans
+   the page so its charts and tables have room, and folds away when not needed. */
+.anp__stack {
+  display: flex;
+  flex-direction: column;
+}
+.clps {
+  border-bottom: 1px solid var(--border);
+}
+.clps__h {
+  margin: 0;
+  font-size: var(--type-section-size);
+}
+/* The whole header row is the toggle — a real button, so keyboard and screen
+   readers get expand/collapse for free (aria-expanded on the button). */
+.clps__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4) 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: var(--type-section-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--text-primary);
+}
+.clps__btn:hover {
+  color: var(--cds-text-secondary);
+}
+.clps__chev {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transform: rotate(-90deg);
+  transition: transform var(--dur) var(--ease);
+}
+.clps__chev--open {
+  transform: rotate(0deg);
+}
+.clps__body {
+  padding: 0 0 var(--sp-6);
+}
+/* Content inside a full-width section reads better with a bounded measure, but
+   the wide data blocks (charts, tables, tile rows) opt back out to fill. */
+.clps__body > .cds--stack-vertical > *,
+.clps__body > * {
+  max-width: var(--measure-wide);
 }
 
 /* ---------- assessment report ----------

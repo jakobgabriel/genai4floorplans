@@ -52,10 +52,10 @@ export function BarChart({ bars, max, unit, colorByScore = false }: { bars: Bar[
 export function YamazumiChart({ rows, takt, onSelect }: { rows: StationCycle[]; takt?: number; onSelect?: (id: string) => void }) {
   const { CYCLE_COL, LINE, RED, TEXTD } = useAccents();
   if (rows.length === 0) return null;
-  const rowH = 30;
-  const labelW = 116;
-  const barW = 330;
-  const w = labelW + barW + 52;
+  const rowH = 34;
+  const labelW = 140;
+  const barW = 560;
+  const w = labelW + barW + 56;
   const h = rows.length * rowH + 10;
   const top = Math.max(1, ...rows.map((r) => r.totalSec), takt ?? 0) * 1.04;
   const taktX = takt && takt > 0 ? labelW + (takt / top) * barW : null;
