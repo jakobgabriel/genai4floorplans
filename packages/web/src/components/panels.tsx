@@ -622,16 +622,17 @@ export function YieldSection({ api }: { api: FlowPlanApi }) {
 }
 
 function LayoutSettings({ api }: { api: FlowPlanApi }) {
+  const t = useT();
   const m = api.model;
   return (
     <Stack gap={4}>
-      <SectionLabel>Layout settings</SectionLabel>
-      <TextField id="cell-name" labelText="Cell name" value={m.name} onFocus={api.checkpoint} onChange={(v) => api.live({ type: "SET_NAME", name: v })} />
+      <SectionLabel>{t("flowPanel.layout.title")}</SectionLabel>
+      <TextField id="cell-name" labelText={t("flowPanel.layout.cellName")} value={m.name} onFocus={api.checkpoint} onChange={(v) => api.live({ type: "SET_NAME", name: v })} />
       <FieldRow>
         <NumberField
           id="grid-w"
-          label="Grid width"
-          helperText="Stations re-clamp when shrunk."
+          label={t("flowPanel.layout.gridW")}
+          helperText={t("flowPanel.layout.gridWHelp")}
           value={m.gridW}
           min={1}
           onFocus={api.checkpoint}
@@ -639,7 +640,7 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
         />
         <NumberField
           id="grid-h"
-          label="Grid height"
+          label={t("flowPanel.layout.gridH")}
           value={m.gridH}
           min={1}
           onFocus={api.checkpoint}
@@ -648,8 +649,8 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
       </FieldRow>
       <NumberField
         id="shift-hours"
-        label="Shift length (hours)"
-        helperText="Balance-model default; stations can override in Configure."
+        label={t("flowPanel.layout.shift")}
+        helperText={t("flowPanel.layout.shiftHelp")}
         value={m.shiftHours ?? 8}
         min={1}
         onFocus={api.checkpoint}
@@ -660,27 +661,28 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
 }
 
 function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMode; setMode: (m: CanvasMode) => void }) {
+  const t = useT();
   const zones = api.model.noGoZones ?? [];
   return (
     <Stack gap={4}>
-      <SectionLabel>No-go zones</SectionLabel>
+      <SectionLabel>{t("flowPanel.nogo.title")}</SectionLabel>
       <Button kind={mode === "nogo" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
-        {mode === "nogo" ? "Drawing… (click to stop)" : "Draw a no-go zone"}
+        {mode === "nogo" ? t("flowPanel.nogo.drawing") : t("flowPanel.nogo.draw")}
       </Button>
-      <Footnote>Drag a rectangle on the canvas. The optimizer and templates avoid these.</Footnote>
+      <Footnote>{t("flowPanel.nogo.help")}</Footnote>
       {zones.length > 0 ? (
         <Stack gap={2}>
           {zones.map((z, i) => (
             <div key={i} className="fk-listrow">
               <span className="fk-listrow__main fk-listrow__text">
-                zone {i + 1} · {z.w}×{z.h} @ ({z.x},{z.y})
+                {t("flowPanel.nogo.zone", { i: i + 1, w: z.w, h: z.h, x: z.x, y: z.y })}
               </span>
               <Button
                 kind="ghost"
                 className="fk-danger"
                 hasIconOnly
                 size="sm"
-                iconDescription={`Remove zone ${i + 1}`}
+                iconDescription={t("flowPanel.nogo.remove", { i: i + 1 })}
                 tooltipPosition="left"
                 renderIcon={TrashCan}
                 onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}
@@ -722,6 +724,7 @@ function MissingRoleIssue({
   setTab: (t: Tab) => void;
 }) {
   const { toast } = useToast();
+  const t = useT();
   const role = issue.msg.includes("input area") ? "input" : issue.msg.includes("output area") ? "output" : null;
   const target = role ? roleCandidate(api, role) : null;
   const kind = issue.sev === "err" ? "error" : "warning";
@@ -736,16 +739,17 @@ function MissingRoleIssue({
           api.commit({ type: "UPDATE_STATION", id: target.id, patch: { role } });
           setSel(target.id);
           setTab("inspect");
-          toast(`${target.name} is now the ${role} area`);
+          toast(t(role === "input" ? "flowPanel.roleSetInput" : "flowPanel.roleSetOutput", { name: target.name }));
         }}
       >
-        Make “{target.name}” the {role} area
+        {t(role === "input" ? "flowPanel.makeInput" : "flowPanel.makeOutput", { name: target.name })}
       </Button>
     </Stack>
   );
 }
 
 export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProcess }: PanelProps) {
+  const t = useT();
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
   return (
@@ -755,21 +759,21 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
           kind={v.valid ? "success" : "error"}
           lowContrast
           hideCloseButton
-          title={v.valid ? "Process flow is valid" : `${errCount} blocking issue(s) found`}
-          subtitle={v.valid ? "Every step connects input → output." : undefined}
+          title={v.valid ? t("flowPanel.valid") : t("flowPanel.invalid", { n: errCount })}
+          subtitle={v.valid ? t("flowPanel.validSub") : undefined}
         />
 
         <Stack gap={3}>
-          <SectionLabel>Validation</SectionLabel>
+          <SectionLabel>{t("flowPanel.validation")}</SectionLabel>
           {v.issues.length === 0 ? (
-            <Footnote>No dead ends, orphans, or unreachable steps.</Footnote>
+            <Footnote>{t("flowPanel.noIssues")}</Footnote>
           ) : (
             v.issues.map((it, i) =>
               it.id ? (
                 <Stack gap={2} key={i}>
                   <InlineNotification kind={it.sev === "err" ? "error" : "warning"} lowContrast hideCloseButton title={it.msg} />
                   <Button kind="ghost" size="sm" onClick={() => { setSel(it.id!); setTab("inspect"); }}>
-                    Fix this step
+                    {t("flowPanel.fixStep")}
                   </Button>
                 </Stack>
               ) : (
@@ -781,9 +785,9 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
         </Stack>
 
         <Stack gap={3}>
-          <SectionLabel>Draw connections</SectionLabel>
+          <SectionLabel>{t("flowPanel.drawConnections")}</SectionLabel>
           <Button kind={mode === "flow" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "flow" ? "select" : "flow")}>
-            {mode === "flow" ? "Picking… tap source then target" : "Draw a flow on the canvas"}
+            {mode === "flow" ? t("flowPanel.picking") : t("flowPanel.drawFlow")}
           </Button>
         </Stack>
 
