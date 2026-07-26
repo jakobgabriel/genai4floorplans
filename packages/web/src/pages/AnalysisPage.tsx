@@ -15,6 +15,7 @@ import {
 } from "../components/panels";
 import { CostSection } from "../components/CostPanel";
 import { WorkloadPanel } from "../components/WorkloadPanel";
+import { CollapsibleSection } from "../components/CollapsibleSection";
 import { ANALYSIS_PATH } from "../components/analysisPath";
 
 /**
@@ -55,7 +56,11 @@ export function AnalysisPage(props: PanelProps) {
           <section className="anp__sec anp__sec--wide">
             <WorkloadPanel {...props} />
           </section>
-          <div className="anp__grid">
+          {/* Full-width, collapsible sections. Given the whole page (not the
+              360px rail), each assessment stage gets the width its charts and
+              tables need, and the reader can fold away the ones they are done
+              with. */}
+          <div className="anp__stack">
             {[
               <VerdictSection key="v" {...props} />,
               <FlowCostSection key="f" api={api} />,
@@ -64,10 +69,9 @@ export function AnalysisPage(props: PanelProps) {
               <AutomationSection key="a" api={api} setSel={setSel} setTab={setTab} />,
               <CostSection key="c" api={api} setSel={setSel} setTab={setTab} />,
             ].map((body, i) => (
-              <section className="anp__sec" key={ANALYSIS_PATH[i].id} id={"an-" + ANALYSIS_PATH[i].id}>
-                <h2 className="anp__h">{ANALYSIS_PATH[i].title}</h2>
+              <CollapsibleSection key={ANALYSIS_PATH[i].id} id={"an-" + ANALYSIS_PATH[i].id} title={ANALYSIS_PATH[i].title}>
                 <Stack gap={5}>{body}</Stack>
-              </section>
+              </CollapsibleSection>
             ))}
           </div>
         </>

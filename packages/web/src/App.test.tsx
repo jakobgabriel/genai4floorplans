@@ -79,7 +79,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Analysis" })).toBeTruthy());
 
-    const heads = [...container.querySelectorAll(".anp__h")].map((h) => h.textContent);
+    const heads = [...container.querySelectorAll(".clps__h")].map((h) => h.textContent);
     expect(heads).toEqual([
       "Verdict",
       "Flow & layout",
