@@ -17,7 +17,6 @@ import {
 } from "@carbon/react";
 import { inferWorkload } from "@flowplan/core/engine/infer";
 import type { Candidate, GenerateBrief, ProcessStep } from "@flowplan/core/engine/generate";
-import { CONCEPTS, type ConceptCatalog } from "@flowplan/core/engine/concepts";
 import { Crossover } from "./Crossover";
 import { Sensitivity } from "./Sensitivity";
 import { DecisionWeightsEditor } from "./DecisionWeights";
@@ -26,12 +25,13 @@ import { Btn } from "../components/Btn";
 import { ConceptTable } from "./ConceptTable";
 import { Add, Catalog, Subtract, TrashCan } from "@carbon/icons-react";
 import { LibraryPicker } from "../components/LibraryPicker";
-import type { LibraryApi } from "../store/processLibrary";
+import type { LibraryApi } from "../store/library";
 import { routingStepFrom } from "@flowplan/core/model/library";
 import { Footnote, SectionLabel } from "../components/analysisKit";
-import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/parts";
+import { derivePortfolio, type Part, type PortfolioDerivation } from "@flowplan/core/engine/portfolio";
 import { formatRouting, parseRouting } from "./parseSteps";
 import { analysisPath, type AnalysisStepId } from "../components/analysisPath";
+import { navigate } from "../store/useHashRoute";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { money, moneyWhole, num } from "../format";
 
@@ -277,7 +277,7 @@ const MAX_PROGRAM_YEARS = 25;
  * what an RFQ actually contains.
  *
  * Everything the generator needs is derived from it (see
- * `@flowplan/core/engine/parts`): the cell is sized against the peak year
+ * `@flowplan/core/engine/portfolio`): the cell is sized against the peak year
  * rather than an average, capex is amortised over every part and every year,
  * the routing is the union so there is a station for every step any part needs,
  * and the mix modes fall out of which parts share work content — skipping, per
@@ -666,6 +666,13 @@ function AnalysisGlance({ api, onOpen }: { api: FlowPlanApi; onOpen?: (id: Analy
           </ClickableTile>
         ))}
       </div>
+      {/* The end of the flow: concepts compared, cell designed, now write it
+          down. The report is a separate page rather than more of this one
+          because it is the artefact that leaves the tool. */}
+      <div className="glance__foot">
+        <Button onClick={() => navigate("/report")}>Open report</Button>
+        <p className="glance__footNote">Printable record of the concepts compared.</p>
+      </div>
     </section>
   );
 }
@@ -674,14 +681,10 @@ export function SummaryStep({
   picked,
   api,
   onOpenAnalysis,
-  onOpenReport,
-  catalog = CONCEPTS,
 }: {
   picked: Candidate | null;
   api: FlowPlanApi;
   onOpenAnalysis?: (id: AnalysisStepId) => void;
-  onOpenReport?: () => void;
-  catalog?: ConceptCatalog;
 }) {
   const hasCell = api.model.stations.some((s) => s.role === "process");
   if (!picked) {
@@ -738,8 +741,8 @@ export function SummaryStep({
           lowContrast
           hideCloseButton
           title="Outside the concept's volume band"
-          subtitle={`${picked.conceptLabel} normally suits ${num(catalog[picked.concept]?.viableVolume[0] ?? 0)}–${num(
-            catalog[picked.concept]?.viableVolume[1] ?? 0,
+          subtitle={`${picked.conceptLabel} normally suits ${num(picked.profile.viableVolume[0])}–${num(
+            picked.profile.viableVolume[1],
           )} parts/year. Band editable on the Concepts page.`}
         />
       ) : null}
@@ -753,14 +756,6 @@ export function SummaryStep({
       />
 
       {hasCell ? <AnalysisGlance api={api} onOpen={onOpenAnalysis} /> : null}
-
-      {onOpenReport ? (
-        <div className="planner__actions">
-          <Btn variant="secondary" onClick={onOpenReport}>
-            Open the full report
-          </Btn>
-        </div>
-      ) : null}
     </section>
   );
 }

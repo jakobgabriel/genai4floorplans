@@ -1,19 +1,31 @@
 import { useEffect, useState } from "react";
 
 // Minimal dependency-free hash router. Routes are the part after '#':
-// "/" (editor), "/compare", "/admin", "/archive". Deep links and the browser
-// back/forward button work because we just read/write location.hash.
-export type Route = "/" | "/workspace" | "/library" | "/concepts" | "/recommend" | "/report" | "/compare" | "/admin" | "/archive";
+// "/" (editor), "/analysis", "/assistant", "/report", "/compare", "/site",
+// "/admin", "/archive". Deep links and the browser back/forward button work
+// because we just read/write location.hash.
+export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive" | "/library" | "/concepts" | "/recommend" | "/404";
+
+const KNOWN: string[] = ["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive", "/library", "/concepts", "/recommend"];
 
 function current(): Route {
-  const h = (window.location.hash.slice(1) || "/") as Route;
-  return (["/", "/workspace", "/library", "/concepts", "/recommend", "/report", "/compare", "/admin", "/archive"] as string[]).includes(h) ? h : "/";
+  const h = window.location.hash.slice(1) || "/";
+  if (KNOWN.includes(h)) return h as Route;
+  // A hash that matches no page is a broken link, not the editor. Route it to
+  // a not-found rather than folding it silently onto "/".
+  return "/404";
 }
 
 export function useHashRoute(): [Route, (r: Route) => void] {
   const [route, setRoute] = useState<Route>(current);
   useEffect(() => {
-    const on = () => setRoute(current());
+    const on = () => {
+      setRoute(current());
+      // A hash change does not reset scroll, so a page opened from a scrolled
+      // one started part-way down — the report opened with its own cover
+      // already hidden behind its sticky header.
+      window.scrollTo({ top: 0 });
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);

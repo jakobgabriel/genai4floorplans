@@ -1,10 +1,9 @@
 import { useMemo } from "react";
-import { Button, Tile, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
-import { ArrowLeft, Folder, Categories, DocumentBlank } from "@carbon/icons-react";
+import { Folder, Grid } from "@carbon/icons-react";
+import { Btn } from "../components/Btn";
 import type { FlowPlanApi } from "../store/useFlowPlan";
-import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
 import { ConfirmableButton } from "../components/ConfirmableButton";
-import { TEXTD } from "../components/colors";
 
 // Dedicated page listing archived layouts and folders, with restore and
 // permanent-delete. Archiving is recoverable; permanent delete is confirmed.
@@ -20,83 +19,58 @@ export function ArchivePage({ api }: { api: FlowPlanApi }) {
     };
   }, [api.folders, api.archivedFolders]);
 
-  const empty = api.archivedCells.length === 0 && api.archivedFolders.length === 0 && api.archivedConcepts.length === 0;
+  const empty = api.archivedCells.length === 0 && api.archivedFolders.length === 0;
 
   return (
     <div className="page">
-      <div className="page-head">
-        <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
-        <h1 className="page-title">Archive</h1>
-      </div>
+      <PageHead title="Archive" />
 
       {empty ? (
-        <p style={{ color: TEXTD }}>Nothing archived. Archive a layout or folder from the workspace sidebar to recover it here later.</p>
+        <p className="u-muted">Nothing archived. Archive a layout or folder from the workspace sidebar.</p>
       ) : (
         <>
           {api.archivedFolders.length > 0 ? (
-            <Tile className="bi-card">
-              <div className="bi-card__head"><h3 className="bi-card__title">Archived folders</h3></div>
-              <StructuredListWrapper isCondensed>
-                <StructuredListHead><StructuredListRow head><StructuredListCell head>Folder</StructuredListCell><StructuredListCell head>Location</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
-                <StructuredListBody>
+            <div className="chart-card">
+              <div className="layoutTitle">Archived folders</div>
+              <table className="schemaTbl">
+                <thead><tr><th>Folder</th><th>Location</th><th></th></tr></thead>
+                <tbody>
                   {api.archivedFolders.map((f) => (
-                    <StructuredListRow key={f.id}>
-                      <StructuredListCell><Folder size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />{f.name}</StructuredListCell>
-                      <StructuredListCell style={{ color: TEXTD }}>{folderName(f.parentId) || "Workspace root"}</StructuredListCell>
-                      <StructuredListCell style={{ display: "flex", gap: 6 }}>
-                        <Button size="sm" kind="tertiary" onClick={() => api.restoreFolder(f.id)}>Restore</Button>
+                    <tr key={f.id}>
+                      <td><span className="cell-icon"><Folder size={16} /> {f.name}</span></td>
+                      <td className="u-muted">{folderName(f.parentId) || "Workspace root"}</td>
+                      <td className="u-row">
+                        <Btn size="compact" variant="ghost" onClick={() => api.restoreFolder(f.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeFolder(f.id)} />
-                      </StructuredListCell>
-                    </StructuredListRow>
+                      </td>
+                    </tr>
                   ))}
-                </StructuredListBody>
-              </StructuredListWrapper>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a folder brings back the folder; restore its layouts individually below. Permanent delete removes the folder and everything still archived inside it.</div>
-            </Tile>
-          ) : null}
-
-          {api.archivedConcepts.length > 0 ? (
-            <Tile className="bi-card">
-              <div className="bi-card__head"><h3 className="bi-card__title">Archived concepts</h3></div>
-              <StructuredListWrapper isCondensed>
-                <StructuredListHead><StructuredListRow head><StructuredListCell head>Concept</StructuredListCell><StructuredListCell head>Location</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
-                <StructuredListBody>
-                  {api.archivedConcepts.map((c) => (
-                    <StructuredListRow key={c.id}>
-                      <StructuredListCell><Categories size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />{c.name}</StructuredListCell>
-                      <StructuredListCell style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</StructuredListCell>
-                      <StructuredListCell style={{ display: "flex", gap: 6 }}>
-                        <Button size="sm" kind="tertiary" onClick={() => api.restoreConcept(c.id)}>Restore</Button>
-                        <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeConcept(c.id)} />
-                      </StructuredListCell>
-                    </StructuredListRow>
-                  ))}
-                </StructuredListBody>
-              </StructuredListWrapper>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>Restoring a concept brings back the concept and all its layouts.</div>
-            </Tile>
+                </tbody>
+              </table>
+              <div className="u-caption">Restoring a folder brings back the folder only — restore its layouts below. Permanent delete removes both.</div>
+            </div>
           ) : null}
 
           {api.archivedCells.length > 0 ? (
-            <Tile className="bi-card">
-              <div className="bi-card__head"><h3 className="bi-card__title">Archived layouts</h3></div>
-              <StructuredListWrapper isCondensed>
-                <StructuredListHead><StructuredListRow head><StructuredListCell head>Layout</StructuredListCell><StructuredListCell head>Was in</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
-                <StructuredListBody>
+            <div className="chart-card">
+              <div className="layoutTitle">Archived layouts</div>
+              <table className="schemaTbl">
+                <thead><tr><th>Layout</th><th>Was in</th><th></th></tr></thead>
+                <tbody>
                   {api.archivedCells.map((c) => (
-                    <StructuredListRow key={c.id}>
-                      <StructuredListCell><DocumentBlank size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />{c.name}</StructuredListCell>
-                      <StructuredListCell style={{ color: TEXTD }}>{folderName(c.folderId) || "Workspace root"}</StructuredListCell>
-                      <StructuredListCell style={{ display: "flex", gap: 6 }}>
-                        <Button size="sm" kind="tertiary" onClick={() => api.restoreCell(c.id)}>Restore</Button>
+                    <tr key={c.id}>
+                      <td><span className="cell-icon"><Grid size={16} /> {c.name}</span></td>
+                      <td className="u-muted">{folderName(c.folderId) || "Workspace root"}</td>
+                      <td className="u-row">
+                        <Btn size="compact" variant="ghost" onClick={() => api.restoreCell(c.id)}>Restore</Btn>
                         <ConfirmableButton label="Delete" confirmLabel="Delete forever" danger onConfirm={() => api.purgeCell(c.id)} />
-                      </StructuredListCell>
-                    </StructuredListRow>
+                      </td>
+                    </tr>
                   ))}
-                </StructuredListBody>
-              </StructuredListWrapper>
-              <div style={{ fontSize: 10.5, color: TEXTD }}>A restored layout returns to its folder (or the root if that folder is gone).</div>
-            </Tile>
+                </tbody>
+              </table>
+              <div className="u-caption">A restored layout returns to its folder, or to the root if that folder is gone.</div>
+            </div>
           ) : null}
         </>
       )}

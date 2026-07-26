@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { costAnalysis } from "@flowplan/core/engine/cost";
 import { cycleAnalysis } from "@flowplan/core/engine/cycle";
-import { TEXTD, scoreColor } from "./colors";
+import { scoreColor } from "./colors";
 import { money, num } from "../format";
 
 // Always-on headline metrics. The point is that every edit — dragging a
@@ -18,13 +18,13 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
 
   const kpi = (label: string, value: string, color?: string, title?: string) => (
     <div style={{ lineHeight: 1.15 }} title={title}>
-      <div style={{ fontSize: "0.75rem", color: TEXTD, textTransform: "uppercase", letterSpacing: "0.32px" }}>{label}</div>
-      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: color ?? "var(--cds-text-primary)" }}>{value}</div>
+      <div className="hkpi__label">{label}</div>
+      <div className="hkpi__value" style={color ? { color } : undefined}>{value}</div>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-05)", marginLeft: "var(--cds-spacing-05)", flexWrap: "wrap" }}>
+    <div className="hkpi">
       {kpi("Grade", String(rating.letter), scoreColor(rating.composite), `Composite ${rating.composite.toFixed(1)}/100`)}
       {kpi("Output", num(rating.balance.lineOut) + "/sh", undefined, "Line output, constrained by the bottleneck")}
       {kpi(
@@ -33,13 +33,7 @@ export function HeaderKpis({ api }: { api: FlowPlanApi }) {
         undefined,
         "Opex per shift ÷ line output. The number to design against.",
       )}
-      {kpi(
-        "Takt",
-        rating.balance.takt > 0 ? rating.balance.takt + "s" : "—",
-        rating.balance.takt > 0 && rating.balance.bottleneck && rating.balance.bottleneck.cycle > rating.balance.takt ? "var(--cds-support-error)" : undefined,
-        "Customer takt = net available time ÷ demand. Set demand to compute it. This is the line to hit — red when the bottleneck cycle exceeds it.",
-      )}
-      {kpi("Line pace", rating.balance.lineCycleSec > 0 ? rating.balance.lineCycleSec + "s" : "—", undefined, "Seconds per part the line actually achieves (available time ÷ output). What it does now — not what the customer needs.")}
+      {kpi("Takt", rating.balance.takt > 0 ? rating.balance.takt + "s" : "—", undefined, "Seconds per part at the current line output")}
       {cyc.lineValueAddPct != null
         ? kpi("Value add", cyc.lineValueAddPct + "%", scoreColor(cyc.lineValueAddPct), "Share of decomposed cycle time that transforms the part")
         : null}

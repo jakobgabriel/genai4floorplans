@@ -98,10 +98,7 @@ export function assignStations(
 
   const byId = new Map(elements.map((e) => [e.id, e]));
   const timeOf = (el: WorkElement) => {
-    // Balance on the PER-PART time: a multi-cavity op that runs N parts per cycle
-    // fills only 1/N of the takt budget, so it needs fewer stations/lanes.
-    const ppc = Math.max(1, Math.floor(el.partsPerCycle ?? 1));
-    const per = modes.map((m) => (el.time.seconds * multiplierFor(m, el.id)) / ppc);
+    const per = modes.map((m) => el.time.seconds * multiplierFor(m, el.id));
     return {
       worst: Math.max(...per),
       weighted: per.reduce((a, sec, i) => a + sec * (shares[i] / shareSum), 0),
@@ -162,49 +159,7 @@ export function assignStations(
   const stations: Array<{ ids: string[]; worst: number; weighted: number; attended: number }> = [];
   const maxStations = opts.maxStations ?? Math.max(1, elements.length);
 
-  // Must-together closure (audit A-07). Two elements are bound to the same
-  // station if either declares mustBeSameStationAs, OR they share a
-  // fixedStationId (which pins a set of elements to one station). The relation
-  // is symmetric and transitive: A↔B and B↔C put A, B and C together — the old
-  // one-hop pull-in silently split such chains.
-  const together = new Map<string, Set<string>>();
-  elements.forEach((e) => together.set(e.id, new Set()));
-  const link = (a: string, b: string) => {
-    if (a === b || !byId.has(a) || !byId.has(b)) return;
-    together.get(a)!.add(b);
-    together.get(b)!.add(a);
-  };
-  elements.forEach((e) => (e.mustBeSameStationAs ?? []).forEach((o) => link(e.id, o)));
-  const byFixed = new Map<string, string[]>();
-  elements.forEach((e) => {
-    if (e.fixedStationId) {
-      const arr = byFixed.get(e.fixedStationId) ?? [];
-      arr.push(e.id);
-      byFixed.set(e.fixedStationId, arr);
-    }
-  });
-  byFixed.forEach((ids) => ids.forEach((a, i) => ids.slice(i + 1).forEach((b) => link(a, b))));
-
-  const groupOf = (id: string): Prepared[] => {
-    const seen = new Set([id]);
-    const stack = [id];
-    while (stack.length) {
-      const n = stack.pop() as string;
-      (together.get(n) ?? new Set()).forEach((m) => {
-        if (!seen.has(m)) {
-          seen.add(m);
-          stack.push(m);
-        }
-      });
-    }
-    return [...seen].map((gid) => prepared.find((p) => p.el.id === gid)).filter((p): p is Prepared => !!p);
-  };
-
-  // Precedence is satisfied if every predecessor is already placed, absent, or
-  // a member of the same must-together group (it arrives in the same step).
-  const groupPrecedenceMet = (g: Prepared, group: Prepared[]) =>
-    g.el.predecessors.every((p) => !byId.has(p) || placed.has(p) || group.some((h) => h.el.id === p));
-  const reportedContradiction = new Set<string>();
+  const precedenceMet = (el: WorkElement) => el.predecessors.every((p) => !byId.has(p) || placed.has(p));
 
   let guard = 0;
   while (placed.size < prepared.length && guard < prepared.length * 4) {
@@ -212,81 +167,59 @@ export function assignStations(
     const station = { ids: [] as string[], worst: 0, weighted: 0, attended: 0 };
     let addedAny = false;
 
-    // Fill this station until nothing else fits. Elements are placed as whole
-    // must-together GROUPS (audit A-07): the group is either fully added or not
-    // at all, so a station never ends up half-satisfying a co-location rule.
+    // Fill this station until nothing else fits.
     let progressed = true;
     while (progressed) {
       progressed = false;
       for (const cand of order) {
-        if (placed.has(cand.el.id)) continue;
-        const group = groupOf(cand.el.id);
-        if (group.some((g) => placed.has(g.el.id))) continue;
-        if (!group.every((g) => groupPrecedenceMet(g, group))) continue;
+        const el = cand.el;
+        if (placed.has(el.id)) continue;
+        if (!precedenceMet(el)) continue;
 
-        // Zoning: must-not co-locate. A group member may not conflict with an
-        // element already on the station, in either direction. A conflict that
-        // sits INSIDE the group (A must-be with B but must-not-be with B) is an
-        // unsatisfiable contradiction — reported once, and the group is skipped
-        // rather than silently violating either rule.
-        let contradiction = false;
-        const conflict = group.some((g) => {
-          const neg = g.el.mustNotBeSameStationAs ?? [];
-          if (neg.some((o) => group.some((h) => h.el.id === o))) {
-            contradiction = true;
-            return true;
-          }
-          return neg.some((o) => station.ids.includes(o)) || station.ids.some((sid) => (byId.get(sid)?.mustNotBeSameStationAs ?? []).includes(g.el.id));
-        });
-        if (contradiction) {
-          const key = group.map((g) => g.el.id).sort().join(",");
-          if (!reportedContradiction.has(key)) {
-            reportedContradiction.add(key);
-            issues.push(`Zoning contradiction: ${group.map((g) => `"${g.el.name}"`).join(", ")} are required together and apart at the same time — check must/must-not rules.`);
-          }
-          continue;
-        }
+        // Zoning: must-not co-locate. Checked in both directions — the
+        // constraint is symmetric even when only one side declares it.
+        const conflict =
+          (el.mustNotBeSameStationAs ?? []).some((o) => station.ids.includes(o)) ||
+          station.ids.some((sid) => (byId.get(sid)?.mustNotBeSameStationAs ?? []).includes(el.id));
         if (conflict) continue;
 
-        const groupWorst = group.reduce((a, g) => a + g.worstSec, 0);
-        // A group heavier than takt still has to go somewhere: give it its own
-        // station rather than dropping it — but flag it, since a must-together
-        // group cannot be split to meet takt.
-        const oversize = groupWorst > taktSec;
-        if (!oversize && station.worst + groupWorst > taktSec + 1e-9) continue;
+        // An element longer than takt still has to go somewhere: give it a
+        // station of its own rather than dropping it silently.
+        const oversize = cand.worstSec > taktSec;
+        if (!oversize && station.worst + cand.worstSec > taktSec + 1e-9) continue;
         if (oversize && station.ids.length > 0) continue;
-        if (oversize && group.length > 1) {
-          const key = "oversize:" + group.map((g) => g.el.id).sort().join(",");
-          if (!reportedContradiction.has(key)) {
-            reportedContradiction.add(key);
-            issues.push(`${group.map((g) => `"${g.el.name}"`).join(" + ")} must share a station but total ${groupWorst.toFixed(1)}s against a ${taktSec.toFixed(1)}s takt — the group cannot meet takt without splitting the work or adding a parallel lane.`);
-          }
-        }
 
-        group.forEach((g) => {
-          station.ids.push(g.el.id);
-          station.worst += g.worstSec;
-          station.weighted += g.weightedSec;
-          station.attended += g.attendedSec;
-          placed.add(g.el.id);
-          stationOf.set(g.el.id, stations.length);
-        });
+        station.ids.push(el.id);
+        station.worst += cand.worstSec;
+        station.weighted += cand.weightedSec;
+        station.attended += cand.attendedSec;
+        placed.add(el.id);
+        stationOf.set(el.id, stations.length);
         addedAny = true;
         progressed = true;
+
+        // Zoning: pull must-be-together elements in immediately.
+        (el.mustBeSameStationAs ?? []).forEach((o) => {
+          const mate = prepared.find((p) => p.el.id === o);
+          if (!mate || placed.has(o) || !precedenceMet(mate.el)) return;
+          station.ids.push(o);
+          station.worst += mate.worstSec;
+          station.weighted += mate.weightedSec;
+          station.attended += mate.attendedSec;
+          placed.add(o);
+          stationOf.set(o, stations.length);
+        });
 
         if (oversize) break;
       }
     }
 
     if (!addedAny) {
-      // Nothing placeable this pass — either a precedence deadlock (a cycle) or
-      // an unsatisfiable zoning contradiction already reported above.
-      const hadContradiction = reportedContradiction.size > 0;
-      const reason = hadContradiction
-        ? "Blocked by a zoning contradiction (an element required together and apart) or a precedence cycle."
-        : "Precedence could not be satisfied — check for a cycle.";
-      prepared.filter((p) => !placed.has(p.el.id)).forEach((p) => unassigned.push({ elementId: p.el.id, reason }));
-      if (!hadContradiction) issues.push("Some elements could not be placed; the precedence graph may contain a cycle.");
+      // Nothing placeable — precedence deadlock (a cycle) or all blocked.
+      prepared.filter((p) => !placed.has(p.el.id)).forEach((p) =>
+        unassigned.push({ elementId: p.el.id, reason: "Precedence could not be satisfied — check for a cycle." }),
+      );
+      issues.push("Some elements could not be placed; the precedence graph may contain a cycle.");
       break;
     }
     stations.push(station);
@@ -335,80 +268,5 @@ export function assignStations(
     confidence: weakestConfidence(elements.map((e) => e.time.confidence)),
     unassigned,
     issues,
-  };
-}
-
-/**
- * One-to-one assignment: every work element becomes its own station, in the
- * order given. This is the mapping the guided planner uses — the user defines
- * discrete process steps and expects to see exactly those steps carried through
- * to the concept and the layout, not a balancer's merged subset. Takt still
- * drives operator manning and (via the caller) parallel lanes, so a station is
- * sized honestly; only the *merging* of distinct steps is suppressed.
- */
-export function assignOnePerElement(
-  elements: WorkElement[],
-  taktSec: number,
-  variantModes?: VariantMode[],
-): AssignmentResult {
-  if (elements.length === 0) {
-    return {
-      stations: [],
-      taktSec: Math.max(0, taktSec),
-      theoreticalMin: 0,
-      optimalityGapPct: 0,
-      balanceLossPct: 0,
-      totalOperators: 0,
-      method: "heuristic-rpw",
-      confidence: "low",
-      unassigned: [],
-      issues: [],
-    };
-  }
-
-  const modes = modesOf(variantModes);
-  const shares = modes.map((m) => Math.max(0, m.share));
-  const shareSum = shares.reduce((a, b) => a + b, 0) || 1;
-  const timeOf = (el: WorkElement) => {
-    const per = modes.map((m) => el.time.seconds * multiplierFor(m, el.id));
-    return { worst: Math.max(...per), weighted: per.reduce((a, sec, i) => a + sec * (shares[i] / shareSum), 0) };
-  };
-
-  const times = elements.map(timeOf);
-  const totalWorst = times.reduce((a, t) => a + t.worst, 0);
-  const theoreticalMin = taktSec > 0 ? Math.ceil(totalWorst / taktSec) : elements.length;
-  const maxCycle = times.reduce((a, t) => Math.max(a, t.worst), 0);
-
-  const out: AssignedStation[] = elements.map((el, i) => {
-    const t = times[i];
-    const attended = t.weighted * Math.max(0, Math.min(1, el.attendedFraction ?? 1));
-    return {
-      id: "st" + (i + 1),
-      sequence: i + 1,
-      elementIds: [el.id],
-      cycleTimeSec: +t.worst.toFixed(2),
-      weightedCycleSec: +t.weighted.toFixed(2),
-      attendedSec: +attended.toFixed(2),
-      operators: taktSec > 0 ? Math.max(attended > 0 ? 1 : 0, Math.ceil(attended / taktSec - 1e-9)) : attended > 0 ? 1 : 0,
-      utilizationPct: taktSec > 0 ? +((t.worst / taktSec) * 100).toFixed(1) : 0,
-      isBottleneck: Math.abs(t.worst - maxCycle) < 1e-9 && maxCycle > 0,
-      idleSec: taktSec > 0 ? +Math.max(0, taktSec - t.worst).toFixed(2) : 0,
-      capabilityIds: el.capabilityId ? [el.capabilityId] : [],
-    };
-  });
-
-  const stationTime = out.length * taktSec;
-  const idle = out.reduce((a, s) => a + s.idleSec, 0);
-  return {
-    stations: out,
-    taktSec: +Math.max(0, taktSec).toFixed(2),
-    theoreticalMin,
-    optimalityGapPct: theoreticalMin > 0 ? +(((out.length - theoreticalMin) / theoreticalMin) * 100).toFixed(1) : 0,
-    balanceLossPct: stationTime > 0 ? +((idle / stationTime) * 100).toFixed(1) : 0,
-    totalOperators: out.reduce((a, s) => a + s.operators, 0),
-    method: "heuristic-rpw",
-    confidence: weakestConfidence(elements.map((e) => e.time.confidence)),
-    unassigned: [],
-    issues: [],
   };
 }

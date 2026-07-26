@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Tile, StructuredListWrapper, StructuredListHead, StructuredListBody, StructuredListRow, StructuredListCell } from "@carbon/react";
-import { ArrowLeft, TrashCan, Workspace } from "@carbon/icons-react";
 import { adminApi, type Role, type TeamSummary, type TeamDetail, type WorkspaceSummary, type User } from "../admin/adminApi";
-import { navigate } from "../store/useHashRoute";
+import { PageHead } from "../components/PageHead";
+import { Btn } from "../components/Btn";
 import { useToast } from "../components/ui";
-import { TEAL, TEXTD } from "../components/colors";
+import { TEAL } from "../components/colors";
 
 const ROLES: Role[] = ["OWNER", "EDITOR", "VIEWER"];
 
@@ -19,19 +18,22 @@ export function AdminPage() {
   }, []);
 
   const head = (
-    <div className="page-head">
-      <Button size="sm" kind="ghost" renderIcon={ArrowLeft} onClick={() => navigate("/")}>Editor</Button>
-      <h1 className="page-title">Admin · teams &amp; workspaces</h1>
-      {user ? (
-        <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", color: TEXTD, fontSize: 12 }}>
-          {user.email}
-          <Button size="sm" kind="tertiary" onClick={() => adminApi.logout().then(() => setUser(null))}>Sign out</Button>
-        </span>
-      ) : null}
-    </div>
+    <PageHead
+      title="Admin · teams &amp; workspaces"
+      actions={
+        user ? (
+          <>
+            <span className="page-head__who">{user.email}</span>
+            <Btn size="compact" variant="ghost" onClick={() => adminApi.logout().then(() => setUser(null))}>
+              Sign out
+            </Btn>
+          </>
+        ) : undefined
+      }
+    />
   );
 
-  if (user === undefined) return <div className="page">{head}<p style={{ color: TEXTD }}>Checking session…</p></div>;
+  if (user === undefined) return <div className="page">{head}<p className="u-muted">Checking session…</p></div>;
   if (user === null) return <div className="page">{head}<SignIn onSignedIn={setUser} toast={toast} /></div>;
   return <div className="page">{head}<Console toast={toast} /></div>;
 }
@@ -56,23 +58,23 @@ function SignIn({ onSignedIn, toast }: { onSignedIn: (u: User) => void; toast: (
   };
 
   return (
-    <Tile className="bi-card" style={{ maxWidth: 380 }}>
-      <div className="bi-card__head"><h3 className="bi-card__title">{mode === "login" ? "Sign in" : "Create an account"}</h3></div>
+    <div className="chart-card" style={{ maxWidth: 380 }}>
+      <div className="layoutTitle">{mode === "login" ? "Sign in" : "Create an account"}</div>
       {mode === "register" ? (
         <div className="field"><label>Name (optional)</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
       ) : null}
       <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
       <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <Button size="sm" kind="primary" disabled={busy || !email || password.length < 8} onClick={submit}>
+      <div className="fk-inlineActions">
+        <Btn variant="primary" disabled={busy || !email || password.length < 8} onClick={submit}>
           {mode === "login" ? "Sign in" : "Register"}
-        </Button>
-        <Button size="sm" kind="tertiary" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
           {mode === "login" ? "Need an account?" : "Have an account?"}
-        </Button>
+        </Btn>
       </div>
-      <div style={{ fontSize: 10.5, color: TEXTD, marginTop: 8 }}>Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
-    </Tile>
+      <div className="u-caption">Password must be at least 8 characters. Sign-in is only needed for the admin console — the editor works offline.</div>
+    </div>
   );
 }
 
@@ -98,57 +100,61 @@ function Console({ toast }: { toast: (m: string, k?: "info" | "warn") => void })
 
   return (
     <div className="admin-grid">
-      <Tile className="bi-card">
-        <div className="bi-card__head"><h3 className="bi-card__title">Teams</h3></div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+      <div className="chart-card">
+        <div className="layoutTitle">Teams</div>
+        <div className="u-row">
           <input placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} />
-          <Button size="sm" kind="tertiary" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Button>
+          <Btn size="compact" variant="ghost" disabled={!newTeam.trim()} onClick={() => adminApi.createTeam(newTeam.trim()).then(() => { setNewTeam(""); loadTeams(); }).catch(fail)}>Add</Btn>
         </div>
-        {teams.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No teams yet — create one (you become its owner).</p> : null}
+        {teams.length === 0 ? <p className="u-caption">No teams yet — create one (you become its owner).</p> : null}
         {teams.map((t) => (
-          <Button key={t.id} size="sm" kind={sel === t.id ? "primary" : "tertiary"} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 4 }} onClick={() => select(t.id)}>
+          <Btn key={t.id} size="compact" selected={sel === t.id} className="admin-teamrow" onClick={() => select(t.id)}>
             {t.name}
-          </Button>
+          </Btn>
         ))}
-      </Tile>
+      </div>
 
       {sel && detail ? (
         <>
-          <Tile className="bi-card">
-            <div className="bi-card__head"><h3 className="bi-card__title">Members · {detail.name}</h3></div>
+          <div className="chart-card">
+            <div className="layoutTitle">Members · {detail.name}</div>
             <AddMember teamId={sel} onDone={reloadDetail} fail={fail} />
-            <StructuredListWrapper isCondensed>
-              <StructuredListHead><StructuredListRow head><StructuredListCell head>Member</StructuredListCell><StructuredListCell head>Role</StructuredListCell><StructuredListCell head></StructuredListCell></StructuredListRow></StructuredListHead>
-              <StructuredListBody>
+            <table className="schemaTbl">
+              <thead><tr><th>Member</th><th>Role</th><th></th></tr></thead>
+              <tbody>
                 {detail.memberships.map((m) => (
-                  <StructuredListRow key={m.userId}>
-                    <StructuredListCell>{m.user.name || m.user.email}<div style={{ fontSize: 10, color: TEXTD }}>{m.user.email}</div></StructuredListCell>
-                    <StructuredListCell>
+                  <tr key={m.userId}>
+                    <td>{m.user.name || m.user.email}<div className="u-caption">{m.user.email}</div></td>
+                    <td>
                       <select value={m.role} onChange={(e) => adminApi.updateMember(sel, m.userId, e.target.value as Role).then(reloadDetail).catch(fail)}>
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
-                    </StructuredListCell>
-                    <StructuredListCell><Button size="sm" kind="danger--tertiary" renderIcon={TrashCan} hasIconOnly={false} onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>Remove</Button></StructuredListCell>
-                  </StructuredListRow>
+                    </td>
+                    <td>
+                      <Btn size="compact" variant="danger" onClick={() => adminApi.removeMember(sel, m.userId).then(reloadDetail).catch(fail)}>
+                        Remove
+                      </Btn>
+                    </td>
+                  </tr>
                 ))}
-              </StructuredListBody>
-            </StructuredListWrapper>
-          </Tile>
+              </tbody>
+            </table>
+          </div>
 
-          <Tile className="bi-card">
-            <div className="bi-card__head"><h3 className="bi-card__title">Workspaces · {detail.name}</h3></div>
+          <div className="chart-card">
+            <div className="layoutTitle">Workspaces · {detail.name}</div>
             <NewWorkspace teamId={sel} onDone={() => select(sel)} fail={fail} />
-            {workspaces.length === 0 ? <p style={{ color: TEXTD, fontSize: 12 }}>No workspaces yet.</p> : null}
+            {workspaces.length === 0 ? <p className="u-caption">No workspaces yet.</p> : null}
             {workspaces.map((w) => (
-              <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--line)" }}>
-                <Workspace size={14} style={{ verticalAlign: "-2px", marginRight: 4, color: TEAL }} /> {w.name}
-                <span style={{ fontSize: 10, color: TEXTD }}> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
+              <div key={w.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
+                <span style={{ color: TEAL }}>▣</span> {w.name}
+                <span className="u-caption"> · updated {new Date(w.updatedAt).toLocaleDateString()}</span>
               </div>
             ))}
-          </Tile>
+          </div>
         </>
       ) : (
-        <Tile className="bi-card"><p style={{ color: TEXTD }}>Select a team to manage its members and workspaces.</p></Tile>
+        <div className="chart-card"><p className="u-muted">Select a team to manage its members and workspaces.</p></div>
       )}
     </div>
   );
@@ -158,10 +164,10 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("EDITOR");
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-      <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1 }} />
+    <div className="u-row">
+      <input placeholder="member@email" value={email} onChange={(e) => setEmail(e.target.value)} className="u-grow" />
       <select value={role} onChange={(e) => setRole(e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select>
-      <Button size="sm" kind="tertiary" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Button>
+      <Btn size="compact" variant="ghost" disabled={!email.trim()} onClick={() => adminApi.addMember(teamId, email.trim(), role).then(() => { setEmail(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );
 }
@@ -169,9 +175,9 @@ function AddMember({ teamId, onDone, fail }: { teamId: string; onDone: () => voi
 function NewWorkspace({ teamId, onDone, fail }: { teamId: string; onDone: () => void; fail: (e: unknown) => void }) {
   const [name, setName] = useState("");
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-      <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
-      <Button size="sm" kind="tertiary" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</Button>
+    <div className="u-row">
+      <input placeholder="New workspace name" value={name} onChange={(e) => setName(e.target.value)} className="u-grow" />
+      <Btn size="compact" variant="ghost" disabled={!name.trim()} onClick={() => adminApi.createWorkspace(teamId, name.trim()).then(() => { setName(""); onDone(); }).catch(fail)}>Add</Btn>
     </div>
   );
 }
