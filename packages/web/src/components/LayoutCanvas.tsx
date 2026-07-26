@@ -272,6 +272,11 @@ export function LayoutCanvas(props: Props) {
         data-layout={label}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
+        role={interactive ? "group" : "img"}
+        aria-label={
+          `${label} layout — ${stations.length} station${stations.length === 1 ? "" : "s"}, ${flows.length} connection${flows.length === 1 ? "" : "s"}` +
+          (interactive ? ". Tab to a station, then arrow keys move it, Enter selects, Delete removes." : "")
+        }
       >
         <defs>
           <marker id="fp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -420,7 +425,12 @@ export function LayoutCanvas(props: Props) {
               // App acts on it; Enter/Space activates for flow-drawing too.
               tabIndex={interactive ? 0 : undefined}
               role={interactive ? "button" : undefined}
-              aria-label={interactive ? `${s.name}, ${s.role === "process" ? s.type : s.role}${s.fixed ? ", fixed" : ""}` : undefined}
+              aria-pressed={interactive && mode === "select" ? seld : undefined}
+              aria-label={
+                interactive
+                  ? `${s.name}, ${s.role === "process" ? s.type : s.role}, ${s.fixed ? "fixed" : "movable"}, column ${s.x + 1}, row ${s.y + 1}`
+                  : undefined
+              }
               style={{ cursor: mode === "flow" ? "crosshair" : interactive ? (s.fixed ? "not-allowed" : "grab") : "pointer" }}
               onPointerDown={(e) => onStationDown(e, s)}
               onPointerEnter={(e) => props.onHoverStation?.(s, e.clientX, e.clientY)}

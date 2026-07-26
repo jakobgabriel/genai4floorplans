@@ -100,6 +100,9 @@ export function App() {
   const [view, setView] = useState<View>("actual");
   const [tab, setTab] = useState<Tab>("flow");
   const [selId, setSel] = useState<string | null>(null);
+  // A polite live region: keyboard/screen-reader users get told what a station
+  // did (selected, moved, deleted) since the canvas itself is visual.
+  const [announce, setAnnounce] = useState("");
   const [mode, setMode] = useState<CanvasMode>("select");
   const [flowFirst, setFlowFirst] = useState<string | null>(null);
   const [selFlow, setSelFlow] = useState<{ from: string; to: string } | null>(null);
@@ -329,8 +332,10 @@ export function App() {
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selId) {
         e.preventDefault();
+        const gone = model.stations.find((x) => x.id === selId);
         api.commit({ type: "DELETE_STATION", id: selId });
         setSel(null);
+        setAnnounce(`Deleted ${gone?.name ?? "station"}. Press Ctrl+Z to undo.`);
         return;
       }
       if (e.key === "1") setView("actual");
@@ -338,16 +343,36 @@ export function App() {
       if (e.key === "3") setView("split");
       if (e.key === "4") setView("dag");
       const s = model.stations.find((x) => x.id === selId);
-      if (s && !s.fixed && e.key.startsWith("Arrow")) {
+      if (s && e.key.startsWith("Arrow")) {
         e.preventDefault();
+        if (s.fixed) {
+          setAnnounce(`${s.name} is fixed in place and cannot be moved.`);
+          return;
+        }
         const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
         const dy = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
         api.commit({ type: "MOVE_STATION", id: s.id, x: s.x + dx, y: s.y + dy });
+        setAnnounce(`${s.name} moved to column ${s.x + dx + 1}, row ${s.y + dy + 1}.`);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [api, selId, model.stations]);
+
+  // Announce the newly-selected station so a keyboard/screen-reader user knows
+  // what has focus and how to act on it. Keyed on the selection only, so a move
+  // (announced by the handler above) does not double-announce.
+  useEffect(() => {
+    if (!selId) return;
+    const s = model.stations.find((x) => x.id === selId);
+    if (s) {
+      setAnnounce(
+        `Selected ${s.name}, column ${s.x + 1}, row ${s.y + 1}. ` +
+          (s.fixed ? "Fixed in place." : "Use the arrow keys to move it, Delete to remove it."),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- announce on selection change only
+  }, [selId]);
 
   const panelProps: PanelProps = { api, selId, setSel, setTab, setView, mode, setMode, lib, onAddProcess: addProcessStep };
 
@@ -445,7 +470,7 @@ export function App() {
               ? "No-go mode: drag a rectangle. Esc to exit."
               : proposal && !proposalDismissed
                 ? "Drag movable stations · scroll to zoom · click an amber ghost to accept that move"
-                : "Drag movable stations · scroll to zoom · click a step to configure it"}
+                : "Drag movable stations, or Tab to one and move it with the arrow keys · scroll to zoom · click a step to configure it"}
         </div>
       </div>
     );
@@ -620,6 +645,8 @@ export function App() {
 
   const editorBody = (
       <main>
+        {/* Canvas actions are visual; this narrates them for assistive tech. */}
+        <p className="cds--visually-hidden" role="status" aria-live="polite">{announce}</p>
         {/* An overlay, not a column. Closed, it takes no width at all — the
             collapsed state used to leave a vertical rail strip still standing
             beside the canvas. */}
@@ -728,9 +755,13 @@ export function App() {
               />
             </div>
           </div>
-          {tab === "flow" && <FlowPanel {...panelProps} />}
-          {tab === "inspect" && <ConfigurePanel {...panelProps} />}
-          {tab === "schema" && <SchemaPanel />}
+          {/* The active tab controls this panel — name it so a tab is not left
+              pointing at unlabelled content. */}
+          <div role="tabpanel" aria-label={RAIL_TABS.find((t) => t.tab === tab)?.label ?? tab} className="tabpanel">
+            {tab === "flow" && <FlowPanel {...panelProps} />}
+            {tab === "inspect" && <ConfigurePanel {...panelProps} />}
+            {tab === "schema" && <SchemaPanel />}
+          </div>
           </>
           )}
         </div>

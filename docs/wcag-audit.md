@@ -93,6 +93,30 @@ pass surfaced these; all are now fixed and a re-run reports **zero violations**:
 | `aria-required-children` | critical | Editor panel tablist | The icon buttons beside the panel tabs are no longer inside the tablist — only the tabs are (a `display:contents` wrapper keeps the row intact). |
 | (semantics) | — | Concepts "Layout forms", Library tag assignment | These are **multi-select**, so `TabBtn` now renders them as `aria-pressed` toggle buttons rather than single-select tabs. |
 
+## Flow editor deep-dive (hard pass)
+
+A focused, strict audit of the flow editor — the canvas plus its toolbar,
+rails and drawer — since it is the app's most interactive surface and a
+mouse-only canvas is where accessibility usually breaks.
+
+**Automated:** `axe-core` (wcag A/AA **plus best-practice**) over the editor
+in both themes, with the drawer open and a station selected — **zero
+violations** after the fixes below.
+
+**Manual — keyboard & screen reader (the parts axe can't see):**
+
+| Concern | Before | Fixed |
+|---------|--------|-------|
+| Operate the canvas without a mouse | Stations were focusable and arrow-movable, but silently | Kept; the SVG now names itself and states the keys ("Tab to a station, arrow keys move, Enter selects, Delete removes"); the visible hint says so too |
+| Know what has focus / what changed | No feedback — a move or delete was invisible to a screen reader | A polite `role="status"` live region announces selection ("Selected Load, column 3, row 2…"), each move ("Load moved to column 4, row 2"), a blocked move on a fixed station, and deletes ("Deleted Load. Press Ctrl+Z to undo") |
+| Selected state | Not exposed to AT | Stations are `role="button"` with `aria-pressed` reflecting selection |
+| Station identity | Name + type only | Label now adds movable/fixed and grid position |
+| Panel tabs | `role="tab"` group with no panel | The rendered rail panel is a named `role="tabpanel"` |
+| Active plan in the drawer tree | Teal text on the selected grey row = 3.12:1 (fails AA) | Active shown by the selected background + left-accent border + bold + `aria-current`; teal text dropped |
+
+Locked in by a test (`App.test`: focusable station → `aria-pressed`, position
+in the label, and the live region announcing select + move).
+
 ## Known gaps (next steps)
 
 1. **Manual screen-reader walkthrough.** Automated tools catch ~a third of
