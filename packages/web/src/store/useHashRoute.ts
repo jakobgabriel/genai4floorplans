@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 // "/" (editor), "/analysis", "/assistant", "/report", "/compare", "/site",
 // "/admin", "/archive". Deep links and the browser back/forward button work
 // because we just read/write location.hash.
-export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive" | "/library" | "/concepts" | "/recommend" | "/404";
+export type Route = "/" | "/analysis" | "/assistant" | "/report" | "/compare" | "/site" | "/admin" | "/archive" | "/library" | "/concepts" | "/recommend" | "/plans" | "/404";
 
-const KNOWN: string[] = ["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive", "/library", "/concepts", "/recommend"];
+const KNOWN: string[] = ["/", "/analysis", "/assistant", "/report", "/compare", "/site", "/admin", "/archive", "/library", "/concepts", "/recommend", "/plans"];
 
 function current(): Route {
   const h = window.location.hash.slice(1) || "/";

@@ -13,8 +13,10 @@ function renderApp() {
 }
 
 function loadSample() {
+  // The sample is the seeded plan in the Cell plans store; a resumed session
+  // opens straight into the editor on it.
+  localStorage.setItem("flowplan_started", "1");
   renderApp();
-  fireEvent.click(screen.getByText("See an example"));
 }
 
 // Balance lives on the Analysis page now, not in the editor rail, so opening it

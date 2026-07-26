@@ -5,6 +5,7 @@ import {
   blankProcess,
   fromCapabilities,
   processFromName,
+  type CustomField,
   type LibraryProcess,
   type LibraryTag,
   type ProcessLibrary,
@@ -106,7 +107,7 @@ export interface LibraryApi {
   toggleTag: (processId: string, tagId: string) => void;
 
   addField: (processId: string) => void;
-  updateField: (processId: string, fieldId: string, patch: Partial<{ label: string; value: string }>) => void;
+  updateField: (processId: string, fieldId: string, patch: Partial<CustomField>) => void;
   removeField: (processId: string, fieldId: string) => void;
 }
 
@@ -200,12 +201,12 @@ export function useLibrary(): LibraryApi {
 
   const addField = useCallback(
     (processId: string) =>
-      mapProcess(processId, (p) => ({ ...p, custom: p.custom.concat([{ id: newId("fld"), label: "", value: "" }]) })),
+      mapProcess(processId, (p) => ({ ...p, custom: p.custom.concat([{ id: newId("fld"), label: "", value: "", type: "text" }]) })),
     [mapProcess],
   );
 
   const updateField = useCallback(
-    (processId: string, fieldId: string, patch: Partial<{ label: string; value: string }>) =>
+    (processId: string, fieldId: string, patch: Partial<CustomField>) =>
       mapProcess(processId, (p) => ({
         ...p,
         custom: p.custom.map((c) => (c.id === fieldId ? { ...c, ...patch } : c)),

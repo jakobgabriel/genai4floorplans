@@ -43,11 +43,18 @@ import type { ProcessStep } from "../engine/generate";
  * anyone who wants the inference catalog as a starting point.
  */
 
-/** One planner-defined field on a process. The tool stores and shows it only. */
+/** How a custom field's value is entered and shown. Defaults to plain text. */
+export const FIELD_TYPES = ["text", "number", "date", "url"] as const;
+export type FieldType = (typeof FIELD_TYPES)[number];
+
+/** One planner-defined field on a process or concept. The tool stores it, types
+ *  its input, and shows it — a `url` renders as a link, a `number` right-aligns. */
 export interface CustomField {
   id: string;
   label: string;
   value: string;
+  /** Omitted is treated as "text" (every field authored before types existed). */
+  type?: FieldType;
 }
 
 /** A label a process can carry. Processes carry any number of them. */

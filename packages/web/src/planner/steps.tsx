@@ -61,11 +61,9 @@ export function StartScreen({
   onPlan,
   onLibrary,
   onConcepts,
-  onSample,
+  onOpenPlans,
   onBlank,
   onImport,
-  hasCell,
-  onOpen,
   cellCount,
   processCount,
   conceptCount,
@@ -74,12 +72,10 @@ export function StartScreen({
   onPlan: () => void;
   onLibrary: () => void;
   onConcepts: () => void;
-  onSample: () => void;
+  /** Open the store of saved cell plans. */
+  onOpenPlans: () => void;
   onBlank: () => void;
   onImport: () => void;
-  /** True when there is saved work of the planner's own to go back to. */
-  hasCell: boolean;
-  onOpen: () => void;
   cellCount: number;
   processCount: number;
   conceptCount: number;
@@ -120,19 +116,14 @@ export function StartScreen({
           onClick={onConcepts}
         />
         <PortalTile
-          title={hasCell ? "Open a layout" : "See an example"}
-          body={hasCell ? "Return to the workspace." : "A worked cell with a routing and a full assessment."}
-          meta={hasCell ? `${cellCount} layout${cellCount === 1 ? "" : "s"} saved` : "Sample cell"}
-          onClick={hasCell ? onOpen : onSample}
+          title="Cell plans"
+          body="Every plan you have saved, in one place — open one to keep working, or manage the store."
+          meta={cellCount === 0 ? "No plans yet" : `${cellCount} plan${cellCount === 1 ? "" : "s"} saved`}
+          onClick={onOpenPlans}
         />
       </div>
 
       <div className="planner__escape">
-        {hasCell ? (
-          <Button kind="ghost" size="md" onClick={onSample}>
-            Open the sample cell
-          </Button>
-        ) : null}
         <Button kind="ghost" size="md" onClick={onBlank}>
           Start blank
         </Button>

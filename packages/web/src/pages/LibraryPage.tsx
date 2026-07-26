@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Search, SelectItem, Tag, Tile } from "@carbon/react";
+import { Search, SelectItem, Tag, Tile } from "@carbon/react";
 import { Add, Copy, TrashCan } from "@carbon/icons-react";
 import { TAG_COLORS, type LibraryProcess, type TagColor } from "@flowplan/core/model/library";
 import { AUTO, ERGO, ROLES, STATION_TYPES, type WorkClass } from "@flowplan/core/model/types";
@@ -7,6 +7,7 @@ import type { LibraryApi } from "../store/library";
 import { PageHead } from "../components/PageHead";
 import { Btn, IconBtn, TabBtn } from "../components/Btn";
 import { Footnote, SectionLabel } from "../components/analysisKit";
+import { CustomFields } from "../components/CustomFields";
 import { NumberField, SelectField, TextAreaField, TextField } from "../components/formKit";
 
 /**
@@ -298,18 +299,13 @@ function ProcessEditor({ lib, p, onRemoved }: { lib: LibraryApi; p: LibraryProce
 
       <TextAreaField id={"lp-notes-" + p.id} labelText="Notes" value={p.notes} rows={2} onChange={(v) => up({ notes: v })} />
 
-      <SectionLabel>Custom fields</SectionLabel>
       <Footnote>Not interpreted by the tool. Carried onto stations placed from this entry.</Footnote>
-      {p.custom.map((c) => (
-        <div className="lib-page__customRow" key={c.id}>
-          <TextField id={"cf-l-" + c.id} labelText="Field" value={c.label} placeholder="Tool no." onChange={(v) => lib.updateField(p.id, c.id, { label: v })} />
-          <TextField id={"cf-v-" + c.id} labelText="Value" value={c.value} placeholder="T-4471" onChange={(v) => lib.updateField(p.id, c.id, { value: v })} />
-          <IconBtn size="compact" icon={TrashCan} label={"Remove the " + (c.label || "empty") + " field"} tooltipPosition="left" onClick={() => lib.removeField(p.id, c.id)} />
-        </div>
-      ))}
-      <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => lib.addField(p.id)}>
-        Add a field
-      </Button>
+      <CustomFields
+        fields={p.custom}
+        onAdd={() => lib.addField(p.id)}
+        onUpdate={(id, patch) => lib.updateField(p.id, id, patch)}
+        onRemove={(id) => lib.removeField(p.id, id)}
+      />
 
       <Footnote>
         Capability: <code>{p.capabilityId}</code>
