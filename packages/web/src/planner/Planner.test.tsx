@@ -83,11 +83,6 @@ describe("planner — entry", () => {
     expect(screen.getByText("Cell plans")).toBeTruthy();
   });
 
-  it("states what is not implemented rather than offering it as a choice", () => {
-    renderApp();
-    expect(screen.getByText(/Serial-production monitoring is not implemented/)).toBeTruthy();
-  });
-
   it("opens the sample cell straight into the editor", () => {
     renderSampleEditor();
     expect(screen.getByRole("tab", { name: "Flow" })).toBeTruthy();

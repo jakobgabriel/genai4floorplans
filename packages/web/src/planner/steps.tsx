@@ -152,10 +152,6 @@ export function StartScreen({
           {t("common.importJson")}
         </Button>
       </div>
-
-      <div className="planner__later">
-        <p className="planner__laterRow">{t("portal.notImplemented")}</p>
-      </div>
     </section>
   );
 }

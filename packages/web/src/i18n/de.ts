@@ -44,8 +44,6 @@ export const de: Record<string, string> = {
   "portal.concepts.none": "Keine definiert",
   "portal.concepts.shipped": "{n} Konzepte · Auslieferungszustand",
   "portal.concepts.edited": "{n} Konzepte · bearbeitet",
-  "portal.notImplemented":
-    "Serienüberwachung ist nicht implementiert — siehe docs/lifecycle-cases-implementation.md §6.",
 
   // cell plans store
   "plans.title": "Zellenpläne",

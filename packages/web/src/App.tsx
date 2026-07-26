@@ -136,6 +136,12 @@ export function App() {
     // brief actually shows instead of the page it was launched from.
     navigate("/");
   }, [goTo]);
+  // The FlowPlan wordmark returns to the portal: leave the editor/wizard (the
+  // saved cells are untouched) and any route page. It does not delete anything.
+  const goHome = useCallback(() => {
+    setStarted(false);
+    navigate("/");
+  }, []);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const [showReset, setShowReset] = useState(false);
@@ -803,7 +809,7 @@ export function App() {
   }
 
   return (
-    <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"}>
+    <ProcessShell step={step} reached={reached} onGoto={goTo} fill={step === "refine"} onHome={goHome}>
       {step === "demand" ? (
         <DemandStep values={demand} lib={lib} onChange={(patch) => setDemand((d) => ({ ...d, ...patch }))} />
       ) : null}
