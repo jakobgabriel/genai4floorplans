@@ -72,7 +72,7 @@ export function assignStations(
   elements: WorkElement[],
   taktSec: number,
   variantModes?: VariantMode[],
-  opts: { maxStations?: number } = {},
+  opts: { maxStations?: number; oneStationPerStep?: boolean } = {},
 ): AssignmentResult {
   const issues: string[] = [];
   const unassigned: Array<{ elementId: string; reason: string }> = [];
@@ -197,6 +197,14 @@ export function assignStations(
         stationOf.set(el.id, stations.length);
         addedAny = true;
         progressed = true;
+
+        // One-station-per-step: each work element is its own station (its own
+        // box on the canvas). Precedence and takt-utilisation still hold, but
+        // the balancer does not merge steps together. Close the station now.
+        if (opts.oneStationPerStep) {
+          progressed = false;
+          break;
+        }
 
         // Zoning: pull must-be-together elements in immediately.
         (el.mustBeSameStationAs ?? []).forEach((o) => {
