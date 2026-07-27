@@ -1,12 +1,14 @@
-import { Btn } from "./Btn";
+import { IconBtn } from "./Btn";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Flow, Model, NoGoZone, Station } from "@flowplan/core/model/types";
+import { ZoomIn, ZoomOut, CenterToFit } from "@carbon/icons-react";
+import type { Flow, Model, NoGoZone, Station, ZoneKind } from "@flowplan/core/model/types";
 import type { ChainResult } from "@flowplan/core/engine/automation";
 import type { Slot } from "@flowplan/core/engine/templates";
 import type { ProposalItem } from "@flowplan/core/engine/proposal";
 import type { Side } from "@flowplan/core/model/types";
 import { center, clampToGrid, hasCollision, portPoint, stationCells } from "@flowplan/core/engine/geometry";
 import { useAccents } from "./colors";
+import { useT } from "../i18n";
 
 const PAD = 12;
 
@@ -59,10 +61,15 @@ interface Props {
   onMove?: (id: string, x: number, y: number) => void;
   onPickStation?: (id: string) => void;
   onAddNoGo?: (zone: NoGoZone) => void;
+  /** The kind the next drawn zone will be — colours the drag preview. */
+  zoneKind?: ZoneKind;
 }
 
 export function LayoutCanvas(props: Props) {
-  const { AMBER, AUTO_COL, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
+  const t = useT();
+  const { AMBER, AUTO_COL, BLUE, COLLIDE_COL, ERGO_COL, LINE, NOGO_COL, PANEL2, PORT_RING, RED, TEAL, TEALD, TEXT, TEXTD, TYPE_COL } = useAccents();
+  // Each zone kind reads in its own colour; esd/cleanroom are overlays.
+  const zoneColor: Record<ZoneKind, string> = { blocked: RED, pathway: AMBER, esd: BLUE, cleanroom: TEAL };
   const { model, stations, flows, chain, ghost, proposalItems, onAcceptMove, template, selId, label, badge, cell: cellProp, interactive } = props;
   const mode: CanvasMode = props.mode ?? "select";
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -103,6 +110,9 @@ export function LayoutCanvas(props: Props) {
     nogo: null,
   });
   const [nogoRect, setNogoRect] = useState<NoGoZone | null>(null);
+  // Mirror the drawn rect in a ref so the window pointerup handler always reads
+  // the latest value — a fast drag can fire pointerup before React re-renders.
+  const nogoRectRef = useRef<NoGoZone | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverGhost, setHoverGhost] = useState<string | null>(null);
   const [dragCollide, setDragCollide] = useState(false);
@@ -151,19 +161,22 @@ export function LayoutCanvas(props: Props) {
         const g = toGrid(e.clientX, e.clientY);
         const x0 = Math.min(d.nogo.x, g.x);
         const y0 = Math.min(d.nogo.y, g.y);
-        setNogoRect({
+        const rect = {
           x: Math.max(0, Math.round(x0)),
           y: Math.max(0, Math.round(y0)),
           w: Math.max(1, Math.round(Math.abs(g.x - d.nogo.x))),
           h: Math.max(1, Math.round(Math.abs(g.y - d.nogo.y))),
-        });
+        };
+        nogoRectRef.current = rect;
+        setNogoRect(rect);
       }
     }
     function upHandler() {
       const d = dragRef.current;
-      if (d.nogo && nogoRect && props.onAddNoGo) props.onAddNoGo(nogoRect);
+      if (d.nogo && nogoRectRef.current && props.onAddNoGo) props.onAddNoGo(nogoRectRef.current);
       dragRef.current = { id: null, pan: false, nogo: null };
       panStart.current = null;
+      nogoRectRef.current = null;
       setNogoRect(null);
       setDraggingId(null);
       setDragCollide(false);
@@ -174,7 +187,7 @@ export function LayoutCanvas(props: Props) {
       window.removeEventListener("pointermove", moveHandler);
       window.removeEventListener("pointerup", upHandler);
     };
-  }, [interactive, props, stations, toGrid, vbW, baseW, nogoRect]);
+  }, [interactive, props, stations, toGrid, vbW, baseW]);
 
   function onBackgroundDown(e: React.PointerEvent) {
     if (!interactive) return;
@@ -207,6 +220,45 @@ export function LayoutCanvas(props: Props) {
     if (!interactive) return;
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
     setZoom((z) => Math.max(0.5, Math.min(4, z * factor)));
+  }
+
+  const zoomBy = (factor: number) => setZoom((z) => Math.max(0.5, Math.min(4, z * factor)));
+
+  // Reframe so every station and zone is in view, centred with a little margin.
+  // With the unbounded canvas a step can be dragged out of sight — this brings
+  // the whole layout back in one click, even when the floor is larger than the
+  // stage (cell pinned at its minimum).
+  function fitView() {
+    if (!stations.length) {
+      setZoom(1);
+      setOff({ x: 0, y: 0 });
+      return;
+    }
+    let minGX = Infinity, minGY = Infinity, maxGX = -Infinity, maxGY = -Infinity;
+    for (const s of stations) {
+      minGX = Math.min(minGX, s.x);
+      minGY = Math.min(minGY, s.y);
+      maxGX = Math.max(maxGX, s.x + s.w);
+      maxGY = Math.max(maxGY, s.y + s.h);
+    }
+    for (const z of model.noGoZones ?? []) {
+      minGX = Math.min(minGX, z.x);
+      minGY = Math.min(minGY, z.y);
+      maxGX = Math.max(maxGX, z.x + z.w);
+      maxGY = Math.max(maxGY, z.y + z.h);
+    }
+    const minX = PAD + minGX * cell;
+    const maxX = PAD + maxGX * cell;
+    const minY = PAD + minGY * cell;
+    const maxY = PAD + maxGY * cell;
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 1.15;
+    const z = Math.max(0.5, Math.min(4, Math.min(baseW / (contentW * margin), baseH / (contentH * margin))));
+    const nvbW = baseW / z;
+    const nvbH = baseH / z;
+    setZoom(z);
+    setOff({ x: (minX + maxX) / 2 - nvbW / 2, y: (minY + maxY) / 2 - nvbH / 2 });
   }
 
   const byId: Record<string, Station> = {};
@@ -252,17 +304,61 @@ export function LayoutCanvas(props: Props) {
       );
   }
 
+  // Metric axis. One cell is one metre, so the major gridlines (every 5) are
+  // labelled in metres along a top and a left ruler that stay pinned to the
+  // viewport edges as you pan. The two rulers meet at an "m" origin — the axis
+  // cross. A halo (paint-order stroke) keeps the numbers legible over the grid.
+  const axis: React.ReactElement[] = [];
+  {
+    const i0 = Math.floor((off.x - PAD) / cell);
+    const i1 = Math.ceil((off.x + vbW - PAD) / cell);
+    const j0 = Math.floor((off.y - PAD) / cell);
+    const j1 = Math.ceil((off.y + vbH - PAD) / cell);
+    const fs = 10;
+    const halo = { paintOrder: "stroke" as const };
+    const cornerX = off.x + 16;
+    const cornerY = off.y + fs + 3;
+    for (let i = Math.max(0, i0); i <= i1; i++) {
+      if (i % 5 !== 0) continue;
+      const x = PAD + i * cell;
+      if (x < cornerX) continue; // clear of the origin "m"
+      axis.push(
+        <text key={"rx" + i} x={x} y={off.y + fs} textAnchor="middle" fontSize={fs} fill={TEXTD} stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+          {i}
+        </text>,
+      );
+    }
+    for (let j = Math.max(0, j0); j <= j1; j++) {
+      if (j % 5 !== 0) continue;
+      const y = PAD + j * cell;
+      if (y < cornerY) continue;
+      axis.push(
+        <text key={"ry" + j} x={off.x + 3} y={y} textAnchor="start" dominantBaseline="middle" fontSize={fs} fill={TEXTD} stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+          {j}
+        </text>,
+      );
+    }
+    axis.push(
+      <text key="axm" x={off.x + 3} y={off.y + fs} fontSize={fs} fontWeight={700} fill="var(--text-primary)" stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+        m
+      </text>,
+    );
+  }
+
   return (
     <div className="lc">
       <div className="layoutTitle" style={{ color: badge }}>
         {label}
-        {interactive && zoom !== 1 ? (
-          <Btn size="compact" variant="ghost" onClick={() => { setZoom(1); setOff({ x: 0, y: 0 }); }}>
-            Reset zoom
-          </Btn>
-        ) : null}
       </div>
       <div className="lc__stage" ref={stageRef}>
+      {interactive ? (
+        <div className="lc__zoom" role="group" aria-label={t("canvas.zoom.group")}>
+          <IconBtn size="compact" icon={ZoomOut} label={t("canvas.zoom.out")} tooltipPosition="top" onClick={() => zoomBy(1 / 1.15)} />
+          <span className="lc__zoom-pct" aria-hidden="true">{Math.round(zoom * 100)}%</span>
+          <IconBtn size="compact" icon={ZoomIn} label={t("canvas.zoom.in")} tooltipPosition="top" onClick={() => zoomBy(1.15)} />
+          <IconBtn size="compact" icon={CenterToFit} label={t("canvas.zoom.fit")} tooltipPosition="top" onClick={fitView} />
+        </div>
+      ) : null}
       <svg
         ref={svgRef}
         className="lc__svg"
@@ -285,11 +381,17 @@ export function LayoutCanvas(props: Props) {
         </defs>
         {/* background catcher for pan / no-go draw / deselect */}
         <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="transparent" onPointerDown={onBackgroundDown} style={{ cursor: mode === "nogo" ? "crosshair" : interactive ? "grab" : "default" }} />
-        {/* The placeable floor. Now that the grid rules the whole surface this is
-            what tells you where a station can actually go. */}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="var(--cds-layer-01)" />
-        {gridLines}
-        <rect x={PAD} y={PAD} width={floorW} height={floorH} fill="none" stroke={LINE} strokeWidth={1.5} />
+        {/* The floor and grid are decoration only — they sit above the catcher,
+            so they must let pointer events fall through to it (otherwise pan /
+            zone-draw / deselect never fire over the floor). The floor fills the
+            whole viewport: the canvas is unbounded, so there is no "outside the
+            floor" dead area to shade differently — it reads as one continuous
+            gridded surface. */}
+        <g style={{ pointerEvents: "none" }}>
+          <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="var(--cds-layer-01)" />
+          {gridLines}
+        </g>
+        <g className="lc__axis" style={{ pointerEvents: "none" }}>{axis}</g>
 
         {(template ?? []).map((t, i) => (
           <g key={"t" + i}>
@@ -300,11 +402,21 @@ export function LayoutCanvas(props: Props) {
           </g>
         ))}
 
-        {(model.noGoZones ?? []).map((z, i) => (
-          <rect key={"z" + i} x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={RED} opacity={0.08} stroke={RED} strokeWidth={1} strokeDasharray="4 3" />
-        ))}
+        {(model.noGoZones ?? []).map((z, i) => {
+          const zc = zoneColor[z.kind ?? "blocked"];
+          return (
+            <g key={"z" + i}>
+              <rect x={PAD + z.x * cell} y={PAD + z.y * cell} width={z.w * cell} height={z.h * cell} fill={zc} opacity={0.1} stroke={zc} strokeWidth={1} strokeDasharray="4 3" />
+              {cell > 22 ? (
+                <text x={PAD + z.x * cell + 4} y={PAD + z.y * cell + 12} fill={zc} fontSize={9} style={{ pointerEvents: "none", textTransform: "uppercase" }}>
+                  {z.kind ?? "blocked"}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
         {nogoRect ? (
-          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={RED} opacity={0.18} stroke={RED} strokeWidth={1.5} />
+          <rect x={PAD + nogoRect.x * cell} y={PAD + nogoRect.y * cell} width={nogoRect.w * cell} height={nogoRect.h * cell} fill={zoneColor[props.zoneKind ?? "blocked"]} opacity={0.2} stroke={zoneColor[props.zoneKind ?? "blocked"]} strokeWidth={1.5} />
         ) : null}
 
         {flows.map((f, i) => {

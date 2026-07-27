@@ -17,7 +17,7 @@ import { EmptyState, Footnote, KpiMeter, MetricTile, SectionLabel, ShareBar, sco
 import { FieldRow, NumberField, SelectField, TextAreaField, TextField } from "./formKit";
 import type { FlowPlanApi } from "../store/useFlowPlan";
 import { cloneStation, makeStation } from "@flowplan/core/store/reducer";
-import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station } from "@flowplan/core/model/types";
+import { AUTO, CYCLE_KEYS, ERGO, MERGE_MODES, ROLES, SIDES, SPLIT_MODES, STATION_TYPES, TRANSPORT, ZONE_KINDS, type CycleBreakdown, type Flow, type RatingWeights, type Side, type Station, type ZoneKind } from "@flowplan/core/model/types";
 import { WEIGHTS, normalizeWeights } from "@flowplan/core/engine/rating";
 import { bottleneckAdvice } from "@flowplan/core/engine/balance";
 import { CYCLE_LABELS, cycleAdvice, cycleAnalysis, seedBreakdown } from "@flowplan/core/engine/cycle";
@@ -29,6 +29,7 @@ import { YamazumiChart } from "./charts";
 import { useAccents } from "./colors";
 import { useToast } from "./ui";
 import { useT } from "../i18n";
+import { TabBtn } from "./Btn";
 import type { CanvasMode } from "./LayoutCanvas";
 import { LibraryPicker } from "./LibraryPicker";
 import type { LibraryApi } from "../store/library";
@@ -46,6 +47,9 @@ export interface PanelProps {
   setView: (v: "actual" | "improved" | "split") => void;
   mode: CanvasMode;
   setMode: (m: CanvasMode) => void;
+  /** Which zone kind the next drawn zone will be. */
+  zoneKind: ZoneKind;
+  setZoneKind: (k: ZoneKind) => void;
   /** The process library, for adding a step from it. */
   lib?: LibraryApi;
   /** Place a library process on the canvas. */
@@ -370,6 +374,10 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
               key={key}
               labelText={`${label} — ${(w[key] * 100).toFixed(0)}%`}
               hideTextInput
+              // Weights are stored as fractions, so the raw slider value is
+              // 0.166… — format every label (min, max and the drag tooltip) as a
+              // whole percent instead of a 17-digit float.
+              formatLabel={(value: number) => `${Math.round(value * 100)}%`}
               min={0}
               max={0.5}
               step={0.01}
@@ -676,28 +684,36 @@ function LayoutSettings({ api }: { api: FlowPlanApi }) {
   );
 }
 
-function NoGoSection({ api, mode, setMode }: { api: FlowPlanApi; mode: CanvasMode; setMode: (m: CanvasMode) => void }) {
+function NoGoSection({ api, mode, setMode, zoneKind, setZoneKind }: { api: FlowPlanApi; mode: CanvasMode; setMode: (m: CanvasMode) => void; zoneKind: ZoneKind; setZoneKind: (k: ZoneKind) => void }) {
   const t = useT();
   const zones = api.model.noGoZones ?? [];
   return (
-    <FoldSection title={t("flowPanel.nogo.title")}>
+    <FoldSection title={t("flowPanel.zones.title")}>
+      {/* Pick the kind, then draw it on the canvas. */}
+      <div className="zone-kinds" role="group" aria-label={t("flowPanel.zones.kindLabel")}>
+        {ZONE_KINDS.map((zk) => (
+          <TabBtn key={zk.id} selected={zoneKind === zk.id} onClick={() => setZoneKind(zk.id)}>
+            <span className={"zone-dot zone-dot--" + zk.id} aria-hidden /> {t("zone." + zk.id)}
+          </TabBtn>
+        ))}
+      </div>
       <Button kind={mode === "nogo" ? "primary" : "tertiary"} size="sm" renderIcon={Draw} onClick={() => setMode(mode === "nogo" ? "select" : "nogo")}>
-        {mode === "nogo" ? t("flowPanel.nogo.drawing") : t("flowPanel.nogo.draw")}
+        {mode === "nogo" ? t("flowPanel.zones.drawing", { kind: t("zone." + zoneKind) }) : t("flowPanel.zones.draw", { kind: t("zone." + zoneKind) })}
       </Button>
-      <Footnote>{t("flowPanel.nogo.help")}</Footnote>
+      <Footnote>{t("flowPanel.zones.help")}</Footnote>
       {zones.length > 0 ? (
         <Stack gap={2}>
           {zones.map((z, i) => (
             <div key={i} className="fk-listrow">
               <span className="fk-listrow__main fk-listrow__text">
-                {t("flowPanel.nogo.zone", { i: i + 1, w: z.w, h: z.h, x: z.x, y: z.y })}
+                <span className={"zone-dot zone-dot--" + (z.kind ?? "blocked")} aria-hidden /> {t("zone." + (z.kind ?? "blocked"))} · {z.w}×{z.h} @ ({z.x},{z.y})
               </span>
               <Button
                 kind="ghost"
                 className="fk-danger"
                 hasIconOnly
                 size="sm"
-                iconDescription={t("flowPanel.nogo.remove", { i: i + 1 })}
+                iconDescription={t("flowPanel.zones.remove", { i: i + 1 })}
                 tooltipPosition="left"
                 renderIcon={TrashCan}
                 onClick={() => api.commit({ type: "REMOVE_NOGO", index: i })}
@@ -763,7 +779,7 @@ function MissingRoleIssue({
   );
 }
 
-export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProcess }: PanelProps) {
+export function FlowPanel({ api, setSel, setTab, mode, setMode, zoneKind, setZoneKind, lib, onAddProcess }: PanelProps) {
   const t = useT();
   const v = api.validation;
   const errCount = v.issues.filter((i) => i.sev === "err").length;
@@ -808,7 +824,7 @@ export function FlowPanel({ api, setSel, setTab, mode, setMode, lib, onAddProces
         <AddStepButtons api={api} setSel={setSel} setTab={setTab} lib={lib} onAddProcess={onAddProcess} />
 
         <LayoutSettings api={api} />
-        <NoGoSection api={api} mode={mode} setMode={setMode} />
+        <NoGoSection api={api} mode={mode} setMode={setMode} zoneKind={zoneKind} setZoneKind={setZoneKind} />
       </Stack>
     </div>
   );

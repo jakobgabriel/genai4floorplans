@@ -49,6 +49,7 @@ export function DecisionWeightsEditor({ api }: { api: DecisionWeightsApi }) {
               step={5}
               value={Math.round(api.weights[c.key] * 100)}
               onChange={({ value }: { value: number }) => api.set(c.key, value / 100)}
+              formatLabel={(value: number) => `${value}%`}
               hideTextInput
             />
           </div>
