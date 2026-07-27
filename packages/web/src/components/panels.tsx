@@ -374,6 +374,10 @@ function WeightsEditor({ api }: { api: FlowPlanApi }) {
               key={key}
               labelText={`${label} — ${(w[key] * 100).toFixed(0)}%`}
               hideTextInput
+              // Weights are stored as fractions, so the raw slider value is
+              // 0.166… — format every label (min, max and the drag tooltip) as a
+              // whole percent instead of a 17-digit float.
+              formatLabel={(value: number) => `${Math.round(value * 100)}%`}
               min={0}
               max={0.5}
               step={0.01}
