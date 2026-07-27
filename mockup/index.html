@@ -7,292 +7,240 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<!-- Real IBM Carbon Design System — full component CSS compiled with the g100
+     (dark) theme from @carbon/styles v1.x, vendored so the mockup is offline.
+     See mockup/README.md for how it is built. -->
+<link rel="stylesheet" href="carbon.css" />
 <style>
   /* ------------------------------------------------------------------ *
-   * FlowPlan clickable mockup — Carbon g100 (dark) design language.
-   * Colours, type and spacing mirror packages/web/src/styles/tokens.css
-   * and packages/web/src/components/colors.ts (dark palette).
-   * Square corners (Carbon), IBM Plex Sans for UI, IBM Plex Mono for data.
+   * Custom layer — the app's own CSS, exactly as FlowPlan layers it over
+   * Carbon: page scaffolding, the SVG canvas, KPI meters, charts and the
+   * report. Everything here reads Carbon's --cds-* design tokens so it
+   * stays consistent with the real components above. Accent colours that
+   * are NOT Carbon tokens (the data-flow teal etc.) mirror colors.ts.
    * ------------------------------------------------------------------ */
   :root {
-    --bg: #161616; --layer: #262626; --layer2: #393939; --field: #262626;
-    --border: #393939; --border-strong: #525252;
-    --text: #f4f4f4; --text-muted: #c6c6c6; --text-dim: #8d8d8d;
     --teal: #3ddbd9; --teal-dim: #007d79; --amber: #d2a106; --red: #fa4d56;
-    --green: #24a148; --blue: #0f62fe; --blue-hover: #4589ff;
-    --purple: #a582c9; --blue-data: #6f9bd1;
+    --green: #24a148; --blue-data: #6f9bd1; --purple: #a582c9;
     --mach: #16343a; --manual: #2a2f1e; --quality: #1e2a36; --store: #2a2320;
-    --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px; --sp5: 24px; --sp6: 40px;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg); color: var(--text);
-    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 14px; line-height: 1.43;
-    -webkit-font-smoothing: antialiased;
-  }
+  html, body { margin: 0; }
+  body { background: var(--cds-background); color: var(--cds-text-primary);
+         font-family: "IBM Plex Sans", system-ui, sans-serif; padding-bottom: 46px; }
   .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
-  h1,h2,h3,h4 { font-weight: 600; margin: 0; }
-  a { color: var(--blue-hover); text-decoration: none; }
-  button { font-family: inherit; }
-  ::selection { background: var(--teal-dim); color: #fff; }
 
-  /* ---- app header ---- */
-  .appbar { height: 48px; background: #161616; border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; gap: 0; padding: 0 var(--sp4); position: sticky; top: 0; z-index: 50; }
-  .wordmark { font-weight: 400; font-size: 14px; letter-spacing: .01em; cursor: pointer; padding: 0 var(--sp3) 0 0; }
-  .wordmark b { font-weight: 600; }
-  .wordmark:hover { color: var(--text); }
-  .appbar .spacer { flex: 1; }
-  .topctl { display: flex; align-items: center; gap: 2px; }
-  .iconbtn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
-             background: transparent; border: 0; color: var(--text-muted); cursor: pointer; border-radius: 0; }
-  .iconbtn:hover { background: var(--layer2); color: var(--text); }
-  .iconbtn svg { width: 18px; height: 18px; }
+  /* Carbon header is position:fixed by default; make it flow for the mockup. */
+  .cds--header { position: sticky; }
 
-  /* ---- process stepper ---- */
-  .stepper { display: flex; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 var(--sp4); }
-  .step { flex: 1; padding: 12px 8px 12px 0; display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
-          border: 0; background: transparent; color: var(--text-dim); text-align: left; position: relative; }
-  .step:not(:last-child)::after { content: ""; position: absolute; left: 20px; right: 8px; top: 20px; height: 1px; background: var(--border); z-index: 0; }
-  .step__dot { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong);
-               display: inline-flex; align-items: center; justify-content: center; font-size: 11px; flex: 0 0 auto; background: var(--bg); z-index: 1; }
-  .step__meta { display: flex; flex-direction: column; z-index: 1; }
-  .step__label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
-  .step__hint { font-size: 11px; color: var(--text-dim); }
-  .step.done .step__dot { border-color: var(--teal-dim); color: var(--teal); }
-  .step.current .step__dot { background: var(--blue); border-color: var(--blue); color: #fff; }
-  .step.current .step__label { color: var(--text); }
-  .step.locked { cursor: not-allowed; opacity: .55; }
+  /* stepper wrapper */
+  .stepper { border-bottom: 1px solid var(--cds-border-subtle-01); padding: 12px 16px; background: var(--cds-background); }
+  /* the Carbon ProgressStep icons are identical markup; state drives them here */
+  .cds--progress-step-icon .dot { display: none; }
+  .cds--progress-step-icon > circle:first-child { stroke: var(--cds-icon-disabled, #6f6f6f); }
+  .cds--progress-step--current .cds--progress-step-icon > circle:first-child,
+  .cds--progress-step--complete .cds--progress-step-icon > circle:first-child { stroke: var(--cds-interactive, #4589ff); }
+  .cds--progress-step--current .cds--progress-step-icon .dot,
+  .cds--progress-step--complete .cds--progress-step-icon .dot { display: block; fill: var(--cds-interactive, #4589ff); }
 
-  /* ---- screens ---- */
+  /* Carbon line tabs: size each tab to its label (Carbon's default is a fixed
+     10rem) so the compact editor rails read like the real app. */
+  .cds--tabs__nav-link { inline-size: auto; padding-inline-end: var(--cds-layout-density-padding-inline-local, 16px); }
+
+  /* screens */
   .screen { display: none; }
   .screen.active { display: block; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: var(--sp5) var(--sp4) 80px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 80px; }
   .wrap--wide { max-width: 1320px; }
 
-  .page-title { font-size: 28px; font-weight: 600; letter-spacing: -.01em; }
-  .page-sub { color: var(--text-muted); margin: 6px 0 0; font-size: 14px; }
-  .seclabel { font-size: 12px; letter-spacing: .32px; text-transform: uppercase; color: var(--text-dim);
-              margin: var(--sp5) 0 var(--sp2); font-weight: 600; }
-  .footnote { color: var(--text-dim); font-size: 12px; margin: var(--sp2) 0; }
-  .u-muted { color: var(--text-muted); }
+  .page-title { font-size: 28px; font-weight: 400; letter-spacing: -.01em; margin: 0; }
+  .page-title--sm { font-size: 20px; }
+  .page-sub { color: var(--cds-text-secondary); margin: 6px 0 0; font-size: 14px; }
+  .seclabel { font-size: 12px; letter-spacing: .32px; text-transform: uppercase; color: var(--cds-text-helper);
+              margin: 24px 0 8px; font-weight: 600; }
+  .footnote { color: var(--cds-text-helper); font-size: 12px; margin: 8px 0; }
+  .u-muted { color: var(--cds-text-secondary); }
+  h1,h2,h3,h4 { margin: 0; }
 
-  /* ---- buttons ---- */
-  .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent; cursor: pointer;
-         font-size: 14px; padding: 10px 14px; border-radius: 0; background: var(--blue); color: #fff; line-height: 1.2; }
-  .btn:hover { background: var(--blue-hover); }
-  .btn--secondary { background: transparent; border-color: var(--border-strong); color: var(--text); }
-  .btn--secondary:hover { background: var(--layer2); }
-  .btn--ghost { background: transparent; color: var(--text); }
-  .btn--ghost:hover { background: var(--layer2); }
-  .btn--sm { padding: 6px 10px; font-size: 12px; }
-  .btn svg { width: 16px; height: 16px; }
-
-  /* ---- tiles / portal ---- */
-  .portal-group__title { font-size: 12px; letter-spacing: .32px; text-transform: uppercase; color: var(--text-dim); margin: var(--sp5) 0 var(--sp2); }
-  .portal { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); }
-  .tile { background: var(--layer); border: 0; text-align: left; padding: var(--sp4); cursor: pointer; display: flex; flex-direction: column; gap: 6px; color: var(--text); min-height: 128px; }
-  .tile:hover { background: #2f2f2f; }
-  .tile__title { font-size: 20px; font-weight: 400; }
-  .tile__body { font-size: 13px; color: var(--text-muted); flex: 1; }
+  /* portal groups */
+  .portal-group__title { font-size: 12px; letter-spacing: .32px; text-transform: uppercase; color: var(--cds-text-helper); margin: 24px 0 8px; }
+  .portal { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--cds-border-subtle-01); border: 1px solid var(--cds-border-subtle-01); }
+  .portal .cds--tile--clickable { min-height: 132px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+  .tile__title { font-size: 20px; font-weight: 400; color: var(--cds-text-primary); }
+  .tile__body { font-size: 13px; color: var(--cds-text-secondary); flex: 1; }
   .tile__meta { font-size: 12px; color: var(--teal); }
 
-  /* ---- data tiles / stat strip ---- */
-  .statstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: var(--sp3) 0; }
-  .stat { background: var(--layer); padding: var(--sp4); }
-  .stat__lab { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; }
-  .stat__val { font-size: 28px; font-weight: 300; margin-top: 4px; }
-  .stat__sub { font-size: 12px; color: var(--text-muted); }
+  /* stat strip / derived readout */
+  .statstrip, .derived { display: grid; gap: 1px; background: var(--cds-border-subtle-01); border: 1px solid var(--cds-border-subtle-01); margin: 12px 0; }
+  .statstrip { grid-template-columns: repeat(4, 1fr); }
+  .derived { grid-template-columns: repeat(4, 1fr); }
+  .stat, .derived > div { background: var(--cds-layer-01); padding: 16px; }
+  .stat__lab, .derived__lab { display: block; font-size: 12px; color: var(--cds-text-helper); text-transform: uppercase; letter-spacing: .3px; }
+  .stat__val, .derived__val { display: block; font-size: 28px; font-weight: 300; margin: 4px 0 2px; }
+  .stat__sub, .derived__note { display: block; font-size: 12px; color: var(--cds-text-secondary); }
 
-  .derived { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp5); background: var(--layer); border: 1px solid var(--border); padding: var(--sp4); }
-  .derived__lab { display: block; font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; }
-  .derived__val { display: block; font-size: 26px; font-weight: 300; margin: 4px 0 2px; }
-  .derived__note { display: block; font-size: 12px; color: var(--text-muted); }
-
-  /* ---- tables ---- */
-  table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.grid th { text-align: left; font-weight: 600; font-size: 12px; color: var(--text-muted); background: var(--layer); padding: 10px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
-  table.grid td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  table.grid tr:hover td { background: #1e1e1e; }
-  .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .best { color: var(--teal); font-weight: 600; }
-  .selrow td { background: #10302f !important; box-shadow: inset 3px 0 0 var(--teal); }
-
-  /* ---- tags ---- */
-  .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; line-height: 1.5;
-         background: var(--layer2); color: var(--text-muted); }
-  .tag--green { background: #0d3a1e; color: #6fdc8c; }
-  .tag--red { background: #3a1519; color: #ffb3b8; }
-  .tag--gray { background: #333; color: #c6c6c6; }
-  .tag--teal { background: #063d3b; color: var(--teal); }
-  .tag--amber { background: #3a2f0a; color: #f1c21b; }
-  .tag--magenta { background: #3a1330; color: #ffafd2; }
-  .tag--blue { background: #10243e; color: #78a9ff; }
-
-  /* ---- meters ---- */
+  /* KPI meters (the app's custom KpiMeter, tokenised) */
   .meter { margin-bottom: 10px; }
-  .meter__top { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-  .meter__bar { height: 6px; background: var(--layer2); overflow: hidden; }
+  .meter__top { display: flex; justify-content: space-between; font-size: 12px; color: var(--cds-text-secondary); margin-bottom: 4px; }
+  .meter__bar { height: 6px; background: var(--cds-layer-02); overflow: hidden; }
   .meter__bar > i { display: block; height: 100%; background: var(--teal); }
 
-  /* ---- grade block ---- */
-  .grade { display: flex; align-items: center; gap: 16px; margin: var(--sp3) 0 var(--sp5); }
+  /* grade block */
+  .grade { display: flex; align-items: center; gap: 16px; margin: 12px 0 24px; }
   .grade__box { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 600; background: var(--teal); color: #06201f; }
-  .grade__meta .l { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; }
+  .grade__meta .l { font-size: 12px; color: var(--cds-text-helper); text-transform: uppercase; letter-spacing: .3px; }
   .grade__meta .v { font-size: 26px; font-weight: 300; }
 
-  /* ---- notifications ---- */
-  .note { border-left: 3px solid var(--blue); background: #1c2a3a; padding: 12px 14px; margin: var(--sp3) 0; font-size: 13px; }
-  .note--warn { border-color: var(--amber); background: #2c2610; }
-  .note--info { border-color: var(--blue-data); background: #1a222c; }
-  .note--ok { border-color: var(--green); background: #142a1b; }
-  .note b { display: block; margin-bottom: 2px; }
-  .note span { color: var(--text-muted); }
-
-  /* ---- section cards ---- */
-  .card { border: 1px solid var(--border); background: var(--layer); margin: var(--sp4) 0; }
-  .card__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
-  .card__num { width: 22px; height: 22px; border-radius: 50%; background: var(--layer2); color: var(--text); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: 0 0 auto; }
+  /* collapsible analysis cards */
+  .card { border: 1px solid var(--cds-border-subtle-01); background: var(--cds-layer-01); margin: 16px 0; }
+  .card__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--cds-border-subtle-01); cursor: pointer; }
+  .card__num { width: 22px; height: 22px; border-radius: 50%; background: var(--cds-layer-02); color: var(--cds-text-primary); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: 0 0 auto; }
   .card__title { font-weight: 600; }
-  .card__q { color: var(--text-dim); font-size: 12px; margin-left: auto; }
-  .card__body { padding: var(--sp4); }
+  .card__q { color: var(--cds-text-helper); font-size: 12px; margin-left: auto; }
+  .card__body { padding: 16px; }
   .card.collapsed .card__body { display: none; }
-  .chev { transition: transform .15s; }
+  .chev { transition: transform .15s; display: inline-block; }
   .card.collapsed .chev { transform: rotate(-90deg); }
 
-  /* jump-nav chips */
-  .jumpnav { display: flex; gap: 6px; flex-wrap: wrap; margin: var(--sp3) 0 var(--sp4); position: sticky; top: 48px; background: var(--bg); padding: 8px 0; z-index: 5; }
-  .chip { border: 1px solid var(--border); background: transparent; color: var(--text-muted); padding: 5px 10px; font-size: 12px; cursor: pointer; border-radius: 0; display: inline-flex; gap: 6px; align-items: center; }
-  .chip:hover, .chip.on { border-color: var(--teal-dim); color: var(--text); background: var(--layer); }
-  .chip .n { color: var(--text-dim); }
+  .jumpnav { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 16px; position: sticky; top: 48px; background: var(--cds-background); padding: 8px 0; z-index: 5; }
 
-  /* ---- editor layout ---- */
-  .editorbar { display: flex; align-items: center; gap: 10px; padding: 8px var(--sp4); border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
-  .hkpi { display: flex; gap: var(--sp5); }
-  .hkpi__label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; }
+  /* editor workbench */
+  .editorbar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--cds-border-subtle-01); background: var(--cds-background); flex-wrap: wrap; }
+  .hkpi { display: flex; gap: 24px; }
+  .hkpi__label { font-size: 11px; color: var(--cds-text-helper); text-transform: uppercase; letter-spacing: .3px; }
   .hkpi__value { font-size: 20px; font-weight: 600; line-height: 1.1; }
-  .hsep { width: 1px; height: 24px; background: var(--border); }
+  .hsep { width: 1px; height: 24px; background: var(--cds-border-subtle-01); }
   .editorbar .spacer { flex: 1; }
-  .editorbar__cell { max-width: 220px; }
 
   .editor { display: flex; height: calc(100vh - 48px - 49px - 57px); min-height: 460px; }
-  .explorer-side { width: 260px; background: var(--layer); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  .explorer-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .explorer-side { width: 260px; background: var(--cds-layer-01); border-right: 1px solid var(--cds-border-subtle-01); display: flex; flex-direction: column; }
+  .explorer-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--cds-border-subtle-01); }
   .explorer-title { font-size: 13px; }
   .tree { padding: 8px; font-size: 13px; flex: 1; overflow: auto; }
-  .tree__item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text-muted); }
-  .tree__item:hover { background: var(--layer2); }
-  .tree__item.on { background: #10302f; color: var(--text); box-shadow: inset 2px 0 0 var(--teal); }
-  .tree__folder { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; padding: 8px 8px 4px; display: flex; gap: 6px; align-items: center; }
-  .explorer-foot { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .tree__item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--cds-text-secondary); }
+  .tree__item:hover { background: var(--cds-layer-02); }
+  .tree__item.on { background: #10302f; color: var(--cds-text-primary); box-shadow: inset 2px 0 0 var(--teal); }
+  .tree__folder { color: var(--cds-text-helper); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; padding: 8px 8px 4px; }
+  .explorer-foot { border-top: 1px solid var(--cds-border-subtle-01); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 
-  .canvas { flex: 1; position: relative; background: var(--layer); display: flex; flex-direction: column; min-width: 0; }
-  .viewbar { display: flex; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  .tabbtn { border: 1px solid transparent; background: transparent; color: var(--text-muted); padding: 6px 12px; font-size: 13px; cursor: pointer; border-radius: 0; border-bottom: 2px solid transparent; }
-  .tabbtn:hover { background: var(--layer2); }
-  .tabbtn.on { color: var(--text); border-bottom-color: var(--teal); }
+  .canvas { flex: 1; position: relative; background: var(--cds-layer-01); display: flex; flex-direction: column; min-width: 0; }
   .stage { flex: 1; overflow: auto; padding: 16px; display: flex; align-items: center; justify-content: center; }
-  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); padding: 8px 12px; border-top: 1px solid var(--border); }
-  .hint { font-size: 11px; color: var(--text-dim); padding: 6px 12px; border-top: 1px solid var(--border); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--cds-text-helper); padding: 8px 12px; border-top: 1px solid var(--cds-border-subtle-01); }
+  .hint { font-size: 11px; color: var(--cds-text-helper); padding: 6px 12px; border-top: 1px solid var(--cds-border-subtle-01); }
 
-  .side { width: 320px; background: var(--layer); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .grouptabs { display: flex; align-items: center; padding: 8px 8px 0; border-bottom: 1px solid var(--border); gap: 2px; }
-  .grouptabs .spacer { flex: 1; }
-  .tabpanel { padding: var(--sp4); overflow: auto; flex: 1; }
+  .side { width: 320px; background: var(--cds-layer-01); border-left: 1px solid var(--cds-border-subtle-01); display: flex; flex-direction: column; }
+  .tabpanel { padding: 16px; overflow: auto; flex: 1; }
 
-  .field { margin-bottom: var(--sp3); }
-  .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-  .field input, .field select, .field textarea { width: 100%; background: var(--field); border: 0; border-bottom: 1px solid var(--border-strong); color: var(--text); padding: 8px 10px; font-family: inherit; font-size: 13px; border-radius: 0; }
-  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--blue); outline-offset: -2px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp3); }
-  .fold { border-top: 1px solid var(--border); }
-  .fold__head { display: flex; align-items: center; gap: 8px; padding: 10px 2px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fold { border-top: 1px solid var(--cds-border-subtle-01); margin-top: 8px; }
+  .fold__head { display: flex; align-items: center; gap: 8px; padding: 10px 2px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--cds-text-secondary); }
   .fold.collapsed .fold__body { display: none; }
   .fold.collapsed .chev { transform: rotate(-90deg); }
+  .cds--form-item { margin-bottom: 12px; }
 
-  .kbd { display: inline-block; border: 1px solid var(--border-strong); border-bottom-width: 2px; padding: 1px 6px; font-size: 11px; font-family: "IBM Plex Mono", monospace; margin-right: 4px; }
+  .kbd { display: inline-block; border: 1px solid var(--cds-border-strong-01); border-bottom-width: 2px; padding: 1px 6px; font-size: 11px; font-family: "IBM Plex Mono", monospace; margin-right: 4px; }
   dl.shortcuts { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px; align-items: baseline; }
-  dl.shortcuts dd { margin: 0; color: var(--text-muted); }
+  dl.shortcuts dd { margin: 0; color: var(--cds-text-secondary); }
 
-  /* ---- menu popover ---- */
+  /* menu popover */
   .menu { position: relative; display: inline-block; }
-  .menu-pop { position: absolute; right: 0; top: calc(100% + 4px); min-width: 190px; background: var(--layer); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 40; padding: 4px; display: none; }
+  .menu-pop { position: absolute; right: 0; top: calc(100% + 2px); min-width: 200px; background: var(--cds-layer-02); box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 40; display: none; }
   .menu.open .menu-pop { display: block; }
-  .menu-pop button { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); font-size: 13px; padding: 9px 12px; cursor: pointer; }
-  .menu-pop button:hover { background: var(--layer2); }
-  .menu-pop .sep { height: 1px; background: var(--border); margin: 4px; }
-  .menu-pop .h { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; padding: 6px 12px 4px; }
+  .menu-pop button { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--cds-text-primary); font-size: 13px; padding: 11px 16px; cursor: pointer; font-family: inherit; }
+  .menu-pop button:hover { background: var(--cds-layer-03, #4c4c4c); }
+  .menu-pop .sep { height: 1px; background: var(--cds-border-subtle-01); }
+  .menu-pop .h { font-size: 11px; color: var(--cds-text-helper); text-transform: uppercase; letter-spacing: .3px; padding: 8px 16px 4px; }
 
-  /* ---- Yamazumi ---- */
-  .yama { display: flex; align-items: flex-end; gap: 14px; height: 160px; padding: 12px; border: 1px solid var(--border); background: var(--layer); }
+  /* yamazumi + bar charts */
+  .yama { display: flex; align-items: flex-end; gap: 14px; height: 160px; padding: 12px; border: 1px solid var(--cds-border-subtle-01); background: var(--cds-layer-01); }
   .yama__bar { width: 44px; display: flex; flex-direction: column-reverse; }
   .yama__seg { width: 100%; }
-  .yama__x { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
-  .taktline { position: relative; }
-
-  /* ---- bar chart ---- */
-  .bars { display: flex; align-items: flex-end; gap: 12px; height: 150px; padding: 12px; border: 1px solid var(--border); background: var(--layer); }
+  .bars { display: flex; align-items: flex-end; gap: 12px; height: 150px; padding: 12px; border: 1px solid var(--cds-border-subtle-01); background: var(--cds-layer-01); }
   .bars__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
   .bars__fill { width: 70%; background: var(--teal); }
-  .bars__lab { font-size: 11px; color: var(--text-dim); margin-top: 6px; text-align: center; }
+  .bars__lab { font-size: 11px; color: var(--cds-text-helper); margin-top: 6px; text-align: center; }
 
-  /* ---- report ---- */
-  .report { background: #1b1b1b; border: 1px solid var(--border); padding: 40px; }
+  /* report */
+  .report { background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle-01); padding: 40px; }
   .report h2 { font-size: 34px; font-weight: 300; }
-  .report .cover-meta { color: var(--text-dim); margin: 4px 0 20px; }
-  .kpi6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
-  .kpi6 .cell { background: var(--layer); padding: 14px; }
-  .kpi6 .cell .lab { font-size: 12px; color: var(--text-dim); }
+  .report .cover-meta { color: var(--cds-text-helper); margin: 4px 0 20px; }
+  .kpi6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--cds-border-subtle-01); border: 1px solid var(--cds-border-subtle-01); }
+  .kpi6 .cell { background: var(--cds-layer-01); padding: 14px; }
+  .kpi6 .cell .lab { font-size: 12px; color: var(--cds-text-helper); }
   .kpi6 .cell .v { font-size: 22px; font-weight: 300; margin: 4px 0; }
   .rsec { margin-top: 32px; }
-  .rsec h3 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; }
+  .rsec h3 { font-size: 18px; border-bottom: 1px solid var(--cds-border-subtle-01); padding-bottom: 8px; margin-bottom: 12px; }
   dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; font-size: 13px; }
-  dl.facts dt { color: var(--text-dim); }
+  dl.facts dt { color: var(--cds-text-helper); }
   dl.facts dd { margin: 0; }
 
-  /* ---- back / page banner ---- */
   .pagehead { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .pagehead .spacer { flex: 1; }
 
-  /* ---- mockup navigator (prototype aid) ---- */
-  .navbar { position: fixed; bottom: 0; left: 0; right: 0; background: #0c0c0c; border-top: 1px solid var(--border); z-index: 60;
-            display: flex; align-items: center; gap: 6px; padding: 6px 12px; overflow-x: auto; }
-  .navbar__lab { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; flex: 0 0 auto; margin-right: 4px; }
-  .navbar button { flex: 0 0 auto; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 12px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
-  .navbar button:hover { color: var(--text); border-color: var(--border-strong); }
-  .navbar button.on { color: #06201f; background: var(--teal); border-color: var(--teal); }
-  body { padding-bottom: 46px; }
+  /* twin-pane library/concepts */
+  .twin { display: grid; grid-template-columns: 1fr 1.2fr; gap: 1px; background: var(--cds-border-subtle-01); border: 1px solid var(--cds-border-subtle-01); }
+  .twin > div { background: var(--cds-layer-01); padding: 16px; }
 
-  .canvas-empty { text-align: center; color: var(--text-muted); }
-  .canvas-empty__title { font-size: 16px; color: var(--text); }
+  /* mockup navigator (prototype aid) */
+  .navbar { position: fixed; bottom: 0; left: 0; right: 0; background: #0c0c0c; border-top: 1px solid var(--cds-border-subtle-01); z-index: 60;
+            display: flex; align-items: center; gap: 6px; padding: 6px 12px; overflow-x: auto; }
+  .navbar__lab { font-size: 11px; color: var(--cds-text-helper); text-transform: uppercase; letter-spacing: .3px; flex: 0 0 auto; margin-right: 4px; }
+  .navbar button { flex: 0 0 auto; border: 1px solid var(--cds-border-subtle-01); background: transparent; color: var(--cds-text-secondary); font-size: 12px; padding: 5px 9px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .navbar button:hover { color: var(--cds-text-primary); border-color: var(--cds-border-strong-01); }
+  .navbar button.on { color: #06201f; background: var(--teal); border-color: var(--teal); }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .best { color: var(--teal); font-weight: 600; }
   svg text { font-family: "IBM Plex Sans", sans-serif; }
+  .iconbtn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; color: var(--cds-text-secondary); cursor: pointer; }
+  .iconbtn:hover { background: var(--cds-layer-02); color: var(--cds-text-primary); }
+  .iconbtn svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
 
-<!-- ============================ APP HEADER ============================ -->
-<div class="appbar">
-  <div class="wordmark" onclick="go('start')" title="Back to the portal"><b>Flow</b>Plan</div>
-  <div class="spacer"></div>
-  <div class="topctl">
-    <button class="iconbtn" title="Language (EN)"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c4 4 4 20 0 24M16 4c-4 4-4 20 0 24"/></svg></button>
-    <button class="iconbtn" title="Switch to light theme"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M16 12a4 4 0 100 8 4 4 0 000-8zm0-6v3m0 14v3M6 16H3m26 0h-3M8 8l2 2m12 12l2 2M24 8l-2 2M10 22l-2 2" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+<!-- ============================ CARBON UI-SHELL HEADER ============================ -->
+<header class="cds--header" aria-label="FlowPlan">
+  <a class="cds--header__name" href="#" onclick="go('start');return false;" title="Back to the portal"><span class="cds--header__name--prefix">Flow</span>&nbsp;Plan</a>
+  <div class="cds--header__global">
+    <button class="cds--header__action" type="button" aria-label="Language (EN)"><svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c4 4 4 20 0 24M16 4c-4 4-4 20 0 24"/></svg></button>
+    <button class="cds--header__action" type="button" aria-label="Switch to light theme"><svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><circle cx="16" cy="16" r="4"/><path d="M16 2v4m0 20v4M2 16h4m20 0h4M6 6l3 3m14 14l3 3M26 6l-3 3M9 23l-3 3"/></svg></button>
   </div>
-</div>
+</header>
 
-<!-- process stepper (visible on the four planning stages) -->
+<!-- process stepper — Carbon ProgressIndicator -->
 <nav class="stepper" id="stepper" aria-label="Planning process">
-  <button class="step" data-step="demand"   onclick="gotoStep('demand')"><span class="step__dot">1</span><span class="step__meta"><span class="step__label">Parts &amp; demand</span><span class="step__hint">What, how many, how long</span></span></button>
-  <button class="step" data-step="concepts" onclick="gotoStep('concepts')"><span class="step__dot">2</span><span class="step__meta"><span class="step__label">Concepts</span><span class="step__hint">Compare and choose</span></span></button>
-  <button class="step" data-step="refine"   onclick="gotoStep('refine')"><span class="step__dot">3</span><span class="step__meta"><span class="step__label">Refine</span><span class="step__hint">Layout, balance, cost</span></span></button>
-  <button class="step" data-step="summary"  onclick="gotoStep('summary')"><span class="step__dot">4</span><span class="step__meta"><span class="step__label">Summary</span><span class="step__hint">Decide and export</span></span></button>
+  <ul class="cds--progress cds--progress--space-equal">
+    <li class="cds--progress-step cds--progress-step--current" data-step="demand">
+      <button class="cds--progress-step-button" type="button" onclick="gotoStep('demand')">
+        <svg class="cds--progress-step-icon" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke-width="1.25"/><circle class="dot" cx="8" cy="8" r="3.25"/></svg>
+        <p class="cds--progress-label">Parts &amp; demand</p><span class="cds--progress-line"></span>
+      </button>
+    </li>
+    <li class="cds--progress-step cds--progress-step--disabled" data-step="concepts">
+      <button class="cds--progress-step-button" type="button" onclick="gotoStep('concepts')">
+        <svg class="cds--progress-step-icon" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke-width="1.25"/><circle class="dot" cx="8" cy="8" r="3.25"/></svg>
+        <p class="cds--progress-label">Concepts</p><span class="cds--progress-line"></span>
+      </button>
+    </li>
+    <li class="cds--progress-step cds--progress-step--disabled" data-step="refine">
+      <button class="cds--progress-step-button" type="button" onclick="gotoStep('refine')">
+        <svg class="cds--progress-step-icon" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke-width="1.25"/><circle class="dot" cx="8" cy="8" r="3.25"/></svg>
+        <p class="cds--progress-label">Refine</p><span class="cds--progress-line"></span>
+      </button>
+    </li>
+    <li class="cds--progress-step cds--progress-step--disabled" data-step="summary">
+      <button class="cds--progress-step-button" type="button" onclick="gotoStep('summary')">
+        <svg class="cds--progress-step-icon" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke-width="1.25"/><circle class="dot" cx="8" cy="8" r="3.25"/></svg>
+        <p class="cds--progress-label">Summary</p><span class="cds--progress-line"></span>
+      </button>
+    </li>
+  </ul>
 </nav>
 
 <!-- ============================ START / PORTAL ============================ -->
 <section class="screen" id="s-start">
   <div class="wrap">
-    <header style="margin-bottom: 8px;">
+    <header style="margin-bottom:8px">
       <h1 class="page-title">FlowPlan</h1>
       <p class="page-sub">Manufacturing cell sizing, concept comparison and layout assessment.</p>
     </header>
@@ -300,12 +248,12 @@
     <section>
       <h2 class="portal-group__title">Cells &amp; planning</h2>
       <div class="portal">
-        <button class="tile" onclick="gotoStep('demand')">
+        <button class="cds--tile cds--tile--clickable" onclick="gotoStep('demand')">
           <span class="tile__title">Plan a cell</span>
           <span class="tile__body">Size a cell from its part demand, compare costed concepts, refine and assess the layout.</span>
           <span class="tile__meta">Parts &amp; demand → Concepts → Refine → Summary</span>
         </button>
-        <button class="tile" onclick="go('plans')">
+        <button class="cds--tile cds--tile--clickable" onclick="go('plans')">
           <span class="tile__title">Cell plans</span>
           <span class="tile__body">Every plan you have saved, in one place — open one to keep working, or manage the store.</span>
           <span class="tile__meta">3 plans saved</span>
@@ -316,12 +264,12 @@
     <section>
       <h2 class="portal-group__title">Libraries</h2>
       <div class="portal">
-        <button class="tile" onclick="go('library')">
+        <button class="cds--tile cds--tile--clickable" onclick="go('library')">
           <span class="tile__title">Process library</span>
           <span class="tile__body">Process steps with cycle, manning, changeover, capex and footprint. Reused across routings and cells.</span>
           <span class="tile__meta">12 processes</span>
         </button>
-        <button class="tile" onclick="go('concepts')">
+        <button class="cds--tile cds--tile--clickable" onclick="go('concepts-cat')">
           <span class="tile__title">Manufacturing concepts</span>
           <span class="tile__body">Concept profiles the comparison is generated from — volume band, cycle multiplier, manning and capex.</span>
           <span class="tile__meta">5 concepts · as shipped</span>
@@ -329,9 +277,9 @@
       </div>
     </section>
 
-    <div style="display:flex; gap:8px; margin-top: 24px;">
-      <button class="btn btn--ghost" onclick="go('refine')">Start blank</button>
-      <button class="btn btn--ghost" onclick="go('refine')">Import a JSON model</button>
+    <div style="display:flex; gap:8px; margin-top:24px">
+      <button class="cds--btn cds--btn--ghost cds--btn--md" onclick="go('refine')">Start blank</button>
+      <button class="cds--btn cds--btn--ghost cds--btn--md" onclick="go('refine')">Import a JSON model</button>
     </div>
   </div>
 </section>
@@ -339,22 +287,22 @@
 <!-- ============================ STAGE 1 — PARTS & DEMAND ============================ -->
 <section class="screen" id="s-demand">
   <div class="wrap wrap--wide">
-    <h2 class="page-title" style="font-size:22px">Parts &amp; demand</h2>
+    <h2 class="page-title page-title--sm">Parts &amp; demand</h2>
     <p class="page-sub">Part numbers, routings and demand per program year. The cell is sized on the busiest year and balanced across the mix.</p>
 
     <p class="footnote">Routing format: <code class="mono">Load 5 &gt; Press 10</code> — step name, cycle in seconds. Omit a time to infer it. <span style="float:right">3 program years &nbsp; − &nbsp; +</span></p>
 
-    <div style="overflow-x:auto; border:1px solid var(--border);">
-      <table class="grid">
-        <thead>
-          <tr><th>Part number</th><th style="min-width:320px">Routing</th><th class="num">Yr 1</th><th class="num">Yr 2</th><th class="num">Yr 3</th><th></th></tr>
-        </thead>
+    <div class="cds--data-table-container">
+      <table class="cds--data-table cds--data-table--md">
+        <thead><tr><th>Part number</th><th style="min-width:340px">Routing</th><th class="num">Yr 1</th><th class="num">Yr 2</th><th class="num">Yr 3</th><th></th></tr></thead>
         <tbody>
           <tr>
             <td class="mono">PN-001</td>
             <td>
-              <span class="tag">CNC Turning 42s</span> <span class="tag">Press 38s</span> <span class="tag">Assembly 95s</span> <span class="tag">QA 30s</span>
-              <div class="footnote" style="margin:6px 0 0">Load 5 &gt; Press 10 &gt; Weld 20 …</div>
+              <div class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">CNC Turning 42s</span></div>
+              <div class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Press 38s</span></div>
+              <div class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Assembly 95s</span></div>
+              <div class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">QA 30s</span></div>
             </td>
             <td class="num mono">280,000</td><td class="num mono">315,000</td><td class="num mono">300,000</td>
             <td><button class="iconbtn" title="Remove PN-001">🗑</button></td>
@@ -362,7 +310,7 @@
         </tbody>
       </table>
     </div>
-    <div style="margin-top:8px"><button class="btn btn--ghost btn--sm">＋ Add a part</button></div>
+    <div style="margin-top:8px"><button class="cds--btn cds--btn--ghost cds--btn--sm">＋ Add a part</button></div>
 
     <div class="derived" style="margin-top:16px">
       <div><span class="derived__lab">Sized for</span><span class="derived__val mono">315,000</span><span class="derived__note">year 2, the busiest</span></div>
@@ -373,28 +321,33 @@
 
     <h3 class="seclabel">Program</h3>
     <div class="row2" style="grid-template-columns: repeat(3, 1fr); max-width:640px">
-      <div class="field"><label>Cell or program name</label><input value="Cell A — Hydrobuchse line" /></div>
-      <div class="field"><label>Shifts per year</label><input class="mono" value="460" /></div>
-      <div class="field"><label>Shift hours</label><input class="mono" value="8" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Cell or program name</label><input class="cds--text-input" value="Cell A — Hydrobuchse line" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Shifts per year</label><input class="cds--text-input mono" value="460" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Shift hours</label><input class="cds--text-input mono" value="8" /></div>
     </div>
 
     <p class="footnote">4 steps · 205s total work content · 100% of names recognised</p>
-    <div style="overflow-x:auto; border:1px solid var(--border);">
-      <table class="grid">
-        <thead><tr><th>Step</th><th>Time</th><th>Capability</th><th>Class</th><th>Operator</th></tr></thead>
-        <tbody>
-          <tr><td>CNC Turning</td><td class="mono">42s</td><td>turning <span class="footnote" style="margin:0">inferred</span></td><td><span class="tag tag--green">VA</span></td><td class="mono">15% <span class="footnote" style="margin:0">inferred</span></td></tr>
-          <tr><td>Press</td><td class="mono">38s</td><td>forming <span class="footnote" style="margin:0">inferred</span></td><td><span class="tag tag--green">VA</span></td><td class="mono">60% <span class="footnote" style="margin:0">inferred</span></td></tr>
-          <tr><td>Assembly</td><td class="mono">95s</td><td>assembly <span class="footnote" style="margin:0">inferred</span></td><td><span class="tag tag--green">VA</span></td><td class="mono">100% <span class="footnote" style="margin:0">inferred</span></td></tr>
-          <tr><td>QA</td><td class="mono">30s</td><td>inspection <span class="footnote" style="margin:0">inferred</span></td><td><span class="tag tag--gray">NNVA</span></td><td class="mono">100% <span class="footnote" style="margin:0">inferred</span></td></tr>
-        </tbody>
-      </table>
+    <div class="cds--structured-list">
+      <div class="cds--structured-list-thead"><div class="cds--structured-list-row cds--structured-list-row--header-row">
+        <div class="cds--structured-list-th">Step</div><div class="cds--structured-list-th">Time</div><div class="cds--structured-list-th">Capability</div><div class="cds--structured-list-th">Class</div><div class="cds--structured-list-th">Operator</div>
+      </div></div>
+      <div class="cds--structured-list-tbody">
+        <div class="cds--structured-list-row"><div class="cds--structured-list-td">CNC Turning</div><div class="cds--structured-list-td mono">42s</div><div class="cds--structured-list-td">turning</div><div class="cds--structured-list-td"><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div><div class="cds--structured-list-td mono">15%</div></div>
+        <div class="cds--structured-list-row"><div class="cds--structured-list-td">Press</div><div class="cds--structured-list-td mono">38s</div><div class="cds--structured-list-td">forming</div><div class="cds--structured-list-td"><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div><div class="cds--structured-list-td mono">60%</div></div>
+        <div class="cds--structured-list-row"><div class="cds--structured-list-td">Assembly</div><div class="cds--structured-list-td mono">95s</div><div class="cds--structured-list-td">assembly</div><div class="cds--structured-list-td"><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div><div class="cds--structured-list-td mono">100%</div></div>
+        <div class="cds--structured-list-row"><div class="cds--structured-list-td">QA</div><div class="cds--structured-list-td mono">30s</div><div class="cds--structured-list-td">inspection</div><div class="cds--structured-list-td"><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">NNVA</span></span></div><div class="cds--structured-list-td mono">100%</div></div>
+      </div>
     </div>
-    <div class="note note--info"><b>Inferred fields</b><span>Capability, work class and operator binding are derived from the step name. Low confidence — correct in the editor.</span></div>
+    <div class="cds--inline-notification cds--inline-notification--info cds--inline-notification--low-contrast" style="margin-top:12px">
+      <div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper">
+        <p class="cds--inline-notification__title">Inferred fields</p>
+        <p class="cds--inline-notification__subtitle">Capability, work class and operator binding are derived from the step name. Low confidence — correct in the editor.</p>
+      </div></div>
+    </div>
 
-    <div style="display:flex; gap:8px; margin-top:24px;">
-      <button class="btn btn--secondary" onclick="go('start')">Back</button>
-      <button class="btn" onclick="gotoStep('concepts')">Continue</button>
+    <div style="display:flex; gap:8px; margin-top:24px">
+      <button class="cds--btn cds--btn--secondary cds--btn--md" onclick="go('start')">Back</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md" onclick="gotoStep('concepts')">Continue</button>
     </div>
   </div>
 </section>
@@ -402,54 +355,50 @@
 <!-- ============================ STAGE 2 — CONCEPTS ============================ -->
 <section class="screen" id="s-concepts">
   <div class="wrap wrap--wide">
-    <h2 class="page-title" style="font-size:22px">Concept comparison</h2>
+    <h2 class="page-title page-title--sm">Concept comparison</h2>
     <p class="page-sub">685 parts/shift · year-2 peak · cost per part fully loaded (operating + amortised capex)</p>
 
-    <div style="display:flex; align-items:center; gap:12px; margin:12px 0;">
-      <button class="btn btn--ghost btn--sm">Weights</button>
+    <div style="display:flex; align-items:center; gap:12px; margin:12px 0">
+      <button class="cds--btn cds--btn--ghost cds--btn--sm">Weights</button>
       <span class="footnote" style="margin:0">Default weighting — cost 50% · capex 15% · fit 20% · manning 10% · flex 5%</span>
     </div>
 
-    <div style="overflow-x:auto; border:1px solid var(--border);">
-      <table class="grid">
-        <thead>
-          <tr><th>Score · concept</th><th class="num">Cost / part</th><th class="num">Capex</th><th class="num">Operators</th><th class="num">Output</th><th>Notes</th></tr>
-        </thead>
+    <div class="cds--data-table-container">
+      <table class="cds--data-table cds--data-table--md">
+        <thead><tr><th>Score · concept</th><th class="num">Cost / part</th><th class="num">Capex</th><th class="num">Operators</th><th class="num">Output</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr class="selrow">
+          <tr class="cds--data-table--selected">
             <td><span class="mono" style="font-size:20px">82</span> &nbsp;<b>U-cell</b><div class="footnote" style="margin:2px 0">U-cell · 5 steps · 6 units · <span class="mono">cost 74 · capex 61 · fit 100 · manning 70 · flex 88</span></div></td>
             <td class="num"><b class="mono">$4.18</b><div class="footnote" style="margin:0">$3.02 run + $1.16 capex</div></td>
             <td class="num mono">$420,000</td><td class="num mono">4</td>
             <td class="num"><span class="mono">720</span><div class="footnote" style="margin:0">/shift</div></td>
-            <td><span class="tag tag--teal">+5% capacity</span></td>
+            <td><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">+5% capacity</span></span></td>
           </tr>
           <tr>
             <td><span class="mono" style="font-size:20px">79</span> &nbsp;<b>Flow line</b><div class="footnote" style="margin:2px 0">Straight line · 5 steps · 6 units</div></td>
             <td class="num"><b class="mono">$4.02</b><div class="footnote" style="margin:0">$2.71 run + $1.31 capex</div></td>
             <td class="num mono">$610,000</td><td class="num mono">3</td>
-            <td class="num"><span class="mono">780</span><div class="footnote" style="margin:0">/shift</div></td>
-            <td></td>
+            <td class="num"><span class="mono">780</span><div class="footnote" style="margin:0">/shift</div></td><td></td>
           </tr>
           <tr>
             <td><span class="mono" style="font-size:20px">71</span> &nbsp;<b>Manual bench</b><div class="footnote" style="margin:2px 0">L-cell · 5 steps · 6 units</div></td>
             <td class="num"><b class="mono">$5.40</b><div class="footnote" style="margin:0">$5.02 run + $0.38 capex</div></td>
             <td class="num mono">$180,000</td><td class="num mono">6</td>
-            <td class="num"><span class="mono">540</span><div class="footnote" style="margin:0">/shift</div></td>
-            <td></td>
+            <td class="num"><span class="mono">540</span><div class="footnote" style="margin:0">/shift</div></td><td></td>
           </tr>
           <tr>
             <td><span class="mono" style="font-size:20px">63</span> &nbsp;<b>Job shop</b><div class="footnote" style="margin:2px 0">Workshop · 5 steps · 6 units</div></td>
             <td class="num"><b class="mono">$6.85</b><div class="footnote" style="margin:0">$6.65 run + $0.20 capex</div></td>
             <td class="num mono">$95,000</td><td class="num mono">7</td>
             <td class="num"><span class="mono">410</span><div class="footnote" style="margin:0">/shift</div></td>
-            <td><span class="tag tag--magenta">Off-volume</span></td>
+            <td><span class="cds--tag cds--tag--magenta cds--tag--sm"><span class="cds--tag__label">Off-volume</span></span></td>
           </tr>
           <tr>
             <td><span class="mono" style="font-size:20px">44</span> &nbsp;<b>Transfer line</b><div class="footnote" style="margin:2px 0">Straight line · 5 steps · 6 units</div></td>
             <td class="num"><b class="mono">$3.60</b><div class="footnote" style="margin:0">$1.98 run + $1.62 capex</div></td>
             <td class="num mono">$1,250,000</td><td class="num mono">2</td>
             <td class="num"><span class="mono">950</span><div class="footnote" style="margin:0">/shift</div></td>
-            <td><span class="tag tag--magenta">Off-volume</span></td>
+            <td><span class="cds--tag cds--tag--magenta cds--tag--sm"><span class="cds--tag__label">Off-volume</span></span></td>
           </tr>
         </tbody>
       </table>
@@ -460,32 +409,31 @@
     <div class="card"><div class="card__body">
       <p class="u-muted" style="margin-top:0">The whole sweep, re-run across the volume axis. Demand is a forecast, so the ranked table answers only "what is best at 315k/yr".</p>
       <div class="bars" style="height:120px; align-items:stretch">
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; border-right:1px solid var(--border)"><div class="tag tag--gray" style="margin:auto">Manual bench</div><div class="footnote">0 – 30k/yr</div></div>
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; border-right:1px solid var(--border); background:#10302f"><div class="tag tag--teal" style="margin:auto">U-cell ✓</div><div class="footnote">30k – 260k/yr · +3.8% over Flow line</div></div>
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center"><div class="tag tag--gray" style="margin:auto">Flow line</div><div class="footnote">260k – 800k/yr</div></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; border-right:1px solid var(--cds-border-subtle-01)"><div class="cds--tag cds--tag--gray cds--tag--sm" style="margin:auto"><span class="cds--tag__label">Manual bench</span></div><div class="footnote">0 – 30k/yr</div></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; border-right:1px solid var(--cds-border-subtle-01); background:#10302f"><div class="cds--tag cds--tag--teal cds--tag--sm" style="margin:auto"><span class="cds--tag__label">U-cell ✓</span></div><div class="footnote">30k – 260k/yr · +3.8% over Flow line</div></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center"><div class="cds--tag cds--tag--gray cds--tag--sm" style="margin:auto"><span class="cds--tag__label">Flow line</span></div><div class="footnote">260k – 800k/yr</div></div>
       </div>
       <p class="footnote">At 315k/yr the winner is <b>U-cell</b>, by a 3.8% margin over the runner-up — not a coin toss.</p>
     </div></div>
 
     <h3 class="seclabel">Sensitivity — does the winner survive being wrong?</h3>
     <div class="card"><div class="card__body">
-      <div class="meter"><div class="meter__top"><span>Demand ±30%</span><span class="tag tag--teal">holds</span></div></div>
-      <div class="meter"><div class="meter__top"><span>Labour rate ±30%</span><span class="tag tag--teal">holds</span></div></div>
-      <div class="meter"><div class="meter__top"><span>Program length ±30%</span><span class="tag tag--amber">flips at −30% → Flow line</span></div></div>
-      <div class="meter"><div class="meter__top"><span>Shift pattern ±30%</span><span class="tag tag--teal">holds</span></div></div>
+      <div class="meter"><div class="meter__top"><span>Demand ±30%</span><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">holds</span></span></div></div>
+      <div class="meter"><div class="meter__top"><span>Labour rate ±30%</span><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">holds</span></span></div></div>
+      <div class="meter"><div class="meter__top"><span>Program length ±30%</span><span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">flips at −30% → Flow line</span></span></div></div>
+      <div class="meter"><div class="meter__top"><span>Shift pattern ±30%</span><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">holds</span></span></div></div>
       <p class="footnote">Each factor varied on its own (±30%). One-at-a-time — interaction effects are not modelled.</p>
     </div></div>
 
-    <div style="display:flex; gap:8px; margin-top:24px;">
-      <button class="btn btn--secondary" onclick="gotoStep('demand')">Back</button>
-      <button class="btn" onclick="gotoStep('refine')">Refine this layout</button>
+    <div style="display:flex; gap:8px; margin-top:24px">
+      <button class="cds--btn cds--btn--secondary cds--btn--md" onclick="gotoStep('demand')">Back</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md" onclick="gotoStep('refine')">Refine this layout</button>
     </div>
   </div>
 </section>
 
 <!-- ============================ STAGE 3 — REFINE / EDITOR ============================ -->
 <section class="screen" id="s-refine">
-  <!-- editor toolbar -->
   <div class="editorbar">
     <div class="hkpi">
       <div><div class="hkpi__label">Grade</div><div class="hkpi__value" style="color:var(--teal)">A</div></div>
@@ -495,9 +443,9 @@
       <div><div class="hkpi__label">Value add</div><div class="hkpi__value mono" style="color:var(--teal)">63%</div></div>
     </div>
     <div class="spacer"></div>
-    <button class="btn btn--sm" onclick="gotoStep('summary')">Continue to summary</button>
+    <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="gotoStep('summary')">Continue to summary</button>
     <span class="hsep"></span>
-    <button class="btn btn--ghost btn--sm" title="Cell plans" onclick="toggleExplorer()">🗂 Cell A — Hydrobuchse…</button>
+    <button class="cds--btn cds--btn--ghost cds--btn--sm" title="Cell plans" onclick="toggleExplorer()">🗂 Cell A — Hydrobuchse…</button>
     <span class="hsep"></span>
     <button class="iconbtn" title="Analysis" onclick="go('analysis')"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 28V4M4 24l7-8 5 4 8-11 4 5"/></svg></button>
     <button class="iconbtn" title="Recommend" onclick="go('recommend')"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3a9 9 0 00-5 16v4h10v-4a9 9 0 00-5-16zM12 29h8"/></svg></button>
@@ -506,34 +454,29 @@
       <button class="iconbtn" title="Variants" onclick="toggleMenu('menu-variants')">⋔</button>
       <div class="menu-pop">
         <div class="h">Variants (2)</div>
-        <button>Baseline</button>
-        <button>U-cell v2</button>
+        <button>Baseline</button><button>U-cell v2</button>
         <div class="sep"></div>
         <button>Save variant…</button>
         <button onclick="go('compare'); toggleMenu('menu-variants')">Compare variants</button>
       </div>
     </div>
-    <button class="iconbtn" title="Undo (Ctrl/Cmd+Z)"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8L4 16l8 8M4 16h16a8 8 0 010 0h0a8 8 0 01-8 8"/></svg></button>
-    <button class="iconbtn" title="Redo"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 8l8 8-8 8M28 16H12a8 8 0 000 0h0a8 8 0 008 8"/></svg></button>
+    <button class="iconbtn" title="Undo (Ctrl/Cmd+Z)"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8L4 16l8 8M4 16h16a8 8 0 010 16"/></svg></button>
+    <button class="iconbtn" title="Redo"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 8l8 8-8 8M28 16H12a8 8 0 000 16"/></svg></button>
     <span class="hsep"></span>
     <div class="menu" id="menu-export">
-      <button class="btn btn--secondary btn--sm" onclick="toggleMenu('menu-export')">Export ▾</button>
+      <button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="toggleMenu('menu-export')">Export ▾</button>
       <div class="menu-pop">
         <div class="h">Load, export &amp; report</div>
         <button>Load JSON…</button>
         <div class="sep"></div>
-        <button>Export JSON</button>
-        <button>Export CSV</button>
-        <button>Export PNG</button>
+        <button>Export JSON</button><button>Export CSV</button><button>Export PNG</button>
         <button onclick="go('report'); toggleMenu('menu-export')">Open report</button>
       </div>
     </div>
     <button class="iconbtn" title="Settings"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><circle cx="16" cy="16" r="4"/><path d="M16 2v4m0 20v4M2 16h4m20 0h4M6 6l3 3m14 14l3 3M26 6l-3 3M9 23l-3 3"/></svg></button>
   </div>
 
-  <!-- editor 3-column workbench -->
   <div class="editor">
-    <!-- explorer -->
     <aside class="explorer-side" id="explorer">
       <div class="explorer-head"><h2 class="explorer-title">Cell plans</h2><button class="iconbtn" onclick="toggleExplorer()" title="Close the panel">✕</button></div>
       <div class="tree">
@@ -545,78 +488,37 @@
       </div>
       <div class="explorer-foot">
         <span class="seclabel" style="margin:0">Add process step</span>
-        <button class="btn btn--secondary btn--sm">＋ Add from library</button>
-        <button class="btn btn--ghost btn--sm">＋ Blank step</button>
+        <button class="cds--btn cds--btn--secondary cds--btn--sm">＋ Add from library</button>
+        <button class="cds--btn cds--btn--ghost cds--btn--sm">＋ Blank step</button>
       </div>
     </aside>
 
-    <!-- canvas -->
     <div class="canvas">
-      <div class="viewbar" role="tablist">
-        <button class="tabbtn on" onclick="setView(this,'actual')">Actual</button>
-        <button class="tabbtn" onclick="setView(this,'improved')">Improved</button>
-        <button class="tabbtn" onclick="setView(this,'both')">Both</button>
-        <button class="tabbtn" onclick="setView(this,'dag')">DAG</button>
+      <div class="cds--tabs">
+        <ul class="cds--tabs__nav" role="tablist" aria-label="Layout view">
+          <li class="cds--tabs__nav-item cds--tabs__nav-item--selected" role="tab" onclick="setView(this,'actual')"><button class="cds--tabs__nav-link" type="button">Actual</button></li>
+          <li class="cds--tabs__nav-item" role="tab" onclick="setView(this,'improved')"><button class="cds--tabs__nav-link" type="button">Improved</button></li>
+          <li class="cds--tabs__nav-item" role="tab" onclick="setView(this,'both')"><button class="cds--tabs__nav-link" type="button">Both</button></li>
+          <li class="cds--tabs__nav-item" role="tab" onclick="setView(this,'dag')"><button class="cds--tabs__nav-link" type="button">DAG</button></li>
+        </ul>
       </div>
-      <div class="stage" id="canvasStage">
-        <!-- SVG layout of the sample cell on a 22x14 grid (1 cell = 1 m) -->
-        <svg id="svg-actual" viewBox="0 0 528 336" width="560" style="max-width:100%; height:auto; background:#14201f; border:1px solid var(--border)">
+      <div class="stage">
+        <svg id="svg-actual" viewBox="0 0 528 336" width="560" style="max-width:100%; height:auto; background:#14201f; border:1px solid var(--cds-border-subtle-01)">
           <defs>
-            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-              <path d="M24 0H0V24" fill="none" stroke="#1f2b2a" stroke-width="1"/>
-            </pattern>
+            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#1f2b2a" stroke-width="1"/></pattern>
             <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#3ddbd9"/></marker>
           </defs>
           <rect width="528" height="336" fill="url(#grid)"/>
           <text x="8" y="18" fill="#3ddbd9" font-size="11" font-weight="600">ACTUAL</text>
-          <!-- flows -->
           <g stroke="#3ddbd9" stroke-width="2" fill="none" opacity="0.85" marker-end="url(#arrow)">
-            <path d="M84 168 L180 168 L180 84"/>
-            <path d="M216 84 L264 84"/>
-            <path d="M312 84 L312 252 L300 252"/>
-            <path d="M276 252 L180 252 L180 240"/>
-            <path d="M204 240 L204 168 L456 168"/>
+            <path d="M84 168 L180 168 L180 84"/><path d="M216 84 L264 84"/><path d="M312 84 L312 252 L300 252"/><path d="M276 252 L180 252 L180 240"/><path d="M204 240 L204 168 L456 168"/>
           </g>
-          <!-- stations: x,y,w,h in grid *24 -->
-          <!-- raw (input/store) 1,6,3,2 -->
-          <g>
-            <rect x="24" y="144" width="72" height="48" fill="#2a2320" stroke="#3ddbd9" stroke-width="1.5"/>
-            <circle cx="30" cy="150" r="3" fill="#3ddbd9"/><circle cx="90" cy="150" r="3" fill="#fa4d56"/>
-            <text x="60" y="172" fill="#f4f4f4" font-size="10" text-anchor="middle">Raw Material</text>
-          </g>
-          <!-- cnc (machine) 6,2,3,3 -->
-          <g>
-            <rect x="144" y="48" width="72" height="72" fill="#16343a" stroke="#3ddbd9" stroke-width="1.5"/>
-            <circle cx="150" cy="54" r="3" fill="#3ddbd9"/><circle cx="210" cy="54" r="3" fill="#3ddbd9"/>
-            <text x="180" y="86" fill="#f4f4f4" font-size="10" text-anchor="middle">CNC Turning</text>
-            <text x="180" y="100" fill="#8d8d8d" font-size="9" text-anchor="middle">42s · auto</text>
-          </g>
-          <!-- press (machine, fixed) 11,2,4,3 -->
-          <g>
-            <rect x="264" y="48" width="96" height="72" fill="#16343a" stroke="#3ddbd9" stroke-width="1.5" stroke-dasharray="3 2"/>
-            <circle cx="270" cy="54" r="3" fill="#d2a106"/><circle cx="354" cy="54" r="3" fill="#d2a106"/>
-            <text x="312" y="82" fill="#f4f4f4" font-size="10" text-anchor="middle">Press 🔒</text>
-            <text x="312" y="96" fill="#8d8d8d" font-size="9" text-anchor="middle">38s · semi · fixed</text>
-          </g>
-          <!-- assembly (manual, ergo high) 11,9,3,3 -->
-          <g>
-            <rect x="264" y="216" width="72" height="72" fill="#2a2f1e" stroke="#3ddbd9" stroke-width="1.5"/>
-            <circle cx="270" cy="222" r="3" fill="#fa4d56"/><circle cx="330" cy="222" r="3" fill="#fa4d56"/>
-            <text x="300" y="250" fill="#f4f4f4" font-size="10" text-anchor="middle">Assembly</text>
-            <text x="300" y="264" fill="#8d8d8d" font-size="9" text-anchor="middle">95s · 3 ops</text>
-          </g>
-          <!-- qa (quality) 6,9,3,2 -->
-          <g>
-            <rect x="144" y="216" width="72" height="48" fill="#1e2a36" stroke="#3ddbd9" stroke-width="1.5"/>
-            <circle cx="150" cy="222" r="3" fill="#3ddbd9"/><circle cx="210" cy="222" r="3" fill="#d2a106"/>
-            <text x="180" y="244" fill="#f4f4f4" font-size="10" text-anchor="middle">QA / Inspection</text>
-          </g>
-          <!-- ship (output/store) 18,6,3,2 -->
-          <g>
-            <rect x="432" y="144" width="72" height="48" fill="#2a2320" stroke="#d2a106" stroke-width="1.5"/>
-            <circle cx="438" cy="150" r="3" fill="#3ddbd9"/><circle cx="498" cy="150" r="3" fill="#fa4d56"/>
-            <text x="468" y="172" fill="#f4f4f4" font-size="10" text-anchor="middle">Shipping</text>
-          </g>
+          <g><rect x="24" y="144" width="72" height="48" fill="#2a2320" stroke="#3ddbd9" stroke-width="1.5"/><circle cx="30" cy="150" r="3" fill="#3ddbd9"/><circle cx="90" cy="150" r="3" fill="#fa4d56"/><text x="60" y="172" fill="#f4f4f4" font-size="10" text-anchor="middle">Raw Material</text></g>
+          <g><rect x="144" y="48" width="72" height="72" fill="#16343a" stroke="#3ddbd9" stroke-width="1.5"/><circle cx="150" cy="54" r="3" fill="#3ddbd9"/><circle cx="210" cy="54" r="3" fill="#3ddbd9"/><text x="180" y="86" fill="#f4f4f4" font-size="10" text-anchor="middle">CNC Turning</text><text x="180" y="100" fill="#8d8d8d" font-size="9" text-anchor="middle">42s · auto</text></g>
+          <g><rect x="264" y="48" width="96" height="72" fill="#16343a" stroke="#3ddbd9" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="270" cy="54" r="3" fill="#d2a106"/><circle cx="354" cy="54" r="3" fill="#d2a106"/><text x="312" y="82" fill="#f4f4f4" font-size="10" text-anchor="middle">Press 🔒</text><text x="312" y="96" fill="#8d8d8d" font-size="9" text-anchor="middle">38s · semi · fixed</text></g>
+          <g><rect x="264" y="216" width="72" height="72" fill="#2a2f1e" stroke="#3ddbd9" stroke-width="1.5"/><circle cx="270" cy="222" r="3" fill="#fa4d56"/><circle cx="330" cy="222" r="3" fill="#fa4d56"/><text x="300" y="250" fill="#f4f4f4" font-size="10" text-anchor="middle">Assembly</text><text x="300" y="264" fill="#8d8d8d" font-size="9" text-anchor="middle">95s · 3 ops</text></g>
+          <g><rect x="144" y="216" width="72" height="48" fill="#1e2a36" stroke="#3ddbd9" stroke-width="1.5"/><circle cx="150" cy="222" r="3" fill="#3ddbd9"/><circle cx="210" cy="222" r="3" fill="#d2a106"/><text x="180" y="244" fill="#f4f4f4" font-size="10" text-anchor="middle">QA / Inspection</text></g>
+          <g><rect x="432" y="144" width="72" height="48" fill="#2a2320" stroke="#d2a106" stroke-width="1.5"/><circle cx="438" cy="150" r="3" fill="#3ddbd9"/><circle cx="498" cy="150" r="3" fill="#fa4d56"/><text x="468" y="172" fill="#f4f4f4" font-size="10" text-anchor="middle">Shipping</text></g>
         </svg>
       </div>
       <div class="hint">Drag movable stations, or Tab to one and move it with the arrow keys · scroll to zoom · click a step to configure it</div>
@@ -627,93 +529,86 @@
       </div>
     </div>
 
-    <!-- config rail -->
     <div class="side">
-      <div class="grouptabs">
-        <button class="tabbtn on" onclick="setRail(this,'flow')">Flow</button>
-        <button class="tabbtn" onclick="setRail(this,'element')">Element</button>
-        <div class="spacer"></div>
-        <button class="iconbtn" title="Data model reference" onclick="setRail(this,'schema')">?</button>
-        <button class="iconbtn" title="Collapse config panel">⇥</button>
+      <div class="cds--tabs">
+        <ul class="cds--tabs__nav" role="tablist" aria-label="Editor panel">
+          <li class="cds--tabs__nav-item cds--tabs__nav-item--selected" role="tab" onclick="setRail(this,'flow')"><button class="cds--tabs__nav-link" type="button">Flow</button></li>
+          <li class="cds--tabs__nav-item" role="tab" onclick="setRail(this,'element')"><button class="cds--tabs__nav-link" type="button">Element</button></li>
+          <li class="cds--tabs__nav-item" role="tab" title="Data model reference" onclick="setRail(this,'schema')" style="margin-inline-start:auto"><button class="cds--tabs__nav-link" type="button">?</button></li>
+        </ul>
       </div>
 
-      <!-- Flow tab -->
       <div class="tabpanel rail-panel" data-rail="flow">
-        <div class="note note--ok"><b>✓ Process flow is valid</b><span>Every step connects input → output. No dead ends, orphans, or unreachable steps.</span></div>
-        <h4 class="seclabel" style="margin-top:16px">Draw connections</h4>
-        <button class="btn btn--secondary btn--sm">Draw a flow on the canvas</button>
-        <div class="fold" style="margin-top:16px">
-          <div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Layout settings</div>
+        <div class="cds--inline-notification cds--inline-notification--success cds--inline-notification--low-contrast">
+          <div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper">
+            <p class="cds--inline-notification__title">Process flow is valid</p>
+            <p class="cds--inline-notification__subtitle">Every step connects input → output. No dead ends, orphans, or unreachable steps.</p>
+          </div></div>
+        </div>
+        <h4 class="seclabel">Draw connections</h4>
+        <button class="cds--btn cds--btn--secondary cds--btn--sm">Draw a flow on the canvas</button>
+        <div class="fold"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Layout settings</div>
           <div class="fold__body">
-            <div class="field"><label>Cell name</label><input value="Cell A — Hydrobuchse line" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Cell name</label><input class="cds--text-input" value="Cell A — Hydrobuchse line" /></div>
             <div class="row2">
-              <div class="field"><label>Grid width (m)</label><input class="mono" value="22" /></div>
-              <div class="field"><label>Grid height (m)</label><input class="mono" value="14" /></div>
+              <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Grid width (m)</label><input class="cds--text-input mono" value="22" /></div>
+              <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Grid height (m)</label><input class="cds--text-input mono" value="14" /></div>
             </div>
-            <div class="field"><label>Shift length (hours)</label><input class="mono" value="8" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Shift length (hours)</label><input class="cds--text-input mono" value="8" /></div>
           </div>
         </div>
-        <div class="fold collapsed">
-          <div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Zones</div>
+        <div class="fold collapsed"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Zones</div>
           <div class="fold__body">
             <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px">
-              <span class="chip on">Blocked</span><span class="chip">Pathway</span><span class="chip">ESD</span><span class="chip">Cleanliness</span>
+              <span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">Blocked</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Pathway</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">ESD</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Cleanliness</span></span>
             </div>
-            <button class="btn btn--ghost btn--sm">Draw a Blocked zone</button>
+            <button class="cds--btn cds--btn--ghost cds--btn--sm">Draw a Blocked zone</button>
             <p class="footnote">Pick a kind, then drag a rectangle. Blocked and pathway keep stations out; ESD and cleanliness mark an area without blocking.</p>
           </div>
         </div>
       </div>
 
-      <!-- Element (configure) tab -->
       <div class="tabpanel rail-panel" data-rail="element" style="display:none">
         <div style="display:flex; align-items:center; justify-content:space-between">
           <h4 style="font-size:14px">Configure · <span class="mono">cnc</span></h4>
           <div><button class="iconbtn" title="Duplicate">⧉</button><button class="iconbtn" title="Delete">🗑</button></div>
         </div>
-        <div class="field"><label>Name</label><input value="CNC Turning" /></div>
+        <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Name</label><input class="cds--text-input" value="CNC Turning" /></div>
         <div class="row2">
-          <div class="field"><label>Role (I/O flexible)</label><select><option>process</option><option>input</option><option>output</option></select></div>
-          <div class="field"><label>Type</label><select><option>machine</option><option>manual</option><option>quality</option><option>store</option><option>buffer</option></select></div>
+          <div class="cds--select"><label class="cds--label">Role (I/O flexible)</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>process</option><option>input</option><option>output</option></select></div></div>
+          <div class="cds--select"><label class="cds--label">Type</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>machine</option><option>manual</option><option>quality</option><option>store</option><option>buffer</option></select></div></div>
         </div>
         <div class="fold"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Footprint &amp; ports</div>
           <div class="fold__body"><div class="row2">
-            <div class="field"><label>Width (m)</label><input class="mono" value="3" /></div>
-            <div class="field"><label>Height (m)</label><input class="mono" value="3" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Width (m)</label><input class="cds--text-input mono" value="3" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Height (m)</label><input class="cds--text-input mono" value="3" /></div>
           </div></div>
         </div>
         <div class="fold"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Throughput</div>
           <div class="fold__body"><div class="row2">
-            <div class="field"><label>Capacity/shift</label><input class="mono" value="1300" /></div>
-            <div class="field"><label>Operators</label><input class="mono" value="1" /></div>
-          </div><div class="field"><label>Parallel units (×N)</label><input class="mono" value="1" /></div></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Capacity/shift</label><input class="cds--text-input mono" value="1300" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Operators</label><input class="cds--text-input mono" value="1" /></div>
+          </div></div>
         </div>
         <div class="fold"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Cycle time</div>
           <div class="fold__body"><div class="row2">
-            <div class="field"><label>Cycle time (s)</label><input class="mono" value="42" /></div>
-            <div class="field"><label>Changeover (min)</label><input class="mono" value="25" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Cycle time (s)</label><input class="cds--text-input mono" value="42" /></div>
+            <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Changeover (min)</label><input class="cds--text-input mono" value="25" /></div>
           </div>
-          <button class="btn btn--ghost btn--sm">Decompose cycle</button>
-          <div class="field" style="margin-top:8px"><label>Ergonomic risk</label><select><option>low</option><option>med</option><option>high</option></select></div></div>
+          <button class="cds--btn cds--btn--ghost cds--btn--sm">Decompose cycle</button>
+          <div class="cds--select" style="margin-top:8px"><label class="cds--label">Ergonomic risk</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>low</option><option>med</option><option>high</option></select></div></div></div>
         </div>
         <div class="fold collapsed"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Automation &amp; placement</div>
           <div class="fold__body">
-            <div class="field"><label>Automation state</label><select><option>auto</option><option>semi</option><option>manual</option></select></div>
-            <div class="field"><label>Placement</label><select><option>Movable</option><option>Fixed — won't be moved</option></select></div>
+            <div class="cds--select"><label class="cds--label">Automation state</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>auto</option><option>semi</option><option>manual</option></select></div></div>
+            <div class="cds--select" style="margin-top:8px"><label class="cds--label">Placement</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>Movable</option><option>Fixed — won't be moved</option></select></div></div>
           </div>
-        </div>
-        <div class="fold collapsed"><div class="fold__head" onclick="toggleFold(this)"><span class="chev">▾</span> Cost</div>
-          <div class="fold__body"><div class="row2">
-            <div class="field"><label>Equipment capex</label><input class="mono" value="180000" /></div>
-            <div class="field"><label>Automation capex</label><input class="mono" value="0" /></div>
-          </div></div>
         </div>
         <h4 class="seclabel">Connections</h4>
         <p class="footnote" style="margin-top:0">Outgoing flows from this step:</p>
-        <div class="note note--info" style="border-color:var(--border-strong); background:var(--layer2)"><b>→ press</b><span>Volume 1,200 · forklift</span></div>
+        <div class="cds--tile" style="padding:12px"><b>→ press</b><div class="footnote" style="margin:2px 0 0">Volume 1,200 · forklift</div></div>
       </div>
 
-      <!-- Schema tab -->
       <div class="tabpanel rail-panel" data-rail="schema" style="display:none">
         <h4 class="seclabel" style="margin-top:0">Keyboard shortcuts</h4>
         <dl class="shortcuts">
@@ -739,7 +634,7 @@
 <!-- ============================ STAGE 4 — SUMMARY ============================ -->
 <section class="screen" id="s-summary">
   <div class="wrap">
-    <h2 class="page-title" style="font-size:22px">U-cell</h2>
+    <h2 class="page-title page-title--sm">U-cell</h2>
     <p class="page-sub">Entry and exit adjacent, one operator closing the loop; sized to the 315k peak year, balanced across the mix.</p>
 
     <h3 class="seclabel">Costed from the brief</h3>
@@ -750,26 +645,31 @@
       <div><span class="derived__lab">Output</span><span class="derived__val mono">720/shift</span><span class="derived__note">as generated</span></div>
     </div>
 
-    <div class="note note--info"><b>Planning estimate</b><span>Concept costs are heuristics; layouts are template placements. Refine before quoting.</span></div>
+    <div class="cds--inline-notification cds--inline-notification--info cds--inline-notification--low-contrast">
+      <div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper">
+        <p class="cds--inline-notification__title">Planning estimate</p>
+        <p class="cds--inline-notification__subtitle">Concept costs are heuristics; layouts are template placements. Refine before quoting.</p>
+      </div></div>
+    </div>
 
     <h3 class="seclabel">The cell as it now stands</h3>
     <p class="footnote" style="margin-top:0">Measured on the layout in the editor, not on the concept estimate above — the two differ once you refine it. Open any one to see the working.</p>
-    <div class="portal" style="grid-template-columns: repeat(3, 1fr);">
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">① Verdict</span><span class="tile__title mono">92.6/100</span><span class="tag tag--teal" style="align-self:flex-start">Grade A</span><span class="footnote" style="margin:0">The grade, and what would move it.</span></button>
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">② Flow &amp; layout</span><span class="tile__title mono">99/100</span><span class="tag tag--teal" style="align-self:flex-start">press → assembly is 31%</span></button>
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">③ Balance</span><span class="tile__title mono">685/sh</span><span class="tag tag--amber" style="align-self:flex-start">capped by CNC</span></button>
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">④ Yield</span><span class="tile__title mono">—</span><span class="tag tag--gray" style="align-self:flex-start">no scrap rates entered</span></button>
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">⑤ Automation</span><span class="tile__title mono">100/100</span><span class="tag tag--teal" style="align-self:flex-start">chains intact</span></button>
-      <button class="tile" onclick="go('analysis')" style="min-height:auto"><span style="font-size:12px;color:var(--text-dim)">⑥ Cost</span><span class="tile__title mono">$1.94</span><span class="tag" style="align-self:flex-start">per part · $180k capex</span></button>
+    <div class="portal" style="grid-template-columns: repeat(3, 1fr)">
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">① Verdict</span><span class="tile__title mono">92.6/100</span><span class="cds--tag cds--tag--teal cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">Grade A</span></span><span class="footnote" style="margin:0">The grade, and what would move it.</span></button>
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">② Flow &amp; layout</span><span class="tile__title mono">99/100</span><span class="cds--tag cds--tag--teal cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">press → assembly is 31%</span></span></button>
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">③ Balance</span><span class="tile__title mono">685/sh</span><span class="cds--tag cds--tag--warm-gray cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">capped by CNC</span></span></button>
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">④ Yield</span><span class="tile__title mono">—</span><span class="cds--tag cds--tag--gray cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">no scrap rates entered</span></span></button>
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">⑤ Automation</span><span class="tile__title mono">100/100</span><span class="cds--tag cds--tag--teal cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">chains intact</span></span></button>
+      <button class="cds--tile cds--tile--clickable" onclick="go('analysis')"><span style="font-size:12px;color:var(--cds-text-helper)">⑥ Cost</span><span class="tile__title mono">$1.94</span><span class="cds--tag cds--tag--cool-gray cds--tag--sm" style="align-self:flex-start"><span class="cds--tag__label">per part · $180k capex</span></span></button>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-top:16px">
-      <button class="btn" onclick="go('report')">Open report</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md" onclick="go('report')">Open report</button>
       <span class="footnote" style="margin:0">Printable record of the concepts compared.</span>
     </div>
 
-    <div style="display:flex; gap:8px; margin-top:24px;">
-      <button class="btn btn--secondary" onclick="gotoStep('refine')">Back</button>
-      <button class="btn" onclick="gotoStep('refine')">Back to the editor</button>
+    <div style="display:flex; gap:8px; margin-top:24px">
+      <button class="cds--btn cds--btn--secondary cds--btn--md" onclick="gotoStep('refine')">Back</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md" onclick="gotoStep('refine')">Back to the editor</button>
     </div>
   </div>
 </section>
@@ -778,19 +678,17 @@
 <section class="screen" id="s-analysis">
   <div class="wrap">
     <div class="pagehead">
-      <h1 class="page-title">Analysis</h1>
-      <div class="spacer"></div>
-      <button class="btn btn--secondary" onclick="go('report')">Open report</button>
-      <button class="btn btn--ghost btn--sm" onclick="go('refine')">← Editor</button>
+      <h1 class="page-title">Analysis</h1><div class="spacer"></div>
+      <button class="cds--btn cds--btn--secondary cds--btn--md" onclick="go('report')">Open report</button>
+      <button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('refine')">← Editor</button>
     </div>
-
     <div class="jumpnav">
-      <button class="chip on"><span class="n">1</span> Verdict</button>
-      <button class="chip"><span class="n">2</span> Flow</button>
-      <button class="chip"><span class="n">3</span> Balance</button>
-      <button class="chip"><span class="n">4</span> Yield</button>
-      <button class="chip"><span class="n">5</span> Automation</button>
-      <button class="chip"><span class="n">6</span> Cost</button>
+      <span class="cds--tag cds--tag--teal"><span class="cds--tag__label">1 · Verdict</span></span>
+      <span class="cds--tag cds--tag--gray"><span class="cds--tag__label">2 · Flow</span></span>
+      <span class="cds--tag cds--tag--gray"><span class="cds--tag__label">3 · Balance</span></span>
+      <span class="cds--tag cds--tag--gray"><span class="cds--tag__label">4 · Yield</span></span>
+      <span class="cds--tag cds--tag--gray"><span class="cds--tag__label">5 · Automation</span></span>
+      <span class="cds--tag cds--tag--gray"><span class="cds--tag__label">6 · Cost</span></span>
     </div>
 
     <div class="card"><div class="card__body">
@@ -798,7 +696,6 @@
       <p class="footnote" style="margin-top:0">What the cell must do, before any layout: 205s of work content across 4 process steps, one distinct mix.</p>
     </div></div>
 
-    <!-- Stage 1 Verdict -->
     <div class="card"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">1</span><span class="card__title">Verdict</span><span class="card__q">The grade, and what would move it.</span><span class="chev">▾</span></div>
       <div class="card__body">
         <div class="grade"><div class="grade__box">A</div><div class="grade__meta"><div class="l">Actual-state rating</div><div class="v mono">92.6/100</div></div></div>
@@ -810,17 +707,16 @@
         <div class="meter"><div class="meter__top"><span>Ergonomics</span><span class="mono">65</span></div><div class="meter__bar"><i style="width:65%; background:var(--amber)"></i></div></div>
         <div class="meter"><div class="meter__top"><span>Automation coherence</span><span class="mono">100</span></div><div class="meter__bar"><i style="width:100%"></i></div></div>
         <h4 class="seclabel">What could be better</h4>
-        <div class="note note--warn"><b>Assembly ergonomics is the biggest drag <span class="tag tag--amber">high confidence</span></b><span>3 operators, high ergonomic risk. Splitting the station or adding a lift assist would move the ergo score most.</span></div>
-        <div class="note note--warn"><b>CNC is the balance constraint <span class="tag tag--gray">med confidence</span></b><span>42s takt caps the line at 685/shift. A second CNC lane lifts output before any other step binds.</span></div>
+        <div class="cds--inline-notification cds--inline-notification--warning cds--inline-notification--low-contrast"><div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper"><p class="cds--inline-notification__title">Assembly ergonomics is the biggest drag · high confidence</p><p class="cds--inline-notification__subtitle">3 operators, high ergonomic risk. Splitting the station or adding a lift assist would move the ergo score most.</p></div></div></div>
+        <div class="cds--inline-notification cds--inline-notification--warning cds--inline-notification--low-contrast"><div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper"><p class="cds--inline-notification__title">CNC is the balance constraint · med confidence</p><p class="cds--inline-notification__subtitle">42s takt caps the line at 685/shift. A second CNC lane lifts output before any other step binds.</p></div></div></div>
         <p class="footnote">Balance loss 17% · takt 42s · 685/shift</p>
       </div>
     </div>
 
-    <!-- Stage 2 Flow -->
     <div class="card collapsed"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">2</span><span class="card__title">Flow &amp; layout</span><span class="card__q">Where the material cost comes from.</span><span class="chev">▾</span></div>
       <div class="card__body">
         <h4 class="seclabel" style="margin-top:0">Where the cost sits</h4>
-        <div class="meter"><div class="meter__top"><span>press → assembly <span class="tag tag--teal">biggest</span></span><span class="mono">31%</span></div><div class="meter__bar"><i style="width:31%"></i></div></div>
+        <div class="meter"><div class="meter__top"><span>press → assembly <span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">biggest</span></span></span><span class="mono">31%</span></div><div class="meter__bar"><i style="width:31%"></i></div></div>
         <div class="meter"><div class="meter__top"><span>qa → ship</span><span class="mono">24%</span></div><div class="meter__bar"><i style="width:24%"></i></div></div>
         <div class="meter"><div class="meter__top"><span>raw → cnc</span><span class="mono">19%</span></div><div class="meter__bar"><i style="width:19%"></i></div></div>
         <div class="meter"><div class="meter__top"><span>cnc → press</span><span class="mono">15%</span></div><div class="meter__bar"><i style="width:15%"></i></div></div>
@@ -829,40 +725,32 @@
       </div>
     </div>
 
-    <!-- Stage 3 Balance -->
     <div class="card collapsed"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">3</span><span class="card__title">Balance &amp; bottleneck</span><span class="chev">▾</span></div>
       <div class="card__body">
         <div class="derived" style="grid-template-columns:1fr; margin-bottom:16px"><div><span class="derived__lab">Line output (constrained by bottleneck)</span><span class="derived__val mono">685 parts/shift</span><span class="derived__note">Takt ≈ 42 s/part · balance score 83/100</span></div></div>
-        <div class="note note--warn"><b>How to lift the constraint</b><span>CNC Turning at 42s is the binding step. Add a parallel CNC lane, or offload part of its cycle, before Assembly (95s / 3 ops) becomes the next limit.</span></div>
+        <div class="cds--inline-notification cds--inline-notification--warning cds--inline-notification--low-contrast"><div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper"><p class="cds--inline-notification__title">How to lift the constraint</p><p class="cds--inline-notification__subtitle">CNC Turning at 42s is the binding step. Add a parallel CNC lane, or offload part of its cycle, before Assembly (95s / 3 ops) becomes the next limit.</p></div></div></div>
         <h4 class="seclabel">Throughput per step (util % vs line)</h4>
-        <div class="meter"><div class="meter__top"><span>CNC Turning <span class="tag tag--red">bottleneck</span></span><span class="mono">685/sh · 100%</span></div><div class="meter__bar"><i style="width:100%; background:var(--red)"></i></div></div>
+        <div class="meter"><div class="meter__top"><span>CNC Turning <span class="cds--tag cds--tag--red cds--tag--sm"><span class="cds--tag__label">bottleneck</span></span></span><span class="mono">685/sh · 100%</span></div><div class="meter__bar"><i style="width:100%; background:var(--red)"></i></div></div>
         <div class="meter"><div class="meter__top"><span>Press</span><span class="mono">758/sh · 90%</span></div><div class="meter__bar"><i style="width:90%"></i></div></div>
         <div class="meter"><div class="meter__top"><span>Assembly (×3)</span><span class="mono">910/sh · 75%</span></div><div class="meter__bar"><i style="width:75%"></i></div></div>
         <div class="meter"><div class="meter__top"><span>QA / Inspection</span><span class="mono">960/sh · 71%</span></div><div class="meter__bar"><i style="width:71%"></i></div></div>
         <p class="footnote">Rate = min(3600/cycle × shift-hours × operators, capacity/shift) × parallel units.</p>
-
         <h4 class="seclabel">Value add vs waste</h4>
         <div class="yama">
           <div class="yama__bar" style="height:100%"><div class="yama__seg" style="height:44%; background:var(--teal)"></div><div class="yama__seg" style="height:20%; background:var(--amber)"></div><div class="yama__seg" style="height:8%; background:var(--red)"></div></div>
           <div class="yama__bar" style="height:90%"><div class="yama__seg" style="height:60%; background:var(--teal)"></div><div class="yama__seg" style="height:22%; background:var(--amber)"></div></div>
           <div class="yama__bar" style="height:100%"><div class="yama__seg" style="height:70%; background:var(--teal)"></div><div class="yama__seg" style="height:18%; background:var(--purple)"></div><div class="yama__seg" style="height:12%; background:var(--red)"></div></div>
           <div class="yama__bar" style="height:55%"><div class="yama__seg" style="height:30%; background:var(--teal)"></div><div class="yama__seg" style="height:25%; background:var(--amber)"></div></div>
-          <div style="flex:1; font-size:11px; color:var(--text-dim); align-self:flex-start">
-            <div><span style="color:var(--teal)">▪</span> value-add</div>
-            <div><span style="color:var(--amber)">▪</span> handling</div>
-            <div><span style="color:var(--blue-data)">▪</span> walk</div>
-            <div><span style="color:var(--red)">▪</span> wait</div>
-            <div><span style="color:var(--purple)">▪</span> setup</div>
+          <div style="flex:1; font-size:11px; color:var(--cds-text-helper); align-self:flex-start">
+            <div><span style="color:var(--teal)">▪</span> value-add</div><div><span style="color:var(--amber)">▪</span> handling</div><div><span style="color:var(--blue-data)">▪</span> walk</div><div><span style="color:var(--red)">▪</span> wait</div><div><span style="color:var(--purple)">▪</span> setup</div>
           </div>
         </div>
-        <div style="display:flex; gap:14px; font-size:11px; color:var(--text-dim); margin-top:6px"><span>CNC</span><span>Press</span><span>Assembly</span><span>QA</span></div>
-
+        <div style="display:flex; gap:14px; font-size:11px; color:var(--cds-text-helper); margin-top:6px"><span>CNC</span><span>Press</span><span>Assembly</span><span>QA</span></div>
         <h4 class="seclabel">Critical path</h4>
-        <p><span class="tag">Raw</span> → <span class="tag">CNC</span> → <span class="tag">Press</span> → <span class="tag">Assembly</span> → <span class="tag">QA</span> → <span class="tag">Ship</span></p>
+        <p><span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Raw</span></span> → <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">CNC</span></span> → <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Press</span></span> → <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Assembly</span></span> → <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">QA</span></span> → <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Ship</span></span></p>
       </div>
     </div>
 
-    <!-- Stage 4 Yield -->
     <div class="card collapsed"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">4</span><span class="card__title">Yield</span><span class="chev">▾</span></div>
       <div class="card__body">
         <div class="derived" style="grid-template-columns:1fr"><div><span class="derived__lab">Rolled throughput yield</span><span class="derived__val mono">100%</span><span class="derived__note">good parts · no scrap rates entered</span></div></div>
@@ -870,32 +758,24 @@
       </div>
     </div>
 
-    <!-- Stage 5 Automation -->
     <div class="card collapsed"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">5</span><span class="card__title">Automation</span><span class="chev">▾</span></div>
       <div class="card__body">
         <h4 class="seclabel" style="margin-top:0">Automation chaining</h4>
-        <div class="note note--ok"><b>No broken automation chains detected.</b><span>The two automated steps sit at the head of the line; the manual handoffs downstream are expected for this concept.</span></div>
-        <div class="note note--info" style="border-color:var(--amber)"><b>CNC → Press <span class="tag tag--amber">mixed</span></b><span>via forklift</span></div>
-        <div class="note note--info" style="border-color:var(--red)"><b>Assembly → QA <span class="tag tag--red">manual</span></b><span>via manual</span></div>
+        <div class="cds--inline-notification cds--inline-notification--success cds--inline-notification--low-contrast"><div class="cds--inline-notification__details"><div class="cds--inline-notification__text-wrapper"><p class="cds--inline-notification__title">No broken automation chains detected.</p><p class="cds--inline-notification__subtitle">The two automated steps sit at the head of the line; the manual handoffs downstream are expected for this concept.</p></div></div></div>
+        <div class="cds--tile" style="padding:10px 12px; margin:8px 0"><b>CNC → Press</b> <span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">mixed</span></span> <span class="footnote" style="margin:0">via forklift</span></div>
+        <div class="cds--tile" style="padding:10px 12px; margin:8px 0"><b>Assembly → QA</b> <span class="cds--tag cds--tag--red cds--tag--sm"><span class="cds--tag__label">manual</span></span> <span class="footnote" style="margin:0">via manual</span></div>
         <h4 class="seclabel">Automation potential per step</h4>
-        <div class="meter"><div class="meter__top"><span>Assembly — Consider</span><span class="tag tag--amber">58</span></div><div class="meter__bar"><i style="width:58%; background:var(--amber)"></i></div><div class="footnote" style="margin:2px 0">currently manual · heuristic</div></div>
-        <div class="meter"><div class="meter__top"><span>QA / Inspection — Keep manual</span><span class="tag tag--gray">31</span></div><div class="meter__bar"><i style="width:31%; background:var(--text-dim)"></i></div></div>
+        <div class="meter"><div class="meter__top"><span>Assembly — Consider</span><span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">58</span></span></div><div class="meter__bar"><i style="width:58%; background:var(--amber)"></i></div><div class="footnote" style="margin:2px 0">currently manual · heuristic</div></div>
+        <div class="meter"><div class="meter__top"><span>QA / Inspection — Keep manual</span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">31</span></span></div><div class="meter__bar"><i style="width:31%; background:var(--cds-text-helper)"></i></div></div>
       </div>
     </div>
 
-    <!-- Stage 6 Cost -->
     <div class="card collapsed"><div class="card__head" onclick="toggleCard(this)"><span class="card__num">6</span><span class="card__title">Cost</span><span class="chev">▾</span></div>
       <div class="card__body">
         <div class="derived" style="grid-template-columns:1fr; margin-bottom:16px"><div><span class="derived__lab">Operating cost per part</span><span class="derived__val mono">$1.94</span><span class="derived__note">at 685 parts/shift</span></div></div>
-        <dl class="facts">
-          <dt>Labor / shift</dt><dd class="mono">$1,020</dd>
-          <dt>Transport / shift</dt><dd class="mono">$68</dd>
-          <dt>Energy / shift</dt><dd class="mono">$240</dd>
-          <dt>Opex / shift</dt><dd class="mono">$1,328</dd>
-          <dt>Equipment capex</dt><dd class="mono">$180,000</dd>
-        </dl>
+        <dl class="facts"><dt>Labor / shift</dt><dd class="mono">$1,020</dd><dt>Transport / shift</dt><dd class="mono">$68</dd><dt>Energy / shift</dt><dd class="mono">$240</dd><dt>Opex / shift</dt><dd class="mono">$1,328</dd><dt>Equipment capex</dt><dd class="mono">$180,000</dd></dl>
         <h4 class="seclabel">Automation ROI</h4>
-        <div class="note note--info" style="border-color:var(--amber)"><b>Assembly <span class="tag tag--amber">Consider</span></b><span>capex $120,000 · saves $84,000/yr · payback 17 mo</span></div>
+        <div class="cds--tile" style="padding:10px 12px"><b>Assembly</b> <span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">Consider</span></span> <span class="footnote" style="margin:0">capex $120,000 · saves $84,000/yr · payback 17 mo</span></div>
         <p class="footnote">Payback = automation capex ÷ annual labor saved. Informational; not a validated ROI model.</p>
       </div>
     </div>
@@ -905,34 +785,26 @@
 <!-- ============================ PAGE — RECOMMEND ============================ -->
 <section class="screen" id="s-recommend">
   <div class="wrap wrap--wide">
-    <div class="pagehead">
-      <h1 class="page-title">Concept recommendations</h1>
-      <div class="spacer"></div>
-      <button class="btn btn--ghost btn--sm">Weights</button>
-      <button class="btn btn--ghost btn--sm" onclick="go('refine')">← Editor</button>
-    </div>
+    <div class="pagehead"><h1 class="page-title">Concept recommendations</h1><div class="spacer"></div><button class="cds--btn cds--btn--ghost cds--btn--sm">Weights</button><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('refine')">← Editor</button></div>
     <p class="page-sub">Cell A — Hydrobuchse line · 4 process steps · 205s work content</p>
-
     <h3 class="seclabel">Demand</h3>
     <div class="row2" style="grid-template-columns: repeat(3, 1fr); max-width:640px">
-      <div class="field"><label>Annual volume</label><input class="mono" value="315000" /><span class="footnote">From this cell's output</span></div>
-      <div class="field"><label>Shifts per year</label><input class="mono" value="460" /></div>
-      <div class="field"><label>Program years</label><input class="mono" value="3" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Annual volume</label><input class="cds--text-input mono" value="315000" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Shifts per year</label><input class="cds--text-input mono" value="460" /></div>
+      <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Program years</label><input class="cds--text-input mono" value="3" /></div>
     </div>
-
-    <div style="overflow-x:auto; border:1px solid var(--border); margin-top:8px">
-      <table class="grid">
+    <div class="cds--data-table-container" style="margin-top:8px">
+      <table class="cds--data-table cds--data-table--md">
         <thead><tr><th>Score · concept</th><th class="num">Cost / part</th><th class="num">Capex</th><th class="num">Operators</th><th class="num">Output</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr class="selrow"><td><span class="mono" style="font-size:20px">82</span> <b>U-cell</b><div class="footnote" style="margin:2px 0">U-cell · 5 steps</div></td><td class="num mono">$4.18</td><td class="num mono">$420,000</td><td class="num mono">4</td><td class="num mono">720</td><td><span class="tag tag--teal">+5% capacity</span></td></tr>
+          <tr class="cds--data-table--selected"><td><span class="mono" style="font-size:20px">82</span> <b>U-cell</b><div class="footnote" style="margin:2px 0">U-cell · 5 steps</div></td><td class="num mono">$4.18</td><td class="num mono">$420,000</td><td class="num mono">4</td><td class="num mono">720</td><td><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">+5% capacity</span></span></td></tr>
           <tr><td><span class="mono" style="font-size:20px">79</span> <b>Flow line</b><div class="footnote" style="margin:2px 0">Straight line · 5 steps</div></td><td class="num mono">$4.02</td><td class="num mono">$610,000</td><td class="num mono">3</td><td class="num mono">780</td><td></td></tr>
           <tr><td><span class="mono" style="font-size:20px">71</span> <b>Manual bench</b><div class="footnote" style="margin:2px 0">L-cell · 5 steps</div></td><td class="num mono">$5.40</td><td class="num mono">$180,000</td><td class="num mono">6</td><td class="num mono">540</td><td></td></tr>
         </tbody>
       </table>
     </div>
-
     <div style="margin-top:16px; display:flex; align-items:center; gap:12px">
-      <button class="btn">Open U-cell (U-cell) as a new layout</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md">Open U-cell (U-cell) as a new layout</button>
       <span class="footnote" style="margin:0">Added as a new layout; the open cell is not modified.</span>
     </div>
     <p class="footnote">This cell was generated as U-cell; at 315,000/yr the ranking favours U-cell.</p>
@@ -942,63 +814,37 @@
 <!-- ============================ PAGE — REPORT ============================ -->
 <section class="screen" id="s-report">
   <div class="wrap">
-    <div class="pagehead">
-      <div class="spacer"></div>
-      <button class="btn btn--secondary">🖨 Print</button>
-      <button class="btn btn--ghost btn--sm" onclick="go('summary')">← Summary</button>
-    </div>
+    <div class="pagehead"><div class="spacer"></div><button class="cds--btn cds--btn--secondary cds--btn--md">🖨 Print</button><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('summary')">← Summary</button></div>
     <div class="report">
       <h2>Cell A — Hydrobuchse line</h2>
       <p class="cover-meta">U-cell program · printed 27 Jul 2026</p>
-      <div class="grade" style="margin-top:0"><div class="grade__box">A</div><div class="grade__meta"><div class="v mono">92.6<span style="font-size:14px; color:var(--text-dim)">/100</span></div></div></div>
-
+      <div class="grade" style="margin-top:0"><div class="grade__box">A</div><div class="grade__meta"><div class="v mono">92.6<span style="font-size:14px; color:var(--cds-text-helper)">/100</span></div></div></div>
       <div class="kpi6">
-        <div class="cell"><div class="lab">1 · Verdict</div><div class="v mono">92.6/100</div><span class="tag tag--teal">Grade A</span></div>
-        <div class="cell"><div class="lab">2 · Flow &amp; layout</div><div class="v mono">99/100</div><span class="tag">press → assembly is 31% of it</span></div>
-        <div class="cell"><div class="lab">3 · Balance</div><div class="v mono">685/sh</div><span class="tag tag--amber">capped by CNC</span></div>
-        <div class="cell"><div class="lab">4 · Yield</div><div class="v mono">—</div><span class="tag tag--gray">no scrap rates entered</span></div>
-        <div class="cell"><div class="lab">5 · Automation</div><div class="v mono">100/100</div><span class="tag tag--teal">chains are intact</span></div>
-        <div class="cell"><div class="lab">6 · Cost</div><div class="v mono">$1.94</div><span class="tag">per part · $180k capex</span></div>
+        <div class="cell"><div class="lab">1 · Verdict</div><div class="v mono">92.6/100</div><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">Grade A</span></span></div>
+        <div class="cell"><div class="lab">2 · Flow &amp; layout</div><div class="v mono">99/100</div><span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">press → assembly is 31% of it</span></span></div>
+        <div class="cell"><div class="lab">3 · Balance</div><div class="v mono">685/sh</div><span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">capped by CNC</span></span></div>
+        <div class="cell"><div class="lab">4 · Yield</div><div class="v mono">—</div><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">no scrap rates entered</span></span></div>
+        <div class="cell"><div class="lab">5 · Automation</div><div class="v mono">100/100</div><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">chains are intact</span></span></div>
+        <div class="cell"><div class="lab">6 · Cost</div><div class="v mono">$1.94</div><span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">per part · $180k capex</span></span></div>
       </div>
-
       <div class="rsec"><h3>1 · The brief</h3>
-        <dl class="facts">
-          <dt>Program</dt><dd>U-cell program</dd>
-          <dt>Sized for</dt><dd class="mono">315,000 parts, year 2</dd>
-          <dt>Program volume</dt><dd class="mono">895,000 parts</dd>
-          <dt>Program length</dt><dd class="mono">3 years</dd>
-          <dt>Shifts / year</dt><dd class="mono">460</dd>
-          <dt>Shift length</dt><dd class="mono">8 h</dd>
-          <dt>Demand / shift</dt><dd class="mono">685 parts</dd>
-        </dl>
+        <dl class="facts"><dt>Program</dt><dd>U-cell program</dd><dt>Sized for</dt><dd class="mono">315,000 parts, year 2</dd><dt>Program volume</dt><dd class="mono">895,000 parts</dt><dt>Program length</dt><dd class="mono">3 years</dd><dt>Shifts / year</dt><dd class="mono">460</dd><dt>Shift length</dt><dd class="mono">8 h</dd><dt>Demand / shift</dt><dd class="mono">685 parts</dd></dl>
         <h4 class="seclabel">Parts on this cell (3 program years)</h4>
-        <table class="grid"><thead><tr><th>Part number</th><th>Routing</th><th class="num">Yr 1</th><th class="num">Yr 2</th><th class="num">Yr 3</th></tr></thead>
-          <tbody>
-            <tr><td class="mono">PN-001</td><td>CNC 42 &gt; Press 38 &gt; Assembly 95 &gt; QA 30</td><td class="num mono">280,000</td><td class="num mono">315,000</td><td class="num mono">300,000</td></tr>
-            <tr style="font-weight:600"><td>Total</td><td>4 steps · 1 mix</td><td class="num mono">280,000</td><td class="num mono">315,000</td><td class="num mono">300,000</td></tr>
-          </tbody>
-        </table>
+        <table class="cds--data-table cds--data-table--sm"><thead><tr><th>Part number</th><th>Routing</th><th class="num">Yr 1</th><th class="num">Yr 2</th><th class="num">Yr 3</th></tr></thead>
+          <tbody><tr><td class="mono">PN-001</td><td>CNC 42 &gt; Press 38 &gt; Assembly 95 &gt; QA 30</td><td class="num mono">280,000</td><td class="num mono">315,000</td><td class="num mono">300,000</td></tr>
+            <tr style="font-weight:600"><td>Total</td><td>4 steps · 1 mix</td><td class="num mono">280,000</td><td class="num mono">315,000</td><td class="num mono">300,000</td></tr></tbody></table>
       </div>
-
       <div class="rsec"><h3>2 · The concept</h3>
-        <div class="card" style="margin-top:0"><div class="card__body">
-          <b>U-cell</b> <span class="tag">U-cell</span>
-          <p class="u-muted">Entry and exit adjacent, one operator closing the loop. Fits the 315k peak.</p>
-          <dl class="facts"><dt>Loaded cost / part</dt><dd class="mono">$4.18</dd><dt>Capex</dt><dd class="mono">$420,000</dd><dt>Operators</dt><dd class="mono">4</dd><dt>Output</dt><dd class="mono">720 /shift</dd></dl>
-        </div></div>
+        <div class="cds--tile"><b>U-cell</b> <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">U-cell</span></span><p class="u-muted">Entry and exit adjacent, one operator closing the loop. Fits the 315k peak.</p><dl class="facts"><dt>Loaded cost / part</dt><dd class="mono">$4.18</dd><dt>Capex</dt><dd class="mono">$420,000</dd><dt>Operators</dt><dd class="mono">4</dd><dt>Output</dt><dd class="mono">720 /shift</dd></dl></div>
         <h4 class="seclabel">Alternatives considered</h4>
-        <table class="grid"><thead><tr><th>Concept</th><th>Form</th><th class="num">Loaded / part</th><th class="num">Capex</th><th class="num">Ops</th><th class="num">Output</th></tr></thead>
-          <tbody>
-            <tr class="selrow"><td>U-cell <span class="tag tag--teal">taken</span></td><td>U-cell</td><td class="num mono">$4.18</td><td class="num mono">$420,000</td><td class="num mono">4</td><td class="num mono">720</td></tr>
+        <table class="cds--data-table cds--data-table--sm"><thead><tr><th>Concept</th><th>Form</th><th class="num">Loaded / part</th><th class="num">Capex</th><th class="num">Ops</th><th class="num">Output</th></tr></thead>
+          <tbody><tr class="cds--data-table--selected"><td>U-cell <span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">taken</span></span></td><td>U-cell</td><td class="num mono">$4.18</td><td class="num mono">$420,000</td><td class="num mono">4</td><td class="num mono">720</td></tr>
             <tr><td>Flow line</td><td>Straight line</td><td class="num mono">$4.02</td><td class="num mono">$610,000</td><td class="num mono">3</td><td class="num mono">780</td></tr>
-            <tr><td>Manual bench</td><td>L-cell</td><td class="num mono">$5.40</td><td class="num mono">$180,000</td><td class="num mono">6</td><td class="num mono">540</td></tr>
-          </tbody>
-        </table>
+            <tr><td>Manual bench</td><td>L-cell</td><td class="num mono">$5.40</td><td class="num mono">$180,000</td><td class="num mono">6</td><td class="num mono">540</td></tr></tbody></table>
       </div>
-
       <div class="rsec"><h3>3 · The layout</h3>
         <p class="u-muted">6 areas on a 22×14 grid.</p>
-        <div style="text-align:center; background:#14201f; border:1px solid var(--border); padding:16px">
+        <div style="text-align:center; background:#14201f; border:1px solid var(--cds-border-subtle-01); padding:16px">
           <svg viewBox="0 0 528 336" width="420" style="max-width:100%; height:auto">
             <text x="8" y="18" fill="#3ddbd9" font-size="11" font-weight="600">LAYOUT</text>
             <g stroke="#3ddbd9" stroke-width="2" fill="none" opacity="0.7"><path d="M84 168 L180 168 L180 84"/><path d="M216 84 L264 84"/><path d="M312 84 L312 252 L300 252"/><path d="M276 252 L180 252 L180 240"/><path d="M204 240 L204 168 L456 168"/></g>
@@ -1011,26 +857,19 @@
           </svg>
         </div>
       </div>
-
       <div class="rsec"><h3>4 · The assessment</h3>
         <h4 class="seclabel">Throughput per step</h4>
-        <table class="grid"><thead><tr><th>Step</th><th class="num">Cycle</th><th class="num">Units</th><th class="num">Parts / shift</th><th class="num">Util</th></tr></thead>
-          <tbody>
-            <tr class="selrow"><td>CNC Turning <span class="tag tag--red">bottleneck</span></td><td class="num mono">42s</td><td class="num mono">1</td><td class="num mono">685</td><td class="num mono">100%</td></tr>
+        <table class="cds--data-table cds--data-table--sm"><thead><tr><th>Step</th><th class="num">Cycle</th><th class="num">Units</th><th class="num">Parts / shift</th><th class="num">Util</th></tr></thead>
+          <tbody><tr class="cds--data-table--selected"><td>CNC Turning <span class="cds--tag cds--tag--red cds--tag--sm"><span class="cds--tag__label">bottleneck</span></span></td><td class="num mono">42s</td><td class="num mono">1</td><td class="num mono">685</td><td class="num mono">100%</td></tr>
             <tr><td>Press</td><td class="num mono">38s</td><td class="num mono">1</td><td class="num mono">758</td><td class="num mono">90%</td></tr>
             <tr><td>Assembly</td><td class="num mono">95s</td><td class="num mono">3</td><td class="num mono">910</td><td class="num mono">75%</td></tr>
-            <tr><td>QA / Inspection</td><td class="num mono">30s</td><td class="num mono">1</td><td class="num mono">960</td><td class="num mono">71%</td></tr>
-          </tbody>
-        </table>
+            <tr><td>QA / Inspection</td><td class="num mono">30s</td><td class="num mono">1</td><td class="num mono">960</td><td class="num mono">71%</td></tr></tbody></table>
         <p class="footnote">The line runs at 685 parts/shift, capped by CNC Turning. Takt ≈ 42s per part.</p>
       </div>
-
       <div class="rsec"><h3>5 · What is still open</h3>
         <p class="u-muted">Ranked by what each would buy, highest first.</p>
-        <ol>
-          <li>Split or lift-assist Assembly <span class="tag tag--amber">high confidence</span> — high ergo risk on 3 operators; the largest single score drag.</li>
-          <li>Second CNC lane <span class="tag tag--gray">med confidence</span> — lifts line output above 685 before Press binds.</li>
-        </ol>
+        <ol><li>Split or lift-assist Assembly <span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">high confidence</span></span> — high ergo risk on 3 operators; the largest single score drag.</li>
+          <li>Second CNC lane <span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">med confidence</span></span> — lifts line output above 685 before Press binds.</li></ol>
       </div>
       <p class="footnote">Recomputed from the layout as it stands now, by the engines the editor uses.</p>
     </div>
@@ -1040,39 +879,25 @@
 <!-- ============================ PAGE — COMPARE ============================ -->
 <section class="screen" id="s-compare">
   <div class="wrap wrap--wide">
-    <div class="pagehead"><h1 class="page-title">Compare variants</h1><div class="spacer"></div><button class="btn btn--ghost btn--sm" onclick="go('refine')">← Editor</button></div>
+    <div class="pagehead"><h1 class="page-title">Compare variants</h1><div class="spacer"></div><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('refine')">← Editor</button></div>
     <div class="statstrip">
       <div class="stat"><div class="stat__lab">Scenarios</div><div class="stat__val mono">3</div></div>
       <div class="stat"><div class="stat__lab">Best score</div><div class="stat__val mono">92.6</div><div class="stat__sub">Cell A — Hydrobuchse (current)</div></div>
       <div class="stat"><div class="stat__lab">Average score</div><div class="stat__val mono">86.4</div></div>
       <div class="stat"><div class="stat__lab">Best throughput</div><div class="stat__val mono">820</div><div class="stat__sub">U-cell v2 /shift</div></div>
     </div>
-
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0">
-      <div><h4 class="seclabel" style="margin-top:0">Composite score</h4>
-        <div class="bars">
-          <div class="bars__col"><div class="bars__fill" style="height:93%"></div><div class="bars__lab">Baseline</div></div>
-          <div class="bars__col"><div class="bars__fill" style="height:88%; background:var(--amber)"></div><div class="bars__lab">U-cell v2</div></div>
-          <div class="bars__col"><div class="bars__fill" style="height:78%; background:var(--amber)"></div><div class="bars__lab">Manual bench</div></div>
-        </div>
-      </div>
-      <div><h4 class="seclabel" style="margin-top:0">Throughput (parts / shift)</h4>
-        <div class="bars">
-          <div class="bars__col"><div class="bars__fill" style="height:70%"></div><div class="bars__lab">685</div></div>
-          <div class="bars__col"><div class="bars__fill" style="height:100%"></div><div class="bars__lab">820</div></div>
-          <div class="bars__col"><div class="bars__fill" style="height:55%"></div><div class="bars__lab">540</div></div>
-        </div>
-      </div>
+      <div><h4 class="seclabel" style="margin-top:0">Composite score</h4><div class="bars"><div class="bars__col"><div class="bars__fill" style="height:93%"></div><div class="bars__lab">Baseline</div></div><div class="bars__col"><div class="bars__fill" style="height:88%; background:var(--amber)"></div><div class="bars__lab">U-cell v2</div></div><div class="bars__col"><div class="bars__fill" style="height:78%; background:var(--amber)"></div><div class="bars__lab">Manual bench</div></div></div></div>
+      <div><h4 class="seclabel" style="margin-top:0">Throughput (parts / shift)</h4><div class="bars"><div class="bars__col"><div class="bars__fill" style="height:70%"></div><div class="bars__lab">685</div></div><div class="bars__col"><div class="bars__fill" style="height:100%"></div><div class="bars__lab">820</div></div><div class="bars__col"><div class="bars__fill" style="height:55%"></div><div class="bars__lab">540</div></div></div></div>
     </div>
-
     <h4 class="seclabel">KPI breakdown</h4>
-    <div style="overflow-x:auto; border:1px solid var(--border)">
-      <table class="grid">
+    <div class="cds--data-table-container">
+      <table class="cds--data-table cds--data-table--md">
         <thead><tr><th>Scenario</th><th>Grade</th><th class="num">Score</th><th class="num">Flow</th><th class="num">Travel</th><th class="num">Congest</th><th class="num">Balance</th><th class="num">Ergo</th><th class="num">Auto</th><th class="num">Parts/sh</th><th></th></tr></thead>
         <tbody>
           <tr><td class="best">Cell A — Hydrobuchse (current)</td><td><span style="color:var(--teal); font-weight:600">A</span></td><td class="num mono best">92.6</td><td class="num mono best">99</td><td class="num mono">100</td><td class="num mono">100</td><td class="num mono">83</td><td class="num mono">65</td><td class="num mono">100</td><td class="num mono">685</td><td class="u-muted">—</td></tr>
-          <tr><td>U-cell v2 <span class="footnote">Hydraulics line/</span></td><td><span style="color:var(--teal)">A</span></td><td class="num mono">88.1</td><td class="num mono">95</td><td class="num mono">98</td><td class="num mono">100</td><td class="num mono best">91</td><td class="num mono best">72</td><td class="num mono">100</td><td class="num mono best">820</td><td><button class="btn btn--secondary btn--sm">Load</button></td></tr>
-          <tr><td>Manual bench</td><td><span style="color:var(--amber)">B</span></td><td class="num mono">78.4</td><td class="num mono">88</td><td class="num mono">96</td><td class="num mono">100</td><td class="num mono">80</td><td class="num mono">70</td><td class="num mono">60</td><td class="num mono">540</td><td><button class="btn btn--secondary btn--sm">Load</button></td></tr>
+          <tr><td>U-cell v2 <span class="footnote">Hydraulics line/</span></td><td><span style="color:var(--teal)">A</span></td><td class="num mono">88.1</td><td class="num mono">95</td><td class="num mono">98</td><td class="num mono">100</td><td class="num mono best">91</td><td class="num mono best">72</td><td class="num mono">100</td><td class="num mono best">820</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm">Load</button></td></tr>
+          <tr><td>Manual bench</td><td><span style="color:var(--amber)">B</span></td><td class="num mono">78.4</td><td class="num mono">88</td><td class="num mono">96</td><td class="num mono">100</td><td class="num mono">80</td><td class="num mono">70</td><td class="num mono">60</td><td class="num mono">540</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm">Load</button></td></tr>
         </tbody>
       </table>
     </div>
@@ -1083,7 +908,7 @@
 <!-- ============================ PAGE — SITE ============================ -->
 <section class="screen" id="s-site">
   <div class="wrap wrap--wide">
-    <div class="pagehead"><h1 class="page-title">Site overview</h1><div class="spacer"></div><button class="btn btn--ghost btn--sm" onclick="go('refine')">← Editor</button></div>
+    <div class="pagehead"><h1 class="page-title">Site overview</h1><div class="spacer"></div><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('refine')">← Editor</button></div>
     <div class="statstrip">
       <div class="stat"><div class="stat__lab">Layouts</div><div class="stat__val mono">3</div></div>
       <div class="stat"><div class="stat__lab">Total throughput</div><div class="stat__val mono">2,045</div><div class="stat__sub">parts / shift</div></div>
@@ -1096,15 +921,15 @@
       <div><h4 class="seclabel" style="margin-top:0">Cost / part per layout</h4><div class="bars"><div class="bars__col"><div class="bars__fill" style="height:40%; background:var(--amber)"></div><div class="bars__lab">$1.94</div></div><div class="bars__col"><div class="bars__fill" style="height:52%; background:var(--amber)"></div><div class="bars__lab">$2.10</div></div><div class="bars__col"><div class="bars__fill" style="height:100%; background:var(--amber)"></div><div class="bars__lab">$2.90</div></div></div></div>
     </div>
     <h4 class="seclabel">Layouts</h4>
-    <div style="overflow-x:auto; border:1px solid var(--border)">
-      <table class="grid">
+    <div class="cds--data-table-container">
+      <table class="cds--data-table cds--data-table--md">
         <thead><tr><th>Layout</th><th>Grade</th><th class="num">Score</th><th class="num">Parts/shift</th><th class="num">Cost/part</th><th></th></tr></thead>
         <tbody>
-          <tr><td colspan="6" class="tree__folder" style="padding:8px 12px">📁 Hydraulics line</td></tr>
+          <tr><td colspan="6" class="tree__folder" style="padding:10px 16px">📁 Hydraulics line</td></tr>
           <tr><td class="best">Cell A — Hydrobuchse line <span class="footnote">active</span></td><td><span style="color:var(--teal)">A</span></td><td class="num mono">92.6</td><td class="num mono">685</td><td class="num mono">$1.94</td><td class="u-muted">—</td></tr>
-          <tr><td>Cell A — U-cell v2</td><td><span style="color:var(--teal)">A</span></td><td class="num mono">88.1</td><td class="num mono">820</td><td class="num mono">$2.10</td><td><button class="btn btn--secondary btn--sm">Open</button></td></tr>
-          <tr><td colspan="6" class="tree__folder" style="padding:8px 12px">📁 Pilot cells</td></tr>
-          <tr><td>Bracket weld cell</td><td><span style="color:var(--amber)">B</span></td><td class="num mono">78.4</td><td class="num mono">540</td><td class="num mono">$2.90</td><td><button class="btn btn--secondary btn--sm">Open</button></td></tr>
+          <tr><td>Cell A — U-cell v2</td><td><span style="color:var(--teal)">A</span></td><td class="num mono">88.1</td><td class="num mono">820</td><td class="num mono">$2.10</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm">Open</button></td></tr>
+          <tr><td colspan="6" class="tree__folder" style="padding:10px 16px">📁 Pilot cells</td></tr>
+          <tr><td>Bracket weld cell</td><td><span style="color:var(--amber)">B</span></td><td class="num mono">78.4</td><td class="num mono">540</td><td class="num mono">$2.90</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm">Open</button></td></tr>
         </tbody>
       </table>
     </div>
@@ -1115,51 +940,48 @@
 <!-- ============================ PAGE — LIBRARY ============================ -->
 <section class="screen" id="s-library">
   <div class="wrap wrap--wide">
-    <div class="pagehead"><h1 class="page-title">Process library</h1><div class="spacer"></div><button class="btn">＋ New process</button><button class="btn btn--ghost btn--sm" onclick="go('start')">← Portal</button></div>
-    <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:1px; background:var(--border); border:1px solid var(--border)">
-      <!-- list -->
-      <div style="background:var(--layer); padding:16px">
-        <div class="field"><input placeholder="Name, capability, note or custom field" /></div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px">
-          <span class="chip on">All <span class="n">12</span></span><span class="chip">Machining <span class="n">4</span></span><span class="chip">Joining <span class="n">3</span></span><span class="chip">Inspection <span class="n">2</span></span><span class="chip">Edit tags</span>
+    <div class="pagehead"><h1 class="page-title">Process library</h1><div class="spacer"></div><button class="cds--btn cds--btn--primary cds--btn--md">＋ New process</button><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('start')">← Portal</button></div>
+    <div class="twin">
+      <div>
+        <div class="cds--form-item cds--text-input-wrapper"><input class="cds--text-input" placeholder="Name, capability, note or custom field" /></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin:12px 0">
+          <span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">All 12</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Machining 4</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Joining 3</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Inspection 2</span></span>
         </div>
         <div class="tree" style="padding:0">
-          <div class="tree__item on" style="justify-content:space-between"><span>CNC Turning · <span class="footnote" style="margin:0">42s</span></span><span class="tag tag--green">VA</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Press · <span class="footnote" style="margin:0">38s</span></span><span class="tag tag--green">VA</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Manual Assembly · <span class="footnote" style="margin:0">95s</span></span><span class="tag tag--green">VA</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Surface Inspection · <span class="footnote" style="margin:0">30s</span></span><span class="tag tag--gray">NNVA</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Deburr · <span class="footnote" style="margin:0">18s</span></span><span class="tag tag--red">NVA</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Wash &amp; dry · <span class="footnote" style="margin:0">55s</span></span><span class="tag tag--gray">NNVA</span></div>
+          <div class="tree__item on" style="justify-content:space-between"><span>CNC Turning · <span class="footnote" style="margin:0">42s</span></span><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Press · <span class="footnote" style="margin:0">38s</span></span><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Manual Assembly · <span class="footnote" style="margin:0">95s</span></span><span class="cds--tag cds--tag--green cds--tag--sm"><span class="cds--tag__label">VA</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Surface Inspection · <span class="footnote" style="margin:0">30s</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">NNVA</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Deburr · <span class="footnote" style="margin:0">18s</span></span><span class="cds--tag cds--tag--red cds--tag--sm"><span class="cds--tag__label">NVA</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Wash &amp; dry · <span class="footnote" style="margin:0">55s</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">NNVA</span></span></div>
         </div>
       </div>
-      <!-- detail -->
-      <div style="background:var(--layer); padding:16px">
-        <div style="display:flex; align-items:center; justify-content:space-between">
-          <div class="field" style="flex:1; margin-right:8px"><label>Name</label><input value="CNC Turning" /></div>
+      <div>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between">
+          <div class="cds--form-item cds--text-input-wrapper" style="flex:1; margin-right:8px"><label class="cds--label">Name</label><input class="cds--text-input" value="CNC Turning" /></div>
           <div><button class="iconbtn" title="Duplicate">⧉</button><button class="iconbtn" title="Delete">🗑</button></div>
         </div>
-        <h4 class="seclabel">Tags</h4>
-        <div><span class="tag">Machining</span> <span class="tag">Coolant</span></div>
+        <h4 class="seclabel">Tags</h4><div><span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Machining</span></span> <span class="cds--tag cds--tag--cool-gray cds--tag--sm"><span class="cds--tag__label">Coolant</span></span></div>
         <h4 class="seclabel">Classification</h4>
         <div class="row2">
-          <div class="field"><label>Role</label><select><option>process</option></select></div>
-          <div class="field"><label>Station type</label><select><option>machine</option></select></div>
-          <div class="field"><label>Automation</label><select><option>auto</option></select></div>
-          <div class="field"><label>Work class</label><select><option>VA — value add</option><option>NNVA — necessary</option><option>NVA — waste</option></select></div>
+          <div class="cds--select"><label class="cds--label">Role</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>process</option></select></div></div>
+          <div class="cds--select"><label class="cds--label">Station type</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>machine</option></select></div></div>
+          <div class="cds--select"><label class="cds--label">Automation</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>auto</option></select></div></div>
+          <div class="cds--select"><label class="cds--label">Work class</label><div class="cds--select-input__wrapper"><select class="cds--select-input"><option>VA — value add</option><option>NNVA — necessary</option><option>NVA — waste</option></select></div></div>
         </div>
         <h4 class="seclabel">Time &amp; manning</h4>
         <div class="row2">
-          <div class="field"><label>Cycle (s)</label><input class="mono" value="42" /></div>
-          <div class="field"><label>Operator bound (%)</label><input class="mono" value="15" /></div>
-          <div class="field"><label>Operators</label><input class="mono" value="1" /></div>
-          <div class="field"><label>Changeover (min)</label><input class="mono" value="25" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Cycle (s)</label><input class="cds--text-input mono" value="42" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Operator bound (%)</label><input class="cds--text-input mono" value="15" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Operators</label><input class="cds--text-input mono" value="1" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Changeover (min)</label><input class="cds--text-input mono" value="25" /></div>
         </div>
         <h4 class="seclabel">Cost &amp; footprint</h4>
         <div class="row2">
-          <div class="field"><label>Capex</label><input class="mono" value="180000" /></div>
-          <div class="field"><label>Power (kW)</label><input class="mono" value="18" /></div>
-          <div class="field"><label>Footprint W</label><input class="mono" value="3" /></div>
-          <div class="field"><label>Footprint H</label><input class="mono" value="3" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Capex</label><input class="cds--text-input mono" value="180000" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Power (kW)</label><input class="cds--text-input mono" value="18" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Footprint W</label><input class="cds--text-input mono" value="3" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Footprint H</label><input class="cds--text-input mono" value="3" /></div>
         </div>
         <p class="footnote">Capability: turning</p>
       </div>
@@ -1170,33 +992,32 @@
 <!-- ============================ PAGE — CONCEPTS CATALOG ============================ -->
 <section class="screen" id="s-concepts-cat">
   <div class="wrap wrap--wide">
-    <div class="pagehead"><h1 class="page-title">Manufacturing concepts</h1><div class="spacer"></div><button class="btn">＋ New concept</button><button class="btn btn--ghost btn--sm" onclick="go('start')">← Portal</button></div>
-    <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:1px; background:var(--border); border:1px solid var(--border)">
-      <div style="background:var(--layer); padding:16px">
+    <div class="pagehead"><h1 class="page-title">Manufacturing concepts</h1><div class="spacer"></div><button class="cds--btn cds--btn--primary cds--btn--md">＋ New concept</button><button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('start')">← Portal</button></div>
+    <div class="twin">
+      <div>
         <div class="tree" style="padding:0">
-          <div class="tree__item" style="justify-content:space-between"><span>Job shop <span class="footnote" style="margin:0">0–15k/yr</span></span><span class="tag tag--gray">3 forms</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Manual bench <span class="footnote" style="margin:0">0–30k/yr</span></span><span class="tag tag--gray">2 forms</span></div>
-          <div class="tree__item on" style="justify-content:space-between"><span>U-cell <span class="footnote" style="margin:0">15k–200k/yr</span></span><span class="tag tag--gray">3 forms</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Flow line <span class="footnote" style="margin:0">100k–800k/yr</span></span><span class="tag tag--gray">2 forms</span></div>
-          <div class="tree__item" style="justify-content:space-between"><span>Transfer line <span class="footnote" style="margin:0">500k+/yr</span></span><span class="tag tag--gray">1 form</span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Job shop <span class="footnote" style="margin:0">0–15k/yr</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">3 forms</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Manual bench <span class="footnote" style="margin:0">0–30k/yr</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">2 forms</span></span></div>
+          <div class="tree__item on" style="justify-content:space-between"><span>U-cell <span class="footnote" style="margin:0">15k–200k/yr</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">3 forms</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Flow line <span class="footnote" style="margin:0">100k–800k/yr</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">2 forms</span></span></div>
+          <div class="tree__item" style="justify-content:space-between"><span>Transfer line <span class="footnote" style="margin:0">500k+/yr</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">1 form</span></span></div>
         </div>
-        <div style="display:flex; gap:6px; margin-top:12px"><input class="mono" placeholder="Robot cell, Chaku-chaku…" style="flex:1; background:var(--field); border:0; border-bottom:1px solid var(--border-strong); color:var(--text); padding:8px" /><button class="btn btn--secondary btn--sm">Add</button></div>
         <p class="footnote">As shipped</p>
       </div>
-      <div style="background:var(--layer); padding:16px">
-        <div class="field"><label>Name</label><input value="U-cell" /></div>
-        <div class="field"><label>Description</label><textarea rows="2">Entry and exit adjacent; one operator closes the loop. Mid-volume workhorse.</textarea></div>
+      <div>
+        <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Name</label><input class="cds--text-input" value="U-cell" /></div>
+        <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Description</label><textarea class="cds--text-input" rows="2">Entry and exit adjacent; one operator closes the loop. Mid-volume workhorse.</textarea></div>
         <h4 class="seclabel">Volume band</h4>
-        <div class="row2"><div class="field"><label>Viable from (parts/yr)</label><input class="mono" value="15000" /><span class="footnote">Fit tapers below</span></div><div class="field"><label>Viable to (parts/yr)</label><input class="mono" value="200000" /></div></div>
+        <div class="row2"><div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Viable from (parts/yr)</label><input class="cds--text-input mono" value="15000" /></div><div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Viable to (parts/yr)</label><input class="cds--text-input mono" value="200000" /></div></div>
         <h4 class="seclabel">Layout forms</h4>
-        <div style="display:flex; gap:6px; flex-wrap:wrap"><span class="chip on">U-cell</span><span class="chip on">L-cell</span><span class="chip on">Serpentine</span><span class="chip">Straight line</span><span class="chip">Workshop</span></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap"><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">U-cell</span></span><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">L-cell</span></span><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">Serpentine</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Straight line</span></span><span class="cds--tag cds--tag--gray cds--tag--sm"><span class="cds--tag__label">Workshop</span></span></div>
         <p class="footnote">One candidate per form.</p>
         <h4 class="seclabel">Cost model</h4>
         <div class="row2">
-          <div class="field"><label>Cycle multiplier</label><input class="mono" value="1.0" /><span class="footnote">× manual time</span></div>
-          <div class="field"><label>Handling share (%)</label><input class="mono" value="12" /><span class="footnote">of cycle</span></div>
-          <div class="field"><label>Capex per station</label><input class="mono" value="70000" /></div>
-          <div class="field"><label>Changeover (min)</label><input class="mono" value="15" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Cycle multiplier</label><input class="cds--text-input mono" value="1.0" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Handling share (%)</label><input class="cds--text-input mono" value="12" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Capex per station</label><input class="cds--text-input mono" value="70000" /></div>
+          <div class="cds--form-item cds--text-input-wrapper"><label class="cds--label">Changeover (min)</label><input class="cds--text-input mono" value="15" /></div>
         </div>
       </div>
     </div>
@@ -1207,17 +1028,16 @@
 <section class="screen" id="s-plans">
   <div class="wrap">
     <div class="pagehead"><h1 class="page-title">Cell plans</h1><div class="spacer"></div>
-      <div style="display:flex; gap:2px; margin-right:8px"><button class="tabbtn on">List</button><button class="tabbtn">Tiles</button></div>
-      <button class="btn" onclick="gotoStep('demand')">＋ New plan</button>
-      <button class="btn btn--ghost btn--sm" onclick="go('start')">← Portal</button>
+      <button class="cds--btn cds--btn--primary cds--btn--md" onclick="gotoStep('demand')">＋ New plan</button>
+      <button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="go('start')">← Portal</button>
     </div>
-    <div style="overflow-x:auto; border:1px solid var(--border)">
-      <table class="grid">
+    <div class="cds--data-table-container">
+      <table class="cds--data-table cds--data-table--md">
         <thead><tr><th>Plan</th><th>Grade</th><th class="num">Output</th><th class="num">Cost/part</th><th class="num">Steps</th><th></th></tr></thead>
         <tbody>
-          <tr class="selrow"><td><a onclick="go('refine')" style="cursor:pointer">Cell A — Hydrobuchse line</a></td><td><span class="tag tag--teal">A</span></td><td class="num mono">685/sh</td><td class="num mono">$1.94</td><td class="num mono">4</td><td><button class="btn btn--secondary btn--sm" onclick="go('refine')">Open</button></td></tr>
-          <tr><td><a onclick="go('refine')" style="cursor:pointer">Cell A — U-cell v2</a></td><td><span class="tag tag--teal">A</span></td><td class="num mono">820/sh</td><td class="num mono">$2.10</td><td class="num mono">5</td><td><button class="btn btn--secondary btn--sm" onclick="go('refine')">Open</button></td></tr>
-          <tr><td><a onclick="go('refine')" style="cursor:pointer">Bracket weld cell</a></td><td><span class="tag tag--amber">B</span></td><td class="num mono">540/sh</td><td class="num mono">$2.90</td><td class="num mono">6</td><td><button class="btn btn--secondary btn--sm" onclick="go('refine')">Open</button></td></tr>
+          <tr class="cds--data-table--selected"><td><a onclick="go('refine')" style="cursor:pointer">Cell A — Hydrobuchse line</a></td><td><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">A</span></span></td><td class="num mono">685/sh</td><td class="num mono">$1.94</td><td class="num mono">4</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="go('refine')">Open</button></td></tr>
+          <tr><td><a onclick="go('refine')" style="cursor:pointer">Cell A — U-cell v2</a></td><td><span class="cds--tag cds--tag--teal cds--tag--sm"><span class="cds--tag__label">A</span></span></td><td class="num mono">820/sh</td><td class="num mono">$2.10</td><td class="num mono">5</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="go('refine')">Open</button></td></tr>
+          <tr><td><a onclick="go('refine')" style="cursor:pointer">Bracket weld cell</a></td><td><span class="cds--tag cds--tag--warm-gray cds--tag--sm"><span class="cds--tag__label">B</span></span></td><td class="num mono">540/sh</td><td class="num mono">$2.90</td><td class="num mono">6</td><td><button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="go('refine')">Open</button></td></tr>
         </tbody>
       </table>
     </div>
@@ -1232,7 +1052,7 @@
   <button data-nav="concepts" onclick="gotoStep('concepts')">2 · Concepts</button>
   <button data-nav="refine" onclick="gotoStep('refine')">3 · Refine</button>
   <button data-nav="summary" onclick="gotoStep('summary')">4 · Summary</button>
-  <span style="color:var(--border-strong)">|</span>
+  <span style="color:var(--cds-border-strong-01)">|</span>
   <button data-nav="analysis" onclick="go('analysis')">Analysis</button>
   <button data-nav="recommend" onclick="go('recommend')">Recommend</button>
   <button data-nav="report" onclick="go('report')">Report</button>
@@ -1244,85 +1064,58 @@
 </div>
 
 <script>
-  // ---- screen router --------------------------------------------------
-  var STAGE_STEPS = { demand: "demand", concepts: "concepts", refine: "refine", summary: "summary" };
+  var STAGE_STEPS = { demand: 1, concepts: 1, refine: 1, summary: 1 };
   var reached = { demand: true, concepts: false, refine: false, summary: false };
 
   function go(name) {
     document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
     var el = document.getElementById("s-" + name);
     if (el) el.classList.add("active");
-    // stepper only visible on the four planning stages
     var isStage = !!STAGE_STEPS[name];
-    document.getElementById("stepper").style.display = isStage ? "flex" : "none";
+    document.getElementById("stepper").style.display = isStage ? "block" : "none";
     if (isStage) markStep(name);
-    // navigator highlight
-    document.querySelectorAll(".navbar button").forEach(function (b) {
-      b.classList.toggle("on", b.getAttribute("data-nav") === name);
-    });
+    document.querySelectorAll(".navbar button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-nav") === name); });
     window.scrollTo(0, 0);
     closeMenus();
   }
 
   function markStep(current) {
     var order = ["demand", "concepts", "refine", "summary"];
-    var ci = order.indexOf(current);
-    document.querySelectorAll(".step").forEach(function (st) {
+    document.querySelectorAll(".cds--progress-step").forEach(function (st) {
       var s = st.getAttribute("data-step");
-      var i = order.indexOf(s);
-      st.classList.remove("done", "current", "locked");
-      if (s === current) st.classList.add("current");
-      else if (reached[s]) st.classList.add("done");
-      else st.classList.add("locked");
+      st.classList.remove("cds--progress-step--current", "cds--progress-step--complete", "cds--progress-step--incomplete", "cds--progress-step--disabled");
+      if (s === current) st.classList.add("cds--progress-step--current");
+      else if (reached[s]) st.classList.add("cds--progress-step--complete");
+      else st.classList.add("cds--progress-step--disabled");
     });
   }
 
   function gotoStep(step) {
-    // unlock this step and all before it
     var order = ["demand", "concepts", "refine", "summary"];
     for (var i = 0; i <= order.indexOf(step); i++) reached[order[i]] = true;
     go(step);
   }
 
-  // ---- editor interactions -------------------------------------------
-  function setView(btn, view) {
-    btn.parentElement.querySelectorAll(".tabbtn").forEach(function (b) { b.classList.remove("on"); });
-    btn.classList.add("on");
+  function setView(li, view) {
+    li.parentElement.querySelectorAll(".cds--tabs__nav-item").forEach(function (b) { b.classList.remove("cds--tabs__nav-item--selected"); });
+    li.classList.add("cds--tabs__nav-item--selected");
     var svg = document.getElementById("svg-actual");
     var label = svg.querySelector("text");
-    if (view === "improved") { label.textContent = "IMPROVED"; label.setAttribute("fill", "#d2a106"); svg.querySelectorAll("rect[stroke='#3ddbd9']").forEach(function(r){}); }
-    else if (view === "actual") { label.textContent = "ACTUAL"; label.setAttribute("fill", "#3ddbd9"); }
-    else if (view === "both") { label.textContent = "BOTH"; label.setAttribute("fill", "#3ddbd9"); }
-    else { label.textContent = "DAG"; label.setAttribute("fill", "#3ddbd9"); }
+    var map = { improved: ["IMPROVED", "#d2a106"], actual: ["ACTUAL", "#3ddbd9"], both: ["BOTH", "#3ddbd9"], dag: ["DAG", "#3ddbd9"] };
+    label.textContent = map[view][0]; label.setAttribute("fill", map[view][1]);
   }
-  function setRail(btn, rail) {
-    var bar = btn.closest(".grouptabs");
-    bar.querySelectorAll(".tabbtn, .iconbtn").forEach(function (b) { b.classList.remove("on"); });
-    btn.classList.add("on");
-    document.querySelectorAll("#s-refine .rail-panel").forEach(function (p) {
-      p.style.display = p.getAttribute("data-rail") === rail ? "block" : "none";
-    });
+  function setRail(li, rail) {
+    li.parentElement.querySelectorAll(".cds--tabs__nav-item").forEach(function (b) { b.classList.remove("cds--tabs__nav-item--selected"); });
+    li.classList.add("cds--tabs__nav-item--selected");
+    document.querySelectorAll("#s-refine .rail-panel").forEach(function (p) { p.style.display = p.getAttribute("data-rail") === rail ? "block" : "none"; });
   }
-  function toggleExplorer() {
-    var e = document.getElementById("explorer");
-    e.style.display = e.style.display === "none" ? "flex" : "none";
-  }
+  function toggleExplorer() { var e = document.getElementById("explorer"); e.style.display = e.style.display === "none" ? "flex" : "none"; }
   function toggleFold(head) { head.parentElement.classList.toggle("collapsed"); }
   function toggleCard(head) { head.parentElement.classList.toggle("collapsed"); }
-
-  // ---- menus ----------------------------------------------------------
-  function toggleMenu(id) {
-    var m = document.getElementById(id);
-    var wasOpen = m.classList.contains("open");
-    closeMenus();
-    if (!wasOpen) m.classList.add("open");
-  }
+  function toggleMenu(id) { var m = document.getElementById(id); var w = m.classList.contains("open"); closeMenus(); if (!w) m.classList.add("open"); }
   function closeMenus() { document.querySelectorAll(".menu.open").forEach(function (m) { m.classList.remove("open"); }); }
-  document.addEventListener("click", function (e) {
-    if (!e.target.closest(".menu")) closeMenus();
-  });
+  document.addEventListener("click", function (e) { if (!e.target.closest(".menu")) closeMenus(); });
 
-  // start
   go("start");
 </script>
 </body>

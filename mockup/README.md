@@ -4,10 +4,38 @@
 to match the real source in `packages/web/src`. Open it in any browser — no build,
 no server, no dependencies. A key user can walk the whole product from the front door.
 
-It reproduces the Carbon g100 (dark) design language, IBM Plex typography and the
-sample cell **"Cell A — Hydrobuchse line"** with the real engine numbers locked by
-the golden-fixture tests (composite **92.6/100 → grade A**, line output **685/shift**,
-takt **42 s**, CNC bottleneck, ergonomics **65**, automation coherence **100**).
+It uses the **real IBM Carbon Design System** — the same one the app ships
+(`@carbon/react`). `carbon.css` next to this file is Carbon's full component CSS,
+compiled with the **g100 (dark) theme** and vendored so the page stays offline. The
+markup uses genuine Carbon classes — `cds--header`, `cds--progress` (the stepper),
+`cds--btn`, `cds--tabs`, `cds--data-table`, `cds--tag`, `cds--tile`,
+`cds--inline-notification`, `cds--text-input` — so buttons, tabs, tables, tags and
+notifications are the actual Carbon components, not look-alikes. The bespoke pieces the
+app itself hand-builds over Carbon (the SVG layout canvas, the KPI meters, the
+Yamazumi and bar charts, the report) are styled with Carbon's `--cds-*` design tokens
+so they stay consistent.
+
+It carries the sample cell **"Cell A — Hydrobuchse line"** with the real engine numbers
+locked by the golden-fixture tests (composite **92.6/100 → grade A**, line output
+**685/shift**, takt **42 s**, CNC bottleneck, ergonomics **65**, automation coherence
+**100**).
+
+## Rebuilding `carbon.css`
+
+```bash
+mkdir carbonbuild && cd carbonbuild && npm init -y
+npm install @carbon/styles sass
+cat > entry.scss <<'SCSS'
+@use '@carbon/styles/scss/themes' as themes;
+@use '@carbon/styles/scss/theme' as theme;
+@use '@carbon/styles';
+@use '@carbon/styles/scss/grid';
+:root { @include theme.theme(themes.$g100); }   /* force the dark theme onto :root */
+SCSS
+npx sass entry.scss carbon.css --style=compressed --load-path=node_modules
+# then strip the @font-face blocks (they reference unresolved ~@ibm/plex paths);
+# IBM Plex is loaded from the <link> in index.html instead.
+```
 
 ## What you can click through
 
