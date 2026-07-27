@@ -304,6 +304,47 @@ export function LayoutCanvas(props: Props) {
       );
   }
 
+  // Metric axis. One cell is one metre, so the major gridlines (every 5) are
+  // labelled in metres along a top and a left ruler that stay pinned to the
+  // viewport edges as you pan. The two rulers meet at an "m" origin — the axis
+  // cross. A halo (paint-order stroke) keeps the numbers legible over the grid.
+  const axis: React.ReactElement[] = [];
+  {
+    const i0 = Math.floor((off.x - PAD) / cell);
+    const i1 = Math.ceil((off.x + vbW - PAD) / cell);
+    const j0 = Math.floor((off.y - PAD) / cell);
+    const j1 = Math.ceil((off.y + vbH - PAD) / cell);
+    const fs = 10;
+    const halo = { paintOrder: "stroke" as const };
+    const cornerX = off.x + 16;
+    const cornerY = off.y + fs + 3;
+    for (let i = Math.max(0, i0); i <= i1; i++) {
+      if (i % 5 !== 0) continue;
+      const x = PAD + i * cell;
+      if (x < cornerX) continue; // clear of the origin "m"
+      axis.push(
+        <text key={"rx" + i} x={x} y={off.y + fs} textAnchor="middle" fontSize={fs} fill={TEXTD} stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+          {i}
+        </text>,
+      );
+    }
+    for (let j = Math.max(0, j0); j <= j1; j++) {
+      if (j % 5 !== 0) continue;
+      const y = PAD + j * cell;
+      if (y < cornerY) continue;
+      axis.push(
+        <text key={"ry" + j} x={off.x + 3} y={y} textAnchor="start" dominantBaseline="middle" fontSize={fs} fill={TEXTD} stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+          {j}
+        </text>,
+      );
+    }
+    axis.push(
+      <text key="axm" x={off.x + 3} y={off.y + fs} fontSize={fs} fontWeight={700} fill="var(--text-primary)" stroke="var(--cds-layer-01)" strokeWidth={3} style={halo}>
+        m
+      </text>,
+    );
+  }
+
   return (
     <div className="lc">
       <div className="layoutTitle" style={{ color: badge }}>
@@ -350,6 +391,7 @@ export function LayoutCanvas(props: Props) {
           <rect x={off.x} y={off.y} width={vbW} height={vbH} fill="var(--cds-layer-01)" />
           {gridLines}
         </g>
+        <g className="lc__axis" style={{ pointerEvents: "none" }}>{axis}</g>
 
         {(template ?? []).map((t, i) => (
           <g key={"t" + i}>

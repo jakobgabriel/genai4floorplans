@@ -50,7 +50,7 @@ export function FlowEditorPopover({
           onChange={(e) => api.live({ type: "UPDATE_FLOW", from: f.from, to: f.to, patch: { volume: +e.target.value } })}
         />
       </Field>
-      <Field label="Unit cost / distance">
+      <Field label="Unit cost / metre">
         <input
           type="number"
           step="0.01"
